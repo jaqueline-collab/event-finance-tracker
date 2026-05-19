@@ -124,7 +124,7 @@ function Index() {
                   borderRadius: 8,
                   color: "var(--foreground)",
                 }}
-                formatter={(v: number) => formatBRL(v)}
+                formatter={(v) => formatBRL(Number(v ?? 0))}
               />
               <Area type="monotone" dataKey="receita" stroke="var(--primary)" fill="url(#g-receita)" name="Receita" />
               <Area type="monotone" dataKey="margem" stroke="var(--accent)" fill="url(#g-margem)" name="Margem" />
