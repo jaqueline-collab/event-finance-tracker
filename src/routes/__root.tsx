@@ -9,6 +9,9 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -113,7 +116,21 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full bg-background text-foreground">
+          <AppSidebar />
+          <div className="flex-1 flex flex-col min-w-0">
+            <header className="h-14 flex items-center gap-3 border-b border-border/60 px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
+              <SidebarTrigger />
+              <div className="text-sm text-muted-foreground">Elora · Controle financeiro</div>
+            </header>
+            <main className="flex-1 p-6">
+              <Outlet />
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+      <Toaster />
     </QueryClientProvider>
   );
 }
