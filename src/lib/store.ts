@@ -96,6 +96,13 @@ export const useStore = create<State>()(
           if (m.planoId !== undefined && m.planoId !== null) patch.planoId = m.planoId;
           if (m.apps !== undefined) patch.apps = m.apps;
           if (m.mau !== undefined) patch.mau = m.mau;
+          if (m.canais !== undefined) patch.canais = m.canais;
+          if (m.usuariosAtivos !== undefined) patch.usuariosAtivos = m.usuariosAtivos;
+          if (m.contatosAtivos !== undefined) patch.contatosAtivos = m.contatosAtivos;
+          if (m.agentesIA !== undefined) patch.agentesIA = m.agentesIA;
+          if (m.asaas !== undefined) patch.asaas = m.asaas;
+          if (m.zapi !== undefined) patch.zapi = m.zapi;
+          if (m.transcricaoIA !== undefined) patch.transcricaoIA = m.transcricaoIA;
           if (m.extras !== undefined) patch.extras = m.extras;
           if (Object.keys(patch).length) {
             set({
@@ -128,6 +135,13 @@ export const useStore = create<State>()(
               dataChurn: null,
               apps: 2,
               mau: 1500,
+              canais: 1,
+              usuariosAtivos: 3,
+              contatosAtivos: 1500,
+              agentesIA: false,
+              asaas: false,
+              zapi: false,
+              transcricaoIA: false,
               extras: {},
             },
           ],
@@ -210,4 +224,98 @@ export function clienteAtivoEm(cliente: Cliente, year: number, month: number): b
 
 export function formatBRL(n: number): string {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+// ===== Lógica de Custos Helena (White Label) =====
+
+export function calcularCustoBrutoHelena(clientesAtivos: Cliente[]): number {
+  if (clientesAtivos.length === 0) return 0;
+
+  // 1. CONTA BASE (149,90 por conta ativa)
+  const custoBase = clientesAtivos.length * 149.90;
+
+  // Totalizadores globais
+  let canaisTotais = 0;
+  let usuariosTotais = 0;
+  let contatosTotais = 0;
+  
+  let custoOpcionais = 0;
+
+  for (const c of clientesAtivos) {
+    canaisTotais += (c.canais || 0);
+    usuariosTotais += (c.usuariosAtivos || 0);
+    contatosTotais += (c.contatosAtivos || 0);
+
+    // 6. OPCIONAIS E APPS
+    if (c.agentesIA) custoOpcionais += 50.00;
+    if (c.asaas) custoOpcionais += 49.50;
+    if (c.zapi) custoOpcionais += 69.00;
+    if (c.transcricaoIA) custoOpcionais += (c.usuariosAtivos || 0) * 3.99;
+  }
+
+  // 2. CANAIS ADICIONAIS
+  let custoCanais = 0;
+  if (canaisTotais >= 2 && canaisTotais <= 5) {
+    custoCanais = (canaisTotais - 1) * 29.90;
+  } else if (canaisTotais > 5) {
+    custoCanais = 119.60 + ((canaisTotais - 5) * 19.90);
+  }
+
+  // 3. USUÁRIOS ADICIONAIS
+  let custoUsuarios = 0;
+  if (usuariosTotais >= 4 && usuariosTotais <= 20) {
+    custoUsuarios = (usuariosTotais - 3) * 19.90;
+  } else if (usuariosTotais >= 21 && usuariosTotais <= 100) {
+    custoUsuarios = 338.30 + ((usuariosTotais - 20) * 14.90);
+  } else if (usuariosTotais > 100) {
+    custoUsuarios = 1530.30 + ((usuariosTotais - 100) * 12.90);
+  }
+
+  // 4. INFRAESTRUTURA / CONTATOS ATIVOS
+  let custoInfra = 0;
+  if (contatosTotais >= 5001 && contatosTotais <= 20000) {
+    custoInfra = (contatosTotais - 5000) * 0.045;
+  } else if (contatosTotais >= 20001 && contatosTotais <= 100000) {
+    custoInfra = 675.00 + ((contatosTotais - 20000) * 0.035);
+  } else if (contatosTotais > 100000) {
+    custoInfra = 3475.00 + ((contatosTotais - 100000) * 0.025);
+  }
+
+  return custoBase + custoCanais + custoUsuarios + custoInfra + custoOpcionais;
+}
+
+export function calcularDescontoEscalaHelena(custoBruto: number): number {
+  let desconto = 0;
+  
+  if (custoBruto > 10000) {
+    const faixa1 = Math.min(custoBruto, 25000) - 10000;
+    desconto += faixa1 * 0.10;
+  }
+  
+  if (custoBruto > 25000) {
+    const faixa2 = Math.min(custoBruto, 50000) - 25000;
+    desconto += faixa2 * 0.15;
+  }
+  
+  if (custoBruto > 50000) {
+    const faixa3 = Math.min(custoBruto, 100000) - 50000;
+    desconto += faixa3 * 0.20;
+  }
+  
+  if (custoBruto > 100000) {
+    const faixa4 = custoBruto - 100000;
+    desconto += faixa4 * 0.25;
+  }
+
+  return desconto;
+}
+
+export function calcularCustoLiquidoHelena(clientesAtivos: Cliente[]): number {
+  const bruto = calcularCustoBrutoHelena(clientesAtivos);
+  const desconto = calcularDescontoEscalaHelena(bruto);
+  return bruto - desconto;
+}
+
+export function receitaMensalTotal(clientesAtivos: Cliente[], planos: Plano[], custos: CustoBase[]): number {
+  return clientesAtivos.reduce((acc, c) => acc + receitaMensalCliente(c, planos, custos), 0);
 }

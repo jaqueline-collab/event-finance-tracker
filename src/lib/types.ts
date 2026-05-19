@@ -36,6 +36,13 @@ export interface Cliente {
   dataChurn: string | null;
   apps: number;
   mau: number;
+  canais: number;
+  usuariosAtivos: number;
+  contatosAtivos: number;
+  agentesIA: boolean;
+  asaas: boolean;
+  zapi: boolean;
+  transcricaoIA: boolean;
   extras: Record<string, number>; // custoId -> quantidade
   observacao?: string;
 }
@@ -48,6 +55,13 @@ export interface Movimento {
   planoId?: string | null;
   apps?: number;
   mau?: number;
+  canais?: number;
+  usuariosAtivos?: number;
+  contatosAtivos?: number;
+  agentesIA?: boolean;
+  asaas?: boolean;
+  zapi?: boolean;
+  transcricaoIA?: boolean;
   extras?: Record<string, number>;
   valorServico?: number; // para tipo "servico" (receita avulsa)
   observacao?: string;

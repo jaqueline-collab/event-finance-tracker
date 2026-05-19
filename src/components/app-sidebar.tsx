@@ -6,6 +6,7 @@ import {
   Users,
   Activity,
   CalendarRange,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,6 +27,7 @@ const items = [
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Movimentos", url: "/movimentos", icon: Activity },
   { title: "Resumo Mensal", url: "/resumo", icon: CalendarRange },
+  { title: "Orçamentos", url: "/orcamentos", icon: FileText },
 ];
 
 export function AppSidebar() {

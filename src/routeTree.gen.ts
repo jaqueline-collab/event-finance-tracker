@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as MovimentosRouteImport } from './routes/movimentos'
 import { Route as CustosRouteImport } from './routes/custos'
 import { Route as ClientesRouteImport } from './routes/clientes'
@@ -24,6 +25,11 @@ const ResumoRoute = ResumoRouteImport.update({
 const PlanosRoute = PlanosRouteImport.update({
   id: '/planos',
   path: '/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrcamentosRoute = OrcamentosRouteImport.update({
+  id: '/orcamentos',
+  path: '/orcamentos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MovimentosRoute = MovimentosRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof ClientesRoute
   '/custos': typeof CustosRoute
   '/movimentos': typeof MovimentosRoute
+  '/orcamentos': typeof OrcamentosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof ClientesRoute
   '/custos': typeof CustosRoute
   '/movimentos': typeof MovimentosRoute
+  '/orcamentos': typeof OrcamentosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/clientes': typeof ClientesRoute
   '/custos': typeof CustosRoute
   '/movimentos': typeof MovimentosRoute
+  '/orcamentos': typeof OrcamentosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
 }
@@ -79,16 +88,25 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/custos'
     | '/movimentos'
+    | '/orcamentos'
     | '/planos'
     | '/resumo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/clientes' | '/custos' | '/movimentos' | '/planos' | '/resumo'
+  to:
+    | '/'
+    | '/clientes'
+    | '/custos'
+    | '/movimentos'
+    | '/orcamentos'
+    | '/planos'
+    | '/resumo'
   id:
     | '__root__'
     | '/'
     | '/clientes'
     | '/custos'
     | '/movimentos'
+    | '/orcamentos'
     | '/planos'
     | '/resumo'
   fileRoutesById: FileRoutesById
@@ -98,6 +116,7 @@ export interface RootRouteChildren {
   ClientesRoute: typeof ClientesRoute
   CustosRoute: typeof CustosRoute
   MovimentosRoute: typeof MovimentosRoute
+  OrcamentosRoute: typeof OrcamentosRoute
   PlanosRoute: typeof PlanosRoute
   ResumoRoute: typeof ResumoRoute
 }
@@ -116,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/planos'
       fullPath: '/planos'
       preLoaderRoute: typeof PlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orcamentos': {
+      id: '/orcamentos'
+      path: '/orcamentos'
+      fullPath: '/orcamentos'
+      preLoaderRoute: typeof OrcamentosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/movimentos': {
@@ -154,9 +180,20 @@ const rootRouteChildren: RootRouteChildren = {
   ClientesRoute: ClientesRoute,
   CustosRoute: CustosRoute,
   MovimentosRoute: MovimentosRoute,
+  OrcamentosRoute: OrcamentosRoute,
   PlanosRoute: PlanosRoute,
   ResumoRoute: ResumoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
