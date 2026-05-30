@@ -21,6 +21,12 @@ const map: Record<string, string> = {
   "new password should be different from the old password":
     "A nova senha deve ser diferente da anterior.",
   "token has expired or is invalid": "Sessão expirada. Faça login novamente.",
+  "token has expired": "Código expirado. Solicite um novo.",
+  "otp_expired": "Código expirado. Solicite um novo.",
+  "invalid otp": "Código inválido. Confira e tente novamente.",
+  "token has expired or invalid": "Código expirado ou inválido. Solicite um novo.",
+  "email link is invalid or has expired": "Código inválido ou expirado. Solicite um novo.",
+  "for security purposes, you can only request this after": "Aguarde alguns segundos antes de pedir um novo código.",
 };
 
 export function traduzirErroAuth(err: unknown): string {
