@@ -14,7 +14,324 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      elora_clientes: {
+        Row: {
+          agentes_ia: boolean | null
+          apps: number | null
+          asaas: boolean | null
+          canais: number | null
+          canais_insta: number | null
+          canais_messenger: number | null
+          canais_whats: number | null
+          canais_zapi: number | null
+          contatos_ativos: number | null
+          created_at: string
+          data_churn: string | null
+          data_inicio: string | null
+          data_vencimento: string | null
+          extras: Json | null
+          id: string
+          mau: number | null
+          nome: string
+          observacao: string | null
+          parceiro_id: string | null
+          plano_id: string | null
+          transcricao_ia: boolean | null
+          user_id: string
+          usuarios_ativos: number | null
+          valor_acompanhamento: number | null
+          valor_setup_pago: number | null
+          zapi: boolean | null
+        }
+        Insert: {
+          agentes_ia?: boolean | null
+          apps?: number | null
+          asaas?: boolean | null
+          canais?: number | null
+          canais_insta?: number | null
+          canais_messenger?: number | null
+          canais_whats?: number | null
+          canais_zapi?: number | null
+          contatos_ativos?: number | null
+          created_at?: string
+          data_churn?: string | null
+          data_inicio?: string | null
+          data_vencimento?: string | null
+          extras?: Json | null
+          id: string
+          mau?: number | null
+          nome: string
+          observacao?: string | null
+          parceiro_id?: string | null
+          plano_id?: string | null
+          transcricao_ia?: boolean | null
+          user_id?: string
+          usuarios_ativos?: number | null
+          valor_acompanhamento?: number | null
+          valor_setup_pago?: number | null
+          zapi?: boolean | null
+        }
+        Update: {
+          agentes_ia?: boolean | null
+          apps?: number | null
+          asaas?: boolean | null
+          canais?: number | null
+          canais_insta?: number | null
+          canais_messenger?: number | null
+          canais_whats?: number | null
+          canais_zapi?: number | null
+          contatos_ativos?: number | null
+          created_at?: string
+          data_churn?: string | null
+          data_inicio?: string | null
+          data_vencimento?: string | null
+          extras?: Json | null
+          id?: string
+          mau?: number | null
+          nome?: string
+          observacao?: string | null
+          parceiro_id?: string | null
+          plano_id?: string | null
+          transcricao_ia?: boolean | null
+          user_id?: string
+          usuarios_ativos?: number | null
+          valor_acompanhamento?: number | null
+          valor_setup_pago?: number | null
+          zapi?: boolean | null
+        }
+        Relationships: []
+      }
+      elora_custos: {
+        Row: {
+          created_at: string
+          custo_unitario: number
+          id: string
+          nome: string
+          preco_cliente: number
+          tipo: string
+          unidade: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custo_unitario?: number
+          id: string
+          nome: string
+          preco_cliente?: number
+          tipo: string
+          unidade?: string | null
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          custo_unitario?: number
+          id?: string
+          nome?: string
+          preco_cliente?: number
+          tipo?: string
+          unidade?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      elora_movimentos: {
+        Row: {
+          agentes_ia: boolean | null
+          apps: number | null
+          asaas: boolean | null
+          canais: number | null
+          cliente_id: string
+          contatos_ativos: number | null
+          created_at: string
+          data: string
+          extras: Json | null
+          id: string
+          mau: number | null
+          observacao: string | null
+          plano_id: string | null
+          tipo: string
+          transcricao_ia: boolean | null
+          user_id: string
+          usuarios_ativos: number | null
+          valor_servico: number | null
+          zapi: boolean | null
+        }
+        Insert: {
+          agentes_ia?: boolean | null
+          apps?: number | null
+          asaas?: boolean | null
+          canais?: number | null
+          cliente_id: string
+          contatos_ativos?: number | null
+          created_at?: string
+          data: string
+          extras?: Json | null
+          id: string
+          mau?: number | null
+          observacao?: string | null
+          plano_id?: string | null
+          tipo: string
+          transcricao_ia?: boolean | null
+          user_id?: string
+          usuarios_ativos?: number | null
+          valor_servico?: number | null
+          zapi?: boolean | null
+        }
+        Update: {
+          agentes_ia?: boolean | null
+          apps?: number | null
+          asaas?: boolean | null
+          canais?: number | null
+          cliente_id?: string
+          contatos_ativos?: number | null
+          created_at?: string
+          data?: string
+          extras?: Json | null
+          id?: string
+          mau?: number | null
+          observacao?: string | null
+          plano_id?: string | null
+          tipo?: string
+          transcricao_ia?: boolean | null
+          user_id?: string
+          usuarios_ativos?: number | null
+          valor_servico?: number | null
+          zapi?: boolean | null
+        }
+        Relationships: []
+      }
+      elora_parceiros: {
+        Row: {
+          celular: string | null
+          criado_em: string
+          email: string | null
+          id: string
+          nome: string
+          observacao: string | null
+          planos_vinculados: Json | null
+          user_id: string
+        }
+        Insert: {
+          celular?: string | null
+          criado_em?: string
+          email?: string | null
+          id: string
+          nome: string
+          observacao?: string | null
+          planos_vinculados?: Json | null
+          user_id?: string
+        }
+        Update: {
+          celular?: string | null
+          criado_em?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          observacao?: string | null
+          planos_vinculados?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      elora_planos: {
+        Row: {
+          canais_inclusos: number | null
+          contatos_inclusos: number | null
+          created_at: string
+          id: string
+          inclui_asaas: boolean | null
+          inclui_ia: boolean | null
+          inclui_transcricao: boolean | null
+          inclui_zapi: number | null
+          licenca_base: number | null
+          nome: string
+          observacao: string | null
+          parceiro_ids: Json | null
+          preco_asaas: number | null
+          preco_canais_exc: number | null
+          preco_contatos_exc: number | null
+          preco_ia: number | null
+          preco_transcricao_user: number | null
+          preco_usuarios_exc: number | null
+          preco_zapi: number | null
+          user_id: string
+          usuarios_inclusos: number | null
+          valor_asaas: number | null
+          valor_canais_exc: number | null
+          valor_contatos_exc: number | null
+          valor_ia: number | null
+          valor_mensal: number | null
+          valor_setup: number | null
+          valor_transcricao_user: number | null
+          valor_usuarios_exc: number | null
+          valor_zapi: number | null
+        }
+        Insert: {
+          canais_inclusos?: number | null
+          contatos_inclusos?: number | null
+          created_at?: string
+          id: string
+          inclui_asaas?: boolean | null
+          inclui_ia?: boolean | null
+          inclui_transcricao?: boolean | null
+          inclui_zapi?: number | null
+          licenca_base?: number | null
+          nome: string
+          observacao?: string | null
+          parceiro_ids?: Json | null
+          preco_asaas?: number | null
+          preco_canais_exc?: number | null
+          preco_contatos_exc?: number | null
+          preco_ia?: number | null
+          preco_transcricao_user?: number | null
+          preco_usuarios_exc?: number | null
+          preco_zapi?: number | null
+          user_id?: string
+          usuarios_inclusos?: number | null
+          valor_asaas?: number | null
+          valor_canais_exc?: number | null
+          valor_contatos_exc?: number | null
+          valor_ia?: number | null
+          valor_mensal?: number | null
+          valor_setup?: number | null
+          valor_transcricao_user?: number | null
+          valor_usuarios_exc?: number | null
+          valor_zapi?: number | null
+        }
+        Update: {
+          canais_inclusos?: number | null
+          contatos_inclusos?: number | null
+          created_at?: string
+          id?: string
+          inclui_asaas?: boolean | null
+          inclui_ia?: boolean | null
+          inclui_transcricao?: boolean | null
+          inclui_zapi?: number | null
+          licenca_base?: number | null
+          nome?: string
+          observacao?: string | null
+          parceiro_ids?: Json | null
+          preco_asaas?: number | null
+          preco_canais_exc?: number | null
+          preco_contatos_exc?: number | null
+          preco_ia?: number | null
+          preco_transcricao_user?: number | null
+          preco_usuarios_exc?: number | null
+          preco_zapi?: number | null
+          user_id?: string
+          usuarios_inclusos?: number | null
+          valor_asaas?: number | null
+          valor_canais_exc?: number | null
+          valor_contatos_exc?: number | null
+          valor_ia?: number | null
+          valor_mensal?: number | null
+          valor_setup?: number | null
+          valor_transcricao_user?: number | null
+          valor_usuarios_exc?: number | null
+          valor_zapi?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
