@@ -4,10 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
 import { traduzirErroAuth } from "@/lib/auth-errors";
+import { Mail, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Entrar · Elora" }] }),
@@ -16,11 +22,10 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -28,31 +33,48 @@ function AuthPage() {
     });
   }, [navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const enviarCodigo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      toast.error("Informe seu email.");
-      return;
-    }
-    if (password.length < 6) {
-      toast.error("A senha deve ter no mínimo 6 caracteres.");
+    const emailLimpo = email.trim();
+    if (!emailLimpo || !emailLimpo.includes("@")) {
+      toast.error("Informe um email válido.");
       return;
     }
     setLoading(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success("Conta criada! Você já está logado.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success("Bem-vindo de volta!");
-      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailLimpo,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      toast.success("Código enviado! Verifique seu email.");
+      setStep("code");
+    } catch (err) {
+      toast.error(traduzirErroAuth(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verificarCodigo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const codigoLimpo = code.replace(/\D/g, "");
+    if (codigoLimpo.length !== 6) {
+      toast.error("Digite o código de 6 dígitos.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: codigoLimpo,
+        type: "email",
+      });
+      if (error) throw error;
+      toast.success("Bem-vindo!");
       navigate({ to: "/" });
     } catch (err) {
       toast.error(traduzirErroAuth(err));
@@ -65,62 +87,81 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{mode === "login" ? "Entrar" : "Criar conta"}</CardTitle>
+          <CardTitle>
+            {step === "email" ? "Entrar" : "Confirme o código"}
+          </CardTitle>
           <CardDescription>
-            Acesse seus dados de qualquer dispositivo. Tudo é salvo na nuvem.
+            {step === "email"
+              ? "Digite seu email para receber um código de 6 dígitos. Sem senha."
+              : `Enviamos um código para ${email}. Cole abaixo para entrar.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
+          {step === "email" ? (
+            <form onSubmit={enviarCodigo} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
-                  minLength={6}
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  className="pr-10"
+                  autoFocus
+                  autoComplete="email"
+                  placeholder="voce@exemplo.com"
                 />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                <Mail className="mr-2 h-4 w-4" />
+                {loading ? "Enviando..." : "Enviar código"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={verificarCodigo} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="code">Código de 6 dígitos</Label>
+                <Input
+                  id="code"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) =>
+                    setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  required
+                  autoFocus
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  className="text-center text-2xl tracking-[0.5em] font-mono"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Verificando..." : "Entrar"}
+              </Button>
+              <div className="flex justify-between text-sm">
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
+                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                  onClick={() => {
+                    setStep("email");
+                    setCode("");
+                  }}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <ArrowLeft className="h-3 w-3" /> Trocar email
+                </button>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  disabled={loading}
+                  onClick={() => enviarCodigo(new Event("submit") as unknown as React.FormEvent)}
+                >
+                  Reenviar código
                 </button>
               </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
-            </Button>
-            <button
-              type="button"
-              className="w-full text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            >
-              {mode === "login"
-                ? "Não tem conta? Criar uma agora"
-                : "Já tem conta? Entrar"}
-            </button>
-          </form>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
