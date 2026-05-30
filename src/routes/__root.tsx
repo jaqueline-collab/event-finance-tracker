@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -14,6 +14,10 @@ import appCss from "../styles.css?url";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
 
 function NotFoundComponent() {
   return (
@@ -120,10 +124,48 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const syncFromSupabase = useStore((state) => state.syncFromSupabase);
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    syncFromSupabase();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      if (s) syncFromSupabase();
+    });
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setChecking(false);
+      if (data.session) syncFromSupabase();
+    });
+    return () => subscription.unsubscribe();
   }, [syncFromSupabase]);
+
+  const isAuthRoute =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/auth");
+
+  if (checking) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+          Carregando...
+        </div>
+      </QueryClientProvider>
+    );
+  }
+
+  if (!session) {
+    if (!isAuthRoute && typeof window !== "undefined") {
+      window.location.replace("/auth");
+      return null;
+    }
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -133,7 +175,22 @@ function RootComponent() {
           <div className="flex-1 flex flex-col min-w-0">
             <header className="h-14 flex items-center gap-3 border-b border-border/60 px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
               <SidebarTrigger />
-              <div className="text-sm text-muted-foreground">Elora · Controle financeiro</div>
+              <div className="text-sm text-muted-foreground flex-1">Elora · Controle financeiro</div>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {session.user.email}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  router.invalidate();
+                  window.location.replace("/auth");
+                }}
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline">Sair</span>
+              </Button>
             </header>
             <main className="flex-1 p-6">
               <Outlet />
