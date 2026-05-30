@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cliente, CustoBase, Movimento, Parceiro, Plano } from "./types";
+import type { Cliente, CustoBase, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
 import { supabase } from "./supabaseClient";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -441,21 +441,25 @@ export const useStore = create<State>()(
         const today = new Date();
         const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
         const id = uid();
-        const demoCliente = {
+        const demoCliente: Cliente = {
           id,
           nome: "Clínica Demo",
           planoId: p.id,
           dataInicio: sixMonthsAgo.toISOString().slice(0, 10),
+          dataVencimento: null,
           dataChurn: null,
           apps: 2,
           mau: 1500,
           canais: 1,
+          canaisZapi: 0,
           usuariosAtivos: 3,
           contatosAtivos: 1500,
           agentesIA: false,
           asaas: false,
           zapi: false,
           transcricaoIA: false,
+          valorSetupPago: 0,
+          valorAcompanhamento: 0,
           extras: {},
         };
         set({
