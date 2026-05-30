@@ -16,6 +16,7 @@ import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 
 const ResumoRoute = ResumoRouteImport.update({
   id: '/resumo',
@@ -52,34 +53,42 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/auth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/auth/callback'
   id:
     | '__root__'
     | '/'
@@ -109,11 +120,12 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/auth/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ClientesRoute: typeof ClientesRoute
   OrcamentosRoute: typeof OrcamentosRoute
   ParceirosRoute: typeof ParceirosRoute
@@ -172,12 +184,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   ClientesRoute: ClientesRoute,
   OrcamentosRoute: OrcamentosRoute,
   ParceirosRoute: ParceirosRoute,
