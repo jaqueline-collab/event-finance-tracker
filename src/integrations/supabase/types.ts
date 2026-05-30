@@ -134,6 +134,42 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_kanban_cards: {
+        Row: {
+          cliente: string | null
+          created_at: string
+          data_criacao: string
+          id: string
+          observacao: string | null
+          status: string
+          titulo: string
+          user_id: string
+          valor: number | null
+        }
+        Insert: {
+          cliente?: string | null
+          created_at?: string
+          data_criacao?: string
+          id: string
+          observacao?: string | null
+          status?: string
+          titulo: string
+          user_id?: string
+          valor?: number | null
+        }
+        Update: {
+          cliente?: string | null
+          created_at?: string
+          data_criacao?: string
+          id?: string
+          observacao?: string | null
+          status?: string
+          titulo?: string
+          user_id?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
       elora_movimentos: {
         Row: {
           agentes_ia: boolean | null
