@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useStore } from "@/lib/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -113,6 +115,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const syncFromSupabase = useStore((state) => state.syncFromSupabase);
+
+  useEffect(() => {
+    syncFromSupabase();
+  }, [syncFromSupabase]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -99,11 +99,6 @@ function Index() {
           <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground text-sm">Visão geral da operação Elora</p>
         </div>
-        {clientes.length === 0 && (
-          <Button variant="outline" onClick={seedDemo}>
-            Carregar cliente de exemplo
-          </Button>
-        )}
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

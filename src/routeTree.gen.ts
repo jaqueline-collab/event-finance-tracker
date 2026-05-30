@@ -11,9 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as OrcamentosRouteImport } from './routes/orcamentos'
-import { Route as MovimentosRouteImport } from './routes/movimentos'
-import { Route as CustosRouteImport } from './routes/custos'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -27,19 +26,14 @@ const PlanosRoute = PlanosRouteImport.update({
   path: '/planos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParceirosRoute = ParceirosRouteImport.update({
+  id: '/parceiros',
+  path: '/parceiros',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrcamentosRoute = OrcamentosRouteImport.update({
   id: '/orcamentos',
   path: '/orcamentos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MovimentosRoute = MovimentosRouteImport.update({
-  id: '/movimentos',
-  path: '/movimentos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CustosRoute = CustosRouteImport.update({
-  id: '/custos',
-  path: '/custos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientesRoute = ClientesRouteImport.update({
@@ -56,18 +50,16 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/custos': typeof CustosRoute
-  '/movimentos': typeof MovimentosRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/custos': typeof CustosRoute
-  '/movimentos': typeof MovimentosRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
 }
@@ -75,9 +67,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/custos': typeof CustosRoute
-  '/movimentos': typeof MovimentosRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
 }
@@ -86,27 +77,18 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/clientes'
-    | '/custos'
-    | '/movimentos'
     | '/orcamentos'
+    | '/parceiros'
     | '/planos'
     | '/resumo'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/clientes'
-    | '/custos'
-    | '/movimentos'
-    | '/orcamentos'
-    | '/planos'
-    | '/resumo'
+  to: '/' | '/clientes' | '/orcamentos' | '/parceiros' | '/planos' | '/resumo'
   id:
     | '__root__'
     | '/'
     | '/clientes'
-    | '/custos'
-    | '/movimentos'
     | '/orcamentos'
+    | '/parceiros'
     | '/planos'
     | '/resumo'
   fileRoutesById: FileRoutesById
@@ -114,9 +96,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClientesRoute: typeof ClientesRoute
-  CustosRoute: typeof CustosRoute
-  MovimentosRoute: typeof MovimentosRoute
   OrcamentosRoute: typeof OrcamentosRoute
+  ParceirosRoute: typeof ParceirosRoute
   PlanosRoute: typeof PlanosRoute
   ResumoRoute: typeof ResumoRoute
 }
@@ -137,25 +118,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parceiros': {
+      id: '/parceiros'
+      path: '/parceiros'
+      fullPath: '/parceiros'
+      preLoaderRoute: typeof ParceirosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orcamentos': {
       id: '/orcamentos'
       path: '/orcamentos'
       fullPath: '/orcamentos'
       preLoaderRoute: typeof OrcamentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/movimentos': {
-      id: '/movimentos'
-      path: '/movimentos'
-      fullPath: '/movimentos'
-      preLoaderRoute: typeof MovimentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/custos': {
-      id: '/custos'
-      path: '/custos'
-      fullPath: '/custos'
-      preLoaderRoute: typeof CustosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clientes': {
@@ -178,9 +152,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClientesRoute: ClientesRoute,
-  CustosRoute: CustosRoute,
-  MovimentosRoute: MovimentosRoute,
   OrcamentosRoute: OrcamentosRoute,
+  ParceirosRoute: ParceirosRoute,
   PlanosRoute: PlanosRoute,
   ResumoRoute: ResumoRoute,
 }
