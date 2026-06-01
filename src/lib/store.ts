@@ -260,13 +260,6 @@ export const useStore = create<State>()(
             set({ parceiros: parceirosRes.data.map(mapDbToParceiro) });
           }
           if (clientesRes.data) {
-            const acompanhamento = clientesRes.data.filter((c: any) => c.plano_id === "plano-acompanhamento");
-            if (acompanhamento.length > 0) {
-              const ids = acompanhamento.map((c: any) => c.id);
-              await supabase.from("elora_movimentos").delete().in("cliente_id", ids);
-              await supabase.from("elora_clientes").delete().in("id", ids);
-              clientesRes.data = clientesRes.data.filter((c: any) => c.plano_id !== "plano-acompanhamento");
-            }
             set({ clientes: clientesRes.data.map(mapDbToCliente) });
           }
           if (movimentosRes.data) {
