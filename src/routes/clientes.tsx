@@ -84,7 +84,7 @@ function ClientesPage() {
   const selectedPlano = useMemo(() => planos.find(p => p.id === form.planoId), [planos, form.planoId]);
 
   const realTimePricing = useMemo(() => {
-    if (!selectedPlano) return { base: 0, extraCanais: 0, extraUsers: 0, zapi: 0, ia: 0, asaas: 0, transcricao: 0, custoTotal: 0, receitaTotal: 0, lucroTotal: 0, faturamentoBase: 0, faturamentoCanaisExc: 0, faturamentoUsersExc: 0, faturamentoContatosExc: 0, faturamentoZapi: 0, faturamentoIA: 0, faturamentoAsaas: 0, faturamentoTranscricao: 0 };
+    if (!selectedPlano) return { base: 0, extraCanais: 0, extraCanaisQtd: 0, extraUsers: 0, extraContatos: 0, zapi: 0, ia: 0, asaas: 0, transcricao: 0, custoTotal: 0, receitaTotal: 0, lucroTotal: 0, faturamentoBase: 0, faturamentoCanaisExc: 0, faturamentoUsersExc: 0, faturamentoContatosExc: 0, faturamentoZapi: 0, faturamentoIA: 0, faturamentoAsaas: 0, faturamentoTranscricao: 0 };
     
     // Helena cost prices
     const baseLicenceCost = selectedPlano.licencaBase ?? 149.90;
@@ -448,7 +448,7 @@ function ClientesPage() {
 
                     {realTimePricing.faturamentoCanaisExc > 0 && (
                       <div className="flex justify-between items-center text-muted-foreground">
-                        <span>Canais extras (+{Math.max(0, form.canais - (selectedPlano?.canaisInclusos ?? 1))}):</span>
+                        <span>Canais extras (+{realTimePricing.extraCanaisQtd}):</span>
                         <span className="font-medium text-foreground">+{formatBRL(realTimePricing.faturamentoCanaisExc)}</span>
                       </div>
                     )}
@@ -517,7 +517,7 @@ function ClientesPage() {
 
                       {realTimePricing.extraCanais > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Canais extra (+{Math.max(0, form.canais - (selectedPlano?.canaisInclusos ?? 1))}):</span>
+                          <span className="text-muted-foreground">Canais extra (+{realTimePricing.extraCanaisQtd}):</span>
                           <span className="text-yellow-400">+{formatBRL(realTimePricing.extraCanais)}</span>
                         </div>
                       )}
