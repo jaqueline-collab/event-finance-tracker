@@ -110,7 +110,7 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: 96,
-      head: [["Mês", "Ativos", "Novos", "Churns", "Receita Total", "Custo Helena", "Lucro Líquido"]],
+      head: [["Mês", "Faturados", "Novos", "Churns", "Receita Total", "Custo Helena", "Lucro Líquido"]],
       body: linhas.map((l) => [
         l.mesLabel,
         String(l.ativos.length),
@@ -125,7 +125,7 @@ function ResumoPage() {
       margin: { left: 40, right: 40 },
     });
 
-    linhas.forEach((linha, index) => {
+    linhas.forEach((linha) => {
       pdf.addPage();
       pdf.setFontSize(14);
       pdf.text(`Detalhes · ${linha.mesLabel}`, 40, 42);
@@ -161,7 +161,7 @@ function ResumoPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
-          <p className="text-muted-foreground text-sm">Receita, custo Helena e lucro por mês · clique no mês para ver detalhes</p>
+          <p className="text-muted-foreground text-sm">Receita, custo Helena e lucro por mês, considerando o próximo vencimento após o setup</p>
         </div>
         <Button onClick={exportarPdf} disabled={linhas.length === 0} className="gap-2">
           <Download className="h-4 w-4" /> Exportar PDF
@@ -213,7 +213,7 @@ function ResumoPage() {
               <TableRow>
                 <TableHead className="w-[30px]"></TableHead>
                 <TableHead>Mês de Competência</TableHead>
-                <TableHead className="text-right">Ativos</TableHead>
+                <TableHead className="text-right">Faturados</TableHead>
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
                 <TableHead className="text-right">Receita Total</TableHead>
@@ -250,7 +250,7 @@ function ResumoPage() {
                         <TableCell colSpan={8} className="py-0">
                           <div className="py-3 px-2">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                              Clientes ativos em {l.mesLabel}
+                              Clientes faturados em {l.mesLabel}
                             </p>
                             <table className="w-full text-sm">
                               <thead>
