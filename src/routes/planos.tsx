@@ -383,7 +383,8 @@ function PlanosPage() {
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                  <span>📡 {p.canaisInclusos} canal(is) · 👥 {p.usuariosInclusos} usuário(s) · 💬 {p.contatosInclusos.toLocaleString()} contatos</span>
+                  <span>📡 WhatsApp: {p.canaisWhatsInclusos ?? 0} · Instagram: {p.canaisInstaInclusos ?? 0} · Messenger: {p.canaisMessengerInclusos ?? 0}</span>
+                  <span>👥 {p.usuariosInclusos} usuário(s) · 💬 {p.contatosInclusos.toLocaleString()} contatos</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {p.incluiIA && <Badge variant="secondary" className="text-xs gap-1"><Bot className="h-3 w-3" /> IA</Badge>}
