@@ -63,9 +63,11 @@ function ClientesPage() {
 
   const [movForm, setMovForm] = useState({
     data: new Date().toISOString().slice(0, 10),
-    tipo: "ajuste" as TipoMovimento,
+    tipo: "upgrade" as TipoMovimento,
     planoId: "",
-    canais: "",
+    canaisWhats: "",
+    canaisInsta: "",
+    canaisMessenger: "",
     canaisZapi: "",
     usuariosAtivos: "",
     contatosAtivos: "",
