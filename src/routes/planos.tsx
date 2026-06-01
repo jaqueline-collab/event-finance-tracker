@@ -233,11 +233,21 @@ function PlanosPage() {
             {/* Franquias */}
             <div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Franquias Incluídas</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
-                  <Label className="mb-1 block">Canais Incluídos</Label>
-                  <Input type="number" value={form.canaisInclusos} onChange={(e) => setForm({ ...form, canaisInclusos: e.target.value })} />
+                  <Label className="mb-1 block">Canais WhatsApp Inclusos</Label>
+                  <Input type="number" min={0} value={form.canaisWhatsInclusos} onChange={(e) => setForm({ ...form, canaisWhatsInclusos: e.target.value })} />
                 </div>
+                <div>
+                  <Label className="mb-1 block">Canais Instagram Inclusos</Label>
+                  <Input type="number" min={0} value={form.canaisInstaInclusos} onChange={(e) => setForm({ ...form, canaisInstaInclusos: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Canais Messenger Inclusos</Label>
+                  <Input type="number" min={0} value={form.canaisMessengerInclusos} onChange={(e) => setForm({ ...form, canaisMessengerInclusos: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="mb-1 block">Usuários Incluídos</Label>
                   <Input type="number" value={form.usuariosInclusos} onChange={(e) => setForm({ ...form, usuariosInclusos: e.target.value })} />
@@ -290,8 +300,16 @@ function PlanosPage() {
               <p className="text-xs text-muted-foreground mb-3">Defina quanto você quer cobrar do cliente caso ele use recursos extras ou ative módulos opcionais.</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <Label className="mb-1 block text-xs">Canal extra (R$/canal)</Label>
-                  <Input type="number" step="0.01" value={form.valorCanaisExc} onChange={(e) => setForm({ ...form, valorCanaisExc: e.target.value })} />
+                  <Label className="mb-1 block text-xs">Canal WhatsApp extra (R$)</Label>
+                  <Input type="number" step="0.01" value={form.valorCanalWhatsExc} onChange={(e) => setForm({ ...form, valorCanalWhatsExc: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block text-xs">Canal Instagram extra (R$)</Label>
+                  <Input type="number" step="0.01" value={form.valorCanalInstaExc} onChange={(e) => setForm({ ...form, valorCanalInstaExc: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block text-xs">Canal Messenger extra (R$)</Label>
+                  <Input type="number" step="0.01" value={form.valorCanalMessengerExc} onChange={(e) => setForm({ ...form, valorCanalMessengerExc: e.target.value })} />
                 </div>
                 <div>
                   <Label className="mb-1 block text-xs">Usuário extra (R$/user)</Label>
