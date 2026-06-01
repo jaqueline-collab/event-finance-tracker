@@ -260,13 +260,6 @@ export const useStore = create<State>()(
             set({ parceiros: parceirosRes.data.map(mapDbToParceiro) });
           }
           if (clientesRes.data) {
-            const acompanhamento = clientesRes.data.filter((c: any) => c.plano_id === "plano-acompanhamento");
-            if (acompanhamento.length > 0) {
-              const ids = acompanhamento.map((c: any) => c.id);
-              await supabase.from("elora_movimentos").delete().in("cliente_id", ids);
-              await supabase.from("elora_clientes").delete().in("id", ids);
-              clientesRes.data = clientesRes.data.filter((c: any) => c.plano_id !== "plano-acompanhamento");
-            }
             set({ clientes: clientesRes.data.map(mapDbToCliente) });
           }
           if (movimentosRes.data) {
@@ -343,12 +336,22 @@ export const useStore = create<State>()(
       // Clientes
       addCliente: (c) => {
         const id = uid();
-        const novoCliente = { ...c, id };
+        const novoCliente = {
+          ...c,
+          id,
+          dataVencimento: normalizarDataVencimento(c.dataInicio, c.dataVencimento),
+        };
         set({ clientes: [...get().clientes, novoCliente] });
 
         // Salvar no Supabase
         supabase.from("elora_clientes").insert(mapClienteToDb(novoCliente)).then(({ error }) => {
-          if (error) console.error("Erro ao salvar cliente no Supabase:", error);
+          if (error) {
+            console.error("Erro ao salvar cliente no Supabase:", error);
+            set({
+              clientes: get().clientes.filter((x) => x.id !== id),
+              movimentos: get().movimentos.filter((m) => m.clienteId !== id),
+            });
+          }
         });
 
         set({
@@ -370,7 +373,14 @@ export const useStore = create<State>()(
         return id;
       },
       updateCliente: (id, c) => {
-        const clientes = get().clientes.map((x) => (x.id === id ? { ...x, ...c } : x));
+        const clientes = get().clientes.map((x) => {
+          if (x.id !== id) return x;
+          const merged = { ...x, ...c };
+          return {
+            ...merged,
+            dataVencimento: normalizarDataVencimento(merged.dataInicio, merged.dataVencimento),
+          };
+        });
         set({ clientes });
         const updated = clientes.find((x) => x.id === id);
         if (updated) {
@@ -729,6 +739,80 @@ export function clienteAtivoEm(cliente: Cliente, year: number, month: number): b
     if (churn < inicioMes) return false;
   }
   return true;
+}
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DAY_ONLY_RE = /^\d{1,2}$/;
+
+function toLocalNoonDate(value: string): Date {
+  return new Date(`${value}T12:00:00`);
+}
+
+function formatIsoDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function clampBillingDay(year: number, month: number, day: number): number {
+  return Math.max(1, Math.min(day, new Date(year, month + 1, 0).getDate()));
+}
+
+export function parseDiaVencimento(value?: string | null): number | null {
+  if (!value) return null;
+  if (DAY_ONLY_RE.test(value)) {
+    const dia = Number(value);
+    return Number.isFinite(dia) ? Math.max(1, Math.min(dia, 31)) : null;
+  }
+  if (ISO_DATE_RE.test(value)) {
+    return Number(value.slice(8, 10));
+  }
+  return null;
+}
+
+export function formatDiaVencimento(value?: string | null): string {
+  const dia = parseDiaVencimento(value);
+  return dia ? String(dia) : "—";
+}
+
+export function normalizarDataVencimento(dataInicio: string, dataVencimento?: string | null): string | null {
+  if (!ISO_DATE_RE.test(dataInicio)) return null;
+  if (dataVencimento && ISO_DATE_RE.test(dataVencimento)) return dataVencimento;
+
+  const inicio = toLocalNoonDate(dataInicio);
+  const diaReferencia = parseDiaVencimento(dataVencimento) ?? inicio.getDate();
+
+  let year = inicio.getFullYear();
+  let month = inicio.getMonth();
+  let candidato = new Date(year, month, clampBillingDay(year, month, diaReferencia), 12);
+
+  if (candidato < inicio) {
+    month += 1;
+    candidato = new Date(year, month, clampBillingDay(year, month, diaReferencia), 12);
+  }
+
+  return formatIsoDate(candidato);
+}
+
+export function obterVencimentoDaCompetencia(cliente: Cliente, year: number, month: number): string | null {
+  const primeiroVencimento = normalizarDataVencimento(cliente.dataInicio, cliente.dataVencimento);
+  const diaVencimento = parseDiaVencimento(primeiroVencimento);
+
+  if (!primeiroVencimento || !diaVencimento) return null;
+
+  const primeiraCobranca = toLocalNoonDate(primeiroVencimento);
+  const cobrancaCompetencia = new Date(year, month, clampBillingDay(year, month, diaVencimento), 12);
+
+  if (cobrancaCompetencia < primeiraCobranca) return null;
+
+  if (cliente.dataChurn && ISO_DATE_RE.test(cliente.dataChurn)) {
+    const churn = toLocalNoonDate(cliente.dataChurn);
+    if (churn < cobrancaCompetencia) return null;
+  }
+
+  return formatIsoDate(cobrancaCompetencia);
+}
+
+export function clienteFaturaEm(cliente: Cliente, year: number, month: number): boolean {
+  return Boolean(obterVencimentoDaCompetencia(cliente, year, month));
 }
 
 export function formatBRL(n: number): string {

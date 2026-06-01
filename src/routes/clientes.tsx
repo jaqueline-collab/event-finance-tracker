@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena } from "@/lib/store";
+import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento } from "@/lib/store";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap } from "lucide-react";
 import type { TipoMovimento, Cliente } from "@/lib/types";
 
@@ -682,7 +682,7 @@ function ClientesPage() {
                         </span>
                         {c.dataVencimento && (
                           <span className="text-[10px] text-muted-foreground font-normal">
-                            Vencimento: Dia {c.dataVencimento}
+                            Vencimento: Dia {formatDiaVencimento(c.dataVencimento)}
                           </span>
                         )}
                       </div>
