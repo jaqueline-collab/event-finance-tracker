@@ -45,9 +45,9 @@ const defaultCustos: CustoBase[] = [
 ];
 
 const defaultPlanos: Plano[] = [
-  { id: uid(), nome: "Starter", valorMensal: 297, valorSetup: 497, canaisInclusos: 1, usuariosInclusos: 3, contatosInclusos: 500, incluiIA: false, incluiAsaas: false, incluiZapi: 0, incluiTranscricao: false, licencaBase: 149.90, precoCanaisExc: 29.90, precoUsuariosExc: 19.90, precoContatosExc: 0.045, precoIA: 50.00, precoAsaas: 49.50, precoZapi: 69.00, precoTranscricaoUser: 3.99, valorCanaisExc: 59.90, valorUsuariosExc: 39.90, valorContatosExc: 0.10, valorIA: 99.00, valorAsaas: 89.00, valorZapi: 149.00, valorTranscricaoUser: 7.99, parceiroIds: [] },
-  { id: uid(), nome: "Growth", valorMensal: 597, valorSetup: 997, canaisInclusos: 3, usuariosInclusos: 10, contatosInclusos: 2000, incluiIA: false, incluiAsaas: false, incluiZapi: 1, incluiTranscricao: false, licencaBase: 149.90, precoCanaisExc: 29.90, precoUsuariosExc: 19.90, precoContatosExc: 0.045, precoIA: 50.00, precoAsaas: 49.50, precoZapi: 69.00, precoTranscricaoUser: 3.99, valorCanaisExc: 59.90, valorUsuariosExc: 39.90, valorContatosExc: 0.10, valorIA: 99.00, valorAsaas: 89.00, valorZapi: 149.00, valorTranscricaoUser: 7.99, parceiroIds: [] },
-  { id: uid(), nome: "Scale", valorMensal: 1197, valorSetup: 1997, canaisInclusos: 6, usuariosInclusos: 25, contatosInclusos: 10000, incluiIA: true, incluiAsaas: true, incluiZapi: 1, incluiTranscricao: true, licencaBase: 149.90, precoCanaisExc: 29.90, precoUsuariosExc: 19.90, precoContatosExc: 0.045, precoIA: 50.00, precoAsaas: 49.50, precoZapi: 69.00, precoTranscricaoUser: 3.99, valorCanaisExc: 59.90, valorUsuariosExc: 39.90, valorContatosExc: 0.10, valorIA: 99.00, valorAsaas: 89.00, valorZapi: 149.00, valorTranscricaoUser: 7.99, parceiroIds: [] },
+  { id: uid(), nome: "Starter", valorMensal: 297, valorSetup: 497, canaisInclusos: 1, usuariosInclusos: 3, contatosInclusos: 500, canaisWhatsInclusos: 1, canaisInstaInclusos: 0, canaisMessengerInclusos: 0, incluiIA: false, incluiAsaas: false, incluiZapi: 0, incluiTranscricao: false, licencaBase: 149.90, precoCanaisExc: 29.90, precoUsuariosExc: 19.90, precoContatosExc: 0.045, precoIA: 50.00, precoAsaas: 49.50, precoZapi: 69.00, precoTranscricaoUser: 3.99, precoCanalWhatsExc: 29.90, precoCanalInstaExc: 29.90, precoCanalMessengerExc: 29.90, valorCanaisExc: 59.90, valorUsuariosExc: 39.90, valorContatosExc: 0.10, valorIA: 99.00, valorAsaas: 89.00, valorZapi: 149.00, valorTranscricaoUser: 7.99, valorCanalWhatsExc: 59.90, valorCanalInstaExc: 59.90, valorCanalMessengerExc: 59.90, parceiroIds: [] },
+  { id: uid(), nome: "Growth", valorMensal: 597, valorSetup: 997, canaisInclusos: 3, usuariosInclusos: 10, contatosInclusos: 2000, canaisWhatsInclusos: 1, canaisInstaInclusos: 1, canaisMessengerInclusos: 1, incluiIA: false, incluiAsaas: false, incluiZapi: 1, incluiTranscricao: false, licencaBase: 149.90, precoCanaisExc: 29.90, precoUsuariosExc: 19.90, precoContatosExc: 0.045, precoIA: 50.00, precoAsaas: 49.50, precoZapi: 69.00, precoTranscricaoUser: 3.99, precoCanalWhatsExc: 29.90, precoCanalInstaExc: 29.90, precoCanalMessengerExc: 29.90, valorCanaisExc: 59.90, valorUsuariosExc: 39.90, valorContatosExc: 0.10, valorIA: 99.00, valorAsaas: 89.00, valorZapi: 149.00, valorTranscricaoUser: 7.99, valorCanalWhatsExc: 59.90, valorCanalInstaExc: 59.90, valorCanalMessengerExc: 59.90, parceiroIds: [] },
+  { id: uid(), nome: "Scale", valorMensal: 1197, valorSetup: 1997, canaisInclusos: 6, usuariosInclusos: 25, contatosInclusos: 10000, canaisWhatsInclusos: 2, canaisInstaInclusos: 2, canaisMessengerInclusos: 2, incluiIA: true, incluiAsaas: true, incluiZapi: 1, incluiTranscricao: true, licencaBase: 149.90, precoCanaisExc: 29.90, precoUsuariosExc: 19.90, precoContatosExc: 0.045, precoIA: 50.00, precoAsaas: 49.50, precoZapi: 69.00, precoTranscricaoUser: 3.99, precoCanalWhatsExc: 29.90, precoCanalInstaExc: 29.90, precoCanalMessengerExc: 29.90, valorCanaisExc: 59.90, valorUsuariosExc: 39.90, valorContatosExc: 0.10, valorIA: 99.00, valorAsaas: 89.00, valorZapi: 149.00, valorTranscricaoUser: 7.99, valorCanalWhatsExc: 59.90, valorCanalInstaExc: 59.90, valorCanalMessengerExc: 59.90, parceiroIds: [] },
 ];
 
 // ===== Mappers de Banco de Dados (CamelCase <=> SnakeCase) =====
@@ -60,6 +60,9 @@ const mapPlanoToDb = (p: Plano) => ({
   canais_inclusos: p.canaisInclusos,
   usuarios_inclusos: p.usuariosInclusos,
   contatos_inclusos: p.contatosInclusos,
+  canais_whats_inclusos: p.canaisWhatsInclusos,
+  canais_insta_inclusos: p.canaisInstaInclusos,
+  canais_messenger_inclusos: p.canaisMessengerInclusos,
   inclui_ia: p.incluiIA,
   inclui_asaas: p.incluiAsaas,
   inclui_zapi: p.incluiZapi,
@@ -72,6 +75,9 @@ const mapPlanoToDb = (p: Plano) => ({
   preco_asaas: p.precoAsaas,
   preco_zapi: p.precoZapi,
   preco_transcricao_user: p.precoTranscricaoUser,
+  preco_canal_whats_exc: p.precoCanalWhatsExc,
+  preco_canal_insta_exc: p.precoCanalInstaExc,
+  preco_canal_messenger_exc: p.precoCanalMessengerExc,
   valor_canais_exc: p.valorCanaisExc,
   valor_usuarios_exc: p.valorUsuariosExc,
   valor_contatos_exc: p.valorContatosExc,
@@ -79,18 +85,32 @@ const mapPlanoToDb = (p: Plano) => ({
   valor_asaas: p.valorAsaas,
   valor_zapi: p.valorZapi,
   valor_transcricao_user: p.valorTranscricaoUser,
+  valor_canal_whats_exc: p.valorCanalWhatsExc,
+  valor_canal_insta_exc: p.valorCanalInstaExc,
+  valor_canal_messenger_exc: p.valorCanalMessengerExc,
   parceiro_ids: p.parceiroIds,
   observacao: p.observacao || ""
 });
 
-const mapDbToPlano = (r: any): Plano => ({
+const mapDbToPlano = (r: any): Plano => {
+  const canaisInclusos = Number(r.canais_inclusos ?? 1);
+  // Compat: if per-type franchise columns are all 0 but legacy canais_inclusos > 0,
+  // assume WhatsApp-only.
+  const whatsInc = Number(r.canais_whats_inclusos ?? 0);
+  const instaInc = Number(r.canais_insta_inclusos ?? 0);
+  const msgInc = Number(r.canais_messenger_inclusos ?? 0);
+  const perTypeIsZero = whatsInc === 0 && instaInc === 0 && msgInc === 0;
+  return ({
   id: r.id,
   nome: r.nome,
   valorMensal: Number(r.valor_mensal ?? 0),
   valorSetup: Number(r.valor_setup ?? 0),
-  canaisInclusos: Number(r.canais_inclusos ?? 1),
+  canaisInclusos,
   usuariosInclusos: Number(r.usuarios_inclusos ?? 3),
   contatosInclusos: Number(r.contatos_inclusos ?? 500),
+  canaisWhatsInclusos: perTypeIsZero ? canaisInclusos : whatsInc,
+  canaisInstaInclusos: instaInc,
+  canaisMessengerInclusos: msgInc,
   incluiIA: Boolean(r.inclui_ia),
   incluiAsaas: Boolean(r.inclui_asaas),
   incluiZapi: Number(r.inclui_zapi ?? 0),
@@ -103,6 +123,9 @@ const mapDbToPlano = (r: any): Plano => ({
   precoAsaas: Number(r.preco_asaas ?? 49.50),
   precoZapi: Number(r.preco_zapi ?? 69.00),
   precoTranscricaoUser: Number(r.preco_transcricao_user ?? 3.99),
+  precoCanalWhatsExc: Number(r.preco_canal_whats_exc ?? r.preco_canais_exc ?? 29.90),
+  precoCanalInstaExc: Number(r.preco_canal_insta_exc ?? r.preco_canais_exc ?? 29.90),
+  precoCanalMessengerExc: Number(r.preco_canal_messenger_exc ?? r.preco_canais_exc ?? 29.90),
   valorCanaisExc: Number(r.valor_canais_exc ?? 59.90),
   valorUsuariosExc: Number(r.valor_usuarios_exc ?? 39.90),
   valorContatosExc: Number(r.valor_contatos_exc ?? 0.10),
@@ -110,9 +133,13 @@ const mapDbToPlano = (r: any): Plano => ({
   valorAsaas: Number(r.valor_asaas ?? 89.00),
   valorZapi: Number(r.valor_zapi ?? 149.00),
   valorTranscricaoUser: Number(r.valor_transcricao_user ?? 7.99),
+  valorCanalWhatsExc: Number(r.valor_canal_whats_exc ?? r.valor_canais_exc ?? 59.90),
+  valorCanalInstaExc: Number(r.valor_canal_insta_exc ?? r.valor_canais_exc ?? 59.90),
+  valorCanalMessengerExc: Number(r.valor_canal_messenger_exc ?? r.valor_canais_exc ?? 59.90),
   parceiroIds: r.parceiro_ids ?? [],
   observacao: r.observacao || ""
 });
+};
 
 const mapParceiroToDb = (p: Parceiro) => ({
   id: p.id,
@@ -266,6 +293,7 @@ export const useStore = create<State>()(
         });
       },
       updatePlano: (id, p) => {
+        const oldPlano = get().planos.find((x) => x.id === id);
         const planos = get().planos.map((x) => (x.id === id ? { ...x, ...p } : x));
         set({ planos });
         const updated = planos.find((x) => x.id === id);
@@ -273,6 +301,36 @@ export const useStore = create<State>()(
           supabase.from("elora_planos").update(mapPlanoToDb(updated)).eq("id", id).then(({ error }) => {
             if (error) console.error("Erro ao atualizar plano no Supabase:", error);
           });
+
+          // Propaga alteração: registra um movimento de ajuste para cada cliente
+          // vinculado a este plano, para auditoria. Os valores são recalculados
+          // automaticamente a partir das novas configurações do plano.
+          const clientesAfetados = get().clientes.filter((c) => c.planoId === id && !c.dataChurn);
+          if (clientesAfetados.length > 0 && oldPlano) {
+            const hoje = new Date().toISOString().slice(0, 10);
+            const novosMovimentos: Movimento[] = clientesAfetados.map((c) => ({
+              id: uid(),
+              clienteId: c.id,
+              data: hoje,
+              tipo: "ajuste" as TipoMovimento,
+              planoId: id,
+              observacao: `Plano "${updated.nome}" atualizado — valores recalculados automaticamente.`,
+            }));
+            set({ movimentos: [...get().movimentos, ...novosMovimentos] });
+            // Persistir no Supabase
+            novosMovimentos.forEach((mov) => {
+              supabase.from("elora_movimentos").insert({
+                id: mov.id,
+                cliente_id: mov.clienteId,
+                data: mov.data,
+                tipo: mov.tipo,
+                plano_id: mov.planoId,
+                observacao: mov.observacao,
+              }).then(({ error }) => {
+                if (error) console.error("Erro ao registrar movimento de ajuste:", error);
+              });
+            });
+          }
         }
       },
       removePlano: (id) => {
@@ -545,7 +603,9 @@ export function receitaMensalCliente(
   const plano = planos.find((p) => p.id === cliente.planoId);
   if (!plano) return 0;
 
-  const valorCanaisExc = plano.valorCanaisExc ?? 59.90;
+  const valorCanalWhatsExc = plano.valorCanalWhatsExc ?? plano.valorCanaisExc ?? 59.90;
+  const valorCanalInstaExc = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.90;
+  const valorCanalMessengerExc = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.90;
   const valorUsuariosExc = plano.valorUsuariosExc ?? 39.90;
   const valorContatosExc = plano.valorContatosExc ?? 0.10;
   const valorIA = plano.valorIA ?? 99.00;
@@ -559,11 +619,14 @@ export function receitaMensalCliente(
   const canaisWhats = cliente.canaisWhats !== undefined ? cliente.canaisWhats : (cliente.canaisZapi || (cliente.zapi ? 1 : 0));
   const canaisInsta = cliente.canaisInsta || 0;
   const canaisMessenger = cliente.canaisMessenger || 0;
-  const totalCanais = canaisWhats + canaisInsta + canaisMessenger || cliente.canais || 1;
 
-  // Canais extras
-  const canaisExc = Math.max(0, totalCanais - (plano.canaisInclusos || 1));
-  total += canaisExc * valorCanaisExc;
+  // Canais extras por tipo
+  const excWhats = Math.max(0, canaisWhats - (plano.canaisWhatsInclusos || 0));
+  const excInsta = Math.max(0, canaisInsta - (plano.canaisInstaInclusos || 0));
+  const excMessenger = Math.max(0, canaisMessenger - (plano.canaisMessengerInclusos || 0));
+  total += excWhats * valorCanalWhatsExc;
+  total += excInsta * valorCanalInstaExc;
+  total += excMessenger * valorCanalMessengerExc;
 
   // Usuários extras
   const usersExc = Math.max(0, (cliente.usuariosAtivos || 0) - (plano.usuariosInclusos || 3));
@@ -603,7 +666,9 @@ export function custoMensalCliente(
   if (!plano) return 0;
 
   const licencaBase = plano.licencaBase ?? 149.90;
-  const precoCanaisExc = plano.precoCanaisExc ?? 29.90;
+  const precoCanalWhatsExc = plano.precoCanalWhatsExc ?? plano.precoCanaisExc ?? 29.90;
+  const precoCanalInstaExc = plano.precoCanalInstaExc ?? plano.precoCanaisExc ?? 29.90;
+  const precoCanalMessengerExc = plano.precoCanalMessengerExc ?? plano.precoCanaisExc ?? 29.90;
   const precoUsuariosExc = plano.precoUsuariosExc ?? 19.90;
   const precoContatosExc = plano.precoContatosExc ?? 0.045;
   const precoIA = plano.precoIA ?? 50.00;
@@ -618,14 +683,13 @@ export function custoMensalCliente(
   const canaisInsta = cliente.canaisInsta || 0;
   const canaisMessenger = cliente.canaisMessenger || 0;
 
-  // Rule: up to 1 of each type per account is free (doesn't charge extra channel fee to Helena)
-  const excWhats = Math.max(0, canaisWhats - 1);
-  const excInsta = Math.max(0, canaisInsta - 1);
-  const excMessenger = Math.max(0, canaisMessenger - 1);
-  const totalExtraCanais = excWhats + excInsta + excMessenger;
-
-  // Apply progressive pricing to exceeding channels
-  total += calcularCustoExtraCanaisHelena(totalExtraCanais, precoCanaisExc);
+  // Custo Helena por tipo de canal — usa franquia configurada no plano por tipo
+  const excWhats = Math.max(0, canaisWhats - (plano.canaisWhatsInclusos || 0));
+  const excInsta = Math.max(0, canaisInsta - (plano.canaisInstaInclusos || 0));
+  const excMessenger = Math.max(0, canaisMessenger - (plano.canaisMessengerInclusos || 0));
+  total += excWhats * precoCanalWhatsExc;
+  total += excInsta * precoCanalInstaExc;
+  total += excMessenger * precoCanalMessengerExc;
 
   // Usuários extras progressive
   const usersExc = Math.max(0, (cliente.usuariosAtivos || 0) - (plano.usuariosInclusos || 3));

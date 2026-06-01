@@ -272,6 +272,9 @@ export type Database = {
       elora_planos: {
         Row: {
           canais_inclusos: number | null
+          canais_insta_inclusos: number
+          canais_messenger_inclusos: number
+          canais_whats_inclusos: number
           contatos_inclusos: number | null
           created_at: string
           id: string
@@ -285,6 +288,9 @@ export type Database = {
           parceiro_ids: Json | null
           preco_asaas: number | null
           preco_canais_exc: number | null
+          preco_canal_insta_exc: number
+          preco_canal_messenger_exc: number
+          preco_canal_whats_exc: number
           preco_contatos_exc: number | null
           preco_ia: number | null
           preco_transcricao_user: number | null
@@ -294,6 +300,9 @@ export type Database = {
           usuarios_inclusos: number | null
           valor_asaas: number | null
           valor_canais_exc: number | null
+          valor_canal_insta_exc: number
+          valor_canal_messenger_exc: number
+          valor_canal_whats_exc: number
           valor_contatos_exc: number | null
           valor_ia: number | null
           valor_mensal: number | null
@@ -304,6 +313,9 @@ export type Database = {
         }
         Insert: {
           canais_inclusos?: number | null
+          canais_insta_inclusos?: number
+          canais_messenger_inclusos?: number
+          canais_whats_inclusos?: number
           contatos_inclusos?: number | null
           created_at?: string
           id: string
@@ -317,6 +329,9 @@ export type Database = {
           parceiro_ids?: Json | null
           preco_asaas?: number | null
           preco_canais_exc?: number | null
+          preco_canal_insta_exc?: number
+          preco_canal_messenger_exc?: number
+          preco_canal_whats_exc?: number
           preco_contatos_exc?: number | null
           preco_ia?: number | null
           preco_transcricao_user?: number | null
@@ -326,6 +341,9 @@ export type Database = {
           usuarios_inclusos?: number | null
           valor_asaas?: number | null
           valor_canais_exc?: number | null
+          valor_canal_insta_exc?: number
+          valor_canal_messenger_exc?: number
+          valor_canal_whats_exc?: number
           valor_contatos_exc?: number | null
           valor_ia?: number | null
           valor_mensal?: number | null
@@ -336,6 +354,9 @@ export type Database = {
         }
         Update: {
           canais_inclusos?: number | null
+          canais_insta_inclusos?: number
+          canais_messenger_inclusos?: number
+          canais_whats_inclusos?: number
           contatos_inclusos?: number | null
           created_at?: string
           id?: string
@@ -349,6 +370,9 @@ export type Database = {
           parceiro_ids?: Json | null
           preco_asaas?: number | null
           preco_canais_exc?: number | null
+          preco_canal_insta_exc?: number
+          preco_canal_messenger_exc?: number
+          preco_canal_whats_exc?: number
           preco_contatos_exc?: number | null
           preco_ia?: number | null
           preco_transcricao_user?: number | null
@@ -358,6 +382,9 @@ export type Database = {
           usuarios_inclusos?: number | null
           valor_asaas?: number | null
           valor_canais_exc?: number | null
+          valor_canal_insta_exc?: number
+          valor_canal_messenger_exc?: number
+          valor_canal_whats_exc?: number
           valor_contatos_exc?: number | null
           valor_ia?: number | null
           valor_mensal?: number | null

@@ -18,6 +18,10 @@ export interface Plano {
   canaisInclusos: number;
   usuariosInclusos: number;
   contatosInclusos: number;
+  // Franquias por tipo de canal (substitui canaisInclusos genérico)
+  canaisWhatsInclusos: number;
+  canaisInstaInclusos: number;
+  canaisMessengerInclusos: number;
   // Módulos opcionais incluídos
   incluiIA: boolean;
   incluiAsaas: boolean;
@@ -32,6 +36,10 @@ export interface Plano {
   precoAsaas: number;        // custo módulo ASAAS (default 49.50)
   precoZapi: number;         // custo módulo Z-API (default 69.00)
   precoTranscricaoUser: number; // custo transcrição por usuário (default 3.99)
+  // Custo Helena por tipo de canal excedente
+  precoCanalWhatsExc: number;
+  precoCanalInstaExc: number;
+  precoCanalMessengerExc: number;
   // Preços de venda ao cliente (comercialização de excedentes e opcionais)
   valorCanaisExc: number;       // preço cobrado por canal excedente
   valorUsuariosExc: number;     // preço cobrado por usuário excedente
@@ -40,6 +48,10 @@ export interface Plano {
   valorAsaas: number;           // preço cobrado pelo módulo ASAAS
   valorZapi: number;            // preço cobrado pelo módulo Z-API
   valorTranscricaoUser: number; // preço cobrado por transcrição por usuário
+  // Preço cobrado ao cliente por tipo de canal excedente
+  valorCanalWhatsExc: number;
+  valorCanalInstaExc: number;
+  valorCanalMessengerExc: number;
   // Parceiros vinculados a este plano
   parceiroIds: string[];
   observacao?: string;

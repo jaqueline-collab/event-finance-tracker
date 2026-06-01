@@ -20,7 +20,9 @@ type PlanoForm = {
   nome: string;
   valorMensal: string;
   valorSetup: string;
-  canaisInclusos: string;
+  canaisWhatsInclusos: string;
+  canaisInstaInclusos: string;
+  canaisMessengerInclusos: string;
   usuariosInclusos: string;
   contatosInclusos: string;
   incluiIA: boolean;
@@ -28,14 +30,18 @@ type PlanoForm = {
   incluiZapi: number;
   incluiTranscricao: boolean;
   licencaBase: string;
-  precoCanaisExc: string;
+  precoCanalWhatsExc: string;
+  precoCanalInstaExc: string;
+  precoCanalMessengerExc: string;
   precoUsuariosExc: string;
   precoContatosExc: string;
   precoIA: string;
   precoAsaas: string;
   precoZapi: string;
   precoTranscricaoUser: string;
-  valorCanaisExc: string;
+  valorCanalWhatsExc: string;
+  valorCanalInstaExc: string;
+  valorCanalMessengerExc: string;
   valorUsuariosExc: string;
   valorContatosExc: string;
   valorIA: string;
@@ -49,7 +55,9 @@ const defaultForm = (): PlanoForm => ({
   nome: "",
   valorMensal: "",
   valorSetup: "",
-  canaisInclusos: "1",
+  canaisWhatsInclusos: "1",
+  canaisInstaInclusos: "0",
+  canaisMessengerInclusos: "0",
   usuariosInclusos: "3",
   contatosInclusos: "500",
   incluiIA: false,
@@ -57,14 +65,18 @@ const defaultForm = (): PlanoForm => ({
   incluiZapi: 0,
   incluiTranscricao: false,
   licencaBase: "149.90",
-  precoCanaisExc: "29.90",
+  precoCanalWhatsExc: "29.90",
+  precoCanalInstaExc: "29.90",
+  precoCanalMessengerExc: "29.90",
   precoUsuariosExc: "19.90",
   precoContatosExc: "0.045",
   precoIA: "50.00",
   precoAsaas: "49.50",
   precoZapi: "69.00",
   precoTranscricaoUser: "3.99",
-  valorCanaisExc: "59.90",
+  valorCanalWhatsExc: "59.90",
+  valorCanalInstaExc: "59.90",
+  valorCanalMessengerExc: "59.90",
   valorUsuariosExc: "39.90",
   valorContatosExc: "0.10",
   valorIA: "99.00",
@@ -90,11 +102,17 @@ function PlanosPage() {
   };
 
   const handleSave = () => {
+    const whatsInc = Number(form.canaisWhatsInclusos) || 0;
+    const instaInc = Number(form.canaisInstaInclusos) || 0;
+    const msgInc = Number(form.canaisMessengerInclusos) || 0;
     const planoData: Omit<Plano, "id"> = {
       nome: form.nome,
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
-      canaisInclusos: Number(form.canaisInclusos) || 0,
+      canaisInclusos: whatsInc + instaInc + msgInc,
+      canaisWhatsInclusos: whatsInc,
+      canaisInstaInclusos: instaInc,
+      canaisMessengerInclusos: msgInc,
       usuariosInclusos: Number(form.usuariosInclusos) || 0,
       contatosInclusos: Number(form.contatosInclusos) || 0,
       incluiIA: form.incluiIA,
@@ -102,14 +120,20 @@ function PlanosPage() {
       incluiZapi: form.incluiZapi,
       incluiTranscricao: form.incluiTranscricao,
       licencaBase: Number(form.licencaBase) || 149.90,
-      precoCanaisExc: Number(form.precoCanaisExc) || 29.90,
+      precoCanaisExc: Number(form.precoCanalWhatsExc) || 29.90,
+      precoCanalWhatsExc: Number(form.precoCanalWhatsExc) || 29.90,
+      precoCanalInstaExc: Number(form.precoCanalInstaExc) || 29.90,
+      precoCanalMessengerExc: Number(form.precoCanalMessengerExc) || 29.90,
       precoUsuariosExc: Number(form.precoUsuariosExc) || 19.90,
       precoContatosExc: Number(form.precoContatosExc) || 0.045,
       precoIA: Number(form.precoIA) || 50.00,
       precoAsaas: Number(form.precoAsaas) || 49.50,
       precoZapi: Number(form.precoZapi) || 69.00,
       precoTranscricaoUser: Number(form.precoTranscricaoUser) || 3.99,
-      valorCanaisExc: Number(form.valorCanaisExc) || 59.90,
+      valorCanaisExc: Number(form.valorCanalWhatsExc) || 59.90,
+      valorCanalWhatsExc: Number(form.valorCanalWhatsExc) || 59.90,
+      valorCanalInstaExc: Number(form.valorCanalInstaExc) || 59.90,
+      valorCanalMessengerExc: Number(form.valorCanalMessengerExc) || 59.90,
       valorUsuariosExc: Number(form.valorUsuariosExc) || 39.90,
       valorContatosExc: Number(form.valorContatosExc) || 0.10,
       valorIA: Number(form.valorIA) || 99.00,
@@ -135,7 +159,9 @@ function PlanosPage() {
       nome: p.nome,
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
-      canaisInclusos: String(p.canaisInclusos || ""),
+      canaisWhatsInclusos: String(p.canaisWhatsInclusos ?? p.canaisInclusos ?? 0),
+      canaisInstaInclusos: String(p.canaisInstaInclusos ?? 0),
+      canaisMessengerInclusos: String(p.canaisMessengerInclusos ?? 0),
       usuariosInclusos: String(p.usuariosInclusos || ""),
       contatosInclusos: String(p.contatosInclusos || ""),
       incluiIA: p.incluiIA,
@@ -143,14 +169,18 @@ function PlanosPage() {
       incluiZapi: typeof p.incluiZapi === "number" ? p.incluiZapi : (p.incluiZapi ? 1 : 0),
       incluiTranscricao: p.incluiTranscricao,
       licencaBase: String(p.licencaBase ?? 149.90),
-      precoCanaisExc: String(p.precoCanaisExc ?? 29.90),
+      precoCanalWhatsExc: String(p.precoCanalWhatsExc ?? p.precoCanaisExc ?? 29.90),
+      precoCanalInstaExc: String(p.precoCanalInstaExc ?? p.precoCanaisExc ?? 29.90),
+      precoCanalMessengerExc: String(p.precoCanalMessengerExc ?? p.precoCanaisExc ?? 29.90),
       precoUsuariosExc: String(p.precoUsuariosExc ?? 19.90),
       precoContatosExc: String(p.precoContatosExc ?? 0.045),
       precoIA: String(p.precoIA ?? 50.00),
       precoAsaas: String(p.precoAsaas ?? 49.50),
       precoZapi: String(p.precoZapi ?? 69.00),
       precoTranscricaoUser: String(p.precoTranscricaoUser ?? 3.99),
-      valorCanaisExc: String(p.valorCanaisExc ?? 59.90),
+      valorCanalWhatsExc: String(p.valorCanalWhatsExc ?? p.valorCanaisExc ?? 59.90),
+      valorCanalInstaExc: String(p.valorCanalInstaExc ?? p.valorCanaisExc ?? 59.90),
+      valorCanalMessengerExc: String(p.valorCanalMessengerExc ?? p.valorCanaisExc ?? 59.90),
       valorUsuariosExc: String(p.valorUsuariosExc ?? 39.90),
       valorContatosExc: String(p.valorContatosExc ?? 0.10),
       valorIA: String(p.valorIA ?? 99.00),
@@ -203,11 +233,21 @@ function PlanosPage() {
             {/* Franquias */}
             <div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Franquias Incluídas</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
-                  <Label className="mb-1 block">Canais Incluídos</Label>
-                  <Input type="number" value={form.canaisInclusos} onChange={(e) => setForm({ ...form, canaisInclusos: e.target.value })} />
+                  <Label className="mb-1 block">Canais WhatsApp Inclusos</Label>
+                  <Input type="number" min={0} value={form.canaisWhatsInclusos} onChange={(e) => setForm({ ...form, canaisWhatsInclusos: e.target.value })} />
                 </div>
+                <div>
+                  <Label className="mb-1 block">Canais Instagram Inclusos</Label>
+                  <Input type="number" min={0} value={form.canaisInstaInclusos} onChange={(e) => setForm({ ...form, canaisInstaInclusos: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Canais Messenger Inclusos</Label>
+                  <Input type="number" min={0} value={form.canaisMessengerInclusos} onChange={(e) => setForm({ ...form, canaisMessengerInclusos: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="mb-1 block">Usuários Incluídos</Label>
                   <Input type="number" value={form.usuariosInclusos} onChange={(e) => setForm({ ...form, usuariosInclusos: e.target.value })} />
@@ -260,8 +300,16 @@ function PlanosPage() {
               <p className="text-xs text-muted-foreground mb-3">Defina quanto você quer cobrar do cliente caso ele use recursos extras ou ative módulos opcionais.</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <Label className="mb-1 block text-xs">Canal extra (R$/canal)</Label>
-                  <Input type="number" step="0.01" value={form.valorCanaisExc} onChange={(e) => setForm({ ...form, valorCanaisExc: e.target.value })} />
+                  <Label className="mb-1 block text-xs">Canal WhatsApp extra (R$)</Label>
+                  <Input type="number" step="0.01" value={form.valorCanalWhatsExc} onChange={(e) => setForm({ ...form, valorCanalWhatsExc: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block text-xs">Canal Instagram extra (R$)</Label>
+                  <Input type="number" step="0.01" value={form.valorCanalInstaExc} onChange={(e) => setForm({ ...form, valorCanalInstaExc: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block text-xs">Canal Messenger extra (R$)</Label>
+                  <Input type="number" step="0.01" value={form.valorCanalMessengerExc} onChange={(e) => setForm({ ...form, valorCanalMessengerExc: e.target.value })} />
                 </div>
                 <div>
                   <Label className="mb-1 block text-xs">Usuário extra (R$/user)</Label>
@@ -335,7 +383,8 @@ function PlanosPage() {
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                  <span>📡 {p.canaisInclusos} canal(is) · 👥 {p.usuariosInclusos} usuário(s) · 💬 {p.contatosInclusos.toLocaleString()} contatos</span>
+                  <span>📡 WhatsApp: {p.canaisWhatsInclusos ?? 0} · Instagram: {p.canaisInstaInclusos ?? 0} · Messenger: {p.canaisMessengerInclusos ?? 0}</span>
+                  <span>👥 {p.usuariosInclusos} usuário(s) · 💬 {p.contatosInclusos.toLocaleString()} contatos</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {p.incluiIA && <Badge variant="secondary" className="text-xs gap-1"><Bot className="h-3 w-3" /> IA</Badge>}
