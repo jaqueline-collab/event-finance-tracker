@@ -603,7 +603,9 @@ export function receitaMensalCliente(
   const plano = planos.find((p) => p.id === cliente.planoId);
   if (!plano) return 0;
 
-  const valorCanaisExc = plano.valorCanaisExc ?? 59.90;
+  const valorCanalWhatsExc = plano.valorCanalWhatsExc ?? plano.valorCanaisExc ?? 59.90;
+  const valorCanalInstaExc = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.90;
+  const valorCanalMessengerExc = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.90;
   const valorUsuariosExc = plano.valorUsuariosExc ?? 39.90;
   const valorContatosExc = plano.valorContatosExc ?? 0.10;
   const valorIA = plano.valorIA ?? 99.00;
@@ -617,11 +619,14 @@ export function receitaMensalCliente(
   const canaisWhats = cliente.canaisWhats !== undefined ? cliente.canaisWhats : (cliente.canaisZapi || (cliente.zapi ? 1 : 0));
   const canaisInsta = cliente.canaisInsta || 0;
   const canaisMessenger = cliente.canaisMessenger || 0;
-  const totalCanais = canaisWhats + canaisInsta + canaisMessenger || cliente.canais || 1;
 
-  // Canais extras
-  const canaisExc = Math.max(0, totalCanais - (plano.canaisInclusos || 1));
-  total += canaisExc * valorCanaisExc;
+  // Canais extras por tipo
+  const excWhats = Math.max(0, canaisWhats - (plano.canaisWhatsInclusos || 0));
+  const excInsta = Math.max(0, canaisInsta - (plano.canaisInstaInclusos || 0));
+  const excMessenger = Math.max(0, canaisMessenger - (plano.canaisMessengerInclusos || 0));
+  total += excWhats * valorCanalWhatsExc;
+  total += excInsta * valorCanalInstaExc;
+  total += excMessenger * valorCanalMessengerExc;
 
   // Usuários extras
   const usersExc = Math.max(0, (cliente.usuariosAtivos || 0) - (plano.usuariosInclusos || 3));
@@ -661,7 +666,9 @@ export function custoMensalCliente(
   if (!plano) return 0;
 
   const licencaBase = plano.licencaBase ?? 149.90;
-  const precoCanaisExc = plano.precoCanaisExc ?? 29.90;
+  const precoCanalWhatsExc = plano.precoCanalWhatsExc ?? plano.precoCanaisExc ?? 29.90;
+  const precoCanalInstaExc = plano.precoCanalInstaExc ?? plano.precoCanaisExc ?? 29.90;
+  const precoCanalMessengerExc = plano.precoCanalMessengerExc ?? plano.precoCanaisExc ?? 29.90;
   const precoUsuariosExc = plano.precoUsuariosExc ?? 19.90;
   const precoContatosExc = plano.precoContatosExc ?? 0.045;
   const precoIA = plano.precoIA ?? 50.00;
@@ -676,14 +683,13 @@ export function custoMensalCliente(
   const canaisInsta = cliente.canaisInsta || 0;
   const canaisMessenger = cliente.canaisMessenger || 0;
 
-  // Rule: up to 1 of each type per account is free (doesn't charge extra channel fee to Helena)
-  const excWhats = Math.max(0, canaisWhats - 1);
-  const excInsta = Math.max(0, canaisInsta - 1);
-  const excMessenger = Math.max(0, canaisMessenger - 1);
-  const totalExtraCanais = excWhats + excInsta + excMessenger;
-
-  // Apply progressive pricing to exceeding channels
-  total += calcularCustoExtraCanaisHelena(totalExtraCanais, precoCanaisExc);
+  // Custo Helena por tipo de canal — usa franquia configurada no plano por tipo
+  const excWhats = Math.max(0, canaisWhats - (plano.canaisWhatsInclusos || 0));
+  const excInsta = Math.max(0, canaisInsta - (plano.canaisInstaInclusos || 0));
+  const excMessenger = Math.max(0, canaisMessenger - (plano.canaisMessengerInclusos || 0));
+  total += excWhats * precoCanalWhatsExc;
+  total += excInsta * precoCanalInstaExc;
+  total += excMessenger * precoCanalMessengerExc;
 
   // Usuários extras progressive
   const usersExc = Math.max(0, (cliente.usuariosAtivos || 0) - (plano.usuariosInclusos || 3));
