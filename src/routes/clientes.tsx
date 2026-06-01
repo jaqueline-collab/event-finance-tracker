@@ -926,6 +926,13 @@ function ClientesPage() {
           <DialogHeader>
             <DialogTitle>Registrar Movimento</DialogTitle>
           </DialogHeader>
+          {(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              Informe apenas o que <strong>mudou</strong>. Use números positivos para adicionar
+              e negativos para reduzir (ex.: <code>-1</code> em Canais WhatsApp). Campos em branco permanecem inalterados.
+              Os novos valores passam a valer nos próximos fechamentos.
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
             <div>
               <Label className="mb-1 block">Tipo de Ação</Label>
@@ -952,16 +959,28 @@ function ClientesPage() {
             
             {/* Atualização de Recursos */}
             <div>
-              <Label className="mb-1 block">Canais Ativos</Label>
-              <Input type="number" value={movForm.canais} onChange={(e) => setMovForm({ ...movForm, canais: e.target.value })} />
+              <Label className="mb-1 block">Canais WhatsApp</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
             </div>
             <div>
-              <Label className="mb-1 block">Usuários Ativos</Label>
-              <Input type="number" value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
+              <Label className="mb-1 block">Canais Instagram</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisInsta} onChange={(e) => setMovForm({ ...movForm, canaisInsta: e.target.value })} />
             </div>
             <div>
-              <Label className="mb-1 block font-medium">Contatos</Label>
-              <Input type="number" value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
+              <Label className="mb-1 block">Canais Messenger</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
+            </div>
+            <div>
+              <Label className="mb-1 block">Usuários</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
+            </div>
+            <div className="md:col-span-2">
+              <Label className="mb-1 block font-medium">Contatos / MAU</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
+            </div>
+            <div className="md:col-span-3">
+              <Label className="mb-1 block">Observação</Label>
+              <Input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} placeholder="Detalhe opcional do movimento" />
             </div>
             
             <div className="grid grid-cols-2 md:col-span-3 gap-4 border-t border-border pt-4 mt-2">
