@@ -223,6 +223,9 @@ const mapDbToMovimento = (r: any): Movimento => ({
   apps: r.apps,
   mau: r.mau,
   canais: r.canais,
+  canaisWhats: r.canais_whats,
+  canaisInsta: r.canais_insta,
+  canaisMessenger: r.canais_messenger,
   usuariosAtivos: r.usuarios_ativos,
   contatosAtivos: r.contatos_ativos,
   agentesIA: r.agentes_ia,
@@ -295,35 +298,10 @@ export const useStore = create<State>()(
             if (error) console.error("Erro ao atualizar plano no Supabase:", error);
           });
 
-          // Propaga alteração: registra um movimento de ajuste para cada cliente
-          // vinculado a este plano, para auditoria. Os valores são recalculados
-          // automaticamente a partir das novas configurações do plano.
-          const clientesAfetados = get().clientes.filter((c) => c.planoId === id && !c.dataChurn);
-          if (clientesAfetados.length > 0 && oldPlano) {
-            const hoje = new Date().toISOString().slice(0, 10);
-            const novosMovimentos: Movimento[] = clientesAfetados.map((c) => ({
-              id: uid(),
-              clienteId: c.id,
-              data: hoje,
-              tipo: "ajuste" as TipoMovimento,
-              planoId: id,
-              observacao: `Plano "${updated.nome}" atualizado — valores recalculados automaticamente.`,
-            }));
-            set({ movimentos: [...get().movimentos, ...novosMovimentos] });
-            // Persistir no Supabase
-            novosMovimentos.forEach((mov) => {
-              supabase.from("elora_movimentos").insert({
-                id: mov.id,
-                cliente_id: mov.clienteId,
-                data: mov.data,
-                tipo: mov.tipo,
-                plano_id: mov.planoId,
-                observacao: mov.observacao,
-              }).then(({ error }) => {
-                if (error) console.error("Erro ao registrar movimento de ajuste:", error);
-              });
-            });
-          }
+          // Os valores do cliente são recalculados automaticamente a partir
+          // das novas configurações do plano — nenhum movimento de ajuste
+          // é registrado para evitar poluir o histórico.
+          void oldPlano;
         }
       },
       removePlano: (id) => {
