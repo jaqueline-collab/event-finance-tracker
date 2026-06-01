@@ -774,10 +774,24 @@ function ClientesPage() {
             clientMovs.forEach((m) => {
               const matchedPlano = planos.find((p) => p.id === m.planoId);
               let descParts: string[] = [];
+              const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
+              const fmtDelta = (v: number) => (v > 0 ? `+${v}` : `${v}`);
+              const fmtNum = (label: string, v: number | undefined) => {
+                if (v === undefined || v === null) return;
+                if (isDelta) {
+                  if (v === 0) return;
+                  descParts.push(`${label} ${fmtDelta(v)}`);
+                } else {
+                  descParts.push(`${label}: ${v}`);
+                }
+              };
               if (m.planoId) descParts.push(`Plano alterado para "${matchedPlano?.nome ?? m.planoId}"`);
-              if (m.canais !== undefined) descParts.push(`Canais: ${m.canais}`);
-              if (m.usuariosAtivos !== undefined) descParts.push(`Usuários: ${m.usuariosAtivos}`);
-              if (m.contatosAtivos !== undefined) descParts.push(`Contatos/MAU: ${m.contatosAtivos}`);
+              fmtNum("Canais WhatsApp", m.canaisWhats);
+              fmtNum("Canais Instagram", m.canaisInsta);
+              fmtNum("Canais Messenger", m.canaisMessenger);
+              fmtNum("Canais", m.canais);
+              fmtNum("Usuários", m.usuariosAtivos);
+              fmtNum("Contatos/MAU", m.contatosAtivos);
               if (m.observacao) descParts.push(`Obs: ${m.observacao}`);
               
               const mTipoLabel = tiposMovimento.find(t => t.value === m.tipo)?.label || m.tipo;
