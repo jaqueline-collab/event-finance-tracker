@@ -141,6 +141,24 @@ function RootComponent() {
     return () => subscription.unsubscribe();
   }, [syncFromSupabase]);
 
+  // Mantém a sessão viva: refresh ao voltar o foco e a cada 30 min.
+  useEffect(() => {
+    const refresh = () => {
+      supabase.auth.refreshSession().catch(() => {});
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", refresh);
+    const interval = window.setInterval(refresh, 30 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(interval);
+    };
+  }, []);
+
   const isAuthRoute =
     typeof window !== "undefined" && window.location.pathname.startsWith("/auth");
 
