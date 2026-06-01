@@ -25,11 +25,9 @@ export const Route = createFileRoute("/clientes")({
 });
 
 const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] = [
-  { value: "setup", label: "Setup", color: "bg-primary/20 text-primary" },
-  { value: "ativacao", label: "Ativação", color: "bg-accent/20 text-accent" },
+  { value: "setup", label: "Setup / Ativação", color: "bg-primary/20 text-primary" },
   { value: "upgrade", label: "Upgrade", color: "bg-accent/20 text-accent" },
   { value: "downgrade", label: "Downgrade", color: "bg-yellow-500/20 text-yellow-400" },
-  { value: "ajuste", label: "Ajuste", color: "bg-muted text-muted-foreground" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
 ];
