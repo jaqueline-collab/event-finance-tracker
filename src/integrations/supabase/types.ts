@@ -176,6 +176,9 @@ export type Database = {
           apps: number | null
           asaas: boolean | null
           canais: number | null
+          canais_insta: number | null
+          canais_messenger: number | null
+          canais_whats: number | null
           cliente_id: string
           contatos_ativos: number | null
           created_at: string
@@ -197,6 +200,9 @@ export type Database = {
           apps?: number | null
           asaas?: boolean | null
           canais?: number | null
+          canais_insta?: number | null
+          canais_messenger?: number | null
+          canais_whats?: number | null
           cliente_id: string
           contatos_ativos?: number | null
           created_at?: string
@@ -218,6 +224,9 @@ export type Database = {
           apps?: number | null
           asaas?: boolean | null
           canais?: number | null
+          canais_insta?: number | null
+          canais_messenger?: number | null
+          canais_whats?: number | null
           cliente_id?: string
           contatos_ativos?: number | null
           created_at?: string
