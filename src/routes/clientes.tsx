@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraCanaisHelena, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena } from "@/lib/store";
+import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena } from "@/lib/store";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap } from "lucide-react";
 import type { TipoMovimento, Cliente } from "@/lib/types";
 
@@ -88,7 +88,9 @@ function ClientesPage() {
     
     // Helena cost prices
     const baseLicenceCost = selectedPlano.licencaBase ?? 149.90;
-    const precoCanaisExc = selectedPlano.precoCanaisExc ?? 29.90;
+    const precoCanalWhatsExc = selectedPlano.precoCanalWhatsExc ?? selectedPlano.precoCanaisExc ?? 29.90;
+    const precoCanalInstaExc = selectedPlano.precoCanalInstaExc ?? selectedPlano.precoCanaisExc ?? 29.90;
+    const precoCanalMessengerExc = selectedPlano.precoCanalMessengerExc ?? selectedPlano.precoCanaisExc ?? 29.90;
     const precoUsuariosExc = selectedPlano.precoUsuariosExc ?? 19.90;
     const precoContatosExc = selectedPlano.precoContatosExc ?? 0.045;
     const precoIA = selectedPlano.precoIA ?? 50.00;
@@ -97,7 +99,9 @@ function ClientesPage() {
     const precoTranscricaoUser = selectedPlano.precoTranscricaoUser ?? 3.99;
 
     // Commercial sell prices
-    const valorCanaisExc = selectedPlano.valorCanaisExc ?? 59.90;
+    const valorCanalWhatsExc = selectedPlano.valorCanalWhatsExc ?? selectedPlano.valorCanaisExc ?? 59.90;
+    const valorCanalInstaExc = selectedPlano.valorCanalInstaExc ?? selectedPlano.valorCanaisExc ?? 59.90;
+    const valorCanalMessengerExc = selectedPlano.valorCanalMessengerExc ?? selectedPlano.valorCanaisExc ?? 59.90;
     const valorUsuariosExc = selectedPlano.valorUsuariosExc ?? 39.90;
     const valorContatosExc = selectedPlano.valorContatosExc ?? 0.10;
     const valorIA = selectedPlano.valorIA ?? 99.00;
@@ -109,16 +113,18 @@ function ClientesPage() {
     const canaisWhats = form.canaisWhats !== undefined ? form.canaisWhats : (form.canaisZapi || (form.zapi ? 1 : 0));
     const canaisInsta = form.canaisInsta || 0;
     const canaisMessenger = form.canaisMessenger || 0;
-    const totalCanais = canaisWhats + canaisInsta + canaisMessenger || form.canais || 1;
 
-    // Up to 1 of each type is free for Helena cost
-    const excWhats = Math.max(0, canaisWhats - 1);
-    const excInsta = Math.max(0, canaisInsta - 1);
-    const excMessenger = Math.max(0, canaisMessenger - 1);
-    const totalExtraCanaisHelena = excWhats + excInsta + excMessenger;
+    // Excedentes por tipo (mesma regra para custo Helena e faturamento)
+    const excWhats = Math.max(0, canaisWhats - (selectedPlano.canaisWhatsInclusos ?? 0));
+    const excInsta = Math.max(0, canaisInsta - (selectedPlano.canaisInstaInclusos ?? 0));
+    const excMessenger = Math.max(0, canaisMessenger - (selectedPlano.canaisMessengerInclusos ?? 0));
+    const totalExtraCanais = excWhats + excInsta + excMessenger;
 
-    // Apply progressive Helena cost calculations
-    const extraCanais = calcularCustoExtraCanaisHelena(totalExtraCanaisHelena, precoCanaisExc);
+    // Custo Helena por tipo (sem progressão por agora — preço por canal de cada tipo)
+    const extraCanais =
+      excWhats * precoCanalWhatsExc +
+      excInsta * precoCanalInstaExc +
+      excMessenger * precoCanalMessengerExc;
 
     const usersExcQtd = Math.max(0, form.usuariosAtivos - (selectedPlano.usuariosInclusos ?? 3));
     const extraUsers = calcularCustoExtraUsuariosHelena(usersExcQtd, precoUsuariosExc);
@@ -141,9 +147,11 @@ function ClientesPage() {
     const transcricao = (form.transcricaoIA && !selectedPlano.incluiTranscricao) ? (form.usuariosAtivos * precoTranscricaoUser) : 0;
     const faturamentoTranscricao = (form.transcricaoIA && !selectedPlano.incluiTranscricao) ? (form.usuariosAtivos * valorTranscricaoUser) : 0;
 
-    // Billable extra channel calculations for the client (bills everything above quota)
-    const canaisExcClienteQtd = Math.max(0, totalCanais - (selectedPlano.canaisInclusos ?? 1));
-    const faturamentoCanaisExc = canaisExcClienteQtd * valorCanaisExc;
+    // Faturamento por canal extra usa o mesmo "excedente por tipo" e o preço de cliente por tipo
+    const faturamentoCanaisExc =
+      excWhats * valorCanalWhatsExc +
+      excInsta * valorCanalInstaExc +
+      excMessenger * valorCanalMessengerExc;
 
     const faturamentoUsersExc = usersExcQtd * valorUsuariosExc;
     const faturamentoContatosExc = contatosExcQtd * valorContatosExc;
@@ -163,6 +171,7 @@ function ClientesPage() {
     return {
       base: baseLicenceCost,
       extraCanais,
+      extraCanaisQtd: totalExtraCanais,
       extraUsers,
       extraContatos,
       zapi,
