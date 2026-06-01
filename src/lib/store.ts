@@ -293,6 +293,7 @@ export const useStore = create<State>()(
         });
       },
       updatePlano: (id, p) => {
+        const oldPlano = get().planos.find((x) => x.id === id);
         const planos = get().planos.map((x) => (x.id === id ? { ...x, ...p } : x));
         set({ planos });
         const updated = planos.find((x) => x.id === id);
@@ -300,6 +301,36 @@ export const useStore = create<State>()(
           supabase.from("elora_planos").update(mapPlanoToDb(updated)).eq("id", id).then(({ error }) => {
             if (error) console.error("Erro ao atualizar plano no Supabase:", error);
           });
+
+          // Propaga alteração: registra um movimento de ajuste para cada cliente
+          // vinculado a este plano, para auditoria. Os valores são recalculados
+          // automaticamente a partir das novas configurações do plano.
+          const clientesAfetados = get().clientes.filter((c) => c.planoId === id && !c.dataChurn);
+          if (clientesAfetados.length > 0 && oldPlano) {
+            const hoje = new Date().toISOString().slice(0, 10);
+            const novosMovimentos: Movimento[] = clientesAfetados.map((c) => ({
+              id: uid(),
+              clienteId: c.id,
+              data: hoje,
+              tipo: "ajuste" as TipoMovimento,
+              planoId: id,
+              observacao: `Plano "${updated.nome}" atualizado — valores recalculados automaticamente.`,
+            }));
+            set({ movimentos: [...get().movimentos, ...novosMovimentos] });
+            // Persistir no Supabase
+            novosMovimentos.forEach((mov) => {
+              supabase.from("elora_movimentos").insert({
+                id: mov.id,
+                cliente_id: mov.clienteId,
+                data: mov.data,
+                tipo: mov.tipo,
+                plano_id: mov.planoId,
+                observacao: mov.observacao,
+              }).then(({ error }) => {
+                if (error) console.error("Erro ao registrar movimento de ajuste:", error);
+              });
+            });
+          }
         }
       },
       removePlano: (id) => {
