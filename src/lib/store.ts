@@ -380,7 +380,14 @@ export const useStore = create<State>()(
         return id;
       },
       updateCliente: (id, c) => {
-        const clientes = get().clientes.map((x) => (x.id === id ? { ...x, ...c } : x));
+        const clientes = get().clientes.map((x) => {
+          if (x.id !== id) return x;
+          const merged = { ...x, ...c };
+          return {
+            ...merged,
+            dataVencimento: normalizarDataVencimento(merged.dataInicio, merged.dataVencimento),
+          };
+        });
         set({ clientes });
         const updated = clientes.find((x) => x.id === id);
         if (updated) {
