@@ -5,10 +5,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronRight, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
-  useStore, formatBRL, receitaMensalCliente, clienteAtivoEm,
+  useStore, formatBRL, receitaMensalCliente, clienteFaturaEm,
   calcularCustoLiquidoHelena,
+  formatDiaVencimento,
+  obterVencimentoDaCompetencia,
 } from "@/lib/store";
 
 export const Route = createFileRoute("/resumo")({
@@ -51,7 +56,7 @@ function ResumoPage() {
     while (cursor <= now) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
-      const ativos = clientesFiltrados.filter((c) => clienteAtivoEm(c, y, m));
+      const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
       const novos = clientesFiltrados.filter((c) => {
         const d = new Date(c.dataInicio);
         return d.getFullYear() === y && d.getMonth() === m;
@@ -64,8 +69,12 @@ function ResumoPage() {
       const receita = ativos.reduce((s, c) => s + receitaMensalCliente(c, planos, custos), 0);
       const custoHelena = calcularCustoLiquidoHelena(ativos);
       const setup = clientesFiltrados
-        .filter((c) => { const d = new Date(c.dataInicio); return d.getFullYear() === y && d.getMonth() === m; })
-        .reduce((s, c) => s + (planos.find((p) => p.id === c.planoId)?.valorSetup ?? 0), 0);
+        .filter((c) => {
+          const vencimento = obterVencimentoDaCompetencia(c, y, m);
+          if (!vencimento) return false;
+          return vencimento === c.dataVencimento;
+        })
+        .reduce((s, c) => s + (c.valorSetupPago || 0), 0);
       const servicos = movimentos
         .filter((mv) => { if (mv.tipo !== "servico" || !mv.valorServico) return false; const d = new Date(mv.data); return d.getFullYear() === y && d.getMonth() === m; })
         .reduce((s, mv) => s + (mv.valorServico ?? 0), 0);
@@ -87,11 +96,76 @@ function ResumoPage() {
     return out.reverse();
   }, [clientesFiltrados, planos, custos, movimentos]);
 
+  const exportarPdf = () => {
+    const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    const planoSelecionado = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
+    const parceiroSelecionado = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
+
+    pdf.setFontSize(18);
+    pdf.text("Resumo Mensal", 40, 42);
+    pdf.setFontSize(10);
+    pdf.text(`Plano: ${planoSelecionado}  |  Parceiro: ${parceiroSelecionado}`, 40, 62);
+    pdf.text(`Gerado em: ${generatedAt}`, 40, 78);
+
+    autoTable(pdf, {
+      startY: 96,
+      head: [["Mês", "Ativos", "Novos", "Churns", "Receita Total", "Custo Helena", "Lucro Líquido"]],
+      body: linhas.map((l) => [
+        l.mesLabel,
+        String(l.ativos.length),
+        String(l.novos),
+        String(l.churns),
+        formatBRL(l.receita),
+        formatBRL(l.custoHelena),
+        formatBRL(l.lucro),
+      ]),
+      styles: { fontSize: 9, cellPadding: 6 },
+      headStyles: { fillColor: [28, 63, 170] },
+      margin: { left: 40, right: 40 },
+    });
+
+    linhas.forEach((linha, index) => {
+      pdf.addPage();
+      pdf.setFontSize(14);
+      pdf.text(`Detalhes · ${linha.mesLabel}`, 40, 42);
+      pdf.setFontSize(10);
+      pdf.text(`Clientes faturados no mês: ${linha.ativos.length}`, 40, 60);
+
+      autoTable(pdf, {
+        startY: 76,
+        head: [["Cliente", "Plano", "Parceiro", "Próx. vencimento", "Status", "Receita/mês"]],
+        body: linha.ativos.map((c) => {
+          const plano = planos.find((p) => p.id === c.planoId);
+          const parceiro = parceiros.find((p) => p.id === c.parceiroId);
+          return [
+            c.nome,
+            plano?.nome ?? "—",
+            parceiro?.nome ?? "—",
+            formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1)),
+            c.dataChurn ? "Churn" : "Ativo",
+            formatBRL(receitaMensalCliente(c, planos, custos)),
+          ];
+        }),
+        styles: { fontSize: 9, cellPadding: 6 },
+        headStyles: { fillColor: [28, 63, 170] },
+        margin: { left: 40, right: 40 },
+      });
+    });
+
+    pdf.save(`resumo-mensal-${filtroPlano}-${filtroParceiro}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
-        <p className="text-muted-foreground text-sm">Receita, custo Helena e lucro por mês · clique no mês para ver detalhes</p>
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
+          <p className="text-muted-foreground text-sm">Receita, custo Helena e lucro por mês · clique no mês para ver detalhes</p>
+        </div>
+        <Button onClick={exportarPdf} disabled={linhas.length === 0} className="gap-2">
+          <Download className="h-4 w-4" /> Exportar PDF
+        </Button>
       </div>
 
       {/* Filtros */}
@@ -200,7 +274,10 @@ function ResumoPage() {
                                       <td className="py-1.5 text-muted-foreground">{plano?.nome ?? "—"}</td>
                                       <td className="py-1.5 text-muted-foreground">{parceiro?.nome ?? "—"}</td>
                                       <td className="py-1.5 text-right text-muted-foreground text-xs">
-                                        {c.dataVencimento ? `dia ${c.dataVencimento}` : "—"}
+                                        {(() => {
+                                          const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1);
+                                          return vencimento ? `dia ${formatDiaVencimento(vencimento)}` : "—";
+                                        })()}
                                       </td>
                                       <td className="py-1.5 text-right">
                                         {c.dataChurn
