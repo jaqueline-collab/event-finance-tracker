@@ -223,6 +223,9 @@ const mapDbToMovimento = (r: any): Movimento => ({
   apps: r.apps,
   mau: r.mau,
   canais: r.canais,
+  canaisWhats: r.canais_whats,
+  canaisInsta: r.canais_insta,
+  canaisMessenger: r.canais_messenger,
   usuariosAtivos: r.usuarios_ativos,
   contatosAtivos: r.contatos_ativos,
   agentesIA: r.agentes_ia,
@@ -295,35 +298,10 @@ export const useStore = create<State>()(
             if (error) console.error("Erro ao atualizar plano no Supabase:", error);
           });
 
-          // Propaga alteração: registra um movimento de ajuste para cada cliente
-          // vinculado a este plano, para auditoria. Os valores são recalculados
-          // automaticamente a partir das novas configurações do plano.
-          const clientesAfetados = get().clientes.filter((c) => c.planoId === id && !c.dataChurn);
-          if (clientesAfetados.length > 0 && oldPlano) {
-            const hoje = new Date().toISOString().slice(0, 10);
-            const novosMovimentos: Movimento[] = clientesAfetados.map((c) => ({
-              id: uid(),
-              clienteId: c.id,
-              data: hoje,
-              tipo: "ajuste" as TipoMovimento,
-              planoId: id,
-              observacao: `Plano "${updated.nome}" atualizado — valores recalculados automaticamente.`,
-            }));
-            set({ movimentos: [...get().movimentos, ...novosMovimentos] });
-            // Persistir no Supabase
-            novosMovimentos.forEach((mov) => {
-              supabase.from("elora_movimentos").insert({
-                id: mov.id,
-                cliente_id: mov.clienteId,
-                data: mov.data,
-                tipo: mov.tipo,
-                plano_id: mov.planoId,
-                observacao: mov.observacao,
-              }).then(({ error }) => {
-                if (error) console.error("Erro ao registrar movimento de ajuste:", error);
-              });
-            });
-          }
+          // Os valores do cliente são recalculados automaticamente a partir
+          // das novas configurações do plano — nenhum movimento de ajuste
+          // é registrado para evitar poluir o histórico.
+          void oldPlano;
         }
       },
       removePlano: (id) => {
@@ -414,6 +392,9 @@ export const useStore = create<State>()(
           apps: mov.apps || null,
           mau: mov.mau || null,
           canais: mov.canais || null,
+          canais_whats: mov.canaisWhats ?? null,
+          canais_insta: mov.canaisInsta ?? null,
+          canais_messenger: mov.canaisMessenger ?? null,
           usuarios_ativos: mov.usuariosAtivos || null,
           contatos_ativos: mov.contatosAtivos || null,
           agentes_ia: mov.agentesIA || null,
@@ -432,13 +413,31 @@ export const useStore = create<State>()(
         if (cliente) {
           const patch: Partial<Cliente> = {};
           if (m.tipo === "churn") patch.dataChurn = m.data;
-          if (m.tipo === "ativacao") patch.dataChurn = null;
           if (m.planoId !== undefined && m.planoId !== null) patch.planoId = m.planoId;
-          if (m.apps !== undefined) patch.apps = m.apps;
-          if (m.mau !== undefined) patch.mau = m.mau;
-          if (m.canais !== undefined) patch.canais = m.canais;
-          if (m.usuariosAtivos !== undefined) patch.usuariosAtivos = m.usuariosAtivos;
-          if (m.contatosAtivos !== undefined) patch.contatosAtivos = m.contatosAtivos;
+
+          // Upgrade/Downgrade: campos numéricos são DELTAS (ex.: -1, +2),
+          // somados ao valor atual do cliente. Booleanos representam o estado final.
+          // Setup: valores numéricos são absolutos (substituem o valor atual).
+          const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
+          const applyNum = (cur: number | undefined, val: number | undefined) => {
+            if (val === undefined) return undefined;
+            if (isDelta) return Math.max(0, (cur ?? 0) + val);
+            return val;
+          };
+          const newCanais = applyNum(cliente.canais, m.canais);
+          if (newCanais !== undefined) patch.canais = newCanais;
+          const newWhats = applyNum(cliente.canaisWhats, m.canaisWhats);
+          if (newWhats !== undefined) patch.canaisWhats = newWhats;
+          const newInsta = applyNum(cliente.canaisInsta, m.canaisInsta);
+          if (newInsta !== undefined) patch.canaisInsta = newInsta;
+          const newMsg = applyNum(cliente.canaisMessenger, m.canaisMessenger);
+          if (newMsg !== undefined) patch.canaisMessenger = newMsg;
+          const newUsers = applyNum(cliente.usuariosAtivos, m.usuariosAtivos);
+          if (newUsers !== undefined) patch.usuariosAtivos = newUsers;
+          const newCont = applyNum(cliente.contatosAtivos, m.contatosAtivos);
+          if (newCont !== undefined) patch.contatosAtivos = newCont;
+          if (m.apps !== undefined) patch.apps = isDelta ? Math.max(0, (cliente.apps ?? 0) + m.apps) : m.apps;
+          if (m.mau !== undefined) patch.mau = isDelta ? Math.max(0, (cliente.mau ?? 0) + m.mau) : m.mau;
           if (m.agentesIA !== undefined) patch.agentesIA = m.agentesIA;
           if (m.asaas !== undefined) patch.asaas = m.asaas;
           if (m.zapi !== undefined) patch.zapi = m.zapi;

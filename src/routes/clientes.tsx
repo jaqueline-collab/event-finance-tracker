@@ -25,11 +25,9 @@ export const Route = createFileRoute("/clientes")({
 });
 
 const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] = [
-  { value: "setup", label: "Setup", color: "bg-primary/20 text-primary" },
-  { value: "ativacao", label: "Ativação", color: "bg-accent/20 text-accent" },
+  { value: "setup", label: "Setup / Ativação", color: "bg-primary/20 text-primary" },
   { value: "upgrade", label: "Upgrade", color: "bg-accent/20 text-accent" },
   { value: "downgrade", label: "Downgrade", color: "bg-yellow-500/20 text-yellow-400" },
-  { value: "ajuste", label: "Ajuste", color: "bg-muted text-muted-foreground" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
 ];
@@ -65,9 +63,11 @@ function ClientesPage() {
 
   const [movForm, setMovForm] = useState({
     data: new Date().toISOString().slice(0, 10),
-    tipo: "ajuste" as TipoMovimento,
+    tipo: "upgrade" as TipoMovimento,
     planoId: "",
-    canais: "",
+    canaisWhats: "",
+    canaisInsta: "",
+    canaisMessenger: "",
     canaisZapi: "",
     usuariosAtivos: "",
     contatosAtivos: "",
@@ -229,14 +229,19 @@ function ClientesPage() {
 
   const openAcaoModal = (c: Cliente, tipo: TipoMovimento) => {
     setAcaoClienteId(c.id);
+    const isDelta = tipo === "upgrade" || tipo === "downgrade";
     setMovForm({
       data: new Date().toISOString().slice(0, 10),
       tipo,
-      planoId: c.planoId || "",
-      canais: String(c.canais || 1),
-      canaisZapi: String(c.canaisZapi || 0),
-      usuariosAtivos: String(c.usuariosAtivos || 3),
-      contatosAtivos: String(c.contatosAtivos || 500),
+      planoId: isDelta ? "" : (c.planoId || ""),
+      // Upgrade/Downgrade: campos começam vazios (entram apenas as diferenças).
+      // Setup: pré-preenche com a configuração atual do cliente.
+      canaisWhats: isDelta ? "" : String(c.canaisWhats ?? 0),
+      canaisInsta: isDelta ? "" : String(c.canaisInsta ?? 0),
+      canaisMessenger: isDelta ? "" : String(c.canaisMessenger ?? 0),
+      canaisZapi: isDelta ? "" : String(c.canaisZapi || 0),
+      usuariosAtivos: isDelta ? "" : String(c.usuariosAtivos || 3),
+      contatosAtivos: isDelta ? "" : String(c.contatosAtivos || 500),
       agentesIA: c.agentesIA || false,
       asaas: c.asaas || false,
       zapi: c.zapi || false,
@@ -249,14 +254,17 @@ function ClientesPage() {
 
   const handleSaveMovimento = () => {
     if (!acaoClienteId) return;
+    const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
     addMovimento({
       clienteId: acaoClienteId,
       data: movForm.data,
       tipo: movForm.tipo,
       planoId: movForm.planoId || undefined,
-      canais: movForm.canais === "" ? undefined : Number(movForm.canais),
-      usuariosAtivos: movForm.usuariosAtivos === "" ? undefined : Number(movForm.usuariosAtivos),
-      contatosAtivos: movForm.contatosAtivos === "" ? undefined : Number(movForm.contatosAtivos),
+      canaisWhats: parseNum(movForm.canaisWhats),
+      canaisInsta: parseNum(movForm.canaisInsta),
+      canaisMessenger: parseNum(movForm.canaisMessenger),
+      usuariosAtivos: parseNum(movForm.usuariosAtivos),
+      contatosAtivos: parseNum(movForm.contatosAtivos),
       agentesIA: movForm.agentesIA,
       asaas: movForm.asaas,
       zapi: movForm.zapi,
@@ -766,10 +774,24 @@ function ClientesPage() {
             clientMovs.forEach((m) => {
               const matchedPlano = planos.find((p) => p.id === m.planoId);
               let descParts: string[] = [];
+              const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
+              const fmtDelta = (v: number) => (v > 0 ? `+${v}` : `${v}`);
+              const fmtNum = (label: string, v: number | undefined) => {
+                if (v === undefined || v === null) return;
+                if (isDelta) {
+                  if (v === 0) return;
+                  descParts.push(`${label} ${fmtDelta(v)}`);
+                } else {
+                  descParts.push(`${label}: ${v}`);
+                }
+              };
               if (m.planoId) descParts.push(`Plano alterado para "${matchedPlano?.nome ?? m.planoId}"`);
-              if (m.canais !== undefined) descParts.push(`Canais: ${m.canais}`);
-              if (m.usuariosAtivos !== undefined) descParts.push(`Usuários: ${m.usuariosAtivos}`);
-              if (m.contatosAtivos !== undefined) descParts.push(`Contatos/MAU: ${m.contatosAtivos}`);
+              fmtNum("Canais WhatsApp", m.canaisWhats);
+              fmtNum("Canais Instagram", m.canaisInsta);
+              fmtNum("Canais Messenger", m.canaisMessenger);
+              fmtNum("Canais", m.canais);
+              fmtNum("Usuários", m.usuariosAtivos);
+              fmtNum("Contatos/MAU", m.contatosAtivos);
               if (m.observacao) descParts.push(`Obs: ${m.observacao}`);
               
               const mTipoLabel = tiposMovimento.find(t => t.value === m.tipo)?.label || m.tipo;
@@ -918,6 +940,13 @@ function ClientesPage() {
           <DialogHeader>
             <DialogTitle>Registrar Movimento</DialogTitle>
           </DialogHeader>
+          {(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              Informe apenas o que <strong>mudou</strong>. Use números positivos para adicionar
+              e negativos para reduzir (ex.: <code>-1</code> em Canais WhatsApp). Campos em branco permanecem inalterados.
+              Os novos valores passam a valer nos próximos fechamentos.
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
             <div>
               <Label className="mb-1 block">Tipo de Ação</Label>
@@ -944,16 +973,28 @@ function ClientesPage() {
             
             {/* Atualização de Recursos */}
             <div>
-              <Label className="mb-1 block">Canais Ativos</Label>
-              <Input type="number" value={movForm.canais} onChange={(e) => setMovForm({ ...movForm, canais: e.target.value })} />
+              <Label className="mb-1 block">Canais WhatsApp</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
             </div>
             <div>
-              <Label className="mb-1 block">Usuários Ativos</Label>
-              <Input type="number" value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
+              <Label className="mb-1 block">Canais Instagram</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisInsta} onChange={(e) => setMovForm({ ...movForm, canaisInsta: e.target.value })} />
             </div>
             <div>
-              <Label className="mb-1 block font-medium">Contatos</Label>
-              <Input type="number" value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
+              <Label className="mb-1 block">Canais Messenger</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
+            </div>
+            <div>
+              <Label className="mb-1 block">Usuários</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
+            </div>
+            <div className="md:col-span-2">
+              <Label className="mb-1 block font-medium">Contatos / MAU</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
+            </div>
+            <div className="md:col-span-3">
+              <Label className="mb-1 block">Observação</Label>
+              <Input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} placeholder="Detalhe opcional do movimento" />
             </div>
             
             <div className="grid grid-cols-2 md:col-span-3 gap-4 border-t border-border pt-4 mt-2">

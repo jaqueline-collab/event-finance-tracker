@@ -69,10 +69,8 @@ export interface Parceiro {
 
 export type TipoMovimento =
   | "setup"
-  | "ativacao"
   | "upgrade"
   | "downgrade"
-  | "ajuste"
   | "churn"
   | "servico";
 
@@ -112,6 +110,9 @@ export interface Movimento {
   apps?: number;
   mau?: number;
   canais?: number;
+  canaisWhats?: number;
+  canaisInsta?: number;
+  canaisMessenger?: number;
   usuariosAtivos?: number;
   contatosAtivos?: number;
   agentesIA?: boolean;
