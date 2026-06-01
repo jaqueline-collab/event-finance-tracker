@@ -229,14 +229,19 @@ function ClientesPage() {
 
   const openAcaoModal = (c: Cliente, tipo: TipoMovimento) => {
     setAcaoClienteId(c.id);
+    const isDelta = tipo === "upgrade" || tipo === "downgrade";
     setMovForm({
       data: new Date().toISOString().slice(0, 10),
       tipo,
-      planoId: c.planoId || "",
-      canais: String(c.canais || 1),
-      canaisZapi: String(c.canaisZapi || 0),
-      usuariosAtivos: String(c.usuariosAtivos || 3),
-      contatosAtivos: String(c.contatosAtivos || 500),
+      planoId: isDelta ? "" : (c.planoId || ""),
+      // Upgrade/Downgrade: campos começam vazios (entram apenas as diferenças).
+      // Setup: pré-preenche com a configuração atual do cliente.
+      canaisWhats: isDelta ? "" : String(c.canaisWhats ?? 0),
+      canaisInsta: isDelta ? "" : String(c.canaisInsta ?? 0),
+      canaisMessenger: isDelta ? "" : String(c.canaisMessenger ?? 0),
+      canaisZapi: isDelta ? "" : String(c.canaisZapi || 0),
+      usuariosAtivos: isDelta ? "" : String(c.usuariosAtivos || 3),
+      contatosAtivos: isDelta ? "" : String(c.contatosAtivos || 500),
       agentesIA: c.agentesIA || false,
       asaas: c.asaas || false,
       zapi: c.zapi || false,
@@ -249,14 +254,17 @@ function ClientesPage() {
 
   const handleSaveMovimento = () => {
     if (!acaoClienteId) return;
+    const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
     addMovimento({
       clienteId: acaoClienteId,
       data: movForm.data,
       tipo: movForm.tipo,
       planoId: movForm.planoId || undefined,
-      canais: movForm.canais === "" ? undefined : Number(movForm.canais),
-      usuariosAtivos: movForm.usuariosAtivos === "" ? undefined : Number(movForm.usuariosAtivos),
-      contatosAtivos: movForm.contatosAtivos === "" ? undefined : Number(movForm.contatosAtivos),
+      canaisWhats: parseNum(movForm.canaisWhats),
+      canaisInsta: parseNum(movForm.canaisInsta),
+      canaisMessenger: parseNum(movForm.canaisMessenger),
+      usuariosAtivos: parseNum(movForm.usuariosAtivos),
+      contatosAtivos: parseNum(movForm.contatosAtivos),
       agentesIA: movForm.agentesIA,
       asaas: movForm.asaas,
       zapi: movForm.zapi,
