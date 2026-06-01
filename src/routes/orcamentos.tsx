@@ -85,44 +85,12 @@ function FunilPage() {
   // Carregar do Supabase
   useEffect(() => {
     supabase.from("elora_kanban_cards").select("*").then(({ data, error }) => {
-      if (data && data.length > 0) {
-        setCards(data.map(mapDbToCard));
-      } else {
-        // Seed inicial para visual premium
-        const initial: KanbanCard[] = [
-          {
-            id: "seed-1",
-            titulo: "Plano Growth CRM + Z-API",
-            cliente: "Clínica Bem Estar",
-            valor: 746.00,
-            status: "contato",
-            dataCriacao: new Date().toISOString().slice(0, 10),
-            observacao: "Lead vindo do Instagram, interessado em chatbot de agendamento.",
-          },
-          {
-            id: "seed-2",
-            titulo: "Setup Integração + IA",
-            cliente: "Imobiliária Novo Lar",
-            valor: 1197.00,
-            status: "proposta",
-            dataCriacao: new Date().toISOString().slice(0, 10),
-            observacao: "Proposta de setup único de IA + MRR do plano Starter.",
-          },
-          {
-            id: "seed-3",
-            titulo: "Plano Scale Customizado",
-            cliente: "Grupo J. Silva",
-            valor: 2450.00,
-            status: "negociacao",
-            dataCriacao: new Date().toISOString().slice(0, 10),
-            observacao: "Reunião de fechamento agendada com o diretor comercial.",
-          }
-        ];
-        setCards(initial);
-        initial.forEach(c => {
-          supabase.from("elora_kanban_cards").insert(mapCardToDb(c)).then();
-        });
+      if (error) {
+        console.error("Erro ao carregar oportunidades:", error);
+        setCards([]);
+        return;
       }
+      setCards((data ?? []).map(mapDbToCard));
     });
   }, []);
 
