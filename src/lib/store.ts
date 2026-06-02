@@ -94,7 +94,8 @@ const mapPlanoToDb = (p: Plano) => ({
   valor_canal_insta_exc: p.valorCanalInstaExc,
   valor_canal_messenger_exc: p.valorCanalMessengerExc,
   parceiro_ids: p.parceiroIds,
-  observacao: p.observacao || ""
+  observacao: p.observacao || "",
+  dia_vencimento: p.diaVencimento ?? null,
 });
 
 const mapDbToPlano = (r: any): Plano => {
@@ -142,7 +143,8 @@ const mapDbToPlano = (r: any): Plano => {
   valorCanalInstaExc: Number(r.valor_canal_insta_exc ?? r.valor_canais_exc ?? 59.90),
   valorCanalMessengerExc: Number(r.valor_canal_messenger_exc ?? r.valor_canais_exc ?? 59.90),
   parceiroIds: r.parceiro_ids ?? [],
-  observacao: r.observacao || ""
+  observacao: r.observacao || "",
+  diaVencimento: r.dia_vencimento != null ? Number(r.dia_vencimento) : null,
 });
 };
 
