@@ -10,6 +10,7 @@ import {
   Handshake,
   ChevronDown,
   Kanban,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -34,6 +35,7 @@ const gestaoItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Resumo Mensal", url: "/resumo", icon: CalendarRange },
+  { title: "Financeiro", url: "/financeiro", icon: Wallet },
   { title: "Funil", url: "/orcamentos", icon: Kanban },
 ];
 
