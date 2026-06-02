@@ -662,7 +662,8 @@ export function receitaMensalCliente(
 
   // Z-API (cobrado por canal configurado como Z-API excedente aos inclusos no plano)
   const zapiInclusos = typeof plano.incluiZapi === "number" ? plano.incluiZapi : (plano.incluiZapi ? 1 : 0);
-  const qtdZapiCliente = cliente.zapi ? Math.max(0, canaisWhats - zapiInclusos) : 0;
+  const canaisZapi = cliente.canaisZapi ?? 0;
+  const qtdZapiCliente = canaisZapi > 0 ? Math.max(0, canaisZapi - zapiInclusos) : 0;
   total += qtdZapiCliente * valorZapi;
 
   // Transcrição IA
@@ -724,7 +725,7 @@ export function custoMensalCliente(
   }
 
   // Z-API (cobrado custo Helena cheio por canal ativo se Z-API estiver ativo no cliente)
-  const qtdZapi = cliente.zapi ? canaisWhats : 0;
+  const qtdZapi = cliente.canaisZapi ?? 0;
   total += qtdZapi * precoZapi;
 
   // Transcrição IA
