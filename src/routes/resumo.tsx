@@ -66,7 +66,7 @@ function ResumoPage() {
     while (cursor <= now) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
-      const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
+      const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m, planos));
       const novos = clientesFiltrados.filter((c) => {
         const d = new Date(c.dataInicio);
         return d.getFullYear() === y && d.getMonth() === m;
@@ -79,13 +79,13 @@ function ResumoPage() {
       const receita = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
       // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
-        const venc = obterVencimentoDaCompetencia(c, y, m);
+        const venc = obterVencimentoDaCompetencia(c, y, m, planos);
         return venc ? clienteSnapshotAt(c, movimentos, venc) : c;
       });
       const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot);
       const setup = clientesFiltrados
         .filter((c) => {
-          const vencimento = obterVencimentoDaCompetencia(c, y, m);
+          const vencimento = obterVencimentoDaCompetencia(c, y, m, planos);
           if (!vencimento) return false;
           return vencimento === c.dataVencimento;
         })
@@ -157,7 +157,7 @@ function ResumoPage() {
             c.nome,
             plano?.nome ?? "—",
             parceiro?.nome ?? "—",
-            formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1)),
+            formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1, planos)),
             c.dataChurn ? "Churn" : "Ativo",
           formatBRL(receitaMensalClienteEm(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
           ];
@@ -179,7 +179,7 @@ function ResumoPage() {
     const m = Number(mStr) - 1;
     const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
+    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m, planos));
 
     // Ciclo de competência: o fechamento de JUNHO contempla os movimentos do
     // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
@@ -212,7 +212,7 @@ function ResumoPage() {
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-      const venc = obterVencimentoDaCompetencia(c, y, m);
+      const venc = obterVencimentoDaCompetencia(c, y, m, planos);
       const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
       const receita = receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
       const acomp = snap.valorAcompanhamento || 0;
@@ -608,7 +608,7 @@ function ResumoPage() {
                                       <td className="py-1.5 text-muted-foreground">{parceiro?.nome ?? "—"}</td>
                                       <td className="py-1.5 text-right text-muted-foreground text-xs">
                                         {(() => {
-                                          const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1);
+                                          const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1, planos);
                                           return vencimento ? `dia ${formatDiaVencimento(vencimento)}` : "—";
                                         })()}
                                       </td>
