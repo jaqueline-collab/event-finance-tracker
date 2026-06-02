@@ -206,13 +206,45 @@ function ResumoPage() {
       const acomp = snap.valorAcompanhamento || 0;
       const sistema = Math.max(0, receita - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
-      return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc };
+      // LTV em dias: do início até churn (se houver) ou fim da competência
+      const inicio = new Date(c.dataInicio);
+      const fimCompetencia = new Date(y, m + 1, 0);
+      const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
+      const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
+      return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc, ltvDias };
     });
 
     const totalSistema = detalhesPorCliente.reduce((s, d) => s + d.sistema, 0);
     const totalAcompanhamento = detalhesPorCliente.reduce((s, d) => s + d.acomp, 0);
     const totalReceita = totalSistema + totalAcompanhamento;
     const totalSetups = setupsNoMes.reduce((s, c) => s + (c.valorSetupPago || 0), 0);
+
+    // Métricas adicionais
+    const ltvMedioDias = detalhesPorCliente.length > 0
+      ? detalhesPorCliente.reduce((s, d) => s + d.ltvDias, 0) / detalhesPorCliente.length
+      : 0;
+    const ticketMedio = detalhesPorCliente.length > 0
+      ? totalReceita / detalhesPorCliente.length
+      : 0;
+
+    // Delta de receita por movimento (impacto financeiro)
+    const calcDeltaReceita = (mv: typeof movimentos[number]): number => {
+      const c = clientes.find((x) => x.id === mv.clienteId);
+      if (!c) return 0;
+      // Estado logo após o movimento aplicado
+      const after = clienteSnapshotAt(c, movimentos, mv.data);
+      // Reverte apenas este movimento
+      const before: typeof after = { ...after };
+      const rev = (cur: number | undefined, val: number | null | undefined) =>
+        val === undefined || val === null ? cur : Math.max(0, (cur ?? 0) - val);
+      before.canaisWhats = rev(after.canaisWhats, mv.canaisWhats);
+      before.canaisInsta = rev(after.canaisInsta, mv.canaisInsta);
+      before.canaisMessenger = rev(after.canaisMessenger, mv.canaisMessenger);
+      before.canaisZapi = rev(after.canaisZapi, mv.canaisZapi) ?? after.canaisZapi;
+      before.usuariosAtivos = rev(after.usuariosAtivos, mv.usuariosAtivos) ?? after.usuariosAtivos;
+      before.contatosAtivos = rev(after.contatosAtivos, mv.contatosAtivos) ?? after.contatosAtivos;
+      return receitaMensalCliente(after, planos, custos) - receitaMensalCliente(before, planos, custos);
+    };
 
     return {
       y, m, labelMes,
@@ -225,6 +257,9 @@ function ResumoPage() {
       totalAcompanhamento,
       totalReceita,
       movsMes,
+      ltvMedioDias,
+      ticketMedio,
+      calcDeltaReceita,
     };
   }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, parceiros]);
 
