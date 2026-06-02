@@ -804,10 +804,63 @@ export function obterVencimentoDaCompetencia(cliente: Cliente, year: number, mon
 
   if (cliente.dataChurn && ISO_DATE_RE.test(cliente.dataChurn)) {
     const churn = toLocalNoonDate(cliente.dataChurn);
-    if (churn < cobrancaCompetencia) return null;
+    // Regra: se o cliente esteve ativo em ao menos um dia do ciclo de
+    // faturamento anterior (entre o vencimento anterior e o atual), ainda
+    // cobramos esta competência como cobrança de encerramento.
+    const vencimentoAnterior = new Date(year, month - 1, clampBillingDay(year, month - 1, diaVencimento), 12);
+    if (churn < vencimentoAnterior) return null;
   }
 
   return formatIsoDate(cobrancaCompetencia);
+}
+
+// Reconstrói o estado do cliente como ele estava em uma data específica,
+// revertendo movimentos posteriores (upgrade/downgrade são deltas numéricos).
+// Booleanos e troca de plano não são totalmente reversíveis — mantemos o
+// valor atual como aproximação.
+export function clienteSnapshotAt(
+  cliente: Cliente,
+  movimentos: Movimento[],
+  atIso: string,
+): Cliente {
+  const snap: Cliente = { ...cliente };
+  const future = movimentos
+    .filter((m) => m.clienteId === cliente.id && m.data > atIso)
+    .sort((a, b) => b.data.localeCompare(a.data));
+
+  for (const m of future) {
+    if (m.tipo === "upgrade" || m.tipo === "downgrade") {
+      const rev = (cur: number | undefined, val: number | null | undefined) => {
+        if (val === undefined || val === null) return cur;
+        return Math.max(0, (cur ?? 0) - val);
+      };
+      snap.canais = rev(snap.canais, m.canais) ?? snap.canais;
+      snap.canaisWhats = rev(snap.canaisWhats, m.canaisWhats);
+      snap.canaisInsta = rev(snap.canaisInsta, m.canaisInsta);
+      snap.canaisMessenger = rev(snap.canaisMessenger, m.canaisMessenger);
+      snap.usuariosAtivos = rev(snap.usuariosAtivos, m.usuariosAtivos) ?? snap.usuariosAtivos;
+      snap.contatosAtivos = rev(snap.contatosAtivos, m.contatosAtivos) ?? snap.contatosAtivos;
+      snap.apps = rev(snap.apps, m.apps) ?? snap.apps;
+      snap.mau = rev(snap.mau, m.mau) ?? snap.mau;
+    } else if (m.tipo === "churn") {
+      snap.dataChurn = null;
+    }
+  }
+  return snap;
+}
+
+export function receitaMensalClienteEm(
+  cliente: Cliente,
+  planos: Plano[],
+  custos: CustoBase[],
+  movimentos: Movimento[],
+  year: number,
+  month: number,
+): number {
+  const vencimento = obterVencimentoDaCompetencia(cliente, year, month);
+  if (!vencimento) return 0;
+  const snap = clienteSnapshotAt(cliente, movimentos, vencimento);
+  return receitaMensalCliente(snap, planos, custos);
 }
 
 export function clienteFaturaEm(cliente: Cliente, year: number, month: number): boolean {
