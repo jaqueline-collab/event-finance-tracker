@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cliente, CustoBase, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
+import type { Cliente, CustoBase, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
 import { supabase } from "./supabaseClient";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -11,6 +11,7 @@ interface State {
   clientes: Cliente[];
   movimentos: Movimento[];
   parceiros: Parceiro[];
+  financeiro: LancamentoFinanceiro[];
   // sync
   syncFromSupabase: () => Promise<void>;
   // custos
@@ -32,6 +33,10 @@ interface State {
   addParceiro: (p: Omit<Parceiro, "id" | "criadoEm">) => void;
   updateParceiro: (id: string, p: Partial<Parceiro>) => void;
   removeParceiro: (id: string) => void;
+  // financeiro
+  addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => string;
+  updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => void;
+  removeLancamento: (id: string) => void;
   // reset
   resetAll: () => void;
   seedDemo: () => void;

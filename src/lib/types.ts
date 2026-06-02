@@ -124,3 +124,21 @@ export interface Movimento {
   valorServico?: number;
   observacao?: string;
 }
+
+export type StatusFinanceiro = "pago" | "pendente" | "cancelado";
+export type TipoFinanceiro = "custo" | "fechamento";
+
+export interface LancamentoFinanceiro {
+  id: string;
+  descricao: string;
+  tipo: TipoFinanceiro;
+  categoria?: string;
+  valor: number;
+  vencimento: string | null;
+  competencia?: string | null;
+  status: StatusFinanceiro;
+  nfEmitida: boolean;
+  nfNumero?: string;
+  observacao?: string;
+  criadoEm?: string;
+}
