@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cliente, CustoBase, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
+import type { Cliente, CustoBase, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
 import { supabase } from "./supabaseClient";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -11,6 +11,7 @@ interface State {
   clientes: Cliente[];
   movimentos: Movimento[];
   parceiros: Parceiro[];
+  financeiro: LancamentoFinanceiro[];
   // sync
   syncFromSupabase: () => Promise<void>;
   // custos
@@ -32,6 +33,10 @@ interface State {
   addParceiro: (p: Omit<Parceiro, "id" | "criadoEm">) => void;
   updateParceiro: (id: string, p: Partial<Parceiro>) => void;
   removeParceiro: (id: string) => void;
+  // financeiro
+  addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => string;
+  updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => void;
+  removeLancamento: (id: string) => void;
   // reset
   resetAll: () => void;
   seedDemo: () => void;
@@ -238,6 +243,35 @@ const mapDbToMovimento = (r: any): Movimento => ({
   observacao: r.observacao,
 });
 
+const mapFinanceiroToDb = (l: LancamentoFinanceiro) => ({
+  id: l.id,
+  descricao: l.descricao,
+  tipo: l.tipo,
+  categoria: l.categoria || null,
+  valor: l.valor,
+  vencimento: l.vencimento || null,
+  competencia: l.competencia || null,
+  status: l.status,
+  nf_emitida: l.nfEmitida,
+  nf_numero: l.nfNumero || null,
+  observacao: l.observacao || null,
+});
+
+const mapDbToFinanceiro = (r: any): LancamentoFinanceiro => ({
+  id: r.id,
+  descricao: r.descricao,
+  tipo: (r.tipo as any) ?? "custo",
+  categoria: r.categoria || undefined,
+  valor: Number(r.valor ?? 0),
+  vencimento: r.vencimento || null,
+  competencia: r.competencia || null,
+  status: (r.status as any) ?? "pendente",
+  nfEmitida: Boolean(r.nf_emitida),
+  nfNumero: r.nf_numero || undefined,
+  observacao: r.observacao || undefined,
+  criadoEm: r.created_at ?? undefined,
+});
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
@@ -246,15 +280,17 @@ export const useStore = create<State>()(
       clientes: [],
       movimentos: [],
       parceiros: [],
+      financeiro: [],
 
       // Sincronização assíncrona
       syncFromSupabase: async () => {
         try {
-          const [planosRes, parceirosRes, clientesRes, movimentosRes] = await Promise.all([
+          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes] = await Promise.all([
             supabase.from("elora_planos").select("*"),
             supabase.from("elora_parceiros").select("*"),
             supabase.from("elora_clientes").select("*"),
             supabase.from("elora_movimentos").select("*"),
+            (supabase as any).from("elora_financeiro").select("*"),
           ]);
 
           if (planosRes.data && planosRes.data.length > 0) {
@@ -268,6 +304,9 @@ export const useStore = create<State>()(
           }
           if (movimentosRes.data) {
             set({ movimentos: movimentosRes.data.map(mapDbToMovimento) });
+          }
+          if (finRes?.data) {
+            set({ financeiro: finRes.data.map(mapDbToFinanceiro) });
           }
         } catch (e) {
           console.error("Erro ao carregar dados do Supabase:", e);
@@ -532,6 +571,33 @@ export const useStore = create<State>()(
         set({ parceiros: get().parceiros.filter((x) => x.id !== id) });
         supabase.from("elora_parceiros").delete().eq("id", id).then(({ error }) => {
           if (error) console.error("Erro ao remover parceiro no Supabase:", error);
+        });
+      },
+
+      // Financeiro
+      addLancamento: (l) => {
+        const id = uid();
+        const novo: LancamentoFinanceiro = { ...l, id };
+        set({ financeiro: [...get().financeiro, novo] });
+        (supabase as any).from("elora_financeiro").insert(mapFinanceiroToDb(novo)).then(({ error }: any) => {
+          if (error) console.error("Erro ao salvar lançamento financeiro:", error);
+        });
+        return id;
+      },
+      updateLancamento: (id, l) => {
+        const financeiro = get().financeiro.map((x) => (x.id === id ? { ...x, ...l } : x));
+        set({ financeiro });
+        const updated = financeiro.find((x) => x.id === id);
+        if (updated) {
+          (supabase as any).from("elora_financeiro").update(mapFinanceiroToDb(updated)).eq("id", id).then(({ error }: any) => {
+            if (error) console.error("Erro ao atualizar lançamento financeiro:", error);
+          });
+        }
+      },
+      removeLancamento: (id) => {
+        set({ financeiro: get().financeiro.filter((x) => x.id !== id) });
+        (supabase as any).from("elora_financeiro").delete().eq("id", id).then(({ error }: any) => {
+          if (error) console.error("Erro ao remover lançamento financeiro:", error);
         });
       },
 
@@ -1012,4 +1078,36 @@ export function calcularCustoLiquidoHelena(clientesAtivos: Cliente[]): number {
 
 export function receitaMensalTotal(clientesAtivos: Cliente[], planos: Plano[], custos: CustoBase[]): number {
   return clientesAtivos.reduce((acc, c) => acc + receitaMensalCliente(c, planos, custos), 0);
+}
+
+// Faturamento acumulado de um cliente desde o setup até hoje (ou churn):
+// soma todas as competências faturadas + setup pago + serviços avulsos.
+export function faturamentoAcumuladoCliente(
+  cliente: Cliente,
+  planos: Plano[],
+  custos: CustoBase[],
+  movimentos: Movimento[],
+): number {
+  if (!cliente.dataInicio) return 0;
+  const inicio = new Date(cliente.dataInicio);
+  const hoje = new Date();
+  const fim = cliente.dataChurn ? new Date(cliente.dataChurn) : hoje;
+  let total = cliente.valorSetupPago || 0;
+  // serviços avulsos do cliente
+  for (const mv of movimentos) {
+    if (mv.clienteId === cliente.id && mv.tipo === "servico" && mv.valorServico) {
+      total += mv.valorServico;
+    }
+  }
+  const cursor = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  const limite = new Date(fim.getFullYear(), fim.getMonth() + 1, 1);
+  while (cursor < limite) {
+    const y = cursor.getFullYear();
+    const m = cursor.getMonth();
+    if (clienteFaturaEm(cliente, y, m)) {
+      total += receitaMensalClienteEm(cliente, planos, custos, movimentos, y, m);
+    }
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return total;
 }

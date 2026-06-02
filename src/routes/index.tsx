@@ -11,11 +11,13 @@ import { Button } from "@/components/ui/button";
 import {
   useStore,
   receitaMensalCliente,
+  custoMensalCliente,
   clienteAtivoEm,
   formatBRL,
   calcularCustoLiquidoHelena,
   calcularCustoBrutoHelena,
   receitaMensalTotal,
+  faturamentoAcumuladoCliente,
 } from "@/lib/store";
 import {
   ResponsiveContainer,
@@ -30,7 +32,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { TrendingUp, Users, Wallet, DollarSign } from "lucide-react";
+import { TrendingUp, Users, Wallet, DollarSign, Trophy, Crown } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Dashboard · Elora" }] }),
@@ -38,7 +40,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { clientes, planos, custos, seedDemo } = useStore();
+  const { clientes, planos, custos, movimentos } = useStore();
 
   const ativos = clientes.filter((c) => !c.dataChurn);
   const mrr = receitaMensalTotal(ativos, planos, custos);
@@ -85,11 +87,29 @@ function Index() {
   }, [ativos, planos]);
   const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
+  // Rankings de clientes
+  const rankings = useMemo(() => {
+    const enriched = clientes.map((c) => {
+      const start = new Date(c.dataInicio);
+      const end = c.dataChurn ? new Date(c.dataChurn) : new Date();
+      const ltv = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+      const receita = receitaMensalCliente(c, planos, custos);
+      const custo = custoMensalCliente(c, planos, custos);
+      const lucroMensal = receita - custo;
+      const acumulado = faturamentoAcumuladoCliente(c, planos, custos, movimentos);
+      return { c, ltv, lucroMensal, acumulado };
+    });
+    return {
+      topLtv: [...enriched].sort((a, b) => b.ltv - a.ltv).slice(0, 5),
+      topLucro: [...enriched].sort((a, b) => b.lucroMensal - a.lucroMensal).slice(0, 5),
+    };
+  }, [clientes, planos, custos, movimentos]);
+
   const kpis = [
     { label: "Clientes ativos", value: String(ativos.length), icon: Users, hint: `${clientes.length} no total` },
     { label: "MRR", value: formatBRL(mrr), icon: DollarSign, hint: "Receita recorrente mensal" },
-    { label: "Custo Sistema (Helena)", value: formatBRL(custoHelenaLiquido), icon: Wallet, hint: `S/ Desconto Escala: ${formatBRL(custoHelenaBruto)}` },
-    { label: "Lucro Total", value: formatBRL(lucroLiquido), icon: TrendingUp, hint: `Lucro Sistema: ${formatBRL(lucroSistema)}` },
+    { label: "Lucro Líquido", value: formatBRL(lucroLiquido), icon: TrendingUp, hint: `MRR − Custo Helena com desconto (${formatBRL(custoHelenaLiquido)})` },
+    { label: "Lucro Sistema", value: formatBRL(lucroSistema), icon: Wallet, hint: `MRR − Custo Helena bruto (${formatBRL(custoHelenaBruto)})` },
   ];
 
   return (
@@ -190,6 +210,52 @@ function Index() {
             ) : (
               <p className="text-sm text-muted-foreground">Nenhum dado disponível.</p>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Rankings */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <Card className="border-border/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Crown className="h-4 w-4 text-accent" /> Top Clientes por Tempo de Vida</CardTitle>
+            <CardDescription>Os clientes mais fiéis da carteira (dias ativos).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {rankings.topLtv.length === 0 && <p className="text-sm text-muted-foreground">Sem dados.</p>}
+            {rankings.topLtv.map((r, idx) => (
+              <div key={r.c.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xs font-semibold text-muted-foreground w-5">#{idx + 1}</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{r.c.nome}</div>
+                    <div className="text-[10px] text-muted-foreground">Acumulado {formatBRL(r.acumulado)}</div>
+                  </div>
+                </div>
+                <span className="text-sm font-bold text-accent">{r.ltv} d</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Trophy className="h-4 w-4 text-primary" /> Top Clientes por Lucro</CardTitle>
+            <CardDescription>Clientes com maior lucro líquido mensal atual.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {rankings.topLucro.length === 0 && <p className="text-sm text-muted-foreground">Sem dados.</p>}
+            {rankings.topLucro.map((r, idx) => (
+              <div key={r.c.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xs font-semibold text-muted-foreground w-5">#{idx + 1}</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{r.c.nome}</div>
+                    <div className="text-[10px] text-muted-foreground">{r.ltv} dias · MRR líquido</div>
+                  </div>
+                </div>
+                <span className={`text-sm font-bold ${r.lucroMensal >= 0 ? "text-primary" : "text-destructive"}`}>{formatBRL(r.lucroMensal)}</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>

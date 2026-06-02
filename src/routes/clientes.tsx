@@ -15,8 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento } from "@/lib/store";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil } from "lucide-react";
+import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 
 export const Route = createFileRoute("/clientes")({
@@ -307,6 +307,30 @@ function ClientesPage() {
 
   const ordenados = [...movimentos].sort((a, b) => b.data.localeCompare(a.data));
 
+  // Pesquisa
+  const [search, setSearch] = useState("");
+
+  // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
+  const clientesOrdenados = useMemo(() => {
+    const filtrados = clientes.filter((c) =>
+      c.nome.toLowerCase().includes(search.trim().toLowerCase()),
+    );
+    return [...filtrados].sort((a, b) => {
+      const aChurn = !!a.dataChurn;
+      const bChurn = !!b.dataChurn;
+      if (aChurn !== bChurn) return aChurn ? 1 : -1;
+      return (b.dataInicio || "").localeCompare(a.dataInicio || "");
+    });
+  }, [clientes, search]);
+
+  // Faturamento acumulado total da carteira
+  const faturamentoCarteira = useMemo(() => {
+    return clientes.reduce(
+      (s, c) => s + faturamentoAcumuladoCliente(c, planos, custos, movimentos),
+      0,
+    );
+  }, [clientes, planos, custos, movimentos]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
@@ -317,6 +341,31 @@ function ClientesPage() {
         <Button onClick={() => setOpen((v) => !v)}>
           <Plus className="mr-2 h-4 w-4" /> Novo cliente
         </Button>
+      </div>
+
+      {/* Resumo da carteira */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card className="border-border/60">
+          <CardHeader className="pb-2"><CardDescription>Faturamento acumulado</CardDescription>
+            <CardTitle className="text-2xl text-primary">{formatBRL(faturamentoCarteira)}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">Soma de todas as mensalidades + setups desde o início de cada cliente.</CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardHeader className="pb-2"><CardDescription>Clientes ativos</CardDescription>
+            <CardTitle className="text-2xl text-accent">{clientes.filter((c) => !c.dataChurn).length}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">{clientes.length} no total</CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardHeader className="pb-2"><CardDescription>Pesquisar cliente</CardDescription></CardHeader>
+          <CardContent>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar pelo nome..." className="pl-8" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {open && (
@@ -686,17 +735,19 @@ function ClientesPage() {
                 <TableHead className="text-right">Tempo de vida</TableHead>
                 <TableHead>Data Churn</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
+                <TableHead className="text-right">Acumulado</TableHead>
                 <TableHead className="text-right">Margem de lucro</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clientes.map((c) => {
+              {clientesOrdenados.map((c) => {
                 const plano = planos.find((p) => p.id === c.planoId);
                 const parceiro = parceiros.find((p) => p.id === c.parceiroId);
                 const receita = receitaMensalCliente(c, planos, custos);
                 const custoCalculado = custoMensalCliente(c, planos, custos);
                 const lucro = receita - custoCalculado;
+                const acumulado = faturamentoAcumuladoCliente(c, planos, custos, movimentos);
                 
                 const start = new Date(c.dataInicio);
                 const end = c.dataChurn ? new Date(c.dataChurn) : new Date();
@@ -730,6 +781,9 @@ function ClientesPage() {
                     <TableCell className="text-right text-primary font-semibold">
                       {formatBRL(receita)}
                     </TableCell>
+                    <TableCell className="text-right text-muted-foreground font-medium">
+                      {formatBRL(acumulado)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
                         <Badge className={lucro >= 0 ? "bg-accent/20 text-accent font-semibold" : "bg-destructive/20 text-destructive font-semibold"}>
@@ -760,7 +814,10 @@ function ClientesPage() {
                 );
               })}
               {clientes.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhum cliente cadastrado ainda.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum cliente cadastrado ainda.</TableCell></TableRow>
+              )}
+              {clientes.length > 0 && clientesOrdenados.length === 0 && (
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum cliente corresponde à pesquisa.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -880,6 +937,10 @@ function ClientesPage() {
                       <div>
                         <p className="text-xs text-muted-foreground">MRR (Faturamento)</p>
                         <p className="text-sm font-bold text-primary">{formatBRL(receitaMensalCliente(cliente, planos, custos))}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Faturamento acumulado</p>
+                        <p className="text-sm font-bold text-accent">{formatBRL(faturamentoAcumuladoCliente(cliente, planos, custos, movimentos))}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Data Setup</p>

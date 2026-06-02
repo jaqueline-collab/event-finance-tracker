@@ -177,23 +177,31 @@ function ResumoPage() {
 
     const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
 
+    // Ciclo de competência: o fechamento de JUNHO contempla os movimentos do
+    // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
+    const cy = m === 0 ? y - 1 : y;
+    const cm = m === 0 ? 11 : m - 1;
+    const cicloInicio = new Date(cy, cm, 1);
+    const cicloFim = new Date(cy, cm + 1, 0);
+    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} → ${cicloFim.toLocaleDateString("pt-BR")}`;
+
     const setupsNoMes = clientesFiltrados.filter((c) => {
       const d = new Date(c.dataInicio);
-      return d.getFullYear() === y && d.getMonth() === m;
+      return d.getFullYear() === cy && d.getMonth() === cm;
     });
     const churnsNoMes = clientesFiltrados.filter((c) => {
       if (!c.dataChurn) return false;
       const d = new Date(c.dataChurn);
-      return d.getFullYear() === y && d.getMonth() === m;
+      return d.getFullYear() === cy && d.getMonth() === cm;
     });
 
-    // Movimentos de upgrade/downgrade do mês para os clientes filtrados
+    // Movimentos de upgrade/downgrade do CICLO (mês anterior) para os clientes filtrados
     const clienteIds = new Set(clientesFiltrados.map((c) => c.id));
     const movsMes = movimentos.filter((mv) => {
       if (!clienteIds.has(mv.clienteId)) return false;
       if (mv.tipo !== "upgrade" && mv.tipo !== "downgrade") return false;
       const d = new Date(mv.data);
-      return d.getFullYear() === y && d.getMonth() === m;
+      return d.getFullYear() === cy && d.getMonth() === cm;
     });
 
     // Detalhamento por cliente
@@ -248,6 +256,7 @@ function ResumoPage() {
 
     return {
       y, m, labelMes,
+      cicloLabel,
       ativos,
       setupsNoMes,
       churnsNoMes,
@@ -314,10 +323,11 @@ function ResumoPage() {
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(9);
     pdf.text(`Plano: ${planoSel}  |  Parceiro: ${parceiroSel}  |  Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 90);
+    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 104);
 
     autoTable(pdf, {
-      startY: 110,
-      head: [["Clientes faturados", "Setups no mês", "Churns", "Receita Sistema", "Acompanhamento", "Receita Total"]],
+      startY: 120,
+      head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
       body: [[
         String(fechamentoData.ativos.length),
         `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
@@ -551,6 +561,9 @@ function ResumoPage() {
                         {" · "}
                         {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
                       </p>
+                      <p className="text-[11px] opacity-90 mt-1">
+                        Ciclo de faturamento: {fechamentoData.cicloLabel}
+                      </p>
                     </div>
                     <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
                       <Download className="h-4 w-4" /> Exportar PDF
@@ -576,7 +589,7 @@ function ResumoPage() {
                     <div className="text-2xl font-semibold mt-1 text-destructive">{fechamentoData.churnsNoMes.length > 0 ? `-${fechamentoData.churnsNoMes.length}` : "0"}</div>
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Receita total</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Fechamento Mensal</div>
                     <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoData.totalReceita)}</div>
                   </div>
                 </div>
