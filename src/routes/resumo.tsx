@@ -560,6 +560,9 @@ function ResumoPage() {
                         {" · "}
                         {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
                       </p>
+                      <p className="text-[11px] opacity-90 mt-1">
+                        Ciclo de faturamento: {fechamentoData.cicloLabel}
+                      </p>
                     </div>
                     <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
                       <Download className="h-4 w-4" /> Exportar PDF
@@ -585,7 +588,7 @@ function ResumoPage() {
                     <div className="text-2xl font-semibold mt-1 text-destructive">{fechamentoData.churnsNoMes.length > 0 ? `-${fechamentoData.churnsNoMes.length}` : "0"}</div>
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Receita total</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Fechamento Mensal</div>
                     <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoData.totalReceita)}</div>
                   </div>
                 </div>
