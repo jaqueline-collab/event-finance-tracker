@@ -177,23 +177,31 @@ function ResumoPage() {
 
     const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
 
+    // Ciclo de competência: o fechamento de JUNHO contempla os movimentos do
+    // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
+    const cy = m === 0 ? y - 1 : y;
+    const cm = m === 0 ? 11 : m - 1;
+    const cicloInicio = new Date(cy, cm, 1);
+    const cicloFim = new Date(cy, cm + 1, 0);
+    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} → ${cicloFim.toLocaleDateString("pt-BR")}`;
+
     const setupsNoMes = clientesFiltrados.filter((c) => {
       const d = new Date(c.dataInicio);
-      return d.getFullYear() === y && d.getMonth() === m;
+      return d.getFullYear() === cy && d.getMonth() === cm;
     });
     const churnsNoMes = clientesFiltrados.filter((c) => {
       if (!c.dataChurn) return false;
       const d = new Date(c.dataChurn);
-      return d.getFullYear() === y && d.getMonth() === m;
+      return d.getFullYear() === cy && d.getMonth() === cm;
     });
 
-    // Movimentos de upgrade/downgrade do mês para os clientes filtrados
+    // Movimentos de upgrade/downgrade do CICLO (mês anterior) para os clientes filtrados
     const clienteIds = new Set(clientesFiltrados.map((c) => c.id));
     const movsMes = movimentos.filter((mv) => {
       if (!clienteIds.has(mv.clienteId)) return false;
       if (mv.tipo !== "upgrade" && mv.tipo !== "downgrade") return false;
       const d = new Date(mv.data);
-      return d.getFullYear() === y && d.getMonth() === m;
+      return d.getFullYear() === cy && d.getMonth() === cm;
     });
 
     // Detalhamento por cliente
@@ -248,6 +256,7 @@ function ResumoPage() {
 
     return {
       y, m, labelMes,
+      cicloLabel,
       ativos,
       setupsNoMes,
       churnsNoMes,

@@ -939,6 +939,10 @@ function ClientesPage() {
                         <p className="text-sm font-bold text-primary">{formatBRL(receitaMensalCliente(cliente, planos, custos))}</p>
                       </div>
                       <div>
+                        <p className="text-xs text-muted-foreground">Faturamento acumulado</p>
+                        <p className="text-sm font-bold text-accent">{formatBRL(faturamentoAcumuladoCliente(cliente, planos, custos, movimentos))}</p>
+                      </div>
+                      <div>
                         <p className="text-xs text-muted-foreground">Data Setup</p>
                         <p className="text-sm font-medium">{cliente.dataInicio.split("-").reverse().join("/")}</p>
                       </div>
