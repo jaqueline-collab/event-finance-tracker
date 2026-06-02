@@ -20,6 +20,7 @@ type PlanoForm = {
   nome: string;
   valorMensal: string;
   valorSetup: string;
+  diaVencimento: string;
   canaisWhatsInclusos: string;
   canaisInstaInclusos: string;
   canaisMessengerInclusos: string;
@@ -55,6 +56,7 @@ const defaultForm = (): PlanoForm => ({
   nome: "",
   valorMensal: "",
   valorSetup: "",
+  diaVencimento: "",
   canaisWhatsInclusos: "1",
   canaisInstaInclusos: "0",
   canaisMessengerInclusos: "0",
@@ -109,6 +111,7 @@ function PlanosPage() {
       nome: form.nome,
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
+      diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
       canaisInclusos: whatsInc + instaInc + msgInc,
       canaisWhatsInclusos: whatsInc,
       canaisInstaInclusos: instaInc,
@@ -159,6 +162,7 @@ function PlanosPage() {
       nome: p.nome,
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
+      diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
       canaisWhatsInclusos: String(p.canaisWhatsInclusos ?? p.canaisInclusos ?? 0),
       canaisInstaInclusos: String(p.canaisInstaInclusos ?? 0),
       canaisMessengerInclusos: String(p.canaisMessengerInclusos ?? 0),
@@ -226,6 +230,18 @@ function PlanosPage() {
                 <div>
                   <Label className="mb-1 block">Taxa de Setup (R$)</Label>
                   <Input type="number" step="0.01" value={form.valorSetup} onChange={(e) => setForm({ ...form, valorSetup: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Dia de vencimento padrão</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={31}
+                    placeholder="Ex: 5, 10, 15…"
+                    value={form.diaVencimento}
+                    onChange={(e) => setForm({ ...form, diaVencimento: e.target.value })}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Aplicado a clientes deste plano. Cada cliente pode sobrescrever.</p>
                 </div>
               </div>
             </div>

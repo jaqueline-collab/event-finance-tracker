@@ -14,6 +14,8 @@ export interface Plano {
   nome: string;
   valorMensal: number;
   valorSetup: number;
+  // Dia padrão de vencimento (1-31). Cliente pode sobrescrever via Cliente.dataVencimento.
+  diaVencimento?: number | null;
   // Franquias incluídas no plano
   canaisInclusos: number;
   usuariosInclusos: number;

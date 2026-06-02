@@ -94,7 +94,8 @@ const mapPlanoToDb = (p: Plano) => ({
   valor_canal_insta_exc: p.valorCanalInstaExc,
   valor_canal_messenger_exc: p.valorCanalMessengerExc,
   parceiro_ids: p.parceiroIds,
-  observacao: p.observacao || ""
+  observacao: p.observacao || "",
+  dia_vencimento: p.diaVencimento ?? null,
 });
 
 const mapDbToPlano = (r: any): Plano => {
@@ -142,7 +143,8 @@ const mapDbToPlano = (r: any): Plano => {
   valorCanalInstaExc: Number(r.valor_canal_insta_exc ?? r.valor_canais_exc ?? 59.90),
   valorCanalMessengerExc: Number(r.valor_canal_messenger_exc ?? r.valor_canais_exc ?? 59.90),
   parceiroIds: r.parceiro_ids ?? [],
-  observacao: r.observacao || ""
+  observacao: r.observacao || "",
+  diaVencimento: r.dia_vencimento != null ? Number(r.dia_vencimento) : null,
 });
 };
 
@@ -887,6 +889,20 @@ export function formatDiaVencimento(value?: string | null): string {
   return dia ? String(dia) : "—";
 }
 
+// Retorna o dia de vencimento efetivo: cliente sobrescreve plano.
+export function getDiaVencimentoEfetivo(
+  cliente: Cliente,
+  planos: Plano[],
+): number | null {
+  const doCliente = parseDiaVencimento(cliente.dataVencimento);
+  if (doCliente) return doCliente;
+  const plano = planos.find((p) => p.id === cliente.planoId);
+  if (plano?.diaVencimento) {
+    return Math.max(1, Math.min(plano.diaVencimento, 31));
+  }
+  return null;
+}
+
 export function normalizarDataVencimento(dataInicio: string, dataVencimento?: string | null): string | null {
   if (!ISO_DATE_RE.test(dataInicio)) return null;
   if (dataVencimento && ISO_DATE_RE.test(dataVencimento)) return dataVencimento;
@@ -906,8 +922,22 @@ export function normalizarDataVencimento(dataInicio: string, dataVencimento?: st
   return formatIsoDate(candidato);
 }
 
-export function obterVencimentoDaCompetencia(cliente: Cliente, year: number, month: number): string | null {
-  const primeiroVencimento = normalizarDataVencimento(cliente.dataInicio, cliente.dataVencimento);
+export function obterVencimentoDaCompetencia(
+  cliente: Cliente,
+  year: number,
+  month: number,
+  planos?: Plano[],
+): string | null {
+  // Se o cliente não tem dataVencimento e foi passada a lista de planos,
+  // usamos o dia padrão do plano como fallback.
+  let dataVencEfetiva: string | null | undefined = cliente.dataVencimento;
+  if (!parseDiaVencimento(dataVencEfetiva) && planos) {
+    const plano = planos.find((p) => p.id === cliente.planoId);
+    if (plano?.diaVencimento) {
+      dataVencEfetiva = String(Math.max(1, Math.min(plano.diaVencimento, 31)));
+    }
+  }
+  const primeiroVencimento = normalizarDataVencimento(cliente.dataInicio, dataVencEfetiva);
   const diaVencimento = parseDiaVencimento(primeiroVencimento);
 
   if (!primeiroVencimento || !diaVencimento) return null;
@@ -973,14 +1003,19 @@ export function receitaMensalClienteEm(
   year: number,
   month: number,
 ): number {
-  const vencimento = obterVencimentoDaCompetencia(cliente, year, month);
+  const vencimento = obterVencimentoDaCompetencia(cliente, year, month, planos);
   if (!vencimento) return 0;
   const snap = clienteSnapshotAt(cliente, movimentos, vencimento);
   return receitaMensalCliente(snap, planos, custos);
 }
 
-export function clienteFaturaEm(cliente: Cliente, year: number, month: number): boolean {
-  return Boolean(obterVencimentoDaCompetencia(cliente, year, month));
+export function clienteFaturaEm(
+  cliente: Cliente,
+  year: number,
+  month: number,
+  planos?: Plano[],
+): boolean {
+  return Boolean(obterVencimentoDaCompetencia(cliente, year, month, planos));
 }
 
 export function formatBRL(n: number): string {
@@ -1122,7 +1157,7 @@ export function faturamentoAcumuladoCliente(
   while (cursor < limite) {
     const y = cursor.getFullYear();
     const m = cursor.getMonth();
-    if (clienteFaturaEm(cliente, y, m)) {
+    if (clienteFaturaEm(cliente, y, m, planos)) {
       total += receitaMensalClienteEm(cliente, planos, custos, movimentos, y, m);
     }
     cursor.setMonth(cursor.getMonth() + 1);

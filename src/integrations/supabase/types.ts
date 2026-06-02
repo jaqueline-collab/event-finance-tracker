@@ -391,6 +391,7 @@ export type Database = {
           canais_whats_inclusos: number
           contatos_inclusos: number | null
           created_at: string
+          dia_vencimento: number | null
           id: string
           inclui_asaas: boolean | null
           inclui_ia: boolean | null
@@ -432,6 +433,7 @@ export type Database = {
           canais_whats_inclusos?: number
           contatos_inclusos?: number | null
           created_at?: string
+          dia_vencimento?: number | null
           id: string
           inclui_asaas?: boolean | null
           inclui_ia?: boolean | null
@@ -473,6 +475,7 @@ export type Database = {
           canais_whats_inclusos?: number
           contatos_inclusos?: number | null
           created_at?: string
+          dia_vencimento?: number | null
           id?: string
           inclui_asaas?: boolean | null
           inclui_ia?: boolean | null

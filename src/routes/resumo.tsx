@@ -18,7 +18,12 @@ import {
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
   clienteSnapshotAt,
+  getDiaVencimentoEfetivo,
 } from "@/lib/store";
+import { toast } from "sonner";
+import { Mail, Send } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/resumo")({
   head: () => ({ meta: [{ title: "Resumo Mensal · Elora" }] }),
@@ -26,9 +31,10 @@ export const Route = createFileRoute("/resumo")({
 });
 
 function ResumoPage() {
-  const { clientes, planos, custos, movimentos, parceiros } = useStore();
+  const { clientes, planos, custos, movimentos, parceiros, addLancamento } = useStore();
   const [filtroPlano, setFiltroPlano] = useState("todos");
   const [filtroParceiro, setFiltroParceiro] = useState("todos");
+  const [filtroVencimento, setFiltroVencimento] = useState("todos");
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -36,15 +42,31 @@ function ResumoPage() {
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [observacaoPdf, setObservacaoPdf] = useState("");
+  const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
+  const [emailDestino, setEmailDestino] = useState("");
 
-  // Clientes filtrados por plano e parceiro
+  // Dias de vencimento distintos (planos + clientes), para o filtro
+  const diasDisponiveis = useMemo(() => {
+    const set = new Set<number>();
+    for (const p of planos) if (p.diaVencimento) set.add(p.diaVencimento);
+    for (const c of clientes) {
+      const d = getDiaVencimentoEfetivo(c, planos);
+      if (d) set.add(d);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [planos, clientes]);
+
+  // Clientes filtrados por plano, parceiro e vencimento
   const clientesFiltrados = useMemo(() => {
     return clientes.filter((c) => {
       const matchPlano = filtroPlano === "todos" || c.planoId === filtroPlano;
       const matchParceiro = filtroParceiro === "todos" || c.parceiroId === filtroParceiro;
-      return matchPlano && matchParceiro;
+      const matchVenc =
+        filtroVencimento === "todos" ||
+        String(getDiaVencimentoEfetivo(c, planos) ?? "") === filtroVencimento;
+      return matchPlano && matchParceiro && matchVenc;
     });
-  }, [clientes, filtroPlano, filtroParceiro]);
+  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento]);
 
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
@@ -66,7 +88,7 @@ function ResumoPage() {
     while (cursor <= now) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
-      const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
+      const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m, planos));
       const novos = clientesFiltrados.filter((c) => {
         const d = new Date(c.dataInicio);
         return d.getFullYear() === y && d.getMonth() === m;
@@ -79,13 +101,13 @@ function ResumoPage() {
       const receita = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
       // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
-        const venc = obterVencimentoDaCompetencia(c, y, m);
+        const venc = obterVencimentoDaCompetencia(c, y, m, planos);
         return venc ? clienteSnapshotAt(c, movimentos, venc) : c;
       });
       const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot);
       const setup = clientesFiltrados
         .filter((c) => {
-          const vencimento = obterVencimentoDaCompetencia(c, y, m);
+          const vencimento = obterVencimentoDaCompetencia(c, y, m, planos);
           if (!vencimento) return false;
           return vencimento === c.dataVencimento;
         })
@@ -157,7 +179,7 @@ function ResumoPage() {
             c.nome,
             plano?.nome ?? "—",
             parceiro?.nome ?? "—",
-            formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1)),
+            formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1, planos)),
             c.dataChurn ? "Churn" : "Ativo",
           formatBRL(receitaMensalClienteEm(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
           ];
@@ -179,7 +201,7 @@ function ResumoPage() {
     const m = Number(mStr) - 1;
     const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
+    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m, planos));
 
     // Ciclo de competência: o fechamento de JUNHO contempla os movimentos do
     // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
@@ -212,7 +234,7 @@ function ResumoPage() {
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-      const venc = obterVencimentoDaCompetencia(c, y, m);
+      const venc = obterVencimentoDaCompetencia(c, y, m, planos);
       const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
       const receita = receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
       const acomp = snap.valorAcompanhamento || 0;
@@ -473,6 +495,69 @@ function ResumoPage() {
     pdf.save(`fechamento-${fechamentoMes}-${filtroPlano}-${filtroParceiro}.pdf`);
   };
 
+  // ====== Enviar para o módulo Financeiro ======
+  const enviarParaFinanceiro = () => {
+    if (!fechamentoData) return;
+    const { y, m, labelMes, cicloLabel, detalhesPorCliente, totalReceita } = fechamentoData;
+    if (detalhesPorCliente.length === 0) {
+      toast.error("Nenhum cliente faturado nesta competência.");
+      return;
+    }
+    const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const labelFiltros = `${filtroPlano === "todos" ? "" : ` · ${planos.find((p) => p.id === filtroPlano)?.nome ?? ""}`}${filtroParceiro === "todos" ? "" : ` · ${parceiros.find((p) => p.id === filtroParceiro)?.nome ?? ""}`}${filtroVencimento === "todos" ? "" : ` · venc. dia ${filtroVencimento}`}`;
+    if (modoEnvio === "consolidado") {
+      // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
+      const dias = detalhesPorCliente
+        .map((d) => (d.venc ? Number(d.venc.slice(8, 10)) : null))
+        .filter((x): x is number => x !== null);
+      const dia = dias.length > 0 ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length) : 10;
+      const ultimoDia = new Date(y, m + 1, 0).getDate();
+      const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+      addLancamento({
+        descricao: `Fechamento ${labelMes}${labelFiltros} · ciclo ${cicloLabel}`,
+        tipo: "fechamento",
+        categoria: "Receita",
+        valor: Number(totalReceita.toFixed(2)),
+        vencimento: venc,
+        competencia: `${competenciaKey}-consolidado-${Date.now()}`,
+        status: "pendente",
+        nfEmitida: false,
+      });
+      toast.success("1 lançamento consolidado enviado ao Financeiro.");
+    } else {
+      let n = 0;
+      for (const d of detalhesPorCliente) {
+        const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
+        const ultimoDia = new Date(y, m + 1, 0).getDate();
+        const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+        addLancamento({
+          descricao: `${d.cliente.nome} · Fechamento ${labelMes} · ciclo ${cicloLabel}`,
+          tipo: "fechamento",
+          categoria: "Receita",
+          valor: Number(d.receita.toFixed(2)),
+          vencimento: venc,
+          competencia: `${competenciaKey}-${d.cliente.id}-${Date.now()}`,
+          status: "pendente",
+          nfEmitida: false,
+        });
+        n++;
+      }
+      toast.success(`${n} lançamento(s) por cliente enviado(s) ao Financeiro.`);
+    }
+  };
+
+  // ====== Enviar por e-mail (placeholder até configurar domínio) ======
+  const enviarPorEmail = () => {
+    if (!emailDestino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestino)) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+    toast.message("Envio por e-mail", {
+      description:
+        "Para enviar o PDF por e-mail é preciso configurar o domínio de envio em Configurações → Emails. Avise-nos para concluirmos essa etapa.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -507,10 +592,22 @@ function ResumoPage() {
             </SelectContent>
           </Select>
         </div>
-        {(filtroPlano !== "todos" || filtroParceiro !== "todos") && (
+        <div className="flex flex-col gap-1 min-w-[180px]">
+          <Label className="text-xs text-muted-foreground">Filtrar por Vencimento</Label>
+          <Select value={filtroVencimento} onValueChange={setFiltroVencimento}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os vencimentos</SelectItem>
+              {diasDisponiveis.map((d) => (
+                <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {(filtroPlano !== "todos" || filtroParceiro !== "todos" || filtroVencimento !== "todos") && (
           <div className="flex items-end">
             <button
-              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); }}
+              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); setFiltroVencimento("todos"); }}
               className="text-xs text-muted-foreground hover:text-foreground underline h-8"
             >
               Limpar filtros
@@ -608,7 +705,7 @@ function ResumoPage() {
                                       <td className="py-1.5 text-muted-foreground">{parceiro?.nome ?? "—"}</td>
                                       <td className="py-1.5 text-right text-muted-foreground text-xs">
                                         {(() => {
-                                          const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1);
+                                          const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1, planos);
                                           return vencimento ? `dia ${formatDiaVencimento(vencimento)}` : "—";
                                         })()}
                                       </td>
@@ -688,6 +785,49 @@ function ResumoPage() {
                       placeholder="Notas, contexto do mês, recomendações…"
                       className="mt-1 min-h-[72px] text-sm"
                     />
+                  </div>
+                </div>
+
+                {/* Enviar para Financeiro */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <h4 className="text-sm font-semibold">Enviar para o Financeiro</h4>
+                      <p className="text-xs text-muted-foreground">Gera lançamentos a partir deste fechamento.</p>
+                    </div>
+                    <Button onClick={enviarParaFinanceiro} className="gap-2" size="sm">
+                      <Send className="h-3.5 w-3.5" /> Enviar
+                    </Button>
+                  </div>
+                  <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="consolidado" id="m-consolidado" />
+                      <span>1 lançamento consolidado</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="por_cliente" id="m-por-cliente" />
+                      <span>1 lançamento por cliente</span>
+                    </label>
+                  </RadioGroup>
+                </div>
+
+                {/* Enviar por e-mail */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div>
+                    <h4 className="text-sm font-semibold">Enviar por e-mail</h4>
+                    <p className="text-xs text-muted-foreground">Envia o resumo deste fechamento para o e-mail informado.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      type="email"
+                      placeholder="destinatario@exemplo.com"
+                      value={emailDestino}
+                      onChange={(e) => setEmailDestino(e.target.value)}
+                      className="flex-1 min-w-[220px]"
+                    />
+                    <Button onClick={enviarPorEmail} variant="outline" className="gap-2" size="sm">
+                      <Mail className="h-3.5 w-3.5" /> Enviar
+                    </Button>
                   </div>
                 </div>
 

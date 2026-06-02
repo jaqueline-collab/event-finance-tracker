@@ -79,24 +79,45 @@ function FinanceiroPage() {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
       const competencia = `${y}-${String(m + 1).padStart(2, "0")}`;
-      const jaExiste = financeiro.some((l) => l.tipo === "fechamento" && l.competencia === competencia);
-      if (!jaExiste) {
-        const ativos = clientes.filter((c) => clienteFaturaEm(c, y, m));
-        const total = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
-        if (ativos.length > 0) {
-          // Vencimento sugerido: dia 10 do mês seguinte
-          const venc = new Date(y, m + 1, 10).toISOString().slice(0, 10);
-          // Ciclo: o fechamento da competência X cobre os movimentos do mês anterior
-          const cy = m === 0 ? y - 1 : y;
-          const cm = m === 0 ? 11 : m - 1;
-          const cicloLabel = new Date(cy, cm, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      // Agrupa clientes ativos por DIA DE VENCIMENTO EFETIVO (cliente OU plano).
+      // Cada grupo vira UM lançamento separado, respeitando o dia real.
+      const ativos = clientes.filter((c) => clienteFaturaEm(c, y, m, planos));
+      if (ativos.length > 0) {
+        const porDia = new Map<number, typeof ativos>();
+        for (const c of ativos) {
+          const vencISO = obterVencimentoDaCompetencia(c, y, m, planos);
+          if (!vencISO) continue;
+          const dia = Number(vencISO.slice(8, 10));
+          if (!porDia.has(dia)) porDia.set(dia, []);
+          porDia.get(dia)!.push(c);
+        }
+        const cy = m === 0 ? y - 1 : y;
+        const cm = m === 0 ? 11 : m - 1;
+        const cicloLabel = new Date(cy, cm, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        for (const [dia, grupo] of porDia) {
+          // Identificador único por competência + dia para evitar duplicidade
+          const competenciaDia = `${competencia}-d${String(dia).padStart(2, "0")}`;
+          const jaExiste = financeiro.some(
+            (l) => l.tipo === "fechamento" && l.competencia === competenciaDia,
+          );
+          if (jaExiste) continue;
+          const total = grupo.reduce(
+            (s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m),
+            0,
+          );
+          // Critério: vencimento no MESMO mês da competência (já é o dia real).
+          // Se o dia já passou no mês corrente, mantém — usuário pode renegociar.
+          const ultimoDia = new Date(y, m + 1, 0).getDate();
+          const diaSeguro = Math.min(dia, ultimoDia);
+          const venc = new Date(y, m, diaSeguro).toISOString().slice(0, 10);
+          const labelMes = cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
           addLancamento({
-            descricao: `Fechamento Mensal ${cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · ciclo ${cicloLabel}`,
+            descricao: `Fechamento ${labelMes} · vence dia ${diaSeguro} · ciclo ${cicloLabel}`,
             tipo: "fechamento",
             categoria: "Receita",
             valor: Number(total.toFixed(2)),
             vencimento: venc,
-            competencia,
+            competencia: competenciaDia,
             status: "pendente",
             nfEmitida: false,
           });
