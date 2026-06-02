@@ -850,12 +850,12 @@ function ClientesPage() {
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Plano</TableHead>
-                <TableHead>Parceiro</TableHead>
                 <TableHead>Data Setup</TableHead>
                 <TableHead className="text-right">Tempo de vida</TableHead>
                 <TableHead>Data Churn</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Acumulado</TableHead>
+                <TableHead className="text-right">Lucro sob o sistema</TableHead>
                 <TableHead className="text-right">Margem de lucro</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
@@ -863,10 +863,11 @@ function ClientesPage() {
             <TableBody>
               {clientesOrdenados.map((c) => {
                 const plano = planos.find((p) => p.id === c.planoId);
-                const parceiro = parceiros.find((p) => p.id === c.parceiroId);
                 const receita = receitaMensalCliente(c, planos, custos);
                 const custoCalculado = custoMensalCliente(c, planos, custos);
                 const lucro = receita - custoCalculado;
+                const receitaSist = receitaSistemaCliente(c, planos, custos);
+                const lucroSistema = receitaSist - custoCalculado;
                 const acumulado = faturamentoAcumuladoCliente(c, planos, custos, movimentos);
                 
                 const start = new Date(c.dataInicio);
@@ -894,7 +895,6 @@ function ClientesPage() {
                       </div>
                     </TableCell>
                     <TableCell>{plano?.nome ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{parceiro?.nome ?? "—"}</TableCell>
                     <TableCell>{c.dataInicio.split("-").reverse().join("/")}</TableCell>
                     <TableCell className="text-right text-muted-foreground font-medium">{tempoVidaLabel}</TableCell>
                     <TableCell className={c.dataChurn ? "text-destructive font-medium" : "text-muted-foreground"}>{c.dataChurn ? c.dataChurn.split("-").reverse().join("/") : "Ativo"}</TableCell>
@@ -903,6 +903,9 @@ function ClientesPage() {
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground font-medium">
                       {formatBRL(acumulado)}
+                    </TableCell>
+                    <TableCell className={`text-right font-semibold ${lucroSistema >= 0 ? "text-accent" : "text-destructive"}`}>
+                      {lucroSistema >= 0 ? "+" : ""}{formatBRL(lucroSistema)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
