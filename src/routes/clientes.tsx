@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento } from "@/lib/store";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap } from "lucide-react";
-import type { TipoMovimento, Cliente } from "@/lib/types";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil } from "lucide-react";
+import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 
 export const Route = createFileRoute("/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Elora" }] }),
@@ -39,6 +39,7 @@ function ClientesPage() {
   // Modal de Ação (Movimento)
   const [acaoClienteId, setAcaoClienteId] = useState<string | null>(null);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
+  const [editMovId, setEditMovId] = useState<string | null>(null);
   
   const [form, setForm] = useState({
     nome: "",
@@ -256,6 +257,10 @@ function ClientesPage() {
   const handleSaveMovimento = () => {
     if (!acaoClienteId) return;
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
+    // Editing: remove old (revertendo deltas) e recria com novos valores
+    if (editMovId) {
+      removeMovimento(editMovId);
+    }
     addMovimento({
       clienteId: acaoClienteId,
       data: movForm.data,
@@ -274,6 +279,30 @@ function ClientesPage() {
       observacao: movForm.observacao || undefined,
     });
     setAcaoClienteId(null);
+    setEditMovId(null);
+  };
+
+  const openEditMovimento = (mv: Movimento) => {
+    setAcaoClienteId(mv.clienteId);
+    setEditMovId(mv.id);
+    setMovForm({
+      data: mv.data,
+      tipo: mv.tipo,
+      planoId: mv.planoId || "",
+      canaisWhats: mv.canaisWhats !== undefined && mv.canaisWhats !== null ? String(mv.canaisWhats) : "",
+      canaisInsta: mv.canaisInsta !== undefined && mv.canaisInsta !== null ? String(mv.canaisInsta) : "",
+      canaisMessenger: mv.canaisMessenger !== undefined && mv.canaisMessenger !== null ? String(mv.canaisMessenger) : "",
+      canaisZapi: mv.canaisZapi !== undefined && mv.canaisZapi !== null ? String(mv.canaisZapi) : "",
+      usuariosAtivos: mv.usuariosAtivos !== undefined && mv.usuariosAtivos !== null ? String(mv.usuariosAtivos) : "",
+      contatosAtivos: mv.contatosAtivos !== undefined && mv.contatosAtivos !== null ? String(mv.contatosAtivos) : "",
+      agentesIA: mv.agentesIA ?? false,
+      asaas: mv.asaas ?? false,
+      zapi: mv.zapi ?? false,
+      transcricaoIA: mv.transcricaoIA ?? false,
+      observacao: mv.observacao || "",
+      valorSetupPago: "",
+      valorAcompanhamento: "",
+    });
   };
 
   const ordenados = [...movimentos].sort((a, b) => b.data.localeCompare(a.data));
@@ -753,7 +782,7 @@ function ClientesPage() {
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
             // Generate timeline events
-            const timelineEvents: { data: string; titulo: string; desc: string; icon: any; color: string }[] = [];
+            const timelineEvents: { data: string; titulo: string; desc: string; icon: any; color: string; movId?: string; canEdit?: boolean }[] = [];
             
             // 1. Setup Event
             timelineEvents.push({
@@ -801,6 +830,8 @@ function ClientesPage() {
                 desc: descParts.join(" | ") || "Recursos da conta atualizados.",
                 icon: m.tipo === "upgrade" ? TrendingUp : m.tipo === "downgrade" ? TrendingDown : Settings2,
                 color: m.tipo === "upgrade" ? "text-accent border-accent" : m.tipo === "downgrade" ? "text-yellow-500 border-yellow-500" : "text-muted-foreground border-muted-foreground",
+                movId: m.id,
+                canEdit: isDelta,
               });
             });
             
@@ -904,6 +935,7 @@ function ClientesPage() {
                     <div className="relative border-l-2 border-border ml-3.5 pl-6 space-y-6">
                       {timelineEvents.map((evt, idx) => {
                         const EvtIcon = evt.icon;
+                        const mv = evt.movId ? movimentos.find((mm) => mm.id === evt.movId) : null;
                         return (
                           <div key={idx} className="relative">
                             <span className={`absolute -left-[37px] top-0 flex h-6 w-6 items-center justify-center rounded-full border bg-background ${evt.color}`}>
@@ -913,6 +945,30 @@ function ClientesPage() {
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-muted-foreground">{evt.data.split("-").reverse().join("/")}</span>
                                 <span className="text-xs font-semibold text-foreground uppercase tracking-wider">{evt.titulo}</span>
+                                {evt.canEdit && mv && (
+                                  <div className="ml-auto flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => { setSelectedClienteId(null); openEditMovimento(mv); }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => {
+                                        if (confirm("Excluir este lançamento? O valor do cliente voltará ao estado anterior.")) {
+                                          removeMovimento(mv.id);
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground pr-4 leading-relaxed">{evt.desc}</p>
                             </div>
@@ -934,10 +990,10 @@ function ClientesPage() {
 
 
       {/* Modal para Registrar Upgrade/Ajuste/Recursos */}
-      <Dialog open={!!acaoClienteId} onOpenChange={(isOpen) => !isOpen && setAcaoClienteId(null)}>
+      <Dialog open={!!acaoClienteId} onOpenChange={(isOpen) => { if (!isOpen) { setAcaoClienteId(null); setEditMovId(null); } }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Registrar Movimento</DialogTitle>
+            <DialogTitle>{editMovId ? "Editar Movimento" : "Registrar Movimento"}</DialogTitle>
           </DialogHeader>
           {(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
             <p className="text-xs text-muted-foreground -mt-2">
@@ -1010,18 +1066,14 @@ function ClientesPage() {
                 <Label>ASAAS</Label>
               </div>
               <div className="flex items-center space-x-2 h-10">
-                <Switch checked={movForm.zapi} onCheckedChange={(v) => setMovForm({ ...movForm, zapi: v })} />
-                <Label>Z-API</Label>
-              </div>
-              <div className="flex items-center space-x-2 h-10">
                 <Switch checked={movForm.transcricaoIA} onCheckedChange={(v) => setMovForm({ ...movForm, transcricaoIA: v })} />
                 <Label>Transcrição IA</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAcaoClienteId(null)}>Cancelar</Button>
-            <Button onClick={handleSaveMovimento}>Registrar Ação</Button>
+            <Button variant="outline" onClick={() => { setAcaoClienteId(null); setEditMovId(null); }}>Cancelar</Button>
+            <Button onClick={handleSaveMovimento}>{editMovId ? "Salvar Alteração" : "Registrar Ação"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
