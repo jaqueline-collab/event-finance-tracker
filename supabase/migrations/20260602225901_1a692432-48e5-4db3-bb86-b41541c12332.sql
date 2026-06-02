@@ -1,0 +1,1 @@
+ALTER TABLE public.elora_planos ADD COLUMN IF NOT EXISTS dia_vencimento integer;

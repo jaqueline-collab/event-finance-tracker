@@ -1,60 +1,83 @@
+## Resumo
 
-## 1) Tela de Parceiros — abrir detalhes, editar e excluir
+Cinco mudanças encadeadas: (1) dia de vencimento por plano (com sobrescrita por cliente), (2) importação de fechamentos respeitando esse dia, (3) filtro de vencimento no Resumo Mensal, (4) botão "Enviar para Financeiro" dentro do popup de fechamento (consolidado ou por cliente), (5) envio do PDF por e-mail via Lovable Emails.
 
-Hoje o card de parceiro só tem ícone de lixeira. Vou ajustar `src/routes/parceiros.tsx`:
+---
 
-- Tornar o card clicável → abre um **Dialog "Detalhes do Parceiro"** mostrando nome, email, celular, data de criação, observação e planos vinculados (com link rápido para a tela de Planos).
-- No header do Dialog, dois botões: **Editar** (reaproveita o formulário já existente, pré-preenchido) e **Excluir** (com confirmação).
-- O ícone de lixeira sai do card e passa a viver dentro do Dialog (evita exclusão acidental).
-- O formulário ganha modo edição (`editId`) usando o `updateParceiro` que já existe no store. Hoje o `addParceiro` é o único caminho — vou plugar o `updateParceiro` no `handleSave`.
-- Adicionar campo **Observação** no formulário (já existe no tipo, mas não é editável na UI).
+## 1. Dia de vencimento no Plano (padrão) + sobrescrita por Cliente
 
-## 2) Custo da infraestrutura não soma canais extras (Whats/Insta/Messenger)
+**O que já existe:** `Cliente.dataVencimento` (dia 1-31).
+**O que falta:** `Plano.diaVencimento` (dia 1-31).
 
-Na simulação em tempo real do "Novo Cliente" (`src/routes/clientes.tsx`), a regra atual considera "1 grátis de cada tipo" para o custo Helena, ignorando o `canaisInclusos` do plano e os novos campos por tipo. No screenshot, o plano tem 1 canal incluso e o cliente cadastrou 1 Whats + 1 Insta + 1 Messenger = 3 canais → custo Helena deveria contabilizar 2 canais extras, mas mostra zero.
+- Migração SQL: adicionar coluna `dia_vencimento int` em `elora_planos`.
+- `src/lib/types.ts`: adicionar `diaVencimento?: number | null` em `Plano`.
+- `src/lib/store.ts`: mapear no toRow/fromRow; criar helper `getDiaVencimentoEfetivo(cliente, plano)` → retorna o do cliente se houver, senão o do plano, senão `null` (mantém comportamento atual).
+- `src/routes/planos.tsx`: input numérico (1-28 sugerido) "Dia de vencimento padrão".
+- `src/routes/clientes.tsx`: label do campo vira "Dia de vencimento (sobrescreve plano)".
+- Refatorar `obterVencimentoDaCompetencia` para usar `getDiaVencimentoEfetivo`.
 
-Correção: o custo de canais extras passa a usar a **mesma lógica do faturamento** — total de canais por tipo menos o que está incluso por tipo no plano (ver item 3). Soma todos os excedentes e aplica `calcularCustoExtraCanaisHelena` com o `precoCanaisExc` correspondente (ou, no modelo novo, soma por tipo usando o preço de cada tipo).
+## 2. Bug do fechamento de fevereiro + ciclo correto
 
-A linha "Canais extras (+N)" no card de Simulação também passa a refletir o total real de excedentes por tipo.
+Hoje `financeiro.tsx > importarFechamentosAuto` força vencimento no **dia 10 do mês seguinte** e usa `clienteFaturaEm` que depende do dia do cliente — por isso clientes sem `dataVencimento` ficam de fora e fevereiro pode não aparecer.
 
-## 3) Planos — franquia e preço por tipo de canal (Whats / Insta / Messenger)
+**Mudança:** para cada competência `(y, m)`, agrupar os clientes ativos pelo **dia de vencimento efetivo** (do cliente, ou do plano). Cada grupo vira **um lançamento separado** no Financeiro com:
+- descrição: `Fechamento DD/MM/AAAA · ciclo {mês anterior}`
+- vencimento: data real (`y, m, dia`), respeitando o critério escolhido "depende do dia de vencimento do plano":
+  - se `dia <= último dia de m` e `dia >= hoje quando m == mês atual` → vence em `m`
+  - senão → vence em `m+1`
+- valor: soma daquele grupo
 
-Hoje o plano tem só `canaisInclusos` (genérico) e `valorCanaisExc`/`precoCanaisExc` únicos. Vou adicionar configuração **por tipo**:
+Isso garante: clientes que vencem dia 5 e dia 10 geram 2 lançamentos no mesmo mês, e fevereiro deixa de "sumir".
 
-Novos campos no `Plano` (`src/lib/types.ts`) e no banco (`elora_planos`):
-- `canaisWhatsInclusos`, `canaisInstaInclusos`, `canaisMessengerInclusos` (inteiros, default 0)
-- `precoCanalWhatsExc`, `precoCanalInstaExc`, `precoCanalMessengerExc` (custo Helena por canal de cada tipo)
-- `valorCanalWhatsExc`, `valorCanalInstaExc`, `valorCanalMessengerExc` (preço cobrado do cliente)
+## 3. Filtro de "data de vencimento" no Resumo Mensal
 
-Os campos antigos (`canaisInclusos`, `precoCanaisExc`, `valorCanaisExc`) ficam mantidos como fallback/compat para planos antigos.
+Em `src/routes/resumo.tsx`:
+- Novo `Select` "Vencimento" ao lado dos filtros de plano/parceiro.
+- Opções: `Todos` + lista derivada dinamicamente dos `diaVencimento` distintos (planos + clientes) — assim, ao criar/editar um plano com dia novo, a opção aparece automaticamente.
+- O filtro acumula com plano/parceiro (mesmo padrão atual).
+- O `linhas`/`fechamento` passa a considerar só clientes cujo dia efetivo bate com o filtro.
 
-Mudanças de UI:
-- **`src/routes/planos.tsx`**: a seção "Franquias Incluídas" ganha 3 inputs (Whats / Insta / Messenger) no lugar do campo único "Canais Incluídos". A seção "Preços de Venda" ganha 3 colunas de canal extra (uma por tipo) com custo Helena e valor cliente lado a lado, substituindo o campo único atual.
-- **`src/routes/clientes.tsx`**: faturamento e custo de canais extras passam a calcular por tipo:
-  `excWhats = max(0, canaisWhats - plano.canaisWhatsInclusos)` (e idem para Insta/Messenger), multiplicando pelo preço/valor do tipo correspondente. A linha "Canais extras" detalha no tooltip a quebra por tipo.
+## 4. Botão "Enviar para Financeiro" dentro do popup de fechamento
 
-## 4) Propagar alteração de plano para clientes já vinculados
+No `Dialog` de "Elora · Fechamento Mensal" (resumo.tsx), abaixo dos checkboxes de incluir gráficos / observação:
+- Botão **"Enviar para Financeiro"** + um `RadioGroup`:
+  - `Consolidado` → 1 lançamento com a soma total filtrada
+  - `Por cliente` → N lançamentos, 1 por cliente ativo no ciclo
+- Cada lançamento herda: competência atual do popup, vencimento conforme o dia efetivo de cada cliente (regra do item 2), categoria "Receita", status `pendente`, descrição incluindo nome do cliente quando "Por cliente".
+- Usa `addLancamento` do store (mesmo já usado no Financeiro).
+- Toast de confirmação com `N lançamento(s) enviado(s)`.
 
-Hoje `updatePlano` só atualiza o plano. Para o usuário, "alterar o plano" deve refletir nos clientes existentes (mudança de preço, franquia, módulos inclusos).
+## 5. Envio do PDF por e-mail (Lovable Emails)
 
-Como o cliente já lê os campos do plano em tempo real (na simulação de cadastro), a maior parte da propagação é automática: ao editar o plano, qualquer tela que olhe `plano.valorMensal`, `plano.canaisWhatsInclusos`, `plano.precoIA`, etc. já mostra os novos valores para todos os clientes daquele plano.
+No mesmo popup, adicionar:
+- Campo de e-mail (destinatário) + botão **"Enviar por e-mail"**.
+- Template transacional `fechamento-mensal` (React Email) com: marca, mês de competência, KPIs principais e nota explicando que o PDF segue como link de download (anexos não são suportados nativamente).
+- O PDF é gerado no client (jsPDF já existe), salvo em Supabase Storage (bucket `fechamentos`, privado), e um **signed URL** de 7 dias é incluído no e-mail como botão "Baixar fechamento".
+- Necessário rodar previamente o setup de Lovable Cloud Emails: configuração de domínio + infraestrutura de envio.
+- Bucket `fechamentos` criado via tool dedicada; políticas RLS para `owner = auth.uid()` na pasta.
 
-O que falta — e vou implementar — é registrar um movimento de "ajuste" automático para auditoria e atualizar campos do cliente que foram copiados no momento do cadastro (por ex. `valorAcompanhamento` quando o plano muda de mensalidade base). No `updatePlano` do store (`src/lib/store.ts`):
+## Detalhes técnicos
 
-1. Antes de salvar, compara o plano antigo com o novo.
-2. Para cada cliente cujo `planoId` é o plano alterado:
-   - Cria um `Movimento` do tipo `ajuste` com `data = hoje`, `planoId = id` e observação automática: "Plano '<nome>' atualizado — valores recalculados".
-3. Não sobrescreve dados editados manualmente do cliente (canais, usuários, módulos opcionais ativados) — esses continuam respeitados; só os preços/franquias do plano mudam, e a simulação refaz a conta automaticamente.
+```
+[Plano.diaVencimento] ──┐
+                        ├──> getDiaVencimentoEfetivo(cliente, plano)
+[Cliente.dataVencimento]┘            │
+                                     ▼
+                       obterVencimentoDaCompetencia(y, m)
+                                     │
+        ┌────────────────────────────┼─────────────────────────────┐
+        ▼                            ▼                             ▼
+  Resumo Mensal               Importar (Financeiro)        Enviar p/ Financeiro
+   (filtro vencimento)         (1 lançamento por dia)       (consolidado | por cliente)
+```
 
-## Resumo das alterações de arquivo
+- Migração: 1 ALTER TABLE adicionando `dia_vencimento`.
+- Storage: 1 bucket `fechamentos` (privado) + policy de acesso por owner.
+- Templates de e-mail: 1 arquivo em `src/lib/email-templates/fechamento-mensal.tsx` + registro em `registry.ts`.
+- Server function: 1 helper `sendTransactionalEmail` (já documentado) chamado do botão do popup.
+- Sem mudanças em rotas de autenticação ou Sidebar.
 
-- `src/routes/parceiros.tsx` — modal de detalhes, edição, exclusão com confirmação, campo observação.
-- `src/lib/types.ts` — novos campos por tipo de canal no `Plano`.
-- `src/routes/planos.tsx` — formulário com franquia e preço por tipo (Whats/Insta/Messenger).
-- `src/routes/clientes.tsx` — cálculo de custo e faturamento de canais usando franquia/preço por tipo.
-- `src/lib/store.ts` — `updatePlano` registra movimento de ajuste para clientes vinculados; mappers DB ↔ tipo atualizados.
-- **Migration Supabase** — adicionar colunas em `elora_planos` para os 3 tipos de canal (franquia + custo + valor).
+## Fora do escopo
 
-## Pergunta antes de implementar
-
-Sobre o item 4 (propagar mudança do plano para clientes): você quer só o **movimento automático de auditoria** (sem mexer em dados do cliente, deixando a simulação recalcular sozinha), ou também quer **resetar os campos do cliente para o que está incluso no plano** (ex.: se o plano agora inclui IA, ligar o `agentesIA` em todos os clientes)? O segundo caminho é mais invasivo e pode sobrescrever ajustes manuais — costuma ser melhor o primeiro.
+- Webhook genérico / API REST externa (não solicitado nesta rodada).
+- Reagendar fechamentos antigos já lançados — só novos imports passam a respeitar o dia. Posso adicionar botão "Reprocessar" depois se quiser.
