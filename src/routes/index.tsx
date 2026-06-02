@@ -11,11 +11,13 @@ import { Button } from "@/components/ui/button";
 import {
   useStore,
   receitaMensalCliente,
+  custoMensalCliente,
   clienteAtivoEm,
   formatBRL,
   calcularCustoLiquidoHelena,
   calcularCustoBrutoHelena,
   receitaMensalTotal,
+  faturamentoAcumuladoCliente,
 } from "@/lib/store";
 import {
   ResponsiveContainer,
@@ -30,7 +32,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { TrendingUp, Users, Wallet, DollarSign } from "lucide-react";
+import { TrendingUp, Users, Wallet, DollarSign, Trophy, Crown } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Dashboard · Elora" }] }),
@@ -38,7 +40,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { clientes, planos, custos, seedDemo } = useStore();
+  const { clientes, planos, custos, movimentos } = useStore();
 
   const ativos = clientes.filter((c) => !c.dataChurn);
   const mrr = receitaMensalTotal(ativos, planos, custos);
@@ -88,8 +90,8 @@ function Index() {
   const kpis = [
     { label: "Clientes ativos", value: String(ativos.length), icon: Users, hint: `${clientes.length} no total` },
     { label: "MRR", value: formatBRL(mrr), icon: DollarSign, hint: "Receita recorrente mensal" },
-    { label: "Custo Sistema (Helena)", value: formatBRL(custoHelenaLiquido), icon: Wallet, hint: `S/ Desconto Escala: ${formatBRL(custoHelenaBruto)}` },
-    { label: "Lucro Total", value: formatBRL(lucroLiquido), icon: TrendingUp, hint: `Lucro Sistema: ${formatBRL(lucroSistema)}` },
+    { label: "Lucro Líquido", value: formatBRL(lucroLiquido), icon: TrendingUp, hint: `MRR − Custo Helena com desconto (${formatBRL(custoHelenaLiquido)})` },
+    { label: "Lucro Sistema", value: formatBRL(lucroSistema), icon: Wallet, hint: `MRR − Custo Helena bruto (${formatBRL(custoHelenaBruto)})` },
   ];
 
   return (
