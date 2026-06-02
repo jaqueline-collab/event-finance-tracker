@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Download } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -27,6 +28,10 @@ function ResumoPage() {
   const [filtroPlano, setFiltroPlano] = useState("todos");
   const [filtroParceiro, setFiltroParceiro] = useState("todos");
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
+  const today = new Date();
+  const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const [fechamentoMes, setFechamentoMes] = useState<string>(currentKey);
+  const [fechamentoOpen, setFechamentoOpen] = useState(false);
 
   // Clientes filtrados por plano e parceiro
   const clientesFiltrados = useMemo(() => {
