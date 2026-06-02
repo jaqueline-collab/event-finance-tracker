@@ -10,10 +10,11 @@ import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  useStore, formatBRL, receitaMensalCliente, clienteFaturaEm,
+  useStore, formatBRL, receitaMensalCliente, receitaMensalClienteEm, clienteFaturaEm,
   calcularCustoLiquidoHelena,
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
+  clienteSnapshotAt,
 } from "@/lib/store";
 
 export const Route = createFileRoute("/resumo")({
@@ -66,8 +67,13 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const receita = ativos.reduce((s, c) => s + receitaMensalCliente(c, planos, custos), 0);
-      const custoHelena = calcularCustoLiquidoHelena(ativos);
+      const receita = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
+      // Custo Helena também respeita o snapshot histórico de cada cliente
+      const ativosSnapshot = ativos.map((c) => {
+        const venc = obterVencimentoDaCompetencia(c, y, m);
+        return venc ? clienteSnapshotAt(c, movimentos, venc) : c;
+      });
+      const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot);
       const setup = clientesFiltrados
         .filter((c) => {
           const vencimento = obterVencimentoDaCompetencia(c, y, m);
@@ -144,7 +150,7 @@ function ResumoPage() {
             parceiro?.nome ?? "—",
             formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1)),
             c.dataChurn ? "Churn" : "Ativo",
-            formatBRL(receitaMensalCliente(c, planos, custos)),
+          formatBRL(receitaMensalClienteEm(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
           ];
         }),
         styles: { fontSize: 9, cellPadding: 6 },
@@ -267,7 +273,7 @@ function ResumoPage() {
                                 {l.ativos.map((c) => {
                                   const plano = planos.find((p) => p.id === c.planoId);
                                   const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-                                  const rec = receitaMensalCliente(c, planos, custos);
+                                  const rec = receitaMensalClienteEm(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
                                   return (
                                     <tr key={c.id} className="border-b border-border/20 last:border-0">
                                       <td className="py-1.5 font-medium">{c.nome}</td>

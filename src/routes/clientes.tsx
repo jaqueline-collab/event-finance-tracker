@@ -656,7 +656,7 @@ function ClientesPage() {
                 <TableHead>Plano</TableHead>
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Data Setup</TableHead>
-                <TableHead className="text-right">LTV</TableHead>
+                <TableHead className="text-right">Tempo de vida</TableHead>
                 <TableHead>Data Churn</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Margem de lucro</TableHead>
@@ -675,7 +675,7 @@ function ClientesPage() {
                 const end = c.dataChurn ? new Date(c.dataChurn) : new Date();
                 const diffTime = Math.abs(end.getTime() - start.getTime());
                 const diasAtivos = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                const ltv = receita * (diasAtivos / 30.41) + (c.valorSetupPago || 0);
+                const tempoVidaLabel = `${diasAtivos} ${diasAtivos === 1 ? "dia" : "dias"}`;
                 const margem = receita > 0 ? (lucro / receita) * 100 : 0;
                 
                 return (
@@ -698,7 +698,7 @@ function ClientesPage() {
                     <TableCell>{plano?.nome ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{parceiro?.nome ?? "—"}</TableCell>
                     <TableCell>{c.dataInicio.split("-").reverse().join("/")}</TableCell>
-                    <TableCell className="text-right text-muted-foreground font-medium">{formatBRL(ltv)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground font-medium">{tempoVidaLabel}</TableCell>
                     <TableCell className={c.dataChurn ? "text-destructive font-medium" : "text-muted-foreground"}>{c.dataChurn ? c.dataChurn.split("-").reverse().join("/") : "Ativo"}</TableCell>
                     <TableCell className="text-right text-primary font-semibold">
                       {formatBRL(receita)}
@@ -816,8 +816,8 @@ function ClientesPage() {
               });
             }
             
-            // Sort timeline events chronologically
-            timelineEvents.sort((a, b) => a.data.localeCompare(b.data));
+            // Mais recentes primeiro
+            timelineEvents.sort((a, b) => b.data.localeCompare(a.data));
 
             return (
               <>
