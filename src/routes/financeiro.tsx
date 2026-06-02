@@ -292,7 +292,7 @@ function FinanceiroPage() {
           <div className="space-y-3">
             <div>
               <Label className="text-xs">Descrição</Label>
-              <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Ex: Boleto Helena fev/26" />
+              <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Ex: Boleto provedor fev/26" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
