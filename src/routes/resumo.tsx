@@ -167,6 +167,173 @@ function ResumoPage() {
     pdf.save(`resumo-mensal-${filtroPlano}-${filtroParceiro}.pdf`);
   };
 
+  // ====== Dados para o Fechamento Mensal ======
+  const fechamentoData = useMemo(() => {
+    if (!fechamentoMes) return null;
+    const [yStr, mStr] = fechamentoMes.split("-");
+    const y = Number(yStr);
+    const m = Number(mStr) - 1;
+    const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
+
+    const setupsNoMes = clientesFiltrados.filter((c) => {
+      const d = new Date(c.dataInicio);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+    const churnsNoMes = clientesFiltrados.filter((c) => {
+      if (!c.dataChurn) return false;
+      const d = new Date(c.dataChurn);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+
+    // Movimentos de upgrade/downgrade do mês para os clientes filtrados
+    const clienteIds = new Set(clientesFiltrados.map((c) => c.id));
+    const movsMes = movimentos.filter((mv) => {
+      if (!clienteIds.has(mv.clienteId)) return false;
+      if (mv.tipo !== "upgrade" && mv.tipo !== "downgrade") return false;
+      const d = new Date(mv.data);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+
+    // Detalhamento por cliente
+    const detalhesPorCliente = ativos.map((c) => {
+      const plano = planos.find((p) => p.id === c.planoId);
+      const parceiro = parceiros.find((p) => p.id === c.parceiroId);
+      const venc = obterVencimentoDaCompetencia(c, y, m);
+      const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
+      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
+      const acomp = snap.valorAcompanhamento || 0;
+      const sistema = Math.max(0, receita - acomp);
+      const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
+      return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc };
+    });
+
+    const totalSistema = detalhesPorCliente.reduce((s, d) => s + d.sistema, 0);
+    const totalAcompanhamento = detalhesPorCliente.reduce((s, d) => s + d.acomp, 0);
+    const totalReceita = totalSistema + totalAcompanhamento;
+    const totalSetups = setupsNoMes.reduce((s, c) => s + (c.valorSetupPago || 0), 0);
+
+    return {
+      y, m, labelMes,
+      ativos,
+      setupsNoMes,
+      churnsNoMes,
+      totalSetups,
+      detalhesPorCliente,
+      totalSistema,
+      totalAcompanhamento,
+      totalReceita,
+      movsMes,
+    };
+  }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, parceiros]);
+
+  const opcoesFechamento = useMemo(() => {
+    // Lista os últimos 24 meses + 1 à frente
+    const out: { key: string; label: string }[] = [];
+    const base = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    for (let i = 0; i < 26; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      out.push({ key, label: d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) });
+    }
+    return out;
+  }, [today]);
+
+  const fmtDelta = (label: string, v: number | undefined | null) => {
+    if (v === undefined || v === null || v === 0) return null;
+    const sign = v > 0 ? "+" : "";
+    return `${label} ${sign}${v}`;
+  };
+
+  const descreverMov = (mv: typeof movimentos[number]): string => {
+    const partes: string[] = [];
+    const a = fmtDelta("WhatsApp", mv.canaisWhats); if (a) partes.push(a);
+    const b = fmtDelta("Instagram", mv.canaisInsta); if (b) partes.push(b);
+    const c = fmtDelta("Messenger", mv.canaisMessenger); if (c) partes.push(c);
+    const z = fmtDelta("Z-API", mv.canaisZapi); if (z) partes.push(z);
+    const u = fmtDelta("Usuários", mv.usuariosAtivos); if (u) partes.push(u);
+    const ct = fmtDelta("Contatos", mv.contatosAtivos); if (ct) partes.push(ct);
+    if (mv.planoId) {
+      const np = planos.find((p) => p.id === mv.planoId);
+      partes.push(`Plano → ${np?.nome ?? mv.planoId}`);
+    }
+    if (mv.observacao) partes.push(`(${mv.observacao})`);
+    return partes.join(" · ") || "Atualização de configuração";
+  };
+
+  const exportarFechamentoPdf = () => {
+    if (!fechamentoData) return;
+    const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const planoSel = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
+    const parceiroSel = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
+
+    pdf.setFillColor(28, 63, 170);
+    pdf.rect(0, 0, 595, 70, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(22);
+    pdf.text("Elora", 40, 32);
+    pdf.setFontSize(11);
+    pdf.text(`Fechamento Mensal · ${fechamentoData.labelMes}`, 40, 54);
+
+    pdf.setTextColor(40, 40, 40);
+    pdf.setFontSize(9);
+    pdf.text(`Plano: ${planoSel}  |  Parceiro: ${parceiroSel}  |  Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 90);
+
+    autoTable(pdf, {
+      startY: 110,
+      head: [["Clientes faturados", "Setups no mês", "Churns", "Receita Sistema", "Acompanhamento", "Receita Total"]],
+      body: [[
+        String(fechamentoData.ativos.length),
+        `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
+        String(fechamentoData.churnsNoMes.length),
+        formatBRL(fechamentoData.totalSistema),
+        formatBRL(fechamentoData.totalAcompanhamento),
+        formatBRL(fechamentoData.totalReceita),
+      ]],
+      styles: { fontSize: 9, cellPadding: 6, halign: "center" },
+      headStyles: { fillColor: [28, 63, 170] },
+    });
+
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 16,
+      head: [["Cliente", "Plano", "Parceiro", "Sistema", "Acompanh.", "Total"]],
+      body: fechamentoData.detalhesPorCliente.map((d) => [
+        d.cliente.nome,
+        d.plano?.nome ?? "—",
+        d.parceiro?.nome ?? "—",
+        formatBRL(d.sistema),
+        formatBRL(d.acomp),
+        formatBRL(d.receita),
+      ]),
+      styles: { fontSize: 9, cellPadding: 5 },
+      headStyles: { fillColor: [60, 60, 60] },
+    });
+
+    if (fechamentoData.movsMes.length > 0) {
+      autoTable(pdf, {
+        startY: (pdf as any).lastAutoTable.finalY + 16,
+        head: [["Data", "Cliente", "Tipo", "Detalhes"]],
+        body: fechamentoData.movsMes
+          .slice()
+          .sort((a, b) => a.data.localeCompare(b.data))
+          .map((mv) => {
+            const c = clientes.find((x) => x.id === mv.clienteId);
+            return [
+              mv.data.split("-").reverse().join("/"),
+              c?.nome ?? "—",
+              mv.tipo === "upgrade" ? "Upgrade" : "Downgrade",
+              descreverMov(mv),
+            ];
+          }),
+        styles: { fontSize: 8, cellPadding: 5 },
+        headStyles: { fillColor: [120, 80, 0] },
+      });
+    }
+
+    pdf.save(`fechamento-${fechamentoMes}-${filtroPlano}-${filtroParceiro}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
