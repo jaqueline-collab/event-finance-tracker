@@ -529,6 +529,18 @@ function ResumoPage() {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex flex-col gap-1 min-w-[180px]">
+          <Label className="text-xs text-muted-foreground">Filtrar por Vencimento</Label>
+          <Select value={filtroVencimento} onValueChange={setFiltroVencimento}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os vencimentos</SelectItem>
+              {diasDisponiveis.map((d) => (
+                <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         {(filtroPlano !== "todos" || filtroParceiro !== "todos") && (
           <div className="flex items-end">
             <button
