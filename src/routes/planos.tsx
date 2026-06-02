@@ -231,6 +231,18 @@ function PlanosPage() {
                   <Label className="mb-1 block">Taxa de Setup (R$)</Label>
                   <Input type="number" step="0.01" value={form.valorSetup} onChange={(e) => setForm({ ...form, valorSetup: e.target.value })} />
                 </div>
+                <div>
+                  <Label className="mb-1 block">Dia de vencimento padrão</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={31}
+                    placeholder="Ex: 5, 10, 15…"
+                    value={form.diaVencimento}
+                    onChange={(e) => setForm({ ...form, diaVencimento: e.target.value })}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Aplicado a clientes deste plano. Cada cliente pode sobrescrever.</p>
+                </div>
               </div>
             </div>
 
