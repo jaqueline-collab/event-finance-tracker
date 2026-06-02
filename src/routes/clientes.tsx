@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento } from "@/lib/store";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap } from "lucide-react";
-import type { TipoMovimento, Cliente } from "@/lib/types";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil } from "lucide-react";
+import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 
 export const Route = createFileRoute("/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Elora" }] }),
@@ -39,6 +39,7 @@ function ClientesPage() {
   // Modal de Ação (Movimento)
   const [acaoClienteId, setAcaoClienteId] = useState<string | null>(null);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
+  const [editMovId, setEditMovId] = useState<string | null>(null);
   
   const [form, setForm] = useState({
     nome: "",
