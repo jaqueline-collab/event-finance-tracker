@@ -161,6 +161,7 @@ function PlanosPage() {
       nome: p.nome,
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
+      diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
       canaisWhatsInclusos: String(p.canaisWhatsInclusos ?? p.canaisInclusos ?? 0),
       canaisInstaInclusos: String(p.canaisInstaInclusos ?? 0),
       canaisMessengerInclusos: String(p.canaisMessengerInclusos ?? 0),
