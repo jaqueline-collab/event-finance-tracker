@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
+import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 
@@ -310,18 +310,61 @@ function ClientesPage() {
   // Pesquisa
   const [search, setSearch] = useState("");
 
+  // Filtros
+  const [filtroSetupDe, setFiltroSetupDe] = useState("");
+  const [filtroSetupAte, setFiltroSetupAte] = useState("");
+  const [filtroChurnDe, setFiltroChurnDe] = useState("");
+  const [filtroChurnAte, setFiltroChurnAte] = useState("");
+  const [filtroParceiro, setFiltroParceiro] = useState("_todos");
+  const [filtroPlano, setFiltroPlano] = useState("_todos");
+  const [filtroSituacao, setFiltroSituacao] = useState<"_todos" | "trial" | "ativo" | "cancelado">("_todos");
+
+  const limparFiltros = () => {
+    setFiltroSetupDe("");
+    setFiltroSetupAte("");
+    setFiltroChurnDe("");
+    setFiltroChurnAte("");
+    setFiltroParceiro("_todos");
+    setFiltroPlano("_todos");
+    setFiltroSituacao("_todos");
+  };
+
+  const filtrosAtivos =
+    !!filtroSetupDe || !!filtroSetupAte || !!filtroChurnDe || !!filtroChurnAte ||
+    filtroParceiro !== "_todos" || filtroPlano !== "_todos" || filtroSituacao !== "_todos";
+
   // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
   const clientesOrdenados = useMemo(() => {
-    const filtrados = clientes.filter((c) =>
-      c.nome.toLowerCase().includes(search.trim().toLowerCase()),
-    );
+    const hoje = new Date();
+    const filtrados = clientes.filter((c) => {
+      if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (filtroParceiro !== "_todos" && (c.parceiroId || "") !== filtroParceiro) return false;
+      if (filtroPlano !== "_todos" && (c.planoId || "") !== filtroPlano) return false;
+      if (filtroSetupDe && (c.dataInicio || "") < filtroSetupDe) return false;
+      if (filtroSetupAte && (c.dataInicio || "") > filtroSetupAte) return false;
+      if (filtroChurnDe && (!c.dataChurn || c.dataChurn < filtroChurnDe)) return false;
+      if (filtroChurnAte && (!c.dataChurn || c.dataChurn > filtroChurnAte)) return false;
+      if (filtroSituacao !== "_todos") {
+        const cancelado = !!c.dataChurn;
+        if (filtroSituacao === "cancelado" && !cancelado) return false;
+        if (filtroSituacao === "ativo" || filtroSituacao === "trial") {
+          if (cancelado) return false;
+          const inicio = new Date(c.dataInicio);
+          const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
+          const isTrial = dias <= 14;
+          if (filtroSituacao === "trial" && !isTrial) return false;
+          if (filtroSituacao === "ativo" && isTrial) return false;
+        }
+      }
+      return true;
+    });
     return [...filtrados].sort((a, b) => {
       const aChurn = !!a.dataChurn;
       const bChurn = !!b.dataChurn;
       if (aChurn !== bChurn) return aChurn ? 1 : -1;
       return (b.dataInicio || "").localeCompare(a.dataInicio || "");
     });
-  }, [clientes, search]);
+  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
 
   // Faturamento acumulado total da carteira
   const faturamentoCarteira = useMemo(() => {
