@@ -111,6 +111,7 @@ function PlanosPage() {
       nome: form.nome,
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
+      diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
       canaisInclusos: whatsInc + instaInc + msgInc,
       canaisWhatsInclusos: whatsInc,
       canaisInstaInclusos: instaInc,
