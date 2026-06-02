@@ -236,15 +236,15 @@ function ResumoPage() {
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-      const venc = obterVencimentoDaCompetencia(c, y, m, planos);
+      const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
-      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
+      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, cy, cm);
       const acomp = snap.valorAcompanhamento || 0;
       const sistema = Math.max(0, receita - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
-      // LTV em dias: do início até churn (se houver) ou fim da competência
+      // LTV em dias: do início até churn (se houver) ou fim do ciclo fechado
       const inicio = new Date(c.dataInicio);
-      const fimCompetencia = new Date(y, m + 1, 0);
+      const fimCompetencia = new Date(cy, cm + 1, 0);
       const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
       const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
       return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc, ltvDias };
