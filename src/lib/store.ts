@@ -889,6 +889,20 @@ export function formatDiaVencimento(value?: string | null): string {
   return dia ? String(dia) : "—";
 }
 
+// Retorna o dia de vencimento efetivo: cliente sobrescreve plano.
+export function getDiaVencimentoEfetivo(
+  cliente: Cliente,
+  planos: Plano[],
+): number | null {
+  const doCliente = parseDiaVencimento(cliente.dataVencimento);
+  if (doCliente) return doCliente;
+  const plano = planos.find((p) => p.id === cliente.planoId);
+  if (plano?.diaVencimento) {
+    return Math.max(1, Math.min(plano.diaVencimento, 31));
+  }
+  return null;
+}
+
 export function normalizarDataVencimento(dataInicio: string, dataVencimento?: string | null): string | null {
   if (!ISO_DATE_RE.test(dataInicio)) return null;
   if (dataVencimento && ISO_DATE_RE.test(dataVencimento)) return dataVencimento;
