@@ -427,6 +427,67 @@ function ClientesPage() {
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente pelo nome..." className="pl-8" />
       </div>
 
+      {/* Filtros */}
+      <Card className="border-border/60">
+        <CardContent className="p-3">
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup de</Label>
+              <Input type="date" value={filtroSetupDe} onChange={(e) => setFiltroSetupDe(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup até</Label>
+              <Input type="date" value={filtroSetupAte} onChange={(e) => setFiltroSetupAte(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn de</Label>
+              <Input type="date" value={filtroChurnDe} onChange={(e) => setFiltroChurnDe(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn até</Label>
+              <Input type="date" value={filtroChurnAte} onChange={(e) => setFiltroChurnAte(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Parceiro</Label>
+              <Select value={filtroParceiro} onValueChange={setFiltroParceiro}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_todos">Todos</SelectItem>
+                  {parceiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Plano</Label>
+              <Select value={filtroPlano} onValueChange={setFiltroPlano}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_todos">Todos</SelectItem>
+                  {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Situação</Label>
+              <Select value={filtroSituacao} onValueChange={(v: typeof filtroSituacao) => setFiltroSituacao(v)}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_todos">Todas</SelectItem>
+                  <SelectItem value="trial">Trial (até 14 dias)</SelectItem>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {filtrosAtivos && (
+            <div className="flex justify-end mt-2">
+              <Button variant="ghost" size="sm" onClick={limparFiltros}>Limpar filtros</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {open && (
         <Card className="border-border/60 bg-muted/10 overflow-hidden">
           <CardHeader className="border-b border-border/40 bg-muted/20">
