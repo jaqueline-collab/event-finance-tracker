@@ -1003,7 +1003,7 @@ export function receitaMensalClienteEm(
   year: number,
   month: number,
 ): number {
-  const vencimento = obterVencimentoDaCompetencia(cliente, year, month);
+  const vencimento = obterVencimentoDaCompetencia(cliente, year, month, planos);
   if (!vencimento) return 0;
   const snap = clienteSnapshotAt(cliente, movimentos, vencimento);
   return receitaMensalCliente(snap, planos, custos);
@@ -1157,7 +1157,7 @@ export function faturamentoAcumuladoCliente(
   while (cursor < limite) {
     const y = cursor.getFullYear();
     const m = cursor.getMonth();
-    if (clienteFaturaEm(cliente, y, m)) {
+    if (clienteFaturaEm(cliente, y, m, planos)) {
       total += receitaMensalClienteEm(cliente, planos, custos, movimentos, y, m);
     }
     cursor.setMonth(cursor.getMonth() + 1);
