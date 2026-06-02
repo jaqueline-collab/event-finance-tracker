@@ -1079,3 +1079,35 @@ export function calcularCustoLiquidoHelena(clientesAtivos: Cliente[]): number {
 export function receitaMensalTotal(clientesAtivos: Cliente[], planos: Plano[], custos: CustoBase[]): number {
   return clientesAtivos.reduce((acc, c) => acc + receitaMensalCliente(c, planos, custos), 0);
 }
+
+// Faturamento acumulado de um cliente desde o setup até hoje (ou churn):
+// soma todas as competências faturadas + setup pago + serviços avulsos.
+export function faturamentoAcumuladoCliente(
+  cliente: Cliente,
+  planos: Plano[],
+  custos: CustoBase[],
+  movimentos: Movimento[],
+): number {
+  if (!cliente.dataInicio) return 0;
+  const inicio = new Date(cliente.dataInicio);
+  const hoje = new Date();
+  const fim = cliente.dataChurn ? new Date(cliente.dataChurn) : hoje;
+  let total = cliente.valorSetupPago || 0;
+  // serviços avulsos do cliente
+  for (const mv of movimentos) {
+    if (mv.clienteId === cliente.id && mv.tipo === "servico" && mv.valorServico) {
+      total += mv.valorServico;
+    }
+  }
+  const cursor = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  const limite = new Date(fim.getFullYear(), fim.getMonth() + 1, 1);
+  while (cursor < limite) {
+    const y = cursor.getFullYear();
+    const m = cursor.getMonth();
+    if (clienteFaturaEm(cliente, y, m)) {
+      total += receitaMensalClienteEm(cliente, planos, custos, movimentos, y, m);
+    }
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return total;
+}
