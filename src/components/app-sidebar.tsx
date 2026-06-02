@@ -12,6 +12,7 @@ import {
   Kanban,
   Wallet,
   GripVertical,
+  UserCog,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,18 +32,20 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { useCurrentUserAccess, type ModuleKey } from "@/lib/permissions";
 
-const defaultGestaoItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Resumo Mensal", url: "/resumo", icon: CalendarRange },
-  { title: "Financeiro", url: "/financeiro", icon: Wallet },
-  { title: "Funil", url: "/orcamentos", icon: Kanban },
+const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, moduleKey: "dashboard" },
+  { title: "Clientes", url: "/clientes", icon: Users, moduleKey: "clientes" },
+  { title: "Resumo Mensal", url: "/resumo", icon: CalendarRange, moduleKey: "resumo" },
+  { title: "Financeiro", url: "/financeiro", icon: Wallet, moduleKey: "financeiro" },
+  { title: "Funil", url: "/orcamentos", icon: Kanban, moduleKey: "orcamentos" },
 ];
 
-const configItems = [
-  { title: "Planos", url: "/planos", icon: Package },
-  { title: "Parceiros", url: "/parceiros", icon: Handshake },
+const configItemsAll: { title: string; url: string; icon: any; moduleKey: ModuleKey; adminOnly?: boolean }[] = [
+  { title: "Planos", url: "/planos", icon: Package, moduleKey: "planos" },
+  { title: "Parceiros", url: "/parceiros", icon: Handshake, moduleKey: "parceiros" },
+  { title: "Usuários", url: "/usuarios", icon: UserCog, moduleKey: "usuarios", adminOnly: true },
 ];
 
 const ORDER_KEY = "elora.sidebar.order.v1";
@@ -66,6 +69,10 @@ function sortItems(saved: string[]) {
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const access = useCurrentUserAccess();
+  const configItems = configItemsAll.filter((i) =>
+    i.adminOnly ? access.isAdmin : access.isAdmin || access.canView(i.moduleKey),
+  );
   const isConfigActive = configItems.some((item) => item.url === pathname);
   const [configOpen, setConfigOpen] = useState(isConfigActive);
   const { state, setOpen } = useSidebar();
@@ -77,6 +84,8 @@ export function AppSidebar() {
   useEffect(() => {
     setGestaoItems(sortItems(loadOrder()));
   }, []);
+
+  const visibleGestao = gestaoItems.filter((i) => access.isAdmin || access.canView(i.moduleKey));
 
   const persistOrder = (items: typeof defaultGestaoItems) => {
     try {
@@ -126,7 +135,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Gestão</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {gestaoItems.map((item) => (
+              {visibleGestao.map((item) => (
                 <SidebarMenuItem
                   key={item.url}
                   draggable={!isCollapsed}
