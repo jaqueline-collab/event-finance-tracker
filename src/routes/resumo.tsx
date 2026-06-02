@@ -20,7 +20,7 @@ import {
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
 } from "@/lib/store";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { Mail, Send } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
