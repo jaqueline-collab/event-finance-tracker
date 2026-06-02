@@ -187,7 +187,7 @@ function ResumoPage() {
     const cm = m === 0 ? 11 : m - 1;
     const cicloInicio = new Date(cy, cm, 1);
     const cicloFim = new Date(cy, cm + 1, 0);
-    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} → ${cicloFim.toLocaleDateString("pt-BR")}`;
+    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
 
     const setupsNoMes = clientesFiltrados.filter((c) => {
       const d = new Date(c.dataInicio);
