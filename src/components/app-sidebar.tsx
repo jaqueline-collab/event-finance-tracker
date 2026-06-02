@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Kanban,
   Wallet,
+  GripVertical,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-const gestaoItems = [
+const defaultGestaoItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Resumo Mensal", url: "/resumo", icon: CalendarRange },
@@ -44,12 +45,59 @@ const configItems = [
   { title: "Parceiros", url: "/parceiros", icon: Handshake },
 ];
 
+const ORDER_KEY = "elora.sidebar.order.v1";
+
+function loadOrder(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(ORDER_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function sortItems(saved: string[]) {
+  const map = new Map(defaultGestaoItems.map((i) => [i.url, i]));
+  const ordered = saved.map((u) => map.get(u)).filter(Boolean) as typeof defaultGestaoItems;
+  const rest = defaultGestaoItems.filter((i) => !saved.includes(i.url));
+  return [...ordered, ...rest];
+}
+
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isConfigActive = configItems.some((item) => item.url === pathname);
   const [configOpen, setConfigOpen] = useState(isConfigActive);
   const { state, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed";
+
+  const [gestaoItems, setGestaoItems] = useState(defaultGestaoItems);
+  const [dragUrl, setDragUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGestaoItems(sortItems(loadOrder()));
+  }, []);
+
+  const persistOrder = (items: typeof defaultGestaoItems) => {
+    try {
+      window.localStorage.setItem(ORDER_KEY, JSON.stringify(items.map((i) => i.url)));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleDrop = (targetUrl: string) => {
+    if (!dragUrl || dragUrl === targetUrl) return;
+    const src = gestaoItems.findIndex((i) => i.url === dragUrl);
+    const dst = gestaoItems.findIndex((i) => i.url === targetUrl);
+    if (src < 0 || dst < 0) return;
+    const next = [...gestaoItems];
+    const [moved] = next.splice(src, 1);
+    next.splice(dst, 0, moved);
+    setGestaoItems(next);
+    persistOrder(next);
+    setDragUrl(null);
+  };
 
   const handleConfigClick = () => {
     if (isCollapsed) {
@@ -79,11 +127,25 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {gestaoItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
+                <SidebarMenuItem
+                  key={item.url}
+                  draggable={!isCollapsed}
+                  onDragStart={() => setDragUrl(item.url)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleDrop(item.url)}
+                  onDragEnd={() => setDragUrl(null)}
+                  className={cn(
+                    "group/drag",
+                    dragUrl === item.url && "opacity-50",
+                  )}
+                >
                   <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
                     <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
+                      {!isCollapsed && (
+                        <GripVertical className="ml-auto h-3.5 w-3.5 text-muted-foreground/40 opacity-0 group-hover/drag:opacity-100 transition-opacity cursor-grab" />
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
