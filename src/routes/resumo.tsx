@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -32,6 +34,8 @@ function ResumoPage() {
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [fechamentoMes, setFechamentoMes] = useState<string>(currentKey);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
+  const [incluirGraficos, setIncluirGraficos] = useState(true);
+  const [observacaoPdf, setObservacaoPdf] = useState("");
 
   // Clientes filtrados por plano e parceiro
   const clientesFiltrados = useMemo(() => {
@@ -183,7 +187,7 @@ function ResumoPage() {
     const cm = m === 0 ? 11 : m - 1;
     const cicloInicio = new Date(cy, cm, 1);
     const cicloFim = new Date(cy, cm + 1, 0);
-    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} → ${cicloFim.toLocaleDateString("pt-BR")}`;
+    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
 
     const setupsNoMes = clientesFiltrados.filter((c) => {
       const d = new Date(c.dataInicio);
@@ -309,24 +313,30 @@ function ResumoPage() {
   const exportarFechamentoPdf = () => {
     if (!fechamentoData) return;
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
     const planoSel = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
     const parceiroSel = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
 
-    pdf.setFillColor(28, 63, 170);
-    pdf.rect(0, 0, 595, 70, "F");
+    // Cabeçalho preto
+    pdf.setFillColor(15, 15, 15);
+    pdf.rect(0, 0, pageW, 78, "F");
     pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
     pdf.setFontSize(22);
-    pdf.text("Elora", 40, 32);
-    pdf.setFontSize(11);
-    pdf.text(`Fechamento Mensal · ${fechamentoData.labelMes}`, 40, 54);
+    pdf.text("Elora", 40, 36);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(12);
+    pdf.text(`Fechamento Mensal · ${fechamentoData.labelMes}`, 40, 58);
 
     pdf.setTextColor(40, 40, 40);
-    pdf.setFontSize(9);
-    pdf.text(`Plano: ${planoSel}  |  Parceiro: ${parceiroSel}  |  Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 90);
-    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 104);
+    pdf.setFontSize(10);
+    pdf.text(`Plano: ${planoSel}   |   Parceiro: ${parceiroSel}`, 40, 100);
+    pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 114);
+    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 128);
 
     autoTable(pdf, {
-      startY: 120,
+      startY: 146,
       head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
       body: [[
         String(fechamentoData.ativos.length),
@@ -336,44 +346,128 @@ function ResumoPage() {
         formatBRL(fechamentoData.totalAcompanhamento),
         formatBRL(fechamentoData.totalReceita),
       ]],
-      styles: { fontSize: 9, cellPadding: 6, halign: "center" },
-      headStyles: { fillColor: [28, 63, 170] },
+      styles: { fontSize: 10, cellPadding: 7, halign: "center" },
+      headStyles: { fillColor: [15, 15, 15], textColor: 255 },
+    });
+
+    // Métricas adicionais (LTV médio e Ticket médio)
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 10,
+      head: [["LTV médio (dias)", "Ticket médio / cliente"]],
+      body: [[
+        String(Math.round(fechamentoData.ltvMedioDias)),
+        formatBRL(fechamentoData.ticketMedio),
+      ]],
+      styles: { fontSize: 10, cellPadding: 7, halign: "center" },
+      headStyles: { fillColor: [60, 60, 60], textColor: 255 },
     });
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
-      head: [["Cliente", "Plano", "Parceiro", "Sistema", "Acompanh.", "Total"]],
+      head: [["Cliente", "Plano", "Parceiro", "LTV (dias)", "Sistema", "Acompanh.", "Total"]],
       body: fechamentoData.detalhesPorCliente.map((d) => [
         d.cliente.nome,
         d.plano?.nome ?? "—",
         d.parceiro?.nome ?? "—",
+        String(d.ltvDias),
         formatBRL(d.sistema),
         formatBRL(d.acomp),
         formatBRL(d.receita),
       ]),
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: [60, 60, 60] },
+      styles: { fontSize: 10, cellPadding: 6 },
+      headStyles: { fillColor: [60, 60, 60], textColor: 255 },
     });
 
     if (fechamentoData.movsMes.length > 0) {
       autoTable(pdf, {
         startY: (pdf as any).lastAutoTable.finalY + 16,
-        head: [["Data", "Cliente", "Tipo", "Detalhes"]],
+        head: [["Data", "Cliente", "Tipo", "Detalhes", "Impacto/mês"]],
         body: fechamentoData.movsMes
           .slice()
-          .sort((a, b) => a.data.localeCompare(b.data))
+          .sort((a, b) => b.data.localeCompare(a.data))
           .map((mv) => {
             const c = clientes.find((x) => x.id === mv.clienteId);
+            const delta = fechamentoData.calcDeltaReceita(mv);
+            const sign = delta > 0 ? "+" : "";
             return [
               mv.data.split("-").reverse().join("/"),
               c?.nome ?? "—",
               mv.tipo === "upgrade" ? "Upgrade" : "Downgrade",
               descreverMov(mv),
+              delta !== 0 ? `${sign}${formatBRL(delta)}` : "—",
             ];
           }),
-        styles: { fontSize: 8, cellPadding: 5 },
-        headStyles: { fillColor: [120, 80, 0] },
+        styles: { fontSize: 9, cellPadding: 6 },
+        // Cabeçalho amarelo vivo para as atualizações do ciclo
+        headStyles: { fillColor: [253, 224, 71], textColor: [20, 20, 20] },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 2) {
+            const isUp = String(data.cell.raw) === "Upgrade";
+            // Verde para upgrade, vermelho para downgrade
+            data.cell.styles.textColor = isUp ? [21, 128, 61] : [185, 28, 28];
+            data.cell.styles.fontStyle = "bold";
+          }
+          if (data.section === "body" && data.column.index === 4) {
+            const raw = String(data.cell.raw ?? "");
+            if (raw.startsWith("+")) data.cell.styles.textColor = [21, 128, 61];
+            else if (raw.startsWith("-") || raw.startsWith("−") || raw.startsWith("R$ -")) data.cell.styles.textColor = [185, 28, 28];
+          }
+        },
       });
+    }
+
+    // Gráfico de receita (opcional)
+    if (incluirGraficos) {
+      const serie = linhas.slice(0, 6).reverse();
+      if (serie.length >= 2) {
+        let y = (pdf as any).lastAutoTable.finalY + 24;
+        if (y > pageH - 200) { pdf.addPage(); y = 60; }
+        pdf.setFontSize(11);
+        pdf.setTextColor(60, 60, 60);
+        pdf.text(`Receita — últimos ${serie.length} meses`, 40, y);
+        const x0 = 40, y0 = y + 12, w = pageW - 80, h = 140;
+        pdf.setDrawColor(220);
+        pdf.rect(x0, y0, w, h);
+        const maxV = Math.max(...serie.map((s) => s.receita), 1);
+        const step = w / (serie.length - 1);
+        // Área
+        pdf.setFillColor(28, 63, 170);
+        const pts: { x: number; y: number }[] = serie.map((s, i) => ({
+          x: x0 + i * step,
+          y: y0 + h - (s.receita / maxV) * (h - 16) - 8,
+        }));
+        // Linha
+        pdf.setDrawColor(28, 63, 170);
+        pdf.setLineWidth(1.5);
+        for (let i = 1; i < pts.length; i++) {
+          pdf.line(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
+        }
+        // Pontos + labels
+        pdf.setFontSize(8);
+        pdf.setTextColor(110, 110, 110);
+        pts.forEach((p, i) => {
+          pdf.setFillColor(28, 63, 170);
+          pdf.circle(p.x, p.y, 2.5, "F");
+          const label = serie[i].mesLabel;
+          pdf.text(label, p.x, y0 + h + 12, { align: "center" });
+        });
+      }
+    }
+
+    // Observação livre
+    if (observacaoPdf.trim()) {
+      let y = ((pdf as any).lastAutoTable?.finalY ?? 200) + 30;
+      const lines = pdf.splitTextToSize(observacaoPdf.trim(), pageW - 80);
+      const blockH = 24 + lines.length * 12;
+      if (y + blockH > pageH - 40) { pdf.addPage(); y = 60; }
+      pdf.setFontSize(11);
+      pdf.setTextColor(40, 40, 40);
+      pdf.text("Observações", 40, y);
+      pdf.setDrawColor(220);
+      pdf.line(40, y + 4, pageW - 40, y + 4);
+      pdf.setFontSize(10);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(lines, 40, y + 20);
     }
 
     pdf.save(`fechamento-${fechamentoMes}-${filtroPlano}-${filtroParceiro}.pdf`);
@@ -573,6 +667,30 @@ function ResumoPage() {
               </div>
 
               <div className="p-6 space-y-6">
+                {/* Opções de exportação */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="incluir-graficos"
+                      checked={incluirGraficos}
+                      onCheckedChange={(v) => setIncluirGraficos(Boolean(v))}
+                    />
+                    <Label htmlFor="incluir-graficos" className="text-sm cursor-pointer">
+                      Incluir gráficos no PDF
+                    </Label>
+                  </div>
+                  <div>
+                    <Label htmlFor="obs-pdf" className="text-xs text-muted-foreground">Observação (impressa no final do PDF)</Label>
+                    <Textarea
+                      id="obs-pdf"
+                      value={observacaoPdf}
+                      onChange={(e) => setObservacaoPdf(e.target.value)}
+                      placeholder="Notas, contexto do mês, recomendações…"
+                      className="mt-1 min-h-[72px] text-sm"
+                    />
+                  </div>
+                </div>
+
                 {/* KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border/60 p-4">

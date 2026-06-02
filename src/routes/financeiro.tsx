@@ -83,11 +83,15 @@ function FinanceiroPage() {
       if (!jaExiste) {
         const ativos = clientes.filter((c) => clienteFaturaEm(c, y, m));
         const total = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
-        if (total > 0) {
+        if (ativos.length > 0) {
           // Vencimento sugerido: dia 10 do mês seguinte
           const venc = new Date(y, m + 1, 10).toISOString().slice(0, 10);
+          // Ciclo: o fechamento da competência X cobre os movimentos do mês anterior
+          const cy = m === 0 ? y - 1 : y;
+          const cm = m === 0 ? 11 : m - 1;
+          const cicloLabel = new Date(cy, cm, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
           addLancamento({
-            descricao: `Fechamento Mensal ${cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`,
+            descricao: `Fechamento Mensal ${cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · ciclo ${cicloLabel}`,
             tipo: "fechamento",
             categoria: "Receita",
             valor: Number(total.toFixed(2)),
