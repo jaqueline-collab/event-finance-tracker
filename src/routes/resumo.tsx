@@ -581,19 +581,65 @@ function ResumoPage() {
                   </div>
                 </div>
 
-                {/* Sistema vs Acompanhamento */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="rounded-lg border border-border/60 p-4 bg-muted/10">
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Valor total do Sistema</div>
-                    <div className="text-xl font-semibold mt-1">{formatBRL(fechamentoData.totalSistema)}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">Planos, canais, módulos e excedentes</div>
+                {/* Métricas secundárias: LTV médio, ticket médio, sistema vs acompanhamento (discretos) */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">LTV médio</div>
+                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoData.ltvMedioDias)} dias</div>
                   </div>
-                  <div className="rounded-lg border border-border/60 p-4 bg-muted/10">
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Valor total do Acompanhamento</div>
-                    <div className="text-xl font-semibold mt-1">{formatBRL(fechamentoData.totalAcompanhamento)}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">Receita recorrente comercial</div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ticket médio / cliente</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.ticketMedio)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Sistema</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.totalSistema)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Acompanhamento</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.totalAcompanhamento)}</div>
                   </div>
                 </div>
+
+                {/* Gráfico de área: receita mensal recente */}
+                {(() => {
+                  const serie = linhas.slice(0, 6).reverse(); // mais antigo -> mais recente
+                  if (serie.length < 2) return null;
+                  const w = 720, h = 140, pad = 24;
+                  const maxV = Math.max(...serie.map((s) => s.receita), 1);
+                  const stepX = (w - pad * 2) / (serie.length - 1);
+                  const points = serie.map((s, i) => {
+                    const x = pad + i * stepX;
+                    const y = h - pad - (s.receita / maxV) * (h - pad * 2);
+                    return { x, y, label: s.mesLabel, v: s.receita };
+                  });
+                  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+                  const area = `${path} L ${points[points.length - 1].x.toFixed(1)} ${(h - pad).toFixed(1)} L ${points[0].x.toFixed(1)} ${(h - pad).toFixed(1)} Z`;
+                  return (
+                    <div className="rounded-lg border border-border/60 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receita — últimos {serie.length} meses</h3>
+                        <span className="text-[10px] text-muted-foreground">pico: {formatBRL(maxV)}</span>
+                      </div>
+                      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto">
+                        <defs>
+                          <linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.45" />
+                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.02" />
+                          </linearGradient>
+                        </defs>
+                        <path d={area} fill="url(#areaFill)" />
+                        <path d={path} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" />
+                        {points.map((p, i) => (
+                          <g key={i}>
+                            <circle cx={p.x} cy={p.y} r={3} fill="hsl(var(--primary))" />
+                            <text x={p.x} y={h - 6} textAnchor="middle" className="fill-muted-foreground" fontSize="9" style={{ textTransform: "capitalize" }}>{p.label}</text>
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  );
+                })()}
 
                 {/* Detalhamento por cliente */}
                 <div>
@@ -604,6 +650,7 @@ function ResumoPage() {
                         <tr className="text-xs text-muted-foreground">
                           <th className="text-left p-2 font-medium">Cliente</th>
                           <th className="text-left p-2 font-medium">Plano</th>
+                          <th className="text-right p-2 font-medium">LTV</th>
                           <th className="text-right p-2 font-medium">Sistema</th>
                           <th className="text-right p-2 font-medium">Acomp.</th>
                           <th className="text-right p-2 font-medium">Total</th>
@@ -614,13 +661,14 @@ function ResumoPage() {
                           <tr key={d.cliente.id} className="border-t border-border/30">
                             <td className="p-2 font-medium">{d.cliente.nome}</td>
                             <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
+                            <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
                             <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
                             <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
                             <td className="p-2 text-right font-semibold text-primary">{formatBRL(d.receita)}</td>
                           </tr>
                         ))}
                         {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={5} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                          <tr><td colSpan={6} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -639,6 +687,7 @@ function ResumoPage() {
                           const c = clientes.find((x) => x.id === mv.clienteId);
                           const isUp = mv.tipo === "upgrade";
                           const Icon = isUp ? TrendingUp : TrendingDown;
+                          const deltaReceita = fechamentoData.calcDeltaReceita(mv);
                           return (
                             <div key={mv.id} className="flex items-start gap-3 rounded-lg border border-border/60 p-3">
                               <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-accent/15 text-accent" : "bg-yellow-500/15 text-yellow-500"}`}>
@@ -648,6 +697,11 @@ function ResumoPage() {
                                 <div className="flex items-center gap-2 text-sm">
                                   <span className="font-semibold">{c?.nome ?? "—"}</span>
                                   <Badge variant="outline" className="text-[10px]">{isUp ? "Upgrade" : "Downgrade"}</Badge>
+                                  {deltaReceita !== 0 && (
+                                    <span className={`text-xs font-semibold ${deltaReceita > 0 ? "text-accent" : "text-destructive"}`}>
+                                      {deltaReceita > 0 ? "+" : ""}{formatBRL(deltaReceita)}/mês
+                                    </span>
+                                  )}
                                   <span className="text-xs text-muted-foreground ml-auto">{mv.data.split("-").reverse().join("/")}</span>
                                 </div>
                                 <div className="text-xs text-muted-foreground mt-1">{descreverMov(mv)}</div>
