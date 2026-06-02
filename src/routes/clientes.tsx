@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
+import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 
@@ -310,18 +310,61 @@ function ClientesPage() {
   // Pesquisa
   const [search, setSearch] = useState("");
 
+  // Filtros
+  const [filtroSetupDe, setFiltroSetupDe] = useState("");
+  const [filtroSetupAte, setFiltroSetupAte] = useState("");
+  const [filtroChurnDe, setFiltroChurnDe] = useState("");
+  const [filtroChurnAte, setFiltroChurnAte] = useState("");
+  const [filtroParceiro, setFiltroParceiro] = useState("_todos");
+  const [filtroPlano, setFiltroPlano] = useState("_todos");
+  const [filtroSituacao, setFiltroSituacao] = useState<"_todos" | "trial" | "ativo" | "cancelado">("_todos");
+
+  const limparFiltros = () => {
+    setFiltroSetupDe("");
+    setFiltroSetupAte("");
+    setFiltroChurnDe("");
+    setFiltroChurnAte("");
+    setFiltroParceiro("_todos");
+    setFiltroPlano("_todos");
+    setFiltroSituacao("_todos");
+  };
+
+  const filtrosAtivos =
+    !!filtroSetupDe || !!filtroSetupAte || !!filtroChurnDe || !!filtroChurnAte ||
+    filtroParceiro !== "_todos" || filtroPlano !== "_todos" || filtroSituacao !== "_todos";
+
   // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
   const clientesOrdenados = useMemo(() => {
-    const filtrados = clientes.filter((c) =>
-      c.nome.toLowerCase().includes(search.trim().toLowerCase()),
-    );
+    const hoje = new Date();
+    const filtrados = clientes.filter((c) => {
+      if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (filtroParceiro !== "_todos" && (c.parceiroId || "") !== filtroParceiro) return false;
+      if (filtroPlano !== "_todos" && (c.planoId || "") !== filtroPlano) return false;
+      if (filtroSetupDe && (c.dataInicio || "") < filtroSetupDe) return false;
+      if (filtroSetupAte && (c.dataInicio || "") > filtroSetupAte) return false;
+      if (filtroChurnDe && (!c.dataChurn || c.dataChurn < filtroChurnDe)) return false;
+      if (filtroChurnAte && (!c.dataChurn || c.dataChurn > filtroChurnAte)) return false;
+      if (filtroSituacao !== "_todos") {
+        const cancelado = !!c.dataChurn;
+        if (filtroSituacao === "cancelado" && !cancelado) return false;
+        if (filtroSituacao === "ativo" || filtroSituacao === "trial") {
+          if (cancelado) return false;
+          const inicio = new Date(c.dataInicio);
+          const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
+          const isTrial = dias <= 14;
+          if (filtroSituacao === "trial" && !isTrial) return false;
+          if (filtroSituacao === "ativo" && isTrial) return false;
+        }
+      }
+      return true;
+    });
     return [...filtrados].sort((a, b) => {
       const aChurn = !!a.dataChurn;
       const bChurn = !!b.dataChurn;
       if (aChurn !== bChurn) return aChurn ? 1 : -1;
       return (b.dataInicio || "").localeCompare(a.dataInicio || "");
     });
-  }, [clientes, search]);
+  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
 
   // Faturamento acumulado total da carteira
   const faturamentoCarteira = useMemo(() => {
@@ -383,6 +426,67 @@ function ClientesPage() {
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente pelo nome..." className="pl-8" />
       </div>
+
+      {/* Filtros */}
+      <Card className="border-border/60">
+        <CardContent className="p-3">
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup de</Label>
+              <Input type="date" value={filtroSetupDe} onChange={(e) => setFiltroSetupDe(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup até</Label>
+              <Input type="date" value={filtroSetupAte} onChange={(e) => setFiltroSetupAte(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn de</Label>
+              <Input type="date" value={filtroChurnDe} onChange={(e) => setFiltroChurnDe(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn até</Label>
+              <Input type="date" value={filtroChurnAte} onChange={(e) => setFiltroChurnAte(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Parceiro</Label>
+              <Select value={filtroParceiro} onValueChange={setFiltroParceiro}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_todos">Todos</SelectItem>
+                  {parceiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Plano</Label>
+              <Select value={filtroPlano} onValueChange={setFiltroPlano}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_todos">Todos</SelectItem>
+                  {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Situação</Label>
+              <Select value={filtroSituacao} onValueChange={(v: typeof filtroSituacao) => setFiltroSituacao(v)}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_todos">Todas</SelectItem>
+                  <SelectItem value="trial">Trial (até 14 dias)</SelectItem>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {filtrosAtivos && (
+            <div className="flex justify-end mt-2">
+              <Button variant="ghost" size="sm" onClick={limparFiltros}>Limpar filtros</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {open && (
         <Card className="border-border/60 bg-muted/10 overflow-hidden">
@@ -746,12 +850,12 @@ function ClientesPage() {
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Plano</TableHead>
-                <TableHead>Parceiro</TableHead>
                 <TableHead>Data Setup</TableHead>
                 <TableHead className="text-right">Tempo de vida</TableHead>
                 <TableHead>Data Churn</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Acumulado</TableHead>
+                <TableHead className="text-right">Lucro sob o sistema</TableHead>
                 <TableHead className="text-right">Margem de lucro</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
@@ -759,10 +863,11 @@ function ClientesPage() {
             <TableBody>
               {clientesOrdenados.map((c) => {
                 const plano = planos.find((p) => p.id === c.planoId);
-                const parceiro = parceiros.find((p) => p.id === c.parceiroId);
                 const receita = receitaMensalCliente(c, planos, custos);
                 const custoCalculado = custoMensalCliente(c, planos, custos);
                 const lucro = receita - custoCalculado;
+                const receitaSist = receitaSistemaCliente(c, planos, custos);
+                const lucroSistema = receitaSist - custoCalculado;
                 const acumulado = faturamentoAcumuladoCliente(c, planos, custos, movimentos);
                 
                 const start = new Date(c.dataInicio);
@@ -790,7 +895,6 @@ function ClientesPage() {
                       </div>
                     </TableCell>
                     <TableCell>{plano?.nome ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{parceiro?.nome ?? "—"}</TableCell>
                     <TableCell>{c.dataInicio.split("-").reverse().join("/")}</TableCell>
                     <TableCell className="text-right text-muted-foreground font-medium">{tempoVidaLabel}</TableCell>
                     <TableCell className={c.dataChurn ? "text-destructive font-medium" : "text-muted-foreground"}>{c.dataChurn ? c.dataChurn.split("-").reverse().join("/") : "Ativo"}</TableCell>
@@ -799,6 +903,9 @@ function ClientesPage() {
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground font-medium">
                       {formatBRL(acumulado)}
+                    </TableCell>
+                    <TableCell className={`text-right font-semibold ${lucroSistema >= 0 ? "text-accent" : "text-destructive"}`}>
+                      {lucroSistema >= 0 ? "+" : ""}{formatBRL(lucroSistema)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
