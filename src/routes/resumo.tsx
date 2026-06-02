@@ -378,6 +378,22 @@ function ResumoPage() {
             </button>
           </div>
         )}
+        <div className="flex flex-col gap-1 min-w-[200px]">
+          <Label className="text-xs text-muted-foreground">Gerar Fechamento</Label>
+          <div className="flex gap-2">
+            <Select value={fechamentoMes} onValueChange={setFechamentoMes}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {opcoesFechamento.map((o) => (
+                  <SelectItem key={o.key} value={o.key} className="capitalize">{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" className="h-8 gap-1.5" onClick={() => setFechamentoOpen(true)}>
+              <FileText className="h-3.5 w-3.5" /> Gerar
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Card className="border-border/60">
