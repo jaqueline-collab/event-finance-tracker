@@ -20,6 +20,7 @@ type PlanoForm = {
   nome: string;
   valorMensal: string;
   valorSetup: string;
+  diaVencimento: string;
   canaisWhatsInclusos: string;
   canaisInstaInclusos: string;
   canaisMessengerInclusos: string;
