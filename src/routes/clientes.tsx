@@ -735,17 +735,19 @@ function ClientesPage() {
                 <TableHead className="text-right">Tempo de vida</TableHead>
                 <TableHead>Data Churn</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
+                <TableHead className="text-right">Acumulado</TableHead>
                 <TableHead className="text-right">Margem de lucro</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clientes.map((c) => {
+              {clientesOrdenados.map((c) => {
                 const plano = planos.find((p) => p.id === c.planoId);
                 const parceiro = parceiros.find((p) => p.id === c.parceiroId);
                 const receita = receitaMensalCliente(c, planos, custos);
                 const custoCalculado = custoMensalCliente(c, planos, custos);
                 const lucro = receita - custoCalculado;
+                const acumulado = faturamentoAcumuladoCliente(c, planos, custos, movimentos);
                 
                 const start = new Date(c.dataInicio);
                 const end = c.dataChurn ? new Date(c.dataChurn) : new Date();
@@ -779,6 +781,9 @@ function ClientesPage() {
                     <TableCell className="text-right text-primary font-semibold">
                       {formatBRL(receita)}
                     </TableCell>
+                    <TableCell className="text-right text-muted-foreground font-medium">
+                      {formatBRL(acumulado)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
                         <Badge className={lucro >= 0 ? "bg-accent/20 text-accent font-semibold" : "bg-destructive/20 text-destructive font-semibold"}>
@@ -809,7 +814,10 @@ function ClientesPage() {
                 );
               })}
               {clientes.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhum cliente cadastrado ainda.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum cliente cadastrado ainda.</TableCell></TableRow>
+              )}
+              {clientes.length > 0 && clientesOrdenados.length === 0 && (
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum cliente corresponde à pesquisa.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
