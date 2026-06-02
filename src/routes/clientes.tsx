@@ -134,9 +134,10 @@ function ClientesPage() {
 
     // Z-API (cobrado por canal configurado como Z-API excedente aos inclusos no plano)
     const zapiInclusos = typeof selectedPlano.incluiZapi === "number" ? selectedPlano.incluiZapi : (selectedPlano.incluiZapi ? 1 : 0);
-    const qtdZapiCliente = form.zapi ? Math.max(0, canaisWhats - zapiInclusos) : 0;
+    const canaisZapiQtd = form.canaisZapi || 0;
+    const qtdZapiCliente = canaisZapiQtd > 0 ? Math.max(0, canaisZapiQtd - zapiInclusos) : 0;
     const faturamentoZapi = qtdZapiCliente * valorZapi;
-    const zapi = form.zapi ? canaisWhats * precoZapi : 0;
+    const zapi = canaisZapiQtd * precoZapi;
 
     const ia = (form.agentesIA && !selectedPlano.incluiIA) ? precoIA : 0;
     const faturamentoIA = (form.agentesIA && !selectedPlano.incluiIA) ? valorIA : 0;
@@ -210,7 +211,7 @@ function ClientesPage() {
         agentesIA: chosen?.incluiIA ?? false,
         asaas: chosen?.incluiAsaas ?? false,
         zapi: zapiInclusos > 0,
-        canaisWhats: zapiInclusos > 0 ? zapiInclusos : prev.canaisWhats,
+        canaisZapi: zapiInclusos > 0 ? zapiInclusos : prev.canaisZapi,
         transcricaoIA: chosen?.incluiTranscricao ?? false,
       };
     });
@@ -343,8 +344,6 @@ function ClientesPage() {
                           ...prev,
                           canaisWhats: val,
                           canais: val + prev.canaisInsta + prev.canaisMessenger,
-                          canaisZapi: val,
-                          zapi: val > 0 ? true : prev.zapi
                         }));
                       }} />
                     </div>
@@ -411,13 +410,11 @@ function ClientesPage() {
                         type="number"
                         className="w-16 h-8 text-center"
                         min={0}
-                        value={form.canaisWhats === 0 ? "" : form.canaisWhats}
+                        value={form.canaisZapi === 0 ? "" : form.canaisZapi}
                         onChange={(e) => {
                           const val = e.target.value === "" ? 0 : Math.max(0, Number(e.target.value));
                           setForm(prev => ({
                             ...prev,
-                            canaisWhats: val,
-                            canais: val + prev.canaisInsta + prev.canaisMessenger,
                             canaisZapi: val,
                             zapi: val > 0
                           }));
@@ -594,7 +591,7 @@ function ClientesPage() {
                         dataVencimento: form.dataVencimento || null,
                         parceiroId: form.parceiroId || null,
                         canais: form.canaisWhats + form.canaisInsta + form.canaisMessenger,
-                        canaisZapi: form.canaisWhats,
+                        canaisZapi: form.canaisZapi,
                         canaisWhats: form.canaisWhats,
                         canaisInsta: form.canaisInsta,
                         canaisMessenger: form.canaisMessenger,
