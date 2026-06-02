@@ -922,8 +922,22 @@ export function normalizarDataVencimento(dataInicio: string, dataVencimento?: st
   return formatIsoDate(candidato);
 }
 
-export function obterVencimentoDaCompetencia(cliente: Cliente, year: number, month: number): string | null {
-  const primeiroVencimento = normalizarDataVencimento(cliente.dataInicio, cliente.dataVencimento);
+export function obterVencimentoDaCompetencia(
+  cliente: Cliente,
+  year: number,
+  month: number,
+  planos?: Plano[],
+): string | null {
+  // Se o cliente não tem dataVencimento e foi passada a lista de planos,
+  // usamos o dia padrão do plano como fallback.
+  let dataVencEfetiva: string | null | undefined = cliente.dataVencimento;
+  if (!parseDiaVencimento(dataVencEfetiva) && planos) {
+    const plano = planos.find((p) => p.id === cliente.planoId);
+    if (plano?.diaVencimento) {
+      dataVencEfetiva = String(Math.max(1, Math.min(plano.diaVencimento, 31)));
+    }
+  }
+  const primeiroVencimento = normalizarDataVencimento(cliente.dataInicio, dataVencEfetiva);
   const diaVencimento = parseDiaVencimento(primeiroVencimento);
 
   if (!primeiroVencimento || !diaVencimento) return null;
@@ -995,8 +1009,13 @@ export function receitaMensalClienteEm(
   return receitaMensalCliente(snap, planos, custos);
 }
 
-export function clienteFaturaEm(cliente: Cliente, year: number, month: number): boolean {
-  return Boolean(obterVencimentoDaCompetencia(cliente, year, month));
+export function clienteFaturaEm(
+  cliente: Cliente,
+  year: number,
+  month: number,
+  planos?: Plano[],
+): boolean {
+  return Boolean(obterVencimentoDaCompetencia(cliente, year, month, planos));
 }
 
 export function formatBRL(n: number): string {
