@@ -179,6 +179,7 @@ export type Database = {
           canais_insta: number | null
           canais_messenger: number | null
           canais_whats: number | null
+          canais_zapi: number | null
           cliente_id: string
           contatos_ativos: number | null
           created_at: string
@@ -203,6 +204,7 @@ export type Database = {
           canais_insta?: number | null
           canais_messenger?: number | null
           canais_whats?: number | null
+          canais_zapi?: number | null
           cliente_id: string
           contatos_ativos?: number | null
           created_at?: string
@@ -227,6 +229,7 @@ export type Database = {
           canais_insta?: number | null
           canais_messenger?: number | null
           canais_whats?: number | null
+          canais_zapi?: number | null
           cliente_id?: string
           contatos_ativos?: number | null
           created_at?: string
