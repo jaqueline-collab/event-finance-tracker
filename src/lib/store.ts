@@ -243,6 +243,35 @@ const mapDbToMovimento = (r: any): Movimento => ({
   observacao: r.observacao,
 });
 
+const mapFinanceiroToDb = (l: LancamentoFinanceiro) => ({
+  id: l.id,
+  descricao: l.descricao,
+  tipo: l.tipo,
+  categoria: l.categoria || null,
+  valor: l.valor,
+  vencimento: l.vencimento || null,
+  competencia: l.competencia || null,
+  status: l.status,
+  nf_emitida: l.nfEmitida,
+  nf_numero: l.nfNumero || null,
+  observacao: l.observacao || null,
+});
+
+const mapDbToFinanceiro = (r: any): LancamentoFinanceiro => ({
+  id: r.id,
+  descricao: r.descricao,
+  tipo: (r.tipo as any) ?? "custo",
+  categoria: r.categoria || undefined,
+  valor: Number(r.valor ?? 0),
+  vencimento: r.vencimento || null,
+  competencia: r.competencia || null,
+  status: (r.status as any) ?? "pendente",
+  nfEmitida: Boolean(r.nf_emitida),
+  nfNumero: r.nf_numero || undefined,
+  observacao: r.observacao || undefined,
+  criadoEm: r.created_at ?? undefined,
+});
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
