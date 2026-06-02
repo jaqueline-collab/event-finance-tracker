@@ -782,7 +782,7 @@ function ClientesPage() {
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
             // Generate timeline events
-            const timelineEvents: { data: string; titulo: string; desc: string; icon: any; color: string }[] = [];
+            const timelineEvents: { data: string; titulo: string; desc: string; icon: any; color: string; movId?: string; canEdit?: boolean }[] = [];
             
             // 1. Setup Event
             timelineEvents.push({
@@ -830,6 +830,8 @@ function ClientesPage() {
                 desc: descParts.join(" | ") || "Recursos da conta atualizados.",
                 icon: m.tipo === "upgrade" ? TrendingUp : m.tipo === "downgrade" ? TrendingDown : Settings2,
                 color: m.tipo === "upgrade" ? "text-accent border-accent" : m.tipo === "downgrade" ? "text-yellow-500 border-yellow-500" : "text-muted-foreground border-muted-foreground",
+                movId: m.id,
+                canEdit: isDelta,
               });
             });
             
@@ -933,6 +935,7 @@ function ClientesPage() {
                     <div className="relative border-l-2 border-border ml-3.5 pl-6 space-y-6">
                       {timelineEvents.map((evt, idx) => {
                         const EvtIcon = evt.icon;
+                        const mv = evt.movId ? movimentos.find((mm) => mm.id === evt.movId) : null;
                         return (
                           <div key={idx} className="relative">
                             <span className={`absolute -left-[37px] top-0 flex h-6 w-6 items-center justify-center rounded-full border bg-background ${evt.color}`}>
@@ -942,6 +945,30 @@ function ClientesPage() {
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-muted-foreground">{evt.data.split("-").reverse().join("/")}</span>
                                 <span className="text-xs font-semibold text-foreground uppercase tracking-wider">{evt.titulo}</span>
+                                {evt.canEdit && mv && (
+                                  <div className="ml-auto flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => { setSelectedClienteId(null); openEditMovimento(mv); }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => {
+                                        if (confirm("Excluir este lançamento? O valor do cliente voltará ao estado anterior.")) {
+                                          removeMovimento(mv.id);
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground pr-4 leading-relaxed">{evt.desc}</p>
                             </div>
