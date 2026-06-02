@@ -990,10 +990,10 @@ function ClientesPage() {
 
 
       {/* Modal para Registrar Upgrade/Ajuste/Recursos */}
-      <Dialog open={!!acaoClienteId} onOpenChange={(isOpen) => !isOpen && setAcaoClienteId(null)}>
+      <Dialog open={!!acaoClienteId} onOpenChange={(isOpen) => { if (!isOpen) { setAcaoClienteId(null); setEditMovId(null); } }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Registrar Movimento</DialogTitle>
+            <DialogTitle>{editMovId ? "Editar Movimento" : "Registrar Movimento"}</DialogTitle>
           </DialogHeader>
           {(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
             <p className="text-xs text-muted-foreground -mt-2">
