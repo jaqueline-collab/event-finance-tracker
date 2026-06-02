@@ -624,15 +624,15 @@ function ResumoPage() {
                       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto">
                         <defs>
                           <linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.45" />
-                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.02" />
+                            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.45" />
+                            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
                           </linearGradient>
                         </defs>
                         <path d={area} fill="url(#areaFill)" />
-                        <path d={path} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" />
+                        <path d={path} fill="none" stroke="var(--primary)" strokeWidth="2" />
                         {points.map((p, i) => (
                           <g key={i}>
-                            <circle cx={p.x} cy={p.y} r={3} fill="hsl(var(--primary))" />
+                            <circle cx={p.x} cy={p.y} r={3} fill="var(--primary)" />
                             <text x={p.x} y={h - 6} textAnchor="middle" className="fill-muted-foreground" fontSize="9" style={{ textTransform: "capitalize" }}>{p.label}</text>
                           </g>
                         ))}
