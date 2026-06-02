@@ -15,8 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento } from "@/lib/store";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil } from "lucide-react";
+import { useStore, formatBRL, receitaMensalCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 
 export const Route = createFileRoute("/clientes")({
@@ -306,6 +306,30 @@ function ClientesPage() {
   };
 
   const ordenados = [...movimentos].sort((a, b) => b.data.localeCompare(a.data));
+
+  // Pesquisa
+  const [search, setSearch] = useState("");
+
+  // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
+  const clientesOrdenados = useMemo(() => {
+    const filtrados = clientes.filter((c) =>
+      c.nome.toLowerCase().includes(search.trim().toLowerCase()),
+    );
+    return [...filtrados].sort((a, b) => {
+      const aChurn = !!a.dataChurn;
+      const bChurn = !!b.dataChurn;
+      if (aChurn !== bChurn) return aChurn ? 1 : -1;
+      return (b.dataInicio || "").localeCompare(a.dataInicio || "");
+    });
+  }, [clientes, search]);
+
+  // Faturamento acumulado total da carteira
+  const faturamentoCarteira = useMemo(() => {
+    return clientes.reduce(
+      (s, c) => s + faturamentoAcumuladoCliente(c, planos, custos, movimentos),
+      0,
+    );
+  }, [clientes, planos, custos, movimentos]);
 
   return (
     <div className="space-y-6">
