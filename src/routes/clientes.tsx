@@ -1066,18 +1066,14 @@ function ClientesPage() {
                 <Label>ASAAS</Label>
               </div>
               <div className="flex items-center space-x-2 h-10">
-                <Switch checked={movForm.zapi} onCheckedChange={(v) => setMovForm({ ...movForm, zapi: v })} />
-                <Label>Z-API</Label>
-              </div>
-              <div className="flex items-center space-x-2 h-10">
                 <Switch checked={movForm.transcricaoIA} onCheckedChange={(v) => setMovForm({ ...movForm, transcricaoIA: v })} />
                 <Label>Transcrição IA</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAcaoClienteId(null)}>Cancelar</Button>
-            <Button onClick={handleSaveMovimento}>Registrar Ação</Button>
+            <Button variant="outline" onClick={() => { setAcaoClienteId(null); setEditMovId(null); }}>Cancelar</Button>
+            <Button onClick={handleSaveMovimento}>{editMovId ? "Salvar Alteração" : "Registrar Ação"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
