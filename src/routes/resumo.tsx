@@ -201,12 +201,14 @@ function ResumoPage() {
     const m = Number(mStr) - 1;
     const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m, planos));
-
     // Ciclo de competência: o fechamento de JUNHO contempla os movimentos do
     // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
     const cy = m === 0 ? y - 1 : y;
     const cm = m === 0 ? 11 : m - 1;
+    // Ativos = clientes que faturaram no ciclo que está sendo fechado (mês anterior).
+    // Quem entra no mês da competência (ex.: setup 01/06 no fechamento de junho)
+    // só aparece no fechamento seguinte.
+    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, cy, cm, planos));
     const cicloInicio = new Date(cy, cm, 1);
     const cicloFim = new Date(cy, cm + 1, 0);
     const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
@@ -234,15 +236,15 @@ function ResumoPage() {
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-      const venc = obterVencimentoDaCompetencia(c, y, m, planos);
+      const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
-      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
+      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, cy, cm);
       const acomp = snap.valorAcompanhamento || 0;
       const sistema = Math.max(0, receita - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
-      // LTV em dias: do início até churn (se houver) ou fim da competência
+      // LTV em dias: do início até churn (se houver) ou fim do ciclo fechado
       const inicio = new Date(c.dataInicio);
-      const fimCompetencia = new Date(y, m + 1, 0);
+      const fimCompetencia = new Date(cy, cm + 1, 0);
       const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
       const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
       return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc, ltvDias };
