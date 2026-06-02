@@ -257,6 +257,10 @@ function ClientesPage() {
   const handleSaveMovimento = () => {
     if (!acaoClienteId) return;
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
+    // Editing: remove old (revertendo deltas) e recria com novos valores
+    if (editMovId) {
+      removeMovimento(editMovId);
+    }
     addMovimento({
       clienteId: acaoClienteId,
       data: movForm.data,
@@ -275,6 +279,30 @@ function ClientesPage() {
       observacao: movForm.observacao || undefined,
     });
     setAcaoClienteId(null);
+    setEditMovId(null);
+  };
+
+  const openEditMovimento = (mv: Movimento) => {
+    setAcaoClienteId(mv.clienteId);
+    setEditMovId(mv.id);
+    setMovForm({
+      data: mv.data,
+      tipo: mv.tipo,
+      planoId: mv.planoId || "",
+      canaisWhats: mv.canaisWhats !== undefined && mv.canaisWhats !== null ? String(mv.canaisWhats) : "",
+      canaisInsta: mv.canaisInsta !== undefined && mv.canaisInsta !== null ? String(mv.canaisInsta) : "",
+      canaisMessenger: mv.canaisMessenger !== undefined && mv.canaisMessenger !== null ? String(mv.canaisMessenger) : "",
+      canaisZapi: mv.canaisZapi !== undefined && mv.canaisZapi !== null ? String(mv.canaisZapi) : "",
+      usuariosAtivos: mv.usuariosAtivos !== undefined && mv.usuariosAtivos !== null ? String(mv.usuariosAtivos) : "",
+      contatosAtivos: mv.contatosAtivos !== undefined && mv.contatosAtivos !== null ? String(mv.contatosAtivos) : "",
+      agentesIA: mv.agentesIA ?? false,
+      asaas: mv.asaas ?? false,
+      zapi: mv.zapi ?? false,
+      transcricaoIA: mv.transcricaoIA ?? false,
+      observacao: mv.observacao || "",
+      valorSetupPago: "",
+      valorAcompanhamento: "",
+    });
   };
 
   const ordenados = [...movimentos].sort((a, b) => b.data.localeCompare(a.data));
