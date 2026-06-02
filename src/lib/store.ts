@@ -251,15 +251,17 @@ export const useStore = create<State>()(
       clientes: [],
       movimentos: [],
       parceiros: [],
+      financeiro: [],
 
       // Sincronização assíncrona
       syncFromSupabase: async () => {
         try {
-          const [planosRes, parceirosRes, clientesRes, movimentosRes] = await Promise.all([
+          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes] = await Promise.all([
             supabase.from("elora_planos").select("*"),
             supabase.from("elora_parceiros").select("*"),
             supabase.from("elora_clientes").select("*"),
             supabase.from("elora_movimentos").select("*"),
+            (supabase as any).from("elora_financeiro").select("*"),
           ]);
 
           if (planosRes.data && planosRes.data.length > 0) {
@@ -273,6 +275,9 @@ export const useStore = create<State>()(
           }
           if (movimentosRes.data) {
             set({ movimentos: movimentosRes.data.map(mapDbToMovimento) });
+          }
+          if (finRes?.data) {
+            set({ financeiro: finRes.data.map(mapDbToFinanceiro) });
           }
         } catch (e) {
           console.error("Erro ao carregar dados do Supabase:", e);
@@ -537,6 +542,33 @@ export const useStore = create<State>()(
         set({ parceiros: get().parceiros.filter((x) => x.id !== id) });
         supabase.from("elora_parceiros").delete().eq("id", id).then(({ error }) => {
           if (error) console.error("Erro ao remover parceiro no Supabase:", error);
+        });
+      },
+
+      // Financeiro
+      addLancamento: (l) => {
+        const id = uid();
+        const novo: LancamentoFinanceiro = { ...l, id };
+        set({ financeiro: [...get().financeiro, novo] });
+        (supabase as any).from("elora_financeiro").insert(mapFinanceiroToDb(novo)).then(({ error }: any) => {
+          if (error) console.error("Erro ao salvar lançamento financeiro:", error);
+        });
+        return id;
+      },
+      updateLancamento: (id, l) => {
+        const financeiro = get().financeiro.map((x) => (x.id === id ? { ...x, ...l } : x));
+        set({ financeiro });
+        const updated = financeiro.find((x) => x.id === id);
+        if (updated) {
+          (supabase as any).from("elora_financeiro").update(mapFinanceiroToDb(updated)).eq("id", id).then(({ error }: any) => {
+            if (error) console.error("Erro ao atualizar lançamento financeiro:", error);
+          });
+        }
+      },
+      removeLancamento: (id) => {
+        set({ financeiro: get().financeiro.filter((x) => x.id !== id) });
+        (supabase as any).from("elora_financeiro").delete().eq("id", id).then(({ error }: any) => {
+          if (error) console.error("Erro ao remover lançamento financeiro:", error);
         });
       },
 
