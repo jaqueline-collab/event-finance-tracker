@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as PlanosRouteImport } from './routes/planos'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
@@ -19,6 +20,11 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResumoRoute = ResumoRouteImport.update({
   id: '/resumo',
   path: '/resumo',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/usuarios': typeof UsuariosRoute
   '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/usuarios': typeof UsuariosRoute
   '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/usuarios': typeof UsuariosRoute
   '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/usuarios'
     | '/auth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/usuarios'
     | '/auth/callback'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/usuarios'
     | '/auth/callback'
   fileRoutesById: FileRoutesById
 }
@@ -144,10 +156,18 @@ export interface RootRouteChildren {
   ParceirosRoute: typeof ParceirosRoute
   PlanosRoute: typeof PlanosRoute
   ResumoRoute: typeof ResumoRoute
+  UsuariosRoute: typeof UsuariosRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resumo': {
       id: '/resumo'
       path: '/resumo'
@@ -233,6 +253,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParceirosRoute: ParceirosRoute,
   PlanosRoute: PlanosRoute,
   ResumoRoute: ResumoRoute,
+  UsuariosRoute: UsuariosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

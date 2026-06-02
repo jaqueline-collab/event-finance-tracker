@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_user_permissions: {
+        Row: {
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          email: string
+          id: string
+          module: string
+        }
+        Insert: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          module: string
+        }
+        Update: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          module?: string
+        }
+        Relationships: []
+      }
+      app_users: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          invited_by: string | null
+          is_admin: boolean
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+          invited_by?: string | null
+          is_admin?: boolean
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          invited_by?: string | null
+          is_admin?: boolean
+        }
+        Relationships: []
+      }
       elora_clientes: {
         Row: {
           agentes_ia: boolean | null
@@ -460,7 +514,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      bootstrap_admin_if_empty: { Args: { _email: string }; Returns: undefined }
+      is_admin_email: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
