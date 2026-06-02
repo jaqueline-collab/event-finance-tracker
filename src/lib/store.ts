@@ -464,8 +464,49 @@ export const useStore = create<State>()(
           }
         }
       },
-      removeMovimento: (id) =>
-        set({ movimentos: get().movimentos.filter((m) => m.id !== id) }),
+      removeMovimento: (id) => {
+        const old = get().movimentos.find((m) => m.id === id);
+        if (!old) return;
+        // Reverte deltas no cliente quando o movimento for upgrade/downgrade
+        if (old.tipo === "upgrade" || old.tipo === "downgrade") {
+          const cliente = get().clientes.find((c) => c.id === old.clienteId);
+          if (cliente) {
+            const rev = (cur: number | undefined, val: number | null | undefined) => {
+              if (val === undefined || val === null) return cur;
+              return Math.max(0, (cur ?? 0) - val);
+            };
+            const patch: Partial<Cliente> = {};
+            const nWhats = rev(cliente.canaisWhats, old.canaisWhats);
+            if (nWhats !== undefined && nWhats !== cliente.canaisWhats) patch.canaisWhats = nWhats;
+            const nInsta = rev(cliente.canaisInsta, old.canaisInsta);
+            if (nInsta !== undefined && nInsta !== cliente.canaisInsta) patch.canaisInsta = nInsta;
+            const nMsg = rev(cliente.canaisMessenger, old.canaisMessenger);
+            if (nMsg !== undefined && nMsg !== cliente.canaisMessenger) patch.canaisMessenger = nMsg;
+            const nZapi = rev(cliente.canaisZapi, old.canaisZapi);
+            if (nZapi !== undefined && nZapi !== cliente.canaisZapi) {
+              patch.canaisZapi = nZapi;
+              patch.zapi = nZapi > 0;
+            }
+            const nUsers = rev(cliente.usuariosAtivos, old.usuariosAtivos);
+            if (nUsers !== undefined && nUsers !== cliente.usuariosAtivos) patch.usuariosAtivos = nUsers;
+            const nCont = rev(cliente.contatosAtivos, old.contatosAtivos);
+            if (nCont !== undefined && nCont !== cliente.contatosAtivos) patch.contatosAtivos = nCont;
+            const nCanais = rev(cliente.canais, old.canais);
+            if (nCanais !== undefined && nCanais !== cliente.canais) patch.canais = nCanais;
+            if (Object.keys(patch).length) {
+              const updated = { ...cliente, ...patch } as Cliente;
+              set({ clientes: get().clientes.map((c) => (c.id === cliente.id ? updated : c)) });
+              supabase.from("elora_clientes").update(mapClienteToDb(updated)).eq("id", cliente.id).then(({ error }) => {
+                if (error) console.error("Erro ao reverter cliente após remover movimento:", error);
+              });
+            }
+          }
+        }
+        set({ movimentos: get().movimentos.filter((m) => m.id !== id) });
+        supabase.from("elora_movimentos").delete().eq("id", id).then(({ error }) => {
+          if (error) console.error("Erro ao remover movimento no Supabase:", error);
+        });
+      },
 
       // Parceiros
       addParceiro: (p) => {
