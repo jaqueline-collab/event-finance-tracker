@@ -816,8 +816,8 @@ function ClientesPage() {
               });
             }
             
-            // Sort timeline events chronologically
-            timelineEvents.sort((a, b) => a.data.localeCompare(b.data));
+            // Mais recentes primeiro
+            timelineEvents.sort((a, b) => b.data.localeCompare(a.data));
 
             return (
               <>
