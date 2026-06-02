@@ -845,7 +845,7 @@ export function clienteSnapshotAt(
       snap.canaisWhats = rev(snap.canaisWhats, m.canaisWhats);
       snap.canaisInsta = rev(snap.canaisInsta, m.canaisInsta);
       snap.canaisMessenger = rev(snap.canaisMessenger, m.canaisMessenger);
-      snap.canaisZapi = rev(snap.canaisZapi, m.canaisZapi);
+      snap.canaisZapi = rev(snap.canaisZapi, m.canaisZapi) ?? snap.canaisZapi;
       snap.usuariosAtivos = rev(snap.usuariosAtivos, m.usuariosAtivos) ?? snap.usuariosAtivos;
       snap.contatosAtivos = rev(snap.contatosAtivos, m.contatosAtivos) ?? snap.contatosAtivos;
       snap.apps = rev(snap.apps, m.apps) ?? snap.apps;
