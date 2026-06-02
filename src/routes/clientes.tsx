@@ -264,6 +264,7 @@ function ClientesPage() {
       canaisWhats: parseNum(movForm.canaisWhats),
       canaisInsta: parseNum(movForm.canaisInsta),
       canaisMessenger: parseNum(movForm.canaisMessenger),
+      canaisZapi: parseNum(movForm.canaisZapi),
       usuariosAtivos: parseNum(movForm.usuariosAtivos),
       contatosAtivos: parseNum(movForm.contatosAtivos),
       agentesIA: movForm.agentesIA,
@@ -472,9 +473,9 @@ function ClientesPage() {
                       </div>
                     )}
 
-                    {form.canaisWhats > 0 && realTimePricing.faturamentoZapi > 0 && (
+                    {form.canaisZapi > 0 && realTimePricing.faturamentoZapi > 0 && (
                       <div className="flex justify-between items-center text-muted-foreground">
-                        <span>Z-API ({form.canaisWhats} {form.canaisWhats === 1 ? 'canal' : 'canais'}):</span>
+                        <span>Z-API ({form.canaisZapi} {form.canaisZapi === 1 ? 'canal' : 'canais'}):</span>
                         <span className="font-medium text-foreground">+{formatBRL(realTimePricing.faturamentoZapi)}</span>
                       </div>
                     )}
@@ -534,9 +535,9 @@ function ClientesPage() {
                         </div>
                       )}
 
-                      {form.canaisWhats > 0 && realTimePricing.zapi > 0 && (
+                      {form.canaisZapi > 0 && realTimePricing.zapi > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Modulação Z-API ({form.canaisWhats} {form.canaisWhats === 1 ? 'canal' : 'canais'}):</span>
+                          <span className="text-muted-foreground">Modulação Z-API ({form.canaisZapi} {form.canaisZapi === 1 ? 'canal' : 'canais'}):</span>
                           <span className="text-yellow-400">+{formatBRL(realTimePricing.zapi)}</span>
                         </div>
                       )}
@@ -786,6 +787,7 @@ function ClientesPage() {
               fmtNum("Canais WhatsApp", m.canaisWhats);
               fmtNum("Canais Instagram", m.canaisInsta);
               fmtNum("Canais Messenger", m.canaisMessenger);
+              fmtNum("Canais Z-API", m.canaisZapi);
               fmtNum("Canais", m.canais);
               fmtNum("Usuários", m.usuariosAtivos);
               fmtNum("Contatos/MAU", m.contatosAtivos);
@@ -980,6 +982,10 @@ function ClientesPage() {
             <div>
               <Label className="mb-1 block">Canais Messenger</Label>
               <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
+            </div>
+            <div>
+              <Label className="mb-1 block">Canais Z-API</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisZapi} onChange={(e) => setMovForm({ ...movForm, canaisZapi: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Usuários</Label>
