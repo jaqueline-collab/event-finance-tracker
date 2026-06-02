@@ -541,10 +541,10 @@ function ResumoPage() {
             </SelectContent>
           </Select>
         </div>
-        {(filtroPlano !== "todos" || filtroParceiro !== "todos") && (
+        {(filtroPlano !== "todos" || filtroParceiro !== "todos" || filtroVencimento !== "todos") && (
           <div className="flex items-end">
             <button
-              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); }}
+              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); setFiltroVencimento("todos"); }}
               className="text-xs text-muted-foreground hover:text-foreground underline h-8"
             >
               Limpar filtros
