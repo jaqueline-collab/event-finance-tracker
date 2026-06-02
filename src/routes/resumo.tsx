@@ -150,7 +150,7 @@ function ResumoPage() {
             parceiro?.nome ?? "—",
             formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1)),
             c.dataChurn ? "Churn" : "Ativo",
-            formatBRL(receitaMensalCliente(c, planos, custos)),
+          formatBRL(receitaMensalClienteEm(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
           ];
         }),
         styles: { fontSize: 9, cellPadding: 6 },
@@ -273,7 +273,7 @@ function ResumoPage() {
                                 {l.ativos.map((c) => {
                                   const plano = planos.find((p) => p.id === c.planoId);
                                   const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-                                  const rec = receitaMensalCliente(c, planos, custos);
+                                  const rec = receitaMensalClienteEm(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
                                   return (
                                     <tr key={c.id} className="border-b border-border/20 last:border-0">
                                       <td className="py-1.5 font-medium">{c.nome}</td>
