@@ -197,7 +197,7 @@ function PlanosPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Planos</h1>
-          <p className="text-muted-foreground text-sm">Configure os pacotes comerciais com franquias e custos da Helena</p>
+          <p className="text-muted-foreground text-sm">Configure os pacotes comerciais com franquias e custos operacionais</p>
         </div>
         <Button onClick={() => { setOpen((v) => !v); setEditId(null); setForm(defaultForm()); }}>
           <Plus className="mr-2 h-4 w-4" /> Novo Plano
@@ -208,7 +208,7 @@ function PlanosPage() {
         <Card className="border-border/60 bg-muted/20">
           <CardHeader>
             <CardTitle>{editId ? "Editar Plano" : "Criar Novo Plano"}</CardTitle>
-            <CardDescription>Configure os dados comerciais, franquias e os preços de custo da Helena por plano.</CardDescription>
+            <CardDescription>Configure os dados comerciais, franquias e os preços de custo operacional por plano.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Dados Comerciais */}

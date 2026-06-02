@@ -73,7 +73,7 @@ function ResumoPage() {
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
       const receita = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
-      // Custo Helena também respeita o snapshot histórico de cada cliente
+      // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
         const venc = obterVencimentoDaCompetencia(c, y, m);
         return venc ? clienteSnapshotAt(c, movimentos, venc) : c;
@@ -121,7 +121,7 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: 96,
-      head: [["Mês", "Faturados", "Novos", "Churns", "Receita Total", "Custo Helena", "Lucro Líquido"]],
+      head: [["Mês", "Faturados", "Novos", "Churns", "Receita Total", "Custo Operacional", "Lucro Líquido"]],
       body: linhas.map((l) => [
         l.mesLabel,
         String(l.ativos.length),
@@ -384,7 +384,7 @@ function ResumoPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
-          <p className="text-muted-foreground text-sm">Receita, custo Helena e lucro por mês, considerando o próximo vencimento após o setup</p>
+          <p className="text-muted-foreground text-sm">Receita, custo operacional e lucro por mês, considerando o próximo vencimento após o setup</p>
         </div>
         <Button onClick={exportarPdf} disabled={linhas.length === 0} className="gap-2">
           <Download className="h-4 w-4" /> Exportar PDF
@@ -444,7 +444,7 @@ function ResumoPage() {
       <Card className="border-border/60">
         <CardHeader>
           <CardTitle>Histórico</CardTitle>
-          <CardDescription>Inclui mensalidades recorrentes, setups e serviços avulsos. Custo baseado na lógica Helena.</CardDescription>
+          <CardDescription>Inclui mensalidades recorrentes, setups e serviços avulsos. Custo operacional líquido (com descontos de escala).</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -456,7 +456,7 @@ function ResumoPage() {
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
                 <TableHead className="text-right">Receita Total</TableHead>
-                <TableHead className="text-right">Custo Helena</TableHead>
+                <TableHead className="text-right">Custo Operacional</TableHead>
                 <TableHead className="text-right">Lucro Líquido</TableHead>
               </TableRow>
             </TableHeader>

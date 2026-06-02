@@ -1080,6 +1080,24 @@ export function receitaMensalTotal(clientesAtivos: Cliente[], planos: Plano[], c
   return clientesAtivos.reduce((acc, c) => acc + receitaMensalCliente(c, planos, custos), 0);
 }
 
+// Receita do "sistema": exclui o componente comercial recorrente
+// (Acompanhamento) — usada para calcular o lucro sobre o sistema.
+export function receitaSistemaCliente(
+  cliente: Cliente,
+  planos: Plano[],
+  custos: CustoBase[],
+): number {
+  return receitaMensalCliente(cliente, planos, custos) - (cliente.valorAcompanhamento || 0);
+}
+
+export function receitaSistemaTotal(
+  clientesAtivos: Cliente[],
+  planos: Plano[],
+  custos: CustoBase[],
+): number {
+  return clientesAtivos.reduce((acc, c) => acc + receitaSistemaCliente(c, planos, custos), 0);
+}
+
 // Faturamento acumulado de um cliente desde o setup até hoje (ou churn):
 // soma todas as competências faturadas + setup pago + serviços avulsos.
 export function faturamentoAcumuladoCliente(

@@ -15,8 +15,8 @@ import {
   clienteAtivoEm,
   formatBRL,
   calcularCustoLiquidoHelena,
-  calcularCustoBrutoHelena,
   receitaMensalTotal,
+  receitaSistemaTotal,
   faturamentoAcumuladoCliente,
 } from "@/lib/store";
 import {
@@ -44,16 +44,15 @@ function Index() {
 
   const ativos = clientes.filter((c) => !c.dataChurn);
   const mrr = receitaMensalTotal(ativos, planos, custos);
-  
-  const custoHelenaBruto = calcularCustoBrutoHelena(ativos);
-  const custoHelenaLiquido = calcularCustoLiquidoHelena(ativos);
-  
-  const lucroLiquido = mrr - custoHelenaLiquido;
-  const lucroSistema = mrr - custoHelenaBruto;
+  const receitaSistema = receitaSistemaTotal(ativos, planos, custos);
+  const custoOperacional = calcularCustoLiquidoHelena(ativos);
+
+  const lucroSistema = receitaSistema - custoOperacional;
+  const lucroTotal = mrr - custoOperacional;
 
   const serie = useMemo(() => {
     const now = new Date();
-    const out: { mes: string; mrr: number; lucroLiquido: number; lucroSistema: number }[] = [];
+    const out: { mes: string; mrr: number; lucroTotal: number; lucroSistema: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const y = d.getFullYear();
@@ -61,14 +60,14 @@ function Index() {
       const ativosMes = clientes.filter((c) => clienteAtivoEm(c, y, m));
       
       const r = receitaMensalTotal(ativosMes, planos, custos);
-      const cBruto = calcularCustoBrutoHelena(ativosMes);
-      const cLiquido = calcularCustoLiquidoHelena(ativosMes);
-      
+      const rSistema = receitaSistemaTotal(ativosMes, planos, custos);
+      const c = calcularCustoLiquidoHelena(ativosMes);
+
       out.push({
         mes: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
         mrr: Math.round(r),
-        lucroLiquido: Math.round(r - cLiquido),
-        lucroSistema: Math.round(r - cBruto),
+        lucroTotal: Math.round(r - c),
+        lucroSistema: Math.round(rSistema - c),
       });
     }
     return out;
@@ -108,8 +107,8 @@ function Index() {
   const kpis = [
     { label: "Clientes ativos", value: String(ativos.length), icon: Users, hint: `${clientes.length} no total` },
     { label: "MRR", value: formatBRL(mrr), icon: DollarSign, hint: "Receita recorrente mensal" },
-    { label: "Lucro Líquido", value: formatBRL(lucroLiquido), icon: TrendingUp, hint: `MRR − Custo Helena com desconto (${formatBRL(custoHelenaLiquido)})` },
-    { label: "Lucro Sistema", value: formatBRL(lucroSistema), icon: Wallet, hint: `MRR − Custo Helena bruto (${formatBRL(custoHelenaBruto)})` },
+    { label: "Lucro sobre o Sistema", value: formatBRL(lucroSistema), icon: Wallet, hint: `Receita do sistema (${formatBRL(receitaSistema)}) − custo operacional` },
+    { label: "Lucro Total", value: formatBRL(lucroTotal), icon: TrendingUp, hint: `MRR − custo operacional (${formatBRL(custoOperacional)})` },
   ];
 
   return (
@@ -140,13 +139,13 @@ function Index() {
         <Card className="border-border/60 lg:col-span-2">
           <CardHeader>
             <CardTitle>Evolução nos últimos 12 meses</CardTitle>
-            <CardDescription>Evolução do lucro líquido vs lucro sistema</CardDescription>
+            <CardDescription>Lucro sobre o sistema vs lucro total</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={serie}>
                 <defs>
-                  <linearGradient id="g-lucro-liquido" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="g-lucro-total" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.5} />
                     <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
@@ -167,8 +166,8 @@ function Index() {
                   }}
                   formatter={(v) => formatBRL(Number(v ?? 0))}
                 />
-                <Area type="monotone" dataKey="lucroLiquido" stroke="var(--primary)" fill="url(#g-lucro-liquido)" name="Lucro Líquido" />
-                <Area type="monotone" dataKey="lucroSistema" stroke="var(--accent)" fill="url(#g-lucro-sistema)" name="Lucro Sistema" />
+                <Area type="monotone" dataKey="lucroSistema" stroke="var(--accent)" fill="url(#g-lucro-sistema)" name="Lucro sobre o Sistema" />
+                <Area type="monotone" dataKey="lucroTotal" stroke="var(--primary)" fill="url(#g-lucro-total)" name="Lucro Total" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
