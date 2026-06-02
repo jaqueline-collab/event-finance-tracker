@@ -788,6 +788,49 @@ function ResumoPage() {
                   </div>
                 </div>
 
+                {/* Enviar para Financeiro */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <h4 className="text-sm font-semibold">Enviar para o Financeiro</h4>
+                      <p className="text-xs text-muted-foreground">Gera lançamentos a partir deste fechamento.</p>
+                    </div>
+                    <Button onClick={enviarParaFinanceiro} className="gap-2" size="sm">
+                      <Send className="h-3.5 w-3.5" /> Enviar
+                    </Button>
+                  </div>
+                  <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="consolidado" id="m-consolidado" />
+                      <span>1 lançamento consolidado</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="por_cliente" id="m-por-cliente" />
+                      <span>1 lançamento por cliente</span>
+                    </label>
+                  </RadioGroup>
+                </div>
+
+                {/* Enviar por e-mail */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div>
+                    <h4 className="text-sm font-semibold">Enviar por e-mail</h4>
+                    <p className="text-xs text-muted-foreground">Envia o resumo deste fechamento para o e-mail informado.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      type="email"
+                      placeholder="destinatario@exemplo.com"
+                      value={emailDestino}
+                      onChange={(e) => setEmailDestino(e.target.value)}
+                      className="flex-1 min-w-[220px]"
+                    />
+                    <Button onClick={enviarPorEmail} variant="outline" className="gap-2" size="sm">
+                      <Mail className="h-3.5 w-3.5" /> Enviar
+                    </Button>
+                  </div>
+                </div>
+
                 {/* KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border/60 p-4">
