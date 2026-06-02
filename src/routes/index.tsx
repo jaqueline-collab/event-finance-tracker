@@ -52,7 +52,7 @@ function Index() {
 
   const serie = useMemo(() => {
     const now = new Date();
-    const out: { mes: string; mrr: number; lucroLiquido: number; lucroSistema: number }[] = [];
+    const out: { mes: string; mrr: number; lucroTotal: number; lucroSistema: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const y = d.getFullYear();
