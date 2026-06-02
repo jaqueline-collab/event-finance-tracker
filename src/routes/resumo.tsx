@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Download } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -27,6 +28,10 @@ function ResumoPage() {
   const [filtroPlano, setFiltroPlano] = useState("todos");
   const [filtroParceiro, setFiltroParceiro] = useState("todos");
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
+  const today = new Date();
+  const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const [fechamentoMes, setFechamentoMes] = useState<string>(currentKey);
+  const [fechamentoOpen, setFechamentoOpen] = useState(false);
 
   // Clientes filtrados por plano e parceiro
   const clientesFiltrados = useMemo(() => {
@@ -162,6 +167,173 @@ function ResumoPage() {
     pdf.save(`resumo-mensal-${filtroPlano}-${filtroParceiro}.pdf`);
   };
 
+  // ====== Dados para o Fechamento Mensal ======
+  const fechamentoData = useMemo(() => {
+    if (!fechamentoMes) return null;
+    const [yStr, mStr] = fechamentoMes.split("-");
+    const y = Number(yStr);
+    const m = Number(mStr) - 1;
+    const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m));
+
+    const setupsNoMes = clientesFiltrados.filter((c) => {
+      const d = new Date(c.dataInicio);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+    const churnsNoMes = clientesFiltrados.filter((c) => {
+      if (!c.dataChurn) return false;
+      const d = new Date(c.dataChurn);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+
+    // Movimentos de upgrade/downgrade do mês para os clientes filtrados
+    const clienteIds = new Set(clientesFiltrados.map((c) => c.id));
+    const movsMes = movimentos.filter((mv) => {
+      if (!clienteIds.has(mv.clienteId)) return false;
+      if (mv.tipo !== "upgrade" && mv.tipo !== "downgrade") return false;
+      const d = new Date(mv.data);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+
+    // Detalhamento por cliente
+    const detalhesPorCliente = ativos.map((c) => {
+      const plano = planos.find((p) => p.id === c.planoId);
+      const parceiro = parceiros.find((p) => p.id === c.parceiroId);
+      const venc = obterVencimentoDaCompetencia(c, y, m);
+      const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
+      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
+      const acomp = snap.valorAcompanhamento || 0;
+      const sistema = Math.max(0, receita - acomp);
+      const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
+      return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc };
+    });
+
+    const totalSistema = detalhesPorCliente.reduce((s, d) => s + d.sistema, 0);
+    const totalAcompanhamento = detalhesPorCliente.reduce((s, d) => s + d.acomp, 0);
+    const totalReceita = totalSistema + totalAcompanhamento;
+    const totalSetups = setupsNoMes.reduce((s, c) => s + (c.valorSetupPago || 0), 0);
+
+    return {
+      y, m, labelMes,
+      ativos,
+      setupsNoMes,
+      churnsNoMes,
+      totalSetups,
+      detalhesPorCliente,
+      totalSistema,
+      totalAcompanhamento,
+      totalReceita,
+      movsMes,
+    };
+  }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, parceiros]);
+
+  const opcoesFechamento = useMemo(() => {
+    // Lista os últimos 24 meses + 1 à frente
+    const out: { key: string; label: string }[] = [];
+    const base = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    for (let i = 0; i < 26; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      out.push({ key, label: d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) });
+    }
+    return out;
+  }, [today]);
+
+  const fmtDelta = (label: string, v: number | undefined | null) => {
+    if (v === undefined || v === null || v === 0) return null;
+    const sign = v > 0 ? "+" : "";
+    return `${label} ${sign}${v}`;
+  };
+
+  const descreverMov = (mv: typeof movimentos[number]): string => {
+    const partes: string[] = [];
+    const a = fmtDelta("WhatsApp", mv.canaisWhats); if (a) partes.push(a);
+    const b = fmtDelta("Instagram", mv.canaisInsta); if (b) partes.push(b);
+    const c = fmtDelta("Messenger", mv.canaisMessenger); if (c) partes.push(c);
+    const z = fmtDelta("Z-API", mv.canaisZapi); if (z) partes.push(z);
+    const u = fmtDelta("Usuários", mv.usuariosAtivos); if (u) partes.push(u);
+    const ct = fmtDelta("Contatos", mv.contatosAtivos); if (ct) partes.push(ct);
+    if (mv.planoId) {
+      const np = planos.find((p) => p.id === mv.planoId);
+      partes.push(`Plano → ${np?.nome ?? mv.planoId}`);
+    }
+    if (mv.observacao) partes.push(`(${mv.observacao})`);
+    return partes.join(" · ") || "Atualização de configuração";
+  };
+
+  const exportarFechamentoPdf = () => {
+    if (!fechamentoData) return;
+    const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const planoSel = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
+    const parceiroSel = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
+
+    pdf.setFillColor(28, 63, 170);
+    pdf.rect(0, 0, 595, 70, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(22);
+    pdf.text("Elora", 40, 32);
+    pdf.setFontSize(11);
+    pdf.text(`Fechamento Mensal · ${fechamentoData.labelMes}`, 40, 54);
+
+    pdf.setTextColor(40, 40, 40);
+    pdf.setFontSize(9);
+    pdf.text(`Plano: ${planoSel}  |  Parceiro: ${parceiroSel}  |  Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 90);
+
+    autoTable(pdf, {
+      startY: 110,
+      head: [["Clientes faturados", "Setups no mês", "Churns", "Receita Sistema", "Acompanhamento", "Receita Total"]],
+      body: [[
+        String(fechamentoData.ativos.length),
+        `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
+        String(fechamentoData.churnsNoMes.length),
+        formatBRL(fechamentoData.totalSistema),
+        formatBRL(fechamentoData.totalAcompanhamento),
+        formatBRL(fechamentoData.totalReceita),
+      ]],
+      styles: { fontSize: 9, cellPadding: 6, halign: "center" },
+      headStyles: { fillColor: [28, 63, 170] },
+    });
+
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 16,
+      head: [["Cliente", "Plano", "Parceiro", "Sistema", "Acompanh.", "Total"]],
+      body: fechamentoData.detalhesPorCliente.map((d) => [
+        d.cliente.nome,
+        d.plano?.nome ?? "—",
+        d.parceiro?.nome ?? "—",
+        formatBRL(d.sistema),
+        formatBRL(d.acomp),
+        formatBRL(d.receita),
+      ]),
+      styles: { fontSize: 9, cellPadding: 5 },
+      headStyles: { fillColor: [60, 60, 60] },
+    });
+
+    if (fechamentoData.movsMes.length > 0) {
+      autoTable(pdf, {
+        startY: (pdf as any).lastAutoTable.finalY + 16,
+        head: [["Data", "Cliente", "Tipo", "Detalhes"]],
+        body: fechamentoData.movsMes
+          .slice()
+          .sort((a, b) => a.data.localeCompare(b.data))
+          .map((mv) => {
+            const c = clientes.find((x) => x.id === mv.clienteId);
+            return [
+              mv.data.split("-").reverse().join("/"),
+              c?.nome ?? "—",
+              mv.tipo === "upgrade" ? "Upgrade" : "Downgrade",
+              descreverMov(mv),
+            ];
+          }),
+        styles: { fontSize: 8, cellPadding: 5 },
+        headStyles: { fillColor: [120, 80, 0] },
+      });
+    }
+
+    pdf.save(`fechamento-${fechamentoMes}-${filtroPlano}-${filtroParceiro}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -206,6 +378,22 @@ function ResumoPage() {
             </button>
           </div>
         )}
+        <div className="flex flex-col gap-1 min-w-[200px]">
+          <Label className="text-xs text-muted-foreground">Gerar Fechamento</Label>
+          <div className="flex gap-2">
+            <Select value={fechamentoMes} onValueChange={setFechamentoMes}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {opcoesFechamento.map((o) => (
+                  <SelectItem key={o.key} value={o.key} className="capitalize">{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" className="h-8 gap-1.5" onClick={() => setFechamentoOpen(true)}>
+              <FileText className="h-3.5 w-3.5" /> Gerar
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Card className="border-border/60">
@@ -310,6 +498,136 @@ function ResumoPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Modal: Prévia do Fechamento */}
+      <Dialog open={fechamentoOpen} onOpenChange={setFechamentoOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          {fechamentoData && (
+            <>
+              {/* Header com cara de capa de PDF */}
+              <div className="bg-gradient-to-br from-primary via-primary to-primary/70 text-primary-foreground p-8 rounded-t-lg">
+                <DialogHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.3em] opacity-80">Elora · Fechamento Mensal</div>
+                      <DialogTitle className="text-3xl font-bold mt-1 capitalize">{fechamentoData.labelMes}</DialogTitle>
+                      <p className="text-xs opacity-80 mt-2">
+                        {filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome}
+                        {" · "}
+                        {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
+                      </p>
+                    </div>
+                    <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
+                      <Download className="h-4 w-4" /> Exportar PDF
+                    </Button>
+                  </div>
+                </DialogHeader>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* KPIs */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes faturados</div>
+                    <div className="text-2xl font-semibold mt-1">{fechamentoData.ativos.length}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Setups no mês</div>
+                    <div className="text-2xl font-semibold mt-1 text-accent">+{fechamentoData.setupsNoMes.length}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{formatBRL(fechamentoData.totalSetups)}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Churns</div>
+                    <div className="text-2xl font-semibold mt-1 text-destructive">{fechamentoData.churnsNoMes.length > 0 ? `-${fechamentoData.churnsNoMes.length}` : "0"}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Receita total</div>
+                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoData.totalReceita)}</div>
+                  </div>
+                </div>
+
+                {/* Sistema vs Acompanhamento */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-border/60 p-4 bg-muted/10">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Valor total do Sistema</div>
+                    <div className="text-xl font-semibold mt-1">{formatBRL(fechamentoData.totalSistema)}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">Planos, canais, módulos e excedentes</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4 bg-muted/10">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Valor total do Acompanhamento</div>
+                    <div className="text-xl font-semibold mt-1">{formatBRL(fechamentoData.totalAcompanhamento)}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">Receita recorrente comercial</div>
+                  </div>
+                </div>
+
+                {/* Detalhamento por cliente */}
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Detalhamento por cliente</h3>
+                  <div className="rounded-lg border border-border/60 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30">
+                        <tr className="text-xs text-muted-foreground">
+                          <th className="text-left p-2 font-medium">Cliente</th>
+                          <th className="text-left p-2 font-medium">Plano</th>
+                          <th className="text-right p-2 font-medium">Sistema</th>
+                          <th className="text-right p-2 font-medium">Acomp.</th>
+                          <th className="text-right p-2 font-medium">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fechamentoData.detalhesPorCliente.map((d) => (
+                          <tr key={d.cliente.id} className="border-t border-border/30">
+                            <td className="p-2 font-medium">{d.cliente.nome}</td>
+                            <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
+                            <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
+                            <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
+                            <td className="p-2 text-right font-semibold text-primary">{formatBRL(d.receita)}</td>
+                          </tr>
+                        ))}
+                        {fechamentoData.detalhesPorCliente.length === 0 && (
+                          <tr><td colSpan={5} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Upgrades e Downgrades */}
+                {fechamentoData.movsMes.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Upgrades e Downgrades</h3>
+                    <div className="space-y-2">
+                      {fechamentoData.movsMes
+                        .slice()
+                        .sort((a, b) => b.data.localeCompare(a.data))
+                        .map((mv) => {
+                          const c = clientes.find((x) => x.id === mv.clienteId);
+                          const isUp = mv.tipo === "upgrade";
+                          const Icon = isUp ? TrendingUp : TrendingDown;
+                          return (
+                            <div key={mv.id} className="flex items-start gap-3 rounded-lg border border-border/60 p-3">
+                              <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-accent/15 text-accent" : "bg-yellow-500/15 text-yellow-500"}`}>
+                                <Icon className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className="font-semibold">{c?.nome ?? "—"}</span>
+                                  <Badge variant="outline" className="text-[10px]">{isUp ? "Upgrade" : "Downgrade"}</Badge>
+                                  <span className="text-xs text-muted-foreground ml-auto">{mv.data.split("-").reverse().join("/")}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">{descreverMov(mv)}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

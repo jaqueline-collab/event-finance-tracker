@@ -134,9 +134,10 @@ function ClientesPage() {
 
     // Z-API (cobrado por canal configurado como Z-API excedente aos inclusos no plano)
     const zapiInclusos = typeof selectedPlano.incluiZapi === "number" ? selectedPlano.incluiZapi : (selectedPlano.incluiZapi ? 1 : 0);
-    const qtdZapiCliente = form.zapi ? Math.max(0, canaisWhats - zapiInclusos) : 0;
+    const canaisZapiQtd = form.canaisZapi || 0;
+    const qtdZapiCliente = canaisZapiQtd > 0 ? Math.max(0, canaisZapiQtd - zapiInclusos) : 0;
     const faturamentoZapi = qtdZapiCliente * valorZapi;
-    const zapi = form.zapi ? canaisWhats * precoZapi : 0;
+    const zapi = canaisZapiQtd * precoZapi;
 
     const ia = (form.agentesIA && !selectedPlano.incluiIA) ? precoIA : 0;
     const faturamentoIA = (form.agentesIA && !selectedPlano.incluiIA) ? valorIA : 0;
@@ -210,7 +211,7 @@ function ClientesPage() {
         agentesIA: chosen?.incluiIA ?? false,
         asaas: chosen?.incluiAsaas ?? false,
         zapi: zapiInclusos > 0,
-        canaisWhats: zapiInclusos > 0 ? zapiInclusos : prev.canaisWhats,
+        canaisZapi: zapiInclusos > 0 ? zapiInclusos : prev.canaisZapi,
         transcricaoIA: chosen?.incluiTranscricao ?? false,
       };
     });
@@ -263,6 +264,7 @@ function ClientesPage() {
       canaisWhats: parseNum(movForm.canaisWhats),
       canaisInsta: parseNum(movForm.canaisInsta),
       canaisMessenger: parseNum(movForm.canaisMessenger),
+      canaisZapi: parseNum(movForm.canaisZapi),
       usuariosAtivos: parseNum(movForm.usuariosAtivos),
       contatosAtivos: parseNum(movForm.contatosAtivos),
       agentesIA: movForm.agentesIA,
@@ -343,8 +345,6 @@ function ClientesPage() {
                           ...prev,
                           canaisWhats: val,
                           canais: val + prev.canaisInsta + prev.canaisMessenger,
-                          canaisZapi: val,
-                          zapi: val > 0 ? true : prev.zapi
                         }));
                       }} />
                     </div>
@@ -411,13 +411,11 @@ function ClientesPage() {
                         type="number"
                         className="w-16 h-8 text-center"
                         min={0}
-                        value={form.canaisWhats === 0 ? "" : form.canaisWhats}
+                        value={form.canaisZapi === 0 ? "" : form.canaisZapi}
                         onChange={(e) => {
                           const val = e.target.value === "" ? 0 : Math.max(0, Number(e.target.value));
                           setForm(prev => ({
                             ...prev,
-                            canaisWhats: val,
-                            canais: val + prev.canaisInsta + prev.canaisMessenger,
                             canaisZapi: val,
                             zapi: val > 0
                           }));
@@ -475,9 +473,9 @@ function ClientesPage() {
                       </div>
                     )}
 
-                    {form.canaisWhats > 0 && realTimePricing.faturamentoZapi > 0 && (
+                    {form.canaisZapi > 0 && realTimePricing.faturamentoZapi > 0 && (
                       <div className="flex justify-between items-center text-muted-foreground">
-                        <span>Z-API ({form.canaisWhats} {form.canaisWhats === 1 ? 'canal' : 'canais'}):</span>
+                        <span>Z-API ({form.canaisZapi} {form.canaisZapi === 1 ? 'canal' : 'canais'}):</span>
                         <span className="font-medium text-foreground">+{formatBRL(realTimePricing.faturamentoZapi)}</span>
                       </div>
                     )}
@@ -537,9 +535,9 @@ function ClientesPage() {
                         </div>
                       )}
 
-                      {form.canaisWhats > 0 && realTimePricing.zapi > 0 && (
+                      {form.canaisZapi > 0 && realTimePricing.zapi > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Modulação Z-API ({form.canaisWhats} {form.canaisWhats === 1 ? 'canal' : 'canais'}):</span>
+                          <span className="text-muted-foreground">Modulação Z-API ({form.canaisZapi} {form.canaisZapi === 1 ? 'canal' : 'canais'}):</span>
                           <span className="text-yellow-400">+{formatBRL(realTimePricing.zapi)}</span>
                         </div>
                       )}
@@ -594,7 +592,7 @@ function ClientesPage() {
                         dataVencimento: form.dataVencimento || null,
                         parceiroId: form.parceiroId || null,
                         canais: form.canaisWhats + form.canaisInsta + form.canaisMessenger,
-                        canaisZapi: form.canaisWhats,
+                        canaisZapi: form.canaisZapi,
                         canaisWhats: form.canaisWhats,
                         canaisInsta: form.canaisInsta,
                         canaisMessenger: form.canaisMessenger,
@@ -789,6 +787,7 @@ function ClientesPage() {
               fmtNum("Canais WhatsApp", m.canaisWhats);
               fmtNum("Canais Instagram", m.canaisInsta);
               fmtNum("Canais Messenger", m.canaisMessenger);
+              fmtNum("Canais Z-API", m.canaisZapi);
               fmtNum("Canais", m.canais);
               fmtNum("Usuários", m.usuariosAtivos);
               fmtNum("Contatos/MAU", m.contatosAtivos);
@@ -983,6 +982,10 @@ function ClientesPage() {
             <div>
               <Label className="mb-1 block">Canais Messenger</Label>
               <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
+            </div>
+            <div>
+              <Label className="mb-1 block">Canais Z-API</Label>
+              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisZapi} onChange={(e) => setMovForm({ ...movForm, canaisZapi: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Usuários</Label>

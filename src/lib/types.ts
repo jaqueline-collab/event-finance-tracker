@@ -113,6 +113,7 @@ export interface Movimento {
   canaisWhats?: number;
   canaisInsta?: number;
   canaisMessenger?: number;
+  canaisZapi?: number;
   usuariosAtivos?: number;
   contatosAtivos?: number;
   agentesIA?: boolean;

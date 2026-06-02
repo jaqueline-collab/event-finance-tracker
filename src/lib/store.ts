@@ -226,6 +226,7 @@ const mapDbToMovimento = (r: any): Movimento => ({
   canaisWhats: r.canais_whats,
   canaisInsta: r.canais_insta,
   canaisMessenger: r.canais_messenger,
+  canaisZapi: r.canais_zapi,
   usuariosAtivos: r.usuarios_ativos,
   contatosAtivos: r.contatos_ativos,
   agentesIA: r.agentes_ia,
@@ -395,6 +396,7 @@ export const useStore = create<State>()(
           canais_whats: mov.canaisWhats ?? null,
           canais_insta: mov.canaisInsta ?? null,
           canais_messenger: mov.canaisMessenger ?? null,
+          canais_zapi: mov.canaisZapi ?? null,
           usuarios_ativos: mov.usuariosAtivos || null,
           contatos_ativos: mov.contatosAtivos || null,
           agentes_ia: mov.agentesIA || null,
@@ -432,6 +434,11 @@ export const useStore = create<State>()(
           if (newInsta !== undefined) patch.canaisInsta = newInsta;
           const newMsg = applyNum(cliente.canaisMessenger, m.canaisMessenger);
           if (newMsg !== undefined) patch.canaisMessenger = newMsg;
+          const newZapi = applyNum(cliente.canaisZapi, m.canaisZapi);
+          if (newZapi !== undefined) {
+            patch.canaisZapi = newZapi;
+            patch.zapi = newZapi > 0;
+          }
           const newUsers = applyNum(cliente.usuariosAtivos, m.usuariosAtivos);
           if (newUsers !== undefined) patch.usuariosAtivos = newUsers;
           const newCont = applyNum(cliente.contatosAtivos, m.contatosAtivos);
@@ -655,7 +662,8 @@ export function receitaMensalCliente(
 
   // Z-API (cobrado por canal configurado como Z-API excedente aos inclusos no plano)
   const zapiInclusos = typeof plano.incluiZapi === "number" ? plano.incluiZapi : (plano.incluiZapi ? 1 : 0);
-  const qtdZapiCliente = cliente.zapi ? Math.max(0, canaisWhats - zapiInclusos) : 0;
+  const canaisZapi = cliente.canaisZapi ?? 0;
+  const qtdZapiCliente = canaisZapi > 0 ? Math.max(0, canaisZapi - zapiInclusos) : 0;
   total += qtdZapiCliente * valorZapi;
 
   // Transcrição IA
@@ -717,7 +725,7 @@ export function custoMensalCliente(
   }
 
   // Z-API (cobrado custo Helena cheio por canal ativo se Z-API estiver ativo no cliente)
-  const qtdZapi = cliente.zapi ? canaisWhats : 0;
+  const qtdZapi = cliente.canaisZapi ?? 0;
   total += qtdZapi * precoZapi;
 
   // Transcrição IA
@@ -838,6 +846,7 @@ export function clienteSnapshotAt(
       snap.canaisWhats = rev(snap.canaisWhats, m.canaisWhats);
       snap.canaisInsta = rev(snap.canaisInsta, m.canaisInsta);
       snap.canaisMessenger = rev(snap.canaisMessenger, m.canaisMessenger);
+      snap.canaisZapi = rev(snap.canaisZapi, m.canaisZapi) ?? snap.canaisZapi;
       snap.usuariosAtivos = rev(snap.usuariosAtivos, m.usuariosAtivos) ?? snap.usuariosAtivos;
       snap.contatosAtivos = rev(snap.contatosAtivos, m.contatosAtivos) ?? snap.contatosAtivos;
       snap.apps = rev(snap.apps, m.apps) ?? snap.apps;
