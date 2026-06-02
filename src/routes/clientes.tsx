@@ -331,6 +331,20 @@ function ClientesPage() {
     );
   }, [clientes, planos, custos, movimentos]);
 
+  // Margem média de lucro da carteira ativa
+  const margemMedia = useMemo(() => {
+    const ativos = clientes.filter((c) => !c.dataChurn);
+    if (ativos.length === 0) return 0;
+    let receita = 0;
+    let custo = 0;
+    for (const c of ativos) {
+      receita += receitaMensalCliente(c, planos, custos);
+      custo += custoMensalCliente(c, planos, custos);
+    }
+    if (receita <= 0) return 0;
+    return ((receita - custo) / receita) * 100;
+  }, [clientes, planos, custos]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
@@ -343,29 +357,31 @@ function ClientesPage() {
         </Button>
       </div>
 
-      {/* Resumo da carteira */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card className="border-border/60">
-          <CardHeader className="pb-2"><CardDescription>Faturamento acumulado</CardDescription>
-            <CardTitle className="text-2xl text-primary">{formatBRL(faturamentoCarteira)}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">Soma de todas as mensalidades + setups desde o início de cada cliente.</CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardHeader className="pb-2"><CardDescription>Clientes ativos</CardDescription>
-            <CardTitle className="text-2xl text-accent">{clientes.filter((c) => !c.dataChurn).length}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">{clientes.length} no total</CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardHeader className="pb-2"><CardDescription>Pesquisar cliente</CardDescription></CardHeader>
-          <CardContent>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar pelo nome..." className="pl-8" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Resumo da carteira — cards compactos */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Faturamento acumulado</div>
+          <div className="text-base font-semibold text-foreground">{formatBRL(faturamentoCarteira)}</div>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes ativos</div>
+          <div className="text-base font-semibold text-foreground">
+            {clientes.filter((c) => !c.dataChurn).length}
+            <span className="text-xs font-normal text-muted-foreground ml-1">/ {clientes.length}</span>
+          </div>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Margem média de lucro</div>
+          <div className={`text-base font-semibold ${margemMedia >= 0 ? "text-primary" : "text-destructive"}`}>
+            {margemMedia.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+
+      {/* Pesquisa em linha única */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente pelo nome..." className="pl-8" />
       </div>
 
       {open && (
