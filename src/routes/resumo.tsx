@@ -18,7 +18,12 @@ import {
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
   clienteSnapshotAt,
+  getDiaVencimentoEfetivo,
 } from "@/lib/store";
+import { toast } from "@/components/ui/sonner";
+import { Mail, Send } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/resumo")({
   head: () => ({ meta: [{ title: "Resumo Mensal · Elora" }] }),
@@ -26,9 +31,10 @@ export const Route = createFileRoute("/resumo")({
 });
 
 function ResumoPage() {
-  const { clientes, planos, custos, movimentos, parceiros } = useStore();
+  const { clientes, planos, custos, movimentos, parceiros, addLancamento } = useStore();
   const [filtroPlano, setFiltroPlano] = useState("todos");
   const [filtroParceiro, setFiltroParceiro] = useState("todos");
+  const [filtroVencimento, setFiltroVencimento] = useState("todos");
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -36,15 +42,31 @@ function ResumoPage() {
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [observacaoPdf, setObservacaoPdf] = useState("");
+  const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
+  const [emailDestino, setEmailDestino] = useState("");
 
-  // Clientes filtrados por plano e parceiro
+  // Dias de vencimento distintos (planos + clientes), para o filtro
+  const diasDisponiveis = useMemo(() => {
+    const set = new Set<number>();
+    for (const p of planos) if (p.diaVencimento) set.add(p.diaVencimento);
+    for (const c of clientes) {
+      const d = getDiaVencimentoEfetivo(c, planos);
+      if (d) set.add(d);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [planos, clientes]);
+
+  // Clientes filtrados por plano, parceiro e vencimento
   const clientesFiltrados = useMemo(() => {
     return clientes.filter((c) => {
       const matchPlano = filtroPlano === "todos" || c.planoId === filtroPlano;
       const matchParceiro = filtroParceiro === "todos" || c.parceiroId === filtroParceiro;
-      return matchPlano && matchParceiro;
+      const matchVenc =
+        filtroVencimento === "todos" ||
+        String(getDiaVencimentoEfetivo(c, planos) ?? "") === filtroVencimento;
+      return matchPlano && matchParceiro && matchVenc;
     });
-  }, [clientes, filtroPlano, filtroParceiro]);
+  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento]);
 
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
