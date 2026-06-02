@@ -343,6 +343,31 @@ function ClientesPage() {
         </Button>
       </div>
 
+      {/* Resumo da carteira */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card className="border-border/60">
+          <CardHeader className="pb-2"><CardDescription>Faturamento acumulado</CardDescription>
+            <CardTitle className="text-2xl text-primary">{formatBRL(faturamentoCarteira)}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">Soma de todas as mensalidades + setups desde o início de cada cliente.</CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardHeader className="pb-2"><CardDescription>Clientes ativos</CardDescription>
+            <CardTitle className="text-2xl text-accent">{clientes.filter((c) => !c.dataChurn).length}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">{clientes.length} no total</CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardHeader className="pb-2"><CardDescription>Pesquisar cliente</CardDescription></CardHeader>
+          <CardContent>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar pelo nome..." className="pl-8" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {open && (
         <Card className="border-border/60 bg-muted/10 overflow-hidden">
           <CardHeader className="border-b border-border/40 bg-muted/20">
