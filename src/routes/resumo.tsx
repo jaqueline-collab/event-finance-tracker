@@ -495,6 +495,69 @@ function ResumoPage() {
     pdf.save(`fechamento-${fechamentoMes}-${filtroPlano}-${filtroParceiro}.pdf`);
   };
 
+  // ====== Enviar para o módulo Financeiro ======
+  const enviarParaFinanceiro = () => {
+    if (!fechamentoData) return;
+    const { y, m, labelMes, cicloLabel, detalhesPorCliente, totalReceita } = fechamentoData;
+    if (detalhesPorCliente.length === 0) {
+      toast.error("Nenhum cliente faturado nesta competência.");
+      return;
+    }
+    const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const labelFiltros = `${filtroPlano === "todos" ? "" : ` · ${planos.find((p) => p.id === filtroPlano)?.nome ?? ""}`}${filtroParceiro === "todos" ? "" : ` · ${parceiros.find((p) => p.id === filtroParceiro)?.nome ?? ""}`}${filtroVencimento === "todos" ? "" : ` · venc. dia ${filtroVencimento}`}`;
+    if (modoEnvio === "consolidado") {
+      // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
+      const dias = detalhesPorCliente
+        .map((d) => (d.venc ? Number(d.venc.slice(8, 10)) : null))
+        .filter((x): x is number => x !== null);
+      const dia = dias.length > 0 ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length) : 10;
+      const ultimoDia = new Date(y, m + 1, 0).getDate();
+      const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+      addLancamento({
+        descricao: `Fechamento ${labelMes}${labelFiltros} · ciclo ${cicloLabel}`,
+        tipo: "fechamento",
+        categoria: "Receita",
+        valor: Number(totalReceita.toFixed(2)),
+        vencimento: venc,
+        competencia: `${competenciaKey}-consolidado-${Date.now()}`,
+        status: "pendente",
+        nfEmitida: false,
+      });
+      toast.success("1 lançamento consolidado enviado ao Financeiro.");
+    } else {
+      let n = 0;
+      for (const d of detalhesPorCliente) {
+        const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
+        const ultimoDia = new Date(y, m + 1, 0).getDate();
+        const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+        addLancamento({
+          descricao: `${d.cliente.nome} · Fechamento ${labelMes} · ciclo ${cicloLabel}`,
+          tipo: "fechamento",
+          categoria: "Receita",
+          valor: Number(d.receita.toFixed(2)),
+          vencimento: venc,
+          competencia: `${competenciaKey}-${d.cliente.id}-${Date.now()}`,
+          status: "pendente",
+          nfEmitida: false,
+        });
+        n++;
+      }
+      toast.success(`${n} lançamento(s) por cliente enviado(s) ao Financeiro.`);
+    }
+  };
+
+  // ====== Enviar por e-mail (placeholder até configurar domínio) ======
+  const enviarPorEmail = () => {
+    if (!emailDestino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestino)) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+    toast.message("Envio por e-mail", {
+      description:
+        "Para enviar o PDF por e-mail é preciso configurar o domínio de envio em Configurações → Emails. Avise-nos para concluirmos essa etapa.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
