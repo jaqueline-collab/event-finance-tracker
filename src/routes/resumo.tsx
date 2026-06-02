@@ -10,10 +10,11 @@ import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  useStore, formatBRL, receitaMensalCliente, clienteFaturaEm,
+  useStore, formatBRL, receitaMensalCliente, receitaMensalClienteEm, clienteFaturaEm,
   calcularCustoLiquidoHelena,
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
+  clienteSnapshotAt,
 } from "@/lib/store";
 
 export const Route = createFileRoute("/resumo")({
@@ -66,8 +67,13 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const receita = ativos.reduce((s, c) => s + receitaMensalCliente(c, planos, custos), 0);
-      const custoHelena = calcularCustoLiquidoHelena(ativos);
+      const receita = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
+      // Custo Helena também respeita o snapshot histórico de cada cliente
+      const ativosSnapshot = ativos.map((c) => {
+        const venc = obterVencimentoDaCompetencia(c, y, m);
+        return venc ? clienteSnapshotAt(c, movimentos, venc) : c;
+      });
+      const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot);
       const setup = clientesFiltrados
         .filter((c) => {
           const vencimento = obterVencimentoDaCompetencia(c, y, m);
