@@ -134,6 +134,54 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_financeiro: {
+        Row: {
+          categoria: string | null
+          competencia: string | null
+          created_at: string
+          descricao: string
+          id: string
+          nf_emitida: boolean
+          nf_numero: string | null
+          observacao: string | null
+          status: string
+          tipo: string
+          user_id: string
+          valor: number
+          vencimento: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          competencia?: string | null
+          created_at?: string
+          descricao: string
+          id: string
+          nf_emitida?: boolean
+          nf_numero?: string | null
+          observacao?: string | null
+          status?: string
+          tipo?: string
+          user_id?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          competencia?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          nf_emitida?: boolean
+          nf_numero?: string | null
+          observacao?: string | null
+          status?: string
+          tipo?: string
+          user_id?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Relationships: []
+      }
       elora_kanban_cards: {
         Row: {
           cliente: string | null
