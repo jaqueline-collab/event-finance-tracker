@@ -667,6 +667,30 @@ function ResumoPage() {
               </div>
 
               <div className="p-6 space-y-6">
+                {/* Opções de exportação */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="incluir-graficos"
+                      checked={incluirGraficos}
+                      onCheckedChange={(v) => setIncluirGraficos(Boolean(v))}
+                    />
+                    <Label htmlFor="incluir-graficos" className="text-sm cursor-pointer">
+                      Incluir gráficos no PDF
+                    </Label>
+                  </div>
+                  <div>
+                    <Label htmlFor="obs-pdf" className="text-xs text-muted-foreground">Observação (impressa no final do PDF)</Label>
+                    <Textarea
+                      id="obs-pdf"
+                      value={observacaoPdf}
+                      onChange={(e) => setObservacaoPdf(e.target.value)}
+                      placeholder="Notas, contexto do mês, recomendações…"
+                      className="mt-1 min-h-[72px] text-sm"
+                    />
+                  </div>
+                </div>
+
                 {/* KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border/60 p-4">
