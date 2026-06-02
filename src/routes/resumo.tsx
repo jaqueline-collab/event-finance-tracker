@@ -323,10 +323,11 @@ function ResumoPage() {
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(9);
     pdf.text(`Plano: ${planoSel}  |  Parceiro: ${parceiroSel}  |  Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 90);
+    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 104);
 
     autoTable(pdf, {
-      startY: 110,
-      head: [["Clientes faturados", "Setups no mês", "Churns", "Receita Sistema", "Acompanhamento", "Receita Total"]],
+      startY: 120,
+      head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
       body: [[
         String(fechamentoData.ativos.length),
         `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
