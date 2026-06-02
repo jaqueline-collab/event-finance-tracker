@@ -56,6 +56,7 @@ const defaultForm = (): PlanoForm => ({
   nome: "",
   valorMensal: "",
   valorSetup: "",
+  diaVencimento: "",
   canaisWhatsInclusos: "1",
   canaisInstaInclusos: "0",
   canaisMessengerInclusos: "0",
