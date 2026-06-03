@@ -543,10 +543,12 @@ function ResumoPage() {
 
   // ====== Enviar para o módulo Financeiro ======
   const enviarParaFinanceiro = () => {
-    if (!fechamentoData) return;
-    const { y, m, labelMes, cicloLabel, detalhesPorCliente, totalReceita } = fechamentoData;
+    if (!fechamentoData || !fechamentoSelecionado) return;
+    const { y, m, labelMes, cicloLabel } = fechamentoData;
+    const detalhesPorCliente = fechamentoSelecionado.detalhes;
+    const totalReceita = fechamentoSelecionado.totalReceita;
     if (detalhesPorCliente.length === 0) {
-      toast.error("Nenhum cliente faturado nesta competência.");
+      toast.error("Selecione ao menos um cliente para enviar ao Financeiro.");
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
