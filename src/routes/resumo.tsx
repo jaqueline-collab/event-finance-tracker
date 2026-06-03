@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -308,12 +308,12 @@ function ResumoPage() {
     if (!fechamentoData) return "";
     return `${fechamentoMes}|${fechamentoData.ativos.map((c) => c.id).join(",")}`;
   }, [fechamentoData, fechamentoMes]);
-  if (fechamentoKey && fechamentoKey !== selecaoInicializada) {
-    queueMicrotask(() => {
-      setSelectedClienteIds(new Set(fechamentoData!.ativos.map((c) => c.id)));
+  useEffect(() => {
+    if (fechamentoKey && fechamentoKey !== selecaoInicializada && fechamentoData) {
+      setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
       setSelecaoInicializada(fechamentoKey);
-    });
-  }
+    }
+  }, [fechamentoKey, selecaoInicializada, fechamentoData]);
 
   const fechamentoSelecionado = useMemo(() => {
     if (!fechamentoData) return null;
