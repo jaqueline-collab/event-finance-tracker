@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,9 @@ function ResumoPage() {
   const [observacaoPdf, setObservacaoPdf] = useState("");
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
   const [emailDestino, setEmailDestino] = useState("");
+  // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
+  const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
+  const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
 
   // Dias de vencimento distintos (planos + clientes), para o filtro
   const diasDisponiveis = useMemo(() => {
@@ -300,6 +303,47 @@ function ResumoPage() {
     };
   }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, parceiros]);
 
+  // Sempre que a competência ou os clientes do fechamento mudarem, marca todos por padrão
+  const fechamentoKey = useMemo(() => {
+    if (!fechamentoData) return "";
+    return `${fechamentoMes}|${fechamentoData.ativos.map((c) => c.id).join(",")}`;
+  }, [fechamentoData, fechamentoMes]);
+  useEffect(() => {
+    if (fechamentoKey && fechamentoKey !== selecaoInicializada && fechamentoData) {
+      setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
+      setSelecaoInicializada(fechamentoKey);
+    }
+  }, [fechamentoKey, selecaoInicializada, fechamentoData]);
+
+  const fechamentoSelecionado = useMemo(() => {
+    if (!fechamentoData) return null;
+    const sel = selectedClienteIds;
+    const detalhes = fechamentoData.detalhesPorCliente.filter((d) => sel.has(d.cliente.id));
+    const totalSistema = detalhes.reduce((s, d) => s + d.sistema, 0);
+    const totalAcompanhamento = detalhes.reduce((s, d) => s + d.acomp, 0);
+    const totalReceita = totalSistema + totalAcompanhamento;
+    const ticketMedio = detalhes.length > 0 ? totalReceita / detalhes.length : 0;
+    const ltvMedioDias = detalhes.length > 0
+      ? detalhes.reduce((s, d) => s + d.ltvDias, 0) / detalhes.length
+      : 0;
+    return { detalhes, totalSistema, totalAcompanhamento, totalReceita, ticketMedio, ltvMedioDias, count: detalhes.length };
+  }, [fechamentoData, selectedClienteIds]);
+
+  const toggleCliente = (id: string) => {
+    setSelectedClienteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
+    fechamentoData.ativos.every((c) => selectedClienteIds.has(c.id));
+  const toggleTodos = () => {
+    if (!fechamentoData) return;
+    if (todosSelecionados) setSelectedClienteIds(new Set());
+    else setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
+  };
+
   const opcoesFechamento = useMemo(() => {
     // Lista os últimos 24 meses + 1 à frente
     const out: { key: string; label: string }[] = [];
@@ -335,7 +379,7 @@ function ResumoPage() {
   };
 
   const exportarFechamentoPdf = () => {
-    if (!fechamentoData) return;
+    if (!fechamentoData || !fechamentoSelecionado) return;
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
@@ -363,12 +407,12 @@ function ResumoPage() {
       startY: 146,
       head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
       body: [[
-        String(fechamentoData.ativos.length),
+        String(fechamentoSelecionado.count),
         `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
         String(fechamentoData.churnsNoMes.length),
-        formatBRL(fechamentoData.totalSistema),
-        formatBRL(fechamentoData.totalAcompanhamento),
-        formatBRL(fechamentoData.totalReceita),
+        formatBRL(fechamentoSelecionado.totalSistema),
+        formatBRL(fechamentoSelecionado.totalAcompanhamento),
+        formatBRL(fechamentoSelecionado.totalReceita),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [15, 15, 15], textColor: 255 },
@@ -379,8 +423,8 @@ function ResumoPage() {
       startY: (pdf as any).lastAutoTable.finalY + 10,
       head: [["LTV médio (dias)", "Ticket médio / cliente"]],
       body: [[
-        String(Math.round(fechamentoData.ltvMedioDias)),
-        formatBRL(fechamentoData.ticketMedio),
+        String(Math.round(fechamentoSelecionado.ltvMedioDias)),
+        formatBRL(fechamentoSelecionado.ticketMedio),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
@@ -389,7 +433,7 @@ function ResumoPage() {
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
       head: [["Cliente", "Plano", "Parceiro", "LTV (dias)", "Sistema", "Acompanh.", "Total"]],
-      body: fechamentoData.detalhesPorCliente.map((d) => [
+      body: fechamentoSelecionado.detalhes.map((d) => [
         d.cliente.nome,
         d.plano?.nome ?? "—",
         d.parceiro?.nome ?? "—",
@@ -499,10 +543,12 @@ function ResumoPage() {
 
   // ====== Enviar para o módulo Financeiro ======
   const enviarParaFinanceiro = () => {
-    if (!fechamentoData) return;
-    const { y, m, labelMes, cicloLabel, detalhesPorCliente, totalReceita } = fechamentoData;
+    if (!fechamentoData || !fechamentoSelecionado) return;
+    const { y, m, labelMes, cicloLabel } = fechamentoData;
+    const detalhesPorCliente = fechamentoSelecionado.detalhes;
+    const totalReceita = fechamentoSelecionado.totalReceita;
     if (detalhesPorCliente.length === 0) {
-      toast.error("Nenhum cliente faturado nesta competência.");
+      toast.error("Selecione ao menos um cliente para enviar ao Financeiro.");
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -836,8 +882,11 @@ function ResumoPage() {
                 {/* KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes faturados</div>
-                    <div className="text-2xl font-semibold mt-1">{fechamentoData.ativos.length}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes selecionados</div>
+                    <div className="text-2xl font-semibold mt-1">
+                      {fechamentoSelecionado?.count ?? 0}
+                      <span className="text-sm font-normal text-muted-foreground ml-1">/ {fechamentoData.ativos.length}</span>
+                    </div>
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Setups no mês</div>
@@ -850,7 +899,7 @@ function ResumoPage() {
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Fechamento Mensal</div>
-                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoData.totalReceita)}</div>
+                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</div>
                   </div>
                 </div>
 
@@ -858,19 +907,19 @@ function ResumoPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">LTV médio</div>
-                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoData.ltvMedioDias)} dias</div>
+                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoSelecionado?.ltvMedioDias ?? 0)} dias</div>
                   </div>
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ticket médio / cliente</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.ticketMedio)}</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.ticketMedio ?? 0)}</div>
                   </div>
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Sistema</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.totalSistema)}</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalSistema ?? 0)}</div>
                   </div>
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Acompanhamento</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.totalAcompanhamento)}</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalAcompanhamento ?? 0)}</div>
                   </div>
                 </div>
 
@@ -916,11 +965,23 @@ function ResumoPage() {
 
                 {/* Detalhamento por cliente */}
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Detalhamento por cliente</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Detalhamento por cliente</h3>
+                    <span className="text-[10px] text-muted-foreground">
+                      Marque os clientes que entram neste fechamento. Os totais, o PDF e o envio ao Financeiro respeitam a seleção.
+                    </span>
+                  </div>
                   <div className="rounded-lg border border-border/60 overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/30">
                         <tr className="text-xs text-muted-foreground">
+                          <th className="p-2 w-8">
+                            <Checkbox
+                              checked={todosSelecionados}
+                              onCheckedChange={toggleTodos}
+                              aria-label="Selecionar todos"
+                            />
+                          </th>
                           <th className="text-left p-2 font-medium">Cliente</th>
                           <th className="text-left p-2 font-medium">Plano</th>
                           <th className="text-right p-2 font-medium">LTV</th>
@@ -931,7 +992,18 @@ function ResumoPage() {
                       </thead>
                       <tbody>
                         {fechamentoData.detalhesPorCliente.map((d) => (
-                          <tr key={d.cliente.id} className="border-t border-border/30">
+                          <tr
+                            key={d.cliente.id}
+                            className={`border-t border-border/30 cursor-pointer hover:bg-muted/20 ${selectedClienteIds.has(d.cliente.id) ? "" : "opacity-50"}`}
+                            onClick={() => toggleCliente(d.cliente.id)}
+                          >
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedClienteIds.has(d.cliente.id)}
+                                onCheckedChange={() => toggleCliente(d.cliente.id)}
+                                aria-label={`Selecionar ${d.cliente.nome}`}
+                              />
+                            </td>
                             <td className="p-2 font-medium">{d.cliente.nome}</td>
                             <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
                             <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
@@ -941,7 +1013,7 @@ function ResumoPage() {
                           </tr>
                         ))}
                         {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={6} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                          <tr><td colSpan={7} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
                         )}
                       </tbody>
                     </table>

@@ -333,10 +333,10 @@ function ClientesPage() {
     !!filtroSetupDe || !!filtroSetupAte || !!filtroChurnDe || !!filtroChurnAte ||
     filtroParceiro !== "_todos" || filtroPlano !== "_todos" || filtroSituacao !== "_todos";
 
-  // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
-  const clientesOrdenados = useMemo(() => {
+  // Aplica os filtros (sem ordenação) — base para métricas e lista
+  const clientesFiltrados = useMemo(() => {
     const hoje = new Date();
-    const filtrados = clientes.filter((c) => {
+    return clientes.filter((c) => {
       if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
       if (filtroParceiro !== "_todos" && (c.parceiroId || "") !== filtroParceiro) return false;
       if (filtroPlano !== "_todos" && (c.planoId || "") !== filtroPlano) return false;
@@ -358,25 +358,29 @@ function ClientesPage() {
       }
       return true;
     });
-    return [...filtrados].sort((a, b) => {
+  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
+
+  // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
+  const clientesOrdenados = useMemo(() => {
+    return [...clientesFiltrados].sort((a, b) => {
       const aChurn = !!a.dataChurn;
       const bChurn = !!b.dataChurn;
       if (aChurn !== bChurn) return aChurn ? 1 : -1;
       return (b.dataInicio || "").localeCompare(a.dataInicio || "");
     });
-  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
+  }, [clientesFiltrados]);
 
-  // Faturamento acumulado total da carteira
+  // Faturamento acumulado da carteira (respeita filtros)
   const faturamentoCarteira = useMemo(() => {
-    return clientes.reduce(
+    return clientesFiltrados.reduce(
       (s, c) => s + faturamentoAcumuladoCliente(c, planos, custos, movimentos),
       0,
     );
-  }, [clientes, planos, custos, movimentos]);
+  }, [clientesFiltrados, planos, custos, movimentos]);
 
-  // Margem média de lucro da carteira ativa
+  // Margem média de lucro da carteira ativa (respeita filtros)
   const margemMedia = useMemo(() => {
-    const ativos = clientes.filter((c) => !c.dataChurn);
+    const ativos = clientesFiltrados.filter((c) => !c.dataChurn);
     if (ativos.length === 0) return 0;
     let receita = 0;
     let custo = 0;
@@ -386,66 +390,45 @@ function ClientesPage() {
     }
     if (receita <= 0) return 0;
     return ((receita - custo) / receita) * 100;
-  }, [clientes, planos, custos]);
+  }, [clientesFiltrados, planos, custos]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground text-sm">Situação atual de cada cliente e histórico</p>
         </div>
-        <Button onClick={() => setOpen((v) => !v)}>
-          <Plus className="mr-2 h-4 w-4" /> Novo cliente
-        </Button>
-      </div>
-
-      {/* Resumo da carteira — cards compactos */}
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Faturamento acumulado</div>
-          <div className="text-base font-semibold text-foreground">{formatBRL(faturamentoCarteira)}</div>
-        </div>
-        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes ativos</div>
-          <div className="text-base font-semibold text-foreground">
-            {clientes.filter((c) => !c.dataChurn).length}
-            <span className="text-xs font-normal text-muted-foreground ml-1">/ {clientes.length}</span>
+        <div className="flex items-center gap-2">
+          <div className="relative w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente..." className="pl-8 h-9" />
           </div>
-        </div>
-        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Margem média de lucro</div>
-          <div className={`text-base font-semibold ${margemMedia >= 0 ? "text-primary" : "text-destructive"}`}>
-            {margemMedia.toFixed(1)}%
-          </div>
+          <Button onClick={() => setOpen((v) => !v)}>
+            <Plus className="mr-2 h-4 w-4" /> Novo cliente
+          </Button>
         </div>
       </div>
 
-      {/* Pesquisa em linha única */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente pelo nome..." className="pl-8" />
-      </div>
-
-      {/* Filtros */}
+      {/* Filtros (no topo) */}
       <Card className="border-border/60">
         <CardContent className="p-3">
-          <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup de</Label>
-              <Input type="date" value={filtroSetupDe} onChange={(e) => setFiltroSetupDe(e.target.value)} className="h-9" />
+          <div className="grid gap-2 grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
+            <div className="col-span-2 md:col-span-2 xl:col-span-2">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup (período)</Label>
+              <div className="flex items-center gap-1">
+                <Input type="date" value={filtroSetupDe} onChange={(e) => setFiltroSetupDe(e.target.value)} className="h-9 px-2 text-xs" />
+                <span className="text-muted-foreground text-xs">→</span>
+                <Input type="date" value={filtroSetupAte} onChange={(e) => setFiltroSetupAte(e.target.value)} className="h-9 px-2 text-xs" />
+              </div>
             </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup até</Label>
-              <Input type="date" value={filtroSetupAte} onChange={(e) => setFiltroSetupAte(e.target.value)} className="h-9" />
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn de</Label>
-              <Input type="date" value={filtroChurnDe} onChange={(e) => setFiltroChurnDe(e.target.value)} className="h-9" />
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn até</Label>
-              <Input type="date" value={filtroChurnAte} onChange={(e) => setFiltroChurnAte(e.target.value)} className="h-9" />
+            <div className="col-span-2 md:col-span-2 xl:col-span-2">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn (período)</Label>
+              <div className="flex items-center gap-1">
+                <Input type="date" value={filtroChurnDe} onChange={(e) => setFiltroChurnDe(e.target.value)} className="h-9 px-2 text-xs" />
+                <span className="text-muted-foreground text-xs">→</span>
+                <Input type="date" value={filtroChurnAte} onChange={(e) => setFiltroChurnAte(e.target.value)} className="h-9 px-2 text-xs" />
+              </div>
             </div>
             <div>
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Parceiro</Label>
@@ -487,6 +470,33 @@ function ClientesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Resumo da carteira — cards compactos (seguem os filtros) */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Faturamento acumulado{filtrosAtivos ? " (filtrado)" : ""}
+          </div>
+          <div className="text-base font-semibold text-foreground">{formatBRL(faturamentoCarteira)}</div>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Clientes ativos{filtrosAtivos ? " (filtrado)" : ""}
+          </div>
+          <div className="text-base font-semibold text-foreground">
+            {clientesFiltrados.filter((c) => !c.dataChurn).length}
+            <span className="text-xs font-normal text-muted-foreground ml-1">/ {clientesFiltrados.length}</span>
+          </div>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Margem média de lucro{filtrosAtivos ? " (filtrado)" : ""}
+          </div>
+          <div className={`text-base font-semibold ${margemMedia >= 0 ? "text-primary" : "text-destructive"}`}>
+            {margemMedia.toFixed(1)}%
+          </div>
+        </div>
+      </div>
 
       {open && (
         <Card className="border-border/60 bg-muted/10 overflow-hidden">
