@@ -44,6 +44,9 @@ function ResumoPage() {
   const [observacaoPdf, setObservacaoPdf] = useState("");
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
   const [emailDestino, setEmailDestino] = useState("");
+  // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
+  const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
+  const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
 
   // Dias de vencimento distintos (planos + clientes), para o filtro
   const diasDisponiveis = useMemo(() => {
@@ -299,6 +302,47 @@ function ResumoPage() {
       calcDeltaReceita,
     };
   }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, parceiros]);
+
+  // Sempre que a competência ou os clientes do fechamento mudarem, marca todos por padrão
+  const fechamentoKey = useMemo(() => {
+    if (!fechamentoData) return "";
+    return `${fechamentoMes}|${fechamentoData.ativos.map((c) => c.id).join(",")}`;
+  }, [fechamentoData, fechamentoMes]);
+  if (fechamentoKey && fechamentoKey !== selecaoInicializada) {
+    queueMicrotask(() => {
+      setSelectedClienteIds(new Set(fechamentoData!.ativos.map((c) => c.id)));
+      setSelecaoInicializada(fechamentoKey);
+    });
+  }
+
+  const fechamentoSelecionado = useMemo(() => {
+    if (!fechamentoData) return null;
+    const sel = selectedClienteIds;
+    const detalhes = fechamentoData.detalhesPorCliente.filter((d) => sel.has(d.cliente.id));
+    const totalSistema = detalhes.reduce((s, d) => s + d.sistema, 0);
+    const totalAcompanhamento = detalhes.reduce((s, d) => s + d.acomp, 0);
+    const totalReceita = totalSistema + totalAcompanhamento;
+    const ticketMedio = detalhes.length > 0 ? totalReceita / detalhes.length : 0;
+    const ltvMedioDias = detalhes.length > 0
+      ? detalhes.reduce((s, d) => s + d.ltvDias, 0) / detalhes.length
+      : 0;
+    return { detalhes, totalSistema, totalAcompanhamento, totalReceita, ticketMedio, ltvMedioDias, count: detalhes.length };
+  }, [fechamentoData, selectedClienteIds]);
+
+  const toggleCliente = (id: string) => {
+    setSelectedClienteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
+    fechamentoData.ativos.every((c) => selectedClienteIds.has(c.id));
+  const toggleTodos = () => {
+    if (!fechamentoData) return;
+    if (todosSelecionados) setSelectedClienteIds(new Set());
+    else setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
+  };
 
   const opcoesFechamento = useMemo(() => {
     // Lista os últimos 24 meses + 1 à frente
