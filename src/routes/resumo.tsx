@@ -379,7 +379,7 @@ function ResumoPage() {
   };
 
   const exportarFechamentoPdf = () => {
-    if (!fechamentoData) return;
+    if (!fechamentoData || !fechamentoSelecionado) return;
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
@@ -407,12 +407,12 @@ function ResumoPage() {
       startY: 146,
       head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
       body: [[
-        String(fechamentoData.ativos.length),
+        String(fechamentoSelecionado.count),
         `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
         String(fechamentoData.churnsNoMes.length),
-        formatBRL(fechamentoData.totalSistema),
-        formatBRL(fechamentoData.totalAcompanhamento),
-        formatBRL(fechamentoData.totalReceita),
+        formatBRL(fechamentoSelecionado.totalSistema),
+        formatBRL(fechamentoSelecionado.totalAcompanhamento),
+        formatBRL(fechamentoSelecionado.totalReceita),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [15, 15, 15], textColor: 255 },
@@ -423,8 +423,8 @@ function ResumoPage() {
       startY: (pdf as any).lastAutoTable.finalY + 10,
       head: [["LTV médio (dias)", "Ticket médio / cliente"]],
       body: [[
-        String(Math.round(fechamentoData.ltvMedioDias)),
-        formatBRL(fechamentoData.ticketMedio),
+        String(Math.round(fechamentoSelecionado.ltvMedioDias)),
+        formatBRL(fechamentoSelecionado.ticketMedio),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
@@ -433,7 +433,7 @@ function ResumoPage() {
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
       head: [["Cliente", "Plano", "Parceiro", "LTV (dias)", "Sistema", "Acompanh.", "Total"]],
-      body: fechamentoData.detalhesPorCliente.map((d) => [
+      body: fechamentoSelecionado.detalhes.map((d) => [
         d.cliente.nome,
         d.plano?.nome ?? "—",
         d.parceiro?.nome ?? "—",
