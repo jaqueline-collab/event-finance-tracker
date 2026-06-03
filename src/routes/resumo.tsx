@@ -882,8 +882,11 @@ function ResumoPage() {
                 {/* KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes faturados</div>
-                    <div className="text-2xl font-semibold mt-1">{fechamentoData.ativos.length}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes selecionados</div>
+                    <div className="text-2xl font-semibold mt-1">
+                      {fechamentoSelecionado?.count ?? 0}
+                      <span className="text-sm font-normal text-muted-foreground ml-1">/ {fechamentoData.ativos.length}</span>
+                    </div>
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Setups no mês</div>
@@ -896,7 +899,7 @@ function ResumoPage() {
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Fechamento Mensal</div>
-                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoData.totalReceita)}</div>
+                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</div>
                   </div>
                 </div>
 
@@ -904,19 +907,19 @@ function ResumoPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">LTV médio</div>
-                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoData.ltvMedioDias)} dias</div>
+                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoSelecionado?.ltvMedioDias ?? 0)} dias</div>
                   </div>
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ticket médio / cliente</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.ticketMedio)}</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.ticketMedio ?? 0)}</div>
                   </div>
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Sistema</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.totalSistema)}</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalSistema ?? 0)}</div>
                   </div>
                   <div className="rounded-md border border-border/40 px-3 py-2">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Acompanhamento</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoData.totalAcompanhamento)}</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalAcompanhamento ?? 0)}</div>
                   </div>
                 </div>
 
