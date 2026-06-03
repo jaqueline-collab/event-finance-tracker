@@ -333,10 +333,10 @@ function ClientesPage() {
     !!filtroSetupDe || !!filtroSetupAte || !!filtroChurnDe || !!filtroChurnAte ||
     filtroParceiro !== "_todos" || filtroPlano !== "_todos" || filtroSituacao !== "_todos";
 
-  // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
-  const clientesOrdenados = useMemo(() => {
+  // Aplica os filtros (sem ordenação) — base para métricas e lista
+  const clientesFiltrados = useMemo(() => {
     const hoje = new Date();
-    const filtrados = clientes.filter((c) => {
+    return clientes.filter((c) => {
       if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
       if (filtroParceiro !== "_todos" && (c.parceiroId || "") !== filtroParceiro) return false;
       if (filtroPlano !== "_todos" && (c.planoId || "") !== filtroPlano) return false;
@@ -358,25 +358,29 @@ function ClientesPage() {
       }
       return true;
     });
-    return [...filtrados].sort((a, b) => {
+  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
+
+  // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
+  const clientesOrdenados = useMemo(() => {
+    return [...clientesFiltrados].sort((a, b) => {
       const aChurn = !!a.dataChurn;
       const bChurn = !!b.dataChurn;
       if (aChurn !== bChurn) return aChurn ? 1 : -1;
       return (b.dataInicio || "").localeCompare(a.dataInicio || "");
     });
-  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
+  }, [clientesFiltrados]);
 
-  // Faturamento acumulado total da carteira
+  // Faturamento acumulado da carteira (respeita filtros)
   const faturamentoCarteira = useMemo(() => {
-    return clientes.reduce(
+    return clientesFiltrados.reduce(
       (s, c) => s + faturamentoAcumuladoCliente(c, planos, custos, movimentos),
       0,
     );
-  }, [clientes, planos, custos, movimentos]);
+  }, [clientesFiltrados, planos, custos, movimentos]);
 
-  // Margem média de lucro da carteira ativa
+  // Margem média de lucro da carteira ativa (respeita filtros)
   const margemMedia = useMemo(() => {
-    const ativos = clientes.filter((c) => !c.dataChurn);
+    const ativos = clientesFiltrados.filter((c) => !c.dataChurn);
     if (ativos.length === 0) return 0;
     let receita = 0;
     let custo = 0;
@@ -386,7 +390,7 @@ function ClientesPage() {
     }
     if (receita <= 0) return 0;
     return ((receita - custo) / receita) * 100;
-  }, [clientes, planos, custos]);
+  }, [clientesFiltrados, planos, custos]);
 
   return (
     <div className="space-y-6">
