@@ -965,11 +965,23 @@ function ResumoPage() {
 
                 {/* Detalhamento por cliente */}
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Detalhamento por cliente</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Detalhamento por cliente</h3>
+                    <span className="text-[10px] text-muted-foreground">
+                      Marque os clientes que entram neste fechamento. Os totais, o PDF e o envio ao Financeiro respeitam a seleção.
+                    </span>
+                  </div>
                   <div className="rounded-lg border border-border/60 overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/30">
                         <tr className="text-xs text-muted-foreground">
+                          <th className="p-2 w-8">
+                            <Checkbox
+                              checked={todosSelecionados}
+                              onCheckedChange={toggleTodos}
+                              aria-label="Selecionar todos"
+                            />
+                          </th>
                           <th className="text-left p-2 font-medium">Cliente</th>
                           <th className="text-left p-2 font-medium">Plano</th>
                           <th className="text-right p-2 font-medium">LTV</th>
@@ -980,7 +992,18 @@ function ResumoPage() {
                       </thead>
                       <tbody>
                         {fechamentoData.detalhesPorCliente.map((d) => (
-                          <tr key={d.cliente.id} className="border-t border-border/30">
+                          <tr
+                            key={d.cliente.id}
+                            className={`border-t border-border/30 cursor-pointer hover:bg-muted/20 ${selectedClienteIds.has(d.cliente.id) ? "" : "opacity-50"}`}
+                            onClick={() => toggleCliente(d.cliente.id)}
+                          >
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedClienteIds.has(d.cliente.id)}
+                                onCheckedChange={() => toggleCliente(d.cliente.id)}
+                                aria-label={`Selecionar ${d.cliente.nome}`}
+                              />
+                            </td>
                             <td className="p-2 font-medium">{d.cliente.nome}</td>
                             <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
                             <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
@@ -990,7 +1013,7 @@ function ResumoPage() {
                           </tr>
                         ))}
                         {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={6} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                          <tr><td colSpan={7} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
                         )}
                       </tbody>
                     </table>
