@@ -234,10 +234,10 @@ function ResumoPage() {
     // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
     const cy = m === 0 ? y - 1 : y;
     const cm = m === 0 ? 11 : m - 1;
-    // Ativos = clientes que faturaram no ciclo que está sendo fechado (mês anterior).
-    // Quem entra no mês da competência (ex.: setup 01/06 no fechamento de junho)
-    // só aparece no fechamento seguinte.
-    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, cy, cm, planos));
+    // Ativos = clientes que estiveram ativos em qualquer dia do ciclo fechado
+    // (mês anterior). Quem inicia depois do ciclo (ex.: setup 01/06 no fechamento
+    // de junho) só aparece no fechamento seguinte.
+    const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
     const cicloInicio = new Date(cy, cm, 1);
     const cicloFim = new Date(cy, cm + 1, 0);
     const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
@@ -266,8 +266,9 @@ function ResumoPage() {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
-      const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
-      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, cy, cm);
+      const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
+      const snap = clienteSnapshotAt(c, movimentos, refSnap);
+      const receita = receitaCicloCliente(c, cy, cm);
       const acomp = snap.valorAcompanhamento || 0;
       const sistema = Math.max(0, receita - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
