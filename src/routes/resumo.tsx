@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  useStore, formatBRL, receitaMensalCliente, receitaMensalClienteEm, clienteFaturaEm,
+  useStore, formatBRL, receitaMensalCliente, receitaMensalClienteEm,
   calcularCustoLiquidoHelena,
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
@@ -71,6 +71,31 @@ function ResumoPage() {
     });
   }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento]);
 
+  // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
+  const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
+    const cicloInicio = new Date(y, m, 1);
+    const cicloFim = new Date(y, m + 1, 0);
+    const ini = new Date(c.dataInicio);
+    if (ini > cicloFim) return false;
+    if (c.dataChurn) {
+      const churn = new Date(c.dataChurn);
+      if (churn < cicloInicio) return false;
+    }
+    return true;
+  };
+
+  // Receita do cliente no ciclo: usa receitaMensalClienteEm quando há
+  // vencimento na competência; caso contrário (1ª cobrança cai depois),
+  // atribui a recorrência padrão ao ciclo em que o cliente esteve ativo.
+  const receitaCicloCliente = (c: typeof clientes[number], y: number, m: number): number => {
+    const venc = obterVencimentoDaCompetencia(c, y, m, planos);
+    if (venc) return receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
+    if (!clienteAtivoNoCiclo(c, y, m)) return 0;
+    const fim = new Date(y, m + 1, 0);
+    const snap = clienteSnapshotAt(c, movimentos, fim.toISOString().slice(0, 10));
+    return receitaMensalCliente(snap, planos, custos);
+  };
+
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
     const datas = clientesFiltrados.map((c) => new Date(c.dataInicio));
@@ -91,7 +116,7 @@ function ResumoPage() {
     while (cursor <= now) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
-      const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m, planos));
+      const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, y, m));
       const novos = clientesFiltrados.filter((c) => {
         const d = new Date(c.dataInicio);
         return d.getFullYear() === y && d.getMonth() === m;
@@ -101,11 +126,12 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const receita = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
+      const receita = ativos.reduce((s, c) => s + receitaCicloCliente(c, y, m), 0);
       // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
         const venc = obterVencimentoDaCompetencia(c, y, m, planos);
-        return venc ? clienteSnapshotAt(c, movimentos, venc) : c;
+        const ref = venc ?? new Date(y, m + 1, 0).toISOString().slice(0, 10);
+        return clienteSnapshotAt(c, movimentos, ref);
       });
       const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot);
       const setup = clientesFiltrados
@@ -208,10 +234,10 @@ function ResumoPage() {
     // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
     const cy = m === 0 ? y - 1 : y;
     const cm = m === 0 ? 11 : m - 1;
-    // Ativos = clientes que faturaram no ciclo que está sendo fechado (mês anterior).
-    // Quem entra no mês da competência (ex.: setup 01/06 no fechamento de junho)
-    // só aparece no fechamento seguinte.
-    const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, cy, cm, planos));
+    // Ativos = clientes que estiveram ativos em qualquer dia do ciclo fechado
+    // (mês anterior). Quem inicia depois do ciclo (ex.: setup 01/06 no fechamento
+    // de junho) só aparece no fechamento seguinte.
+    const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
     const cicloInicio = new Date(cy, cm, 1);
     const cicloFim = new Date(cy, cm + 1, 0);
     const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
@@ -240,8 +266,9 @@ function ResumoPage() {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
-      const snap = venc ? clienteSnapshotAt(c, movimentos, venc) : c;
-      const receita = receitaMensalClienteEm(c, planos, custos, movimentos, cy, cm);
+      const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
+      const snap = clienteSnapshotAt(c, movimentos, refSnap);
+      const receita = receitaCicloCliente(c, cy, cm);
       const acomp = snap.valorAcompanhamento || 0;
       const sistema = Math.max(0, receita - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);

@@ -1,38 +1,63 @@
-## Resumo
+## Problema
 
-1. Cliente "Brands Outlet Joinville" não existe no banco
-2. Aprimorar tabela de Clientes: nova coluna, ocultar parceiro e adicionar filtros
+No "Elora · Fechamento Mensal" de **junho/2026** (que fecha o ciclo de **maio**) não aparecem Camila Ahrens (setup 12/05) nem Érico Servano (setup 07/05).
 
-## 1. Brands Outlet Joinville
+Causa: o filtro `ativos` usa `clienteFaturaEm`, que só retorna `true` quando a **data de cobrança** do cliente cai dentro do ciclo. Ambos têm `dataVencimento = 05/06/2026` (primeira cobrança em junho), então o sistema os joga para o fechamento de julho — apesar de terem sido ativados em maio.
 
-Confirmei direto no banco: **não existe nenhum cliente com esse nome** (busca por `%brand%` e `%joinville%` retorna zero linhas). Os 15 clientes existentes são: Camila Ahrens, Dr Alexandre Mansur, Dr Jonas Lenzi, Dr Pedro Augusto, Dra Estéfani, Dra Tatiana Patruni, Dra. Anna Karoline, Dra. Gabriele Fracaro, Dra. Isabela Zanini, Dra. Vania Almeida, Érico Servano, Instituto Murilo Fischer, INTEP's Treinamentos, Majestic Transplante Capilar, ZAYN CLINICA LTDA.
+## Regra correta (alinhada com sua expectativa)
 
-**Ação proposta:** me confirmar se o nome está em outro lugar (ex.: foi excluído por engano, está em outro ambiente, ou tem outro nome real). Se quiser, eu **crio** o cliente Brands Outlet Joinville já com data de setup 12/02/2026 e status cancelado — me diga plano, parceiro e data de churn.
+Um cliente entra no fechamento do mês X (que fecha o ciclo X−1) quando esteve **ativo em qualquer dia do ciclo X−1**, ou seja:
 
-Também vou **adicionar campo de edição de Data de Setup no front** (modal Editar do cliente), pra que situações assim você consiga corrigir sozinho sem depender de backend.
+- `dataInicio ≤ último dia do ciclo` **E**
+- (`dataChurn` ausente **OU** `dataChurn ≥ primeiro dia do ciclo`)
 
-## 2. Aba Clientes — colunas e filtros
+Isso mantém DISTRIBOX (setup 01/06) fora do fechamento de junho — porque o início é em junho, não em maio — e traz Camila/Érico/Max Glam para o fechamento de junho.
 
-### Colunas
-- **Adicionar:** "Lucro sob o sistema" — receita do sistema (MRR menos Acompanhamento) menos custo operacional, mesma fórmula do dashboard.
-- **Ocultar:** coluna "Parceiro" da tabela principal (continua disponível no detalhe/edição do cliente e no filtro).
+## Mudanças
 
-### Filtros (barra acima da tabela)
-- **Data Setup** — range (de / até)
-- **Data Churn** — range (de / até) + opção "sem churn"
-- **Parceiro** — select com todos os parceiros cadastrados
-- **Plano** — select com todos os planos cadastrados
-- **Situação** — Trial / Ativo / Cancelado
-  - *Trial* = ativo e dataInicio dentro dos últimos 14 dias (confirmar regra)
-  - *Ativo* = sem dataChurn
-  - *Cancelado* = com dataChurn
+### `src/routes/resumo.tsx`
 
-Filtros combinam com a busca por nome já existente. Botão "Limpar filtros".
+No `fechamentoData` (e no cálculo do `linhas` do histórico), trocar o filtro de `ativos`:
 
-## Arquivos afetados
-- `src/routes/clientes.tsx` — colunas, filtros, edição da data de setup
-- Possível extração de um componente `<ClientesFiltros />` se ficar muito grande
+```ts
+// antes
+const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, cy, cm, planos));
 
-## Perguntas
-1. Confirma se devo **criar** o cliente Brands Outlet Joinville, ou existe outro nome a corrigir?
-2. Regra de "Trial" — usar os últimos 14 dias desde a data de setup, ou outra definição?
+// depois — ativos no ciclo (independente de quando a 1ª cobrança ocorre)
+const cicloInicio = new Date(cy, cm, 1);
+const cicloFim = new Date(cy, cm + 1, 0);
+const ativos = clientesFiltrados.filter((c) => {
+  const ini = new Date(c.dataInicio);
+  if (ini > cicloFim) return false;
+  if (c.dataChurn) {
+    const churn = new Date(c.dataChurn);
+    if (churn < cicloInicio) return false;
+  }
+  return true;
+});
+```
+
+Aplicar o mesmo critério na geração das `linhas` do histórico (mesma função `clienteFaturaEm` que decide quem entra no mês).
+
+### Receita do cliente no ciclo
+
+`receitaMensalClienteEm` hoje retorna 0 quando não há `vencimento` no mês. Para Camila/Érico, a 1ª cobrança é em 05/06 — porém o ciclo que estamos fechando é maio. Ajustar para:
+
+- Se houver `obterVencimentoDaCompetencia(c, cy, cm, planos)` → usar normalmente.
+- Caso contrário, se o cliente estiver ativo no ciclo (mesma regra acima), usar a **receita recorrente padrão** (`receitaMensalCliente` com snapshot do final do ciclo) para atribuir a cobrança que será emitida na próxima data de vencimento.
+
+Isso garante que o KPI "Fechamento Mensal" some corretamente as mensalidades de Camila/Érico no fechamento de junho.
+
+### Setups e churns
+
+`setupsNoMes` e `churnsNoMes` já filtram por `dataInicio`/`dataChurn` dentro do ciclo — não precisam mudar. Camila e Érico vão aparecer também no card "Setups no mês" do fechamento de junho.
+
+## Validação
+
+Após a mudança, no fechamento de **junho/2026** devem aparecer na lista de clientes faturados:
+- Camila Ahrens (setup 12/05)
+- Érico Servano (setup 07/05)
+- Max Glam (setup 08/05, churn 30/05 — encerramento)
+- demais clientes ativos com cobrança recorrente em maio
+
+E NÃO deve aparecer DISTRIBOX Central de Marcas (setup 01/06).
