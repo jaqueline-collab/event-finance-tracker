@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  useStore, formatBRL, receitaMensalCliente, receitaMensalClienteEm, clienteFaturaEm,
+  useStore, formatBRL, receitaMensalCliente, receitaMensalClienteEm,
   calcularCustoLiquidoHelena,
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
