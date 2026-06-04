@@ -71,6 +71,31 @@ function ResumoPage() {
     });
   }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento]);
 
+  // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
+  const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
+    const cicloInicio = new Date(y, m, 1);
+    const cicloFim = new Date(y, m + 1, 0);
+    const ini = new Date(c.dataInicio);
+    if (ini > cicloFim) return false;
+    if (c.dataChurn) {
+      const churn = new Date(c.dataChurn);
+      if (churn < cicloInicio) return false;
+    }
+    return true;
+  };
+
+  // Receita do cliente no ciclo: usa receitaMensalClienteEm quando há
+  // vencimento na competência; caso contrário (1ª cobrança cai depois),
+  // atribui a recorrência padrão ao ciclo em que o cliente esteve ativo.
+  const receitaCicloCliente = (c: typeof clientes[number], y: number, m: number): number => {
+    const venc = obterVencimentoDaCompetencia(c, y, m, planos);
+    if (venc) return receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
+    if (!clienteAtivoNoCiclo(c, y, m)) return 0;
+    const fim = new Date(y, m + 1, 0);
+    const snap = clienteSnapshotAt(c, movimentos, fim.toISOString().slice(0, 10));
+    return receitaMensalCliente(snap, planos, custos);
+  };
+
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
     const datas = clientesFiltrados.map((c) => new Date(c.dataInicio));
@@ -91,7 +116,7 @@ function ResumoPage() {
     while (cursor <= now) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
-      const ativos = clientesFiltrados.filter((c) => clienteFaturaEm(c, y, m, planos));
+      const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, y, m));
       const novos = clientesFiltrados.filter((c) => {
         const d = new Date(c.dataInicio);
         return d.getFullYear() === y && d.getMonth() === m;
@@ -101,11 +126,12 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const receita = ativos.reduce((s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m), 0);
+      const receita = ativos.reduce((s, c) => s + receitaCicloCliente(c, y, m), 0);
       // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
         const venc = obterVencimentoDaCompetencia(c, y, m, planos);
-        return venc ? clienteSnapshotAt(c, movimentos, venc) : c;
+        const ref = venc ?? new Date(y, m + 1, 0).toISOString().slice(0, 10);
+        return clienteSnapshotAt(c, movimentos, ref);
       });
       const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot);
       const setup = clientesFiltrados
