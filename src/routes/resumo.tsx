@@ -84,12 +84,10 @@ function ResumoPage() {
     return true;
   };
 
-  // Receita do cliente no ciclo: usa receitaMensalClienteEm quando há
-  // vencimento na competência; caso contrário (1ª cobrança cai depois),
-  // atribui a recorrência padrão ao ciclo em que o cliente esteve ativo.
+  // Receita do cliente no ciclo: snapshot SEMPRE no último dia do ciclo,
+  // de modo que upgrades/downgrades feitos durante o mês sejam incorporados
+  // (a cobrança subsequente já reflete o novo estado).
   const receitaCicloCliente = (c: typeof clientes[number], y: number, m: number): number => {
-    const venc = obterVencimentoDaCompetencia(c, y, m, planos);
-    if (venc) return receitaMensalClienteEm(c, planos, custos, movimentos, y, m);
     if (!clienteAtivoNoCiclo(c, y, m)) return 0;
     const fim = new Date(y, m + 1, 0);
     const snap = clienteSnapshotAt(c, movimentos, fim.toISOString().slice(0, 10));
