@@ -1,42 +1,30 @@
-## Diagnóstico
+## Análise
 
-No "Fechamento Mensal" de **junho/2026** (que fecha o ciclo de **maio**), a receita da Zayn aparece igual à de maio mesmo tendo havido um upgrade em **11/05/2026**.
+Levantei todos os movimentos de `upgrade`/`downgrade` no banco e cruzei com `data_vencimento` de cada cliente para identificar quais sofriam o mesmo bug (snapshot tirado no vencimento do início do ciclo, ignorando alterações feitas depois).
 
-Causa confirmada no banco:
-- Zayn: `data_vencimento = 05/03/2026` (dia 5), upgrade em `11/05/2026`.
-- Fluxo atual em `src/routes/resumo.tsx → receitaCicloCliente(c, cy=2026, cm=4)`:
-  1. Chama `obterVencimentoDaCompetencia(c, 2026, 4)` → retorna **05/05/2026** (vencimento de maio).
-  2. Chama `receitaMensalClienteEm`, que internamente faz `clienteSnapshotAt(c, movimentos, "2026-05-05")`.
-  3. `clienteSnapshotAt` **reverte** todo movimento com `data > "2026-05-05"`. O upgrade de **11/05** é posterior → é revertido.
-  4. Resultado: snapshot ignora o upgrade e a receita do fechamento sai igual à de maio.
+| Data movimento | Cliente | Tipo | Dia venc. | Ciclo afetado | Bug antes do fix? | Corrigido pelo fix atual? |
+|---|---|---|---|---|---|---|
+| 07/03/2026 | Instituto Murilo Fischer | downgrade | 05 | mar → fechamento abr | Sim | Sim |
+| 11/03/2026 | Instituto Murilo Fischer | upgrade | 05 | mar → fechamento abr | Sim | Sim |
+| 20/03/2026 | Instituto Murilo Fischer | downgrade | 05 | mar → fechamento abr | Sim | Sim |
+| 08/04/2026 | Instituto Murilo Fischer | upgrade | 05 | abr → fechamento mai | Sim | Sim |
+| 13/04/2026 | INTEP's Treinamentos | upgrade | 05 | abr → fechamento mai | Sim | Sim |
+| 15/04/2026 | Majestic Transplante Capilar | upgrade | 05 | abr → fechamento mai | Sim | Sim |
+| 28/04/2026 | Instituto Murilo Fischer | upgrade | 05 | abr → fechamento mai | Sim | Sim |
+| 11/05/2026 | ZAYN CLINICA LTDA | upgrade | 05 | mai → fechamento jun | Sim | Sim |
 
-Conceitualmente, o fechamento de junho representa o que será faturado na cobrança de junho (05/06), e essa cobrança já incorpora todas as alterações feitas durante o ciclo de maio. A data de snapshot precisa ser o **fim do ciclo fechado**, não o vencimento do início do ciclo.
+**Padrão:** todos os 8 movimentos ocorrem **após** o `data_vencimento` (dia 5) do mês em que aconteceram. Antes do fix aplicado em `receitaCicloCliente`, o snapshot era tirado no dia 5 e qualquer alteração posterior era revertida — então **todos** estavam exibindo no fechamento o valor antigo, igual ao mês anterior.
 
-## Correção
+**Após o fix** (snapshot no último dia do ciclo, `new Date(y, m+1, 0)`), os 8 casos passam a refletir corretamente o plano/configuração vigente no fim do mês, e a cobrança subsequente bate com o fechamento.
 
-### `src/routes/resumo.tsx`
+## Recomendação
 
-Reescrever `receitaCicloCliente` para sempre tirar o snapshot no **último dia do ciclo** (capturando upgrades/downgrades feitos durante o mês), em vez de delegar para `receitaMensalClienteEm` (que snapshotaria no vencimento do início do ciclo).
+Nenhuma alteração de código adicional é necessária — o fix já cobre 100% dos casos identificados no banco. Sugestão de validação manual no app:
 
-```ts
-const receitaCicloCliente = (c, y, m) => {
-  // Cliente precisa ter estado ativo em algum dia do ciclo
-  if (!clienteAtivoNoCiclo(c, y, m)) return 0;
-  const fimCiclo = new Date(y, m + 1, 0);
-  const snap = clienteSnapshotAt(c, movimentos, fimCiclo.toISOString().slice(0, 10));
-  return receitaMensalCliente(snap, planos, custos);
-};
-```
+1. Abrir **Fechamento Mensal de abril/2026** e conferir Instituto Murilo Fischer (deve refletir os 3 movimentos de março: downgrade 07, upgrade 11, downgrade 20 — valor final = estado em 31/03).
+2. Abrir **Fechamento de maio/2026** e conferir IMF, INTEP's, Majestic (valor = estado em 30/04).
+3. Abrir **Fechamento de junho/2026** e conferir Zayn (já validado).
 
-Com isso, no fechamento de junho a snapshot da Zayn é tirada em 31/05/2026, o upgrade de 11/05 permanece aplicado, e a receita reflete o novo plano.
+## Observação (opcional, fora deste escopo)
 
-### Validação
-
-- Zayn no fechamento de junho/2026 deve mostrar receita maior que em maio, refletindo o upgrade de 11/05.
-- DISTRIBOX (setup 01/06) continua fora do fechamento de junho.
-- Camila/Érico/Max Glam continuam aparecendo no fechamento de junho.
-- A coluna "Receita" do histórico mensal (linhas 213 e 775) continua usando `receitaMensalClienteEm` para casos onde se quer especificamente "o que foi cobrado naquele vencimento"; avaliar se também deve ser trocado para consistência — proposta: trocar para `receitaCicloCliente` aplicado ao mês da linha, de modo que o histórico bata com o fechamento.
-
-### Observação
-
-`receitaMensalClienteEm` em `src/lib/store.ts` continua existindo e pode seguir sendo usada por outros consumidores que de fato querem "snapshot no vencimento". Não vamos alterá-la nesta correção.
+A coluna "Receita" do **histórico mensal** (linhas 213 e 775 em `src/routes/resumo.tsx`) ainda usa `receitaMensalClienteEm`, que snapshota no vencimento. Isso significa que o histórico mensal pode divergir do fechamento mensal nos meses em que houve upgrade/downgrade após o vencimento. Se quiser que histórico e fechamento batam exatamente, posso trocar essa coluna para usar `receitaCicloCliente` também — me avise se quer que eu inclua essa alteração.
