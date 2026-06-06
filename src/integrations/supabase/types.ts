@@ -520,7 +520,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      bootstrap_admin_if_empty: { Args: { _email: string }; Returns: undefined }
+      bootstrap_admin_if_empty: { Args: never; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
