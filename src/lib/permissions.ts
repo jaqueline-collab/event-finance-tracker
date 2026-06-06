@@ -47,8 +47,8 @@ export function useCurrentUserAccess(): CurrentUserAccess {
       setLoading(false);
       return;
     }
-    // Bootstrap (no-op if já existe algum admin)
-    await (supabase as any).rpc("bootstrap_admin_if_empty", { _email: mail });
+    // Bootstrap (no-op if já existe algum admin). Usa identidade do JWT no servidor.
+    await (supabase as any).rpc("bootstrap_admin_if_empty");
     const { data: userRow } = await (supabase as any)
       .from("app_users")
       .select("is_admin")
