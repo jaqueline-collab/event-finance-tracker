@@ -49,6 +49,7 @@ export type Database = {
           id: string
           invited_by: string | null
           is_admin: boolean
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -57,6 +58,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           is_admin?: boolean
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -65,6 +67,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           is_admin?: boolean
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -518,7 +521,7 @@ export type Database = {
     }
     Functions: {
       bootstrap_admin_if_empty: { Args: { _email: string }; Returns: undefined }
-      is_admin_email: { Args: { _email: string }; Returns: boolean }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
