@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  useStore, formatBRL, receitaMensalCliente, receitaMensalClienteEm,
+  useStore, formatBRL, receitaCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
@@ -84,15 +84,9 @@ function ResumoPage() {
     return true;
   };
 
-  // Receita do cliente no ciclo: snapshot SEMPRE no último dia do ciclo,
-  // de modo que upgrades/downgrades feitos durante o mês sejam incorporados
-  // (a cobrança subsequente já reflete o novo estado).
-  const receitaCicloCliente = (c: typeof clientes[number], y: number, m: number): number => {
-    if (!clienteAtivoNoCiclo(c, y, m)) return 0;
-    const fim = new Date(y, m + 1, 0);
-    const snap = clienteSnapshotAt(c, movimentos, fim.toISOString().slice(0, 10));
-    return receitaMensalCliente(snap, planos, custos);
-  };
+  // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
+  const receitaCicloLocal = (c: typeof clientes[number], y: number, m: number): number =>
+    receitaCicloCliente(c, planos, custos, movimentos, y, m);
 
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
@@ -124,7 +118,7 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const receita = ativos.reduce((s, c) => s + receitaCicloCliente(c, y, m), 0);
+      const receita = ativos.reduce((s, c) => s + receitaCicloLocal(c, y, m), 0);
       // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
         const venc = obterVencimentoDaCompetencia(c, y, m, planos);
@@ -208,7 +202,7 @@ function ResumoPage() {
             parceiro?.nome ?? "—",
             formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1, planos)),
             c.dataChurn ? "Churn" : "Ativo",
-          formatBRL(receitaMensalClienteEm(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
+          formatBRL(receitaCicloCliente(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
           ];
         }),
         styles: { fontSize: 9, cellPadding: 6 },
@@ -266,7 +260,7 @@ function ResumoPage() {
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
       const snap = clienteSnapshotAt(c, movimentos, refSnap);
-      const receita = receitaCicloCliente(c, cy, cm);
+      const receita = receitaCicloLocal(c, cy, cm);
       const acomp = snap.valorAcompanhamento || 0;
       const sistema = Math.max(0, receita - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
@@ -770,7 +764,7 @@ function ResumoPage() {
                                 {l.ativos.map((c) => {
                                   const plano = planos.find((p) => p.id === c.planoId);
                                   const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-                                  const rec = receitaMensalClienteEm(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
+                                  const rec = receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
                                   return (
                                     <tr key={c.id} className="border-b border-border/20 last:border-0">
                                       <td className="py-1.5 font-medium">{c.nome}</td>
