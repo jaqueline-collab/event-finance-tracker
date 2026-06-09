@@ -2,6 +2,49 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Cliente, CustoBase, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
 import { supabase } from "./supabaseClient";
+import {
+  mapPlanoToDb,
+  mapDbToPlano,
+  mapParceiroToDb,
+  mapDbToParceiro,
+  mapClienteToDb,
+  mapDbToCliente,
+  mapDbToMovimento,
+  mapFinanceiroToDb,
+  mapDbToFinanceiro,
+} from "./mappers";
+import { normalizarDataVencimento } from "./calc/datas";
+
+// Re-exports para retro-compatibilidade dos consumidores que importam de @/lib/store.
+export { formatBRL } from "./calc/format";
+export {
+  parseDiaVencimento,
+  formatDiaVencimento,
+  getDiaVencimentoEfetivo,
+  normalizarDataVencimento,
+  obterVencimentoDaCompetencia,
+  clienteAtivoEm,
+  clienteSnapshotAt,
+} from "./calc/datas";
+export {
+  calcularCustoExtraCanaisHelena,
+  calcularCustoExtraUsuariosHelena,
+  calcularCustoExtraContatosHelena,
+  calcularCustoBrutoHelena,
+  calcularDescontoEscalaHelena,
+  calcularCustoLiquidoHelena,
+} from "./calc/helena";
+export {
+  receitaMensalCliente,
+  receitaMensalClienteEm,
+  receitaCicloCliente,
+  clienteFaturaEm,
+  receitaMensalTotal,
+  receitaSistemaCliente,
+  receitaSistemaTotal,
+  faturamentoAcumuladoCliente,
+} from "./calc/receita";
+export { custoMensalCliente } from "./calc/custo";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
