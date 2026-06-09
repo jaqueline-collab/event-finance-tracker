@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   useStore,
   formatBRL,
-  receitaMensalClienteEm,
+  receitaCicloCliente,
   clienteFaturaEm,
   obterVencimentoDaCompetencia,
 } from "@/lib/store";
@@ -102,7 +102,7 @@ function FinanceiroPage() {
           );
           if (jaExiste) continue;
           const total = grupo.reduce(
-            (s, c) => s + receitaMensalClienteEm(c, planos, custos, movimentos, y, m),
+            (s, c) => s + receitaCicloCliente(c, planos, custos, movimentos, y, m),
             0,
           );
           // Critério: vencimento no MESMO mês da competência (já é o dia real).
