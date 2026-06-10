@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Cliente, CustoBase, LancamentoFinanceiro, Movimento, Parceiro, Plano } from "./types";
-import { supabase } from "./supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import {
   mapPlanoToDb,
   mapDbToPlano,

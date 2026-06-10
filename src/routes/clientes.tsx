@@ -1068,8 +1068,16 @@ function ClientesPage() {
                         <p className="text-sm font-medium">{parceiro?.nome ?? "Sem parceiro"}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">MRR (Faturamento)</p>
+                        <p className="text-xs text-muted-foreground">MRR Total</p>
                         <p className="text-sm font-bold text-primary">{formatBRL(receitaMensalCliente(cliente, planos, custos))}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">MRR Sistema</p>
+                        <p className="text-sm font-bold text-muted-foreground">{formatBRL(receitaSistemaCliente(cliente, planos, custos))}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">MRR Consultoria</p>
+                        <p className="text-sm font-bold text-muted-foreground">{formatBRL(cliente.valorAcompanhamento || 0)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Faturamento acumulado</p>
@@ -1093,51 +1101,25 @@ function ClientesPage() {
 
                   {/* Pacote Atual */}
                   {(() => {
-                    // Reconstruir estado atual aplicando movimentos em ordem cronológica
+                    const planoAtual = planos.find((p) => p.id === cliente.planoId);
+
+                    // Reconstruir estado atual:
+                    // Os recursos exibidos são sempre o MAIOR entre o que o plano oferece
+                    // e o valor absoluto salvo no cliente (que já contém a soma dos upgrades/downgrades).
                     let estadoAtual = {
                       planoId: cliente.planoId,
-                      canaisWhats: cliente.canaisWhats ?? cliente.canaisZapi ?? 0,
-                      canaisInsta: cliente.canaisInsta ?? 0,
-                      canaisMessenger: cliente.canaisMessenger ?? 0,
-                      usuariosAtivos: cliente.usuariosAtivos ?? 0,
-                      contatosAtivos: cliente.contatosAtivos ?? 0,
-                      agentesIA: cliente.agentesIA ?? false,
-                      asaas: cliente.asaas ?? false,
-                      zapi: cliente.zapi ?? false,
-                      transcricaoIA: cliente.transcricaoIA ?? false,
+                      canaisWhats: Math.max(planoAtual?.canaisWhatsInclusos ?? 0, cliente.canaisWhats ?? cliente.canaisZapi ?? 0),
+                      canaisInsta: Math.max(planoAtual?.canaisInstaInclusos ?? 0, cliente.canaisInsta ?? 0),
+                      canaisMessenger: Math.max(planoAtual?.canaisMessengerInclusos ?? 0, cliente.canaisMessenger ?? 0),
+                      usuariosAtivos: Math.max(planoAtual?.usuariosInclusos ?? 3, cliente.usuariosAtivos ?? 0),
+                      contatosAtivos: Math.max(planoAtual?.contatosInclusos ?? 500, cliente.contatosAtivos ?? 0),
+                      agentesIA: cliente.agentesIA || (planoAtual?.incluiIA ?? false),
+                      asaas: cliente.asaas || (planoAtual?.incluiAsaas ?? false),
+                      zapi: cliente.zapi || ((planoAtual?.incluiZapi ?? 0) > 0),
+                      transcricaoIA: cliente.transcricaoIA || (planoAtual?.incluiTranscricao ?? false),
                     };
 
-                    const movsOrdenados = movimentos
-                      .filter((m) => m.clienteId === cliente.id)
-                      .sort((a, b) => a.data.localeCompare(b.data));
-
-                    movsOrdenados.forEach((m) => {
-                      if (m.planoId) estadoAtual.planoId = m.planoId;
-                      const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
-                      if (isDelta) {
-                        if (m.canaisWhats !== undefined) estadoAtual.canaisWhats += m.canaisWhats;
-                        if (m.canaisInsta !== undefined) estadoAtual.canaisInsta += m.canaisInsta;
-                        if (m.canaisMessenger !== undefined) estadoAtual.canaisMessenger += m.canaisMessenger;
-                        if (m.usuariosAtivos !== undefined) estadoAtual.usuariosAtivos += m.usuariosAtivos;
-                        if (m.contatosAtivos !== undefined) estadoAtual.contatosAtivos += m.contatosAtivos;
-                      } else {
-                        if (m.canaisWhats !== undefined) estadoAtual.canaisWhats = m.canaisWhats;
-                        if (m.canaisInsta !== undefined) estadoAtual.canaisInsta = m.canaisInsta;
-                        if (m.canaisMessenger !== undefined) estadoAtual.canaisMessenger = m.canaisMessenger;
-                        if (m.usuariosAtivos !== undefined) estadoAtual.usuariosAtivos = m.usuariosAtivos;
-                        if (m.contatosAtivos !== undefined) estadoAtual.contatosAtivos = m.contatosAtivos;
-                      }
-                      if (m.agentesIA !== undefined) estadoAtual.agentesIA = m.agentesIA;
-                      if (m.asaas !== undefined) estadoAtual.asaas = m.asaas;
-                      if (m.zapi !== undefined) estadoAtual.zapi = m.zapi;
-                      if (m.transcricaoIA !== undefined) estadoAtual.transcricaoIA = m.transcricaoIA;
-                    });
-
-                    const planoAtual = planos.find((p) => p.id === estadoAtual.planoId);
-                    // Usar o MAU do plano como mínimo (se o cliente tem 0, é porque nunca foi alterado)
-                    const mauExibido = estadoAtual.contatosAtivos > 0
-                      ? estadoAtual.contatosAtivos
-                      : (planoAtual?.contatosInclusos ?? 500);
+                    const mauExibido = estadoAtual.contatosAtivos;
 
                     return (
                       <div>
