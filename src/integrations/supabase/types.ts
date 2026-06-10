@@ -522,6 +522,7 @@ export type Database = {
     Functions: {
       bootstrap_admin_if_empty: { Args: never; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
+      link_app_user: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
