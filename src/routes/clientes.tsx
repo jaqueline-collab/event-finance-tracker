@@ -1090,38 +1090,94 @@ function ClientesPage() {
                     </div>
                   </div>
 
+
                   {/* Pacote Atual */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pacote Atual de Recursos</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border border-border/40 p-4 rounded-xl">
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Canais WhatsApp (Z-API)</p>
-                        <p className="text-sm font-semibold text-foreground">{(cliente.canaisWhats !== undefined ? cliente.canaisWhats : (cliente.canaisZapi || 0))} canais</p>
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Outros Canais</p>
-                        <p className="text-sm font-semibold text-foreground">{cliente.canaisInsta || 0} Insta | {cliente.canaisMessenger || 0} Msg</p>
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Usuários Ativos</p>
-                        <p className="text-sm font-semibold text-foreground">{cliente.usuariosAtivos || 0} SDR / Agentes</p>
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Contatos / MAU</p>
-                        <p className="text-sm font-semibold text-foreground">{cliente.contatosAtivos || 0} inclusos</p>
-                      </div>
-                      <div className="space-y-0.5 col-span-2 sm:col-span-2">
-                        <p className="text-xs text-muted-foreground">Módulos Extras Ativos</p>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {cliente.agentesIA && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Agentes IA</Badge>}
-                          {cliente.asaas && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">ASAAS</Badge>}
-                          {cliente.zapi && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Z-API WhatsApp</Badge>}
-                          {cliente.transcricaoIA && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Transcrição de Áudio com IA</Badge>}
-                          {!cliente.agentesIA && !cliente.asaas && !cliente.zapi && !cliente.transcricaoIA && <span className="text-xs text-muted-foreground">—</span>}
+                  {(() => {
+                    // Reconstruir estado atual aplicando movimentos em ordem cronológica
+                    let estadoAtual = {
+                      planoId: cliente.planoId,
+                      canaisWhats: cliente.canaisWhats ?? cliente.canaisZapi ?? 0,
+                      canaisInsta: cliente.canaisInsta ?? 0,
+                      canaisMessenger: cliente.canaisMessenger ?? 0,
+                      usuariosAtivos: cliente.usuariosAtivos ?? 0,
+                      contatosAtivos: cliente.contatosAtivos ?? 0,
+                      agentesIA: cliente.agentesIA ?? false,
+                      asaas: cliente.asaas ?? false,
+                      zapi: cliente.zapi ?? false,
+                      transcricaoIA: cliente.transcricaoIA ?? false,
+                    };
+
+                    const movsOrdenados = movimentos
+                      .filter((m) => m.clienteId === cliente.id)
+                      .sort((a, b) => a.data.localeCompare(b.data));
+
+                    movsOrdenados.forEach((m) => {
+                      if (m.planoId) estadoAtual.planoId = m.planoId;
+                      const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
+                      if (isDelta) {
+                        if (m.canaisWhats !== undefined) estadoAtual.canaisWhats += m.canaisWhats;
+                        if (m.canaisInsta !== undefined) estadoAtual.canaisInsta += m.canaisInsta;
+                        if (m.canaisMessenger !== undefined) estadoAtual.canaisMessenger += m.canaisMessenger;
+                        if (m.usuariosAtivos !== undefined) estadoAtual.usuariosAtivos += m.usuariosAtivos;
+                        if (m.contatosAtivos !== undefined) estadoAtual.contatosAtivos += m.contatosAtivos;
+                      } else {
+                        if (m.canaisWhats !== undefined) estadoAtual.canaisWhats = m.canaisWhats;
+                        if (m.canaisInsta !== undefined) estadoAtual.canaisInsta = m.canaisInsta;
+                        if (m.canaisMessenger !== undefined) estadoAtual.canaisMessenger = m.canaisMessenger;
+                        if (m.usuariosAtivos !== undefined) estadoAtual.usuariosAtivos = m.usuariosAtivos;
+                        if (m.contatosAtivos !== undefined) estadoAtual.contatosAtivos = m.contatosAtivos;
+                      }
+                      if (m.agentesIA !== undefined) estadoAtual.agentesIA = m.agentesIA;
+                      if (m.asaas !== undefined) estadoAtual.asaas = m.asaas;
+                      if (m.zapi !== undefined) estadoAtual.zapi = m.zapi;
+                      if (m.transcricaoIA !== undefined) estadoAtual.transcricaoIA = m.transcricaoIA;
+                    });
+
+                    const planoAtual = planos.find((p) => p.id === estadoAtual.planoId);
+                    // Usar o MAU do plano como mínimo (se o cliente tem 0, é porque nunca foi alterado)
+                    const mauExibido = estadoAtual.contatosAtivos > 0
+                      ? estadoAtual.contatosAtivos
+                      : (planoAtual?.contatosInclusos ?? 500);
+
+                    return (
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pacote Atual de Recursos</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border border-border/40 p-4 rounded-xl">
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Plano Atual</p>
+                            <p className="text-sm font-semibold text-foreground">{planoAtual?.nome ?? plano?.nome ?? "—"}</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Canais WhatsApp (Z-API)</p>
+                            <p className="text-sm font-semibold text-foreground">{estadoAtual.canaisWhats} {estadoAtual.canaisWhats === 1 ? "canal" : "canais"}</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Outros Canais</p>
+                            <p className="text-sm font-semibold text-foreground">{estadoAtual.canaisInsta} Insta | {estadoAtual.canaisMessenger} Msg</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Usuários Ativos</p>
+                            <p className="text-sm font-semibold text-foreground">{estadoAtual.usuariosAtivos} {estadoAtual.usuariosAtivos === 1 ? "usuário" : "usuários"}</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Contatos / MAU</p>
+                            <p className="text-sm font-semibold text-foreground">{mauExibido.toLocaleString("pt-BR")} contatos</p>
+                          </div>
+                          <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                            <p className="text-xs text-muted-foreground">Módulos Extras Ativos</p>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {estadoAtual.agentesIA && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Agentes IA</Badge>}
+                              {estadoAtual.asaas && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">ASAAS</Badge>}
+                              {estadoAtual.zapi && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Z-API WhatsApp</Badge>}
+                              {estadoAtual.transcricaoIA && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Transcrição IA</Badge>}
+                              {!estadoAtual.agentesIA && !estadoAtual.asaas && !estadoAtual.zapi && !estadoAtual.transcricaoIA && <span className="text-xs text-muted-foreground">—</span>}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
+
 
                   {/* Histórico / Linha do Tempo */}
                   <div>
