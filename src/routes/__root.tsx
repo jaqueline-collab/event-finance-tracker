@@ -167,22 +167,22 @@ function RootComponent() {
   // Rota da landing: não renderiza shell do app
   const isLanding = pathname === "/";
 
+  // Landing pública: renderiza imediatamente sem esperar checagem de sessão
+  if (isLanding) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
   if (checking) {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
           Carregando...
         </div>
-      </QueryClientProvider>
-    );
-  }
-
-  // Landing pública sempre acessível, sem shell do app
-  if (isLanding) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Outlet />
-        <Toaster />
       </QueryClientProvider>
     );
   }
