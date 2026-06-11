@@ -6,6 +6,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -127,6 +128,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const syncFromSupabase = useStore((state) => state.syncFromSupabase);
   const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
 
@@ -161,7 +163,6 @@ function RootComponent() {
     };
   }, []);
 
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
   // Rotas públicas: landing e fluxo de auth
   const isPublicRoute = pathname === "/" || pathname.startsWith("/auth");
   // Rota da landing: não renderiza shell do app
