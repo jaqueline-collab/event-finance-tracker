@@ -550,7 +550,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
           <div className="flex items-center gap-2">
-            <PawLogo className="h-8 w-8 text-landing-yellow" />
+            <PawLogo className="h-6 w-6 text-white" />
             <span
               className="text-white font-bold tracking-tight text-lg"
               style={{ fontFamily: "var(--font-display)" }}
