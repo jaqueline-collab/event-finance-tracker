@@ -655,61 +655,28 @@ function ResumoPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border/60 bg-muted/10">
-        <div className="flex flex-col gap-1 min-w-[160px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Tipo</Label>
-          <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as "todos" | "elora" | "consultoria")}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="elora">Plano Elora</SelectItem>
-              <SelectItem value="consultoria">Consultoria</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 min-w-[180px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Plano</Label>
-          <Select value={filtroPlano} onValueChange={setFiltroPlano}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os planos</SelectItem>
-              {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 min-w-[180px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Parceiro</Label>
-          <Select value={filtroParceiro} onValueChange={setFiltroParceiro}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os parceiros</SelectItem>
-              {parceiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 min-w-[180px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Vencimento</Label>
-          <Select value={filtroVencimento} onValueChange={setFiltroVencimento}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os vencimentos</SelectItem>
-              {diasDisponiveis.map((d) => (
-                <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {(filtroPlano !== "todos" || filtroParceiro !== "todos" || filtroVencimento !== "todos" || filtroTipo !== "todos") && (
-          <div className="flex items-end">
-            <button
-              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); setFiltroVencimento("todos"); setFiltroTipo("todos"); }}
-              className="text-xs text-muted-foreground hover:text-foreground underline h-8"
-            >
-              Limpar filtros
-            </button>
-          </div>
-        )}
-        <div className="flex flex-col gap-1 min-w-[200px]">
+      <FilterBar
+        fields={[
+          {
+            key: "tipo",
+            label: "Tipo",
+            type: "multi",
+            options: [
+              { value: "elora", label: "Plano Elora" },
+              { value: "consultoria", label: "Consultoria" },
+            ],
+          },
+          { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "vencimento", label: "Vencimento", type: "multi", options: diasDisponiveis.map((d) => ({ value: String(d), label: `Dia ${d}` })) },
+        ] as FilterFieldDef[]}
+        value={filtros}
+        onChange={setFiltros}
+      />
+
+      {/* Ação: Gerar fechamento */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1 min-w-[220px]">
           <Label className="text-xs text-muted-foreground">Gerar Fechamento</Label>
           <div className="flex gap-2">
             <Select value={fechamentoMes} onValueChange={setFechamentoMes}>
