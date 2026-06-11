@@ -498,10 +498,18 @@ function Footer() {
     <footer id="contato" className="bg-landing-dark-2 text-white/80 py-14 px-6 border-t border-white/10">
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
-          <div className="flex items-center gap-2 leading-none">
-            <PawLogo className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
+          <div className="relative inline-flex items-end leading-none">
+            <img
+              src={catReaching.url}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width={96}
+              height={96}
+              className="h-20 w-20 object-contain -mr-3 -mb-1 select-none pointer-events-none"
+            />
             <span
-              className="text-white font-bold tracking-tight text-lg"
+              className="text-white font-bold tracking-tight text-3xl"
               style={{ fontFamily: "var(--font-display)" }}
             >
               EloraCRM
