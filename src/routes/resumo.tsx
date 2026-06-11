@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Eye, FileText, TrendingUp, TrendingDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +40,8 @@ function ResumoPage() {
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [fechamentoMes, setFechamentoMes] = useState<string>(currentKey);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
   const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [observacaoPdf, setObservacaoPdf] = useState("");
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
