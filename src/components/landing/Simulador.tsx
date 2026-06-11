@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Minus, Plus, Sparkles } from "lucide-react";
+import { Minus, Plus, Sparkles, Crown } from "lucide-react";
 import {
   ADICIONAIS_VITRINE,
   PLANOS_VITRINE,
@@ -58,17 +58,37 @@ function Stepper({
 }
 
 export function Simulador() {
-  const [planoKey, setPlanoKey] = useState<PlanoVitrineKey>("escala");
-  const [usuariosExtras, setUsuariosExtras] = useState(0);
+  const [usuarios, setUsuarios] = useState(3);
   const [whatsOficial, setWhatsOficial] = useState(0);
-  const [whatsNaoOficial, setWhatsNaoOficial] = useState(0);
+  const [whatsNaoOficial, setWhatsNaoOficial] = useState(1);
   const [instagram, setInstagram] = useState(0);
   const [messenger, setMessenger] = useState(0);
   const [modIA, setModIA] = useState(false);
   const [modAsaas, setModAsaas] = useState(false);
   const [modTranscricao, setModTranscricao] = useState(false);
+  const [planoManual, setPlanoManual] = useState<PlanoVitrineKey | null>(null);
 
+  // Recomenda o melhor plano com base no que o usuário preencheu.
+  const recomendado = useMemo<PlanoVitrineKey>(() => {
+    const canais = whatsOficial + whatsNaoOficial + instagram + messenger;
+    const usaInstaOuMsg = instagram > 0 || messenger > 0;
+    if (usuarios > 5 || canais > 2 || (instagram > 0 && messenger > 0)) {
+      return "corporativo";
+    }
+    if (usuarios > 3 || usaInstaOuMsg || modIA || canais > 1) {
+      return "escala";
+    }
+    return "essencial";
+  }, [usuarios, whatsOficial, whatsNaoOficial, instagram, messenger, modIA]);
+
+  // Limpa a escolha manual quando a recomendação muda — volta a "automático".
+  useEffect(() => {
+    setPlanoManual(null);
+  }, [recomendado]);
+
+  const planoKey = planoManual ?? recomendado;
   const plano = planoVitrine(planoKey);
+  const usuariosExtras = Math.max(0, usuarios - plano.usuariosInclusos);
 
   const breakdown = useMemo(() => {
     const linhas: { label: string; qtd?: number; unit?: number; total: number }[] = [];
@@ -148,56 +168,25 @@ export function Simulador() {
             Monte o seu pacote
           </h2>
           <p className="text-landing-muted mt-3 max-w-2xl mx-auto">
-            Escolha o plano, os canais e os módulos. O total atualiza em tempo real.
+            Diga o que você precisa — recomendamos o plano ideal e calculamos o valor em tempo real.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-[1fr_380px] gap-8">
           {/* Inputs */}
           <div className="bg-white rounded-2xl border border-landing-border p-6 md:p-8 space-y-8">
-            {/* Plano base */}
-            <div>
-              <Label className="text-landing-fg text-sm font-semibold uppercase tracking-wide">
-                1. Plano base
-              </Label>
-              <div className="grid sm:grid-cols-3 gap-3 mt-3">
-                {PLANOS_VITRINE.map((p) => {
-                  const ativo = planoKey === p.key;
-                  return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => setPlanoKey(p.key)}
-                      className={`text-left rounded-xl border-2 p-4 transition-all ${
-                        ativo
-                          ? "border-landing-blue bg-landing-blue/5 shadow-md"
-                          : "border-landing-border bg-white hover:border-landing-blue/40"
-                      }`}
-                    >
-                      <div className="text-sm font-semibold text-landing-fg">{p.nome}</div>
-                      <div className="text-lg font-bold text-landing-blue mt-1">
-                        {formatBRL(p.mensal)}
-                      </div>
-                      <div className="text-[11px] text-landing-muted mt-1">
-                        {p.usuariosInclusos} usuários inclusos
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Usuários e canais */}
             <div>
               <Label className="text-landing-fg text-sm font-semibold uppercase tracking-wide">
-                2. Usuários e canais adicionais
+                1. Sua operação
               </Label>
               <div className="mt-2 divide-y divide-landing-border">
                 <Stepper
-                  label="Usuários adicionais"
-                  hint={`Inclusos: ${plano.usuariosInclusos} · ${formatBRL(ADICIONAIS_VITRINE.usuarioExtra)} cada extra`}
-                  value={usuariosExtras}
-                  onChange={setUsuariosExtras}
+                  label="Usuários no sistema"
+                  hint={`Plano ${plano.nome} inclui ${plano.usuariosInclusos} · extras ${formatBRL(ADICIONAIS_VITRINE.usuarioExtra)}/cada`}
+                  value={usuarios}
+                  min={1}
+                  onChange={setUsuarios}
                 />
                 <Stepper
                   label="WhatsApp Oficial (API Meta)"
@@ -229,7 +218,7 @@ export function Simulador() {
             {/* Módulos opcionais */}
             <div>
               <Label className="text-landing-fg text-sm font-semibold uppercase tracking-wide">
-                3. Módulos opcionais
+                2. Módulos opcionais
               </Label>
               <div className="mt-3 space-y-3">
                 <ToggleRow
@@ -252,15 +241,75 @@ export function Simulador() {
                 />
               </div>
             </div>
+
+            {/* Override manual do plano */}
+            <div>
+              <Label className="text-landing-fg text-sm font-semibold uppercase tracking-wide">
+                3. Plano (recomendamos automaticamente)
+              </Label>
+              <div className="grid sm:grid-cols-3 gap-3 mt-3">
+                {PLANOS_VITRINE.map((p) => {
+                  const ativo = planoKey === p.key;
+                  const ehRecomendado = recomendado === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => setPlanoManual(p.key)}
+                      className={`relative text-left rounded-xl border-2 p-4 transition-all ${
+                        ativo
+                          ? "border-landing-blue bg-landing-blue/5 shadow-md"
+                          : "border-landing-border bg-white hover:border-landing-blue/40"
+                      }`}
+                    >
+                      {ehRecomendado && (
+                        <span className="absolute -top-2 right-3 bg-landing-yellow text-landing-fg text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                          Recomendado
+                        </span>
+                      )}
+                      <div className="text-sm font-semibold text-landing-fg">{p.nome}</div>
+                      <div className="text-lg font-bold text-landing-blue mt-1">
+                        {formatBRL(p.mensal)}
+                      </div>
+                      <div className="text-[11px] text-landing-muted mt-1">
+                        {p.usuariosInclusos} usuários inclusos
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {planoManual && planoManual !== recomendado && (
+                <button
+                  type="button"
+                  onClick={() => setPlanoManual(null)}
+                  className="mt-2 text-xs text-landing-blue hover:underline"
+                >
+                  Voltar para o recomendado ({planoVitrine(recomendado).nome})
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Resumo */}
           <div className="lg:sticky lg:top-24 lg:self-start">
             <div className="bg-landing-dark text-white rounded-2xl p-6 md:p-7 border border-landing-dark shadow-xl">
               <div className="flex items-center gap-2 text-landing-yellow text-xs font-semibold uppercase tracking-widest">
-                <Sparkles className="h-4 w-4" /> Sua simulação
+                <Crown className="h-4 w-4" /> Plano recomendado
               </div>
-              <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
+              <div
+                className="mt-2 text-3xl font-bold text-white"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {plano.nome}
+              </div>
+              <div className="text-xs text-white/60 mt-1">
+                A partir de {formatBRL(plano.mensal)}/mês
+              </div>
+              <div className="h-px bg-white/15 my-5" />
+              <div className="flex items-center gap-2 text-white/80 text-[11px] font-semibold uppercase tracking-widest">
+                <Sparkles className="h-3.5 w-3.5" /> Detalhamento
+              </div>
+              <div className="mt-3 space-y-2 max-h-60 overflow-y-auto pr-1">
                 {breakdown.linhas.map((l, i) => (
                   <div key={i} className="flex items-start justify-between text-sm gap-3">
                     <div className="min-w-0">
