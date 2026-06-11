@@ -19,6 +19,7 @@ import { formatBRL } from "@/lib/calc/format";
 import { Simulador } from "@/components/landing/Simulador";
 import { PawLogo } from "@/components/landing/PawLogo";
 import { VideoIntro } from "@/components/landing/VideoIntro";
+import catReaching from "@/assets/cat-reaching.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
