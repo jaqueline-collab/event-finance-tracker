@@ -262,7 +262,7 @@ export function Simulador() {
                       }`}
                     >
                       {ehRecomendado && (
-                        <span className="absolute -top-2 right-3 bg-landing-yellow text-landing-fg text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                        <span className="absolute -top-2 right-3 bg-landing-blue text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
                           Recomendado
                         </span>
                       )}
