@@ -545,6 +545,33 @@ function ClientesPage() {
                   </div>
                 </div>
 
+                {/* Personalizar ciclo de faturamento */}
+                <div className="border-t border-border/40 pt-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="ciclo-pers"
+                      checked={form.cicloPersonalizado}
+                      onCheckedChange={(v) => setForm({ ...form, cicloPersonalizado: v })}
+                    />
+                    <Label htmlFor="ciclo-pers" className="text-sm cursor-pointer font-medium">
+                      Personalizar ciclo de faturamento
+                    </Label>
+                    <span className="text-[10px] text-muted-foreground">(sobrescreve o ciclo do plano)</span>
+                  </div>
+                  {form.cicloPersonalizado && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="mb-1.5 block text-xs font-semibold">Dia inicial do ciclo</Label>
+                        <Input type="number" min={1} max={31} placeholder="Ex: 1" value={form.cicloDiaInicial} onChange={(e) => setForm({ ...form, cicloDiaInicial: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="mb-1.5 block text-xs font-semibold">Dia final do ciclo</Label>
+                        <Input type="number" min={1} max={31} placeholder="Ex: 30" value={form.cicloDiaFinal} onChange={(e) => setForm({ ...form, cicloDiaFinal: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="border-t border-border/40 pt-4 space-y-4">
                   <h3 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase">Configuração de Recursos</h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
