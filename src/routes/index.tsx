@@ -299,52 +299,6 @@ function Funcionalidades() {
   );
 }
 
-/* ============================== ONBOARDING ============================== */
-const STEPS = [
-  { n: "01", title: "Kick-Off", desc: "Alinhamento dos próximos passos e maturidade." },
-  { n: "02", title: "Configurações", desc: "Criamos sua conta e conectamos os canais." },
-  { n: "03", title: "Conexões", desc: "Integrações com seus números e redes sociais." },
-  { n: "04", title: "Treinamento", desc: "Capacitação prática para a equipe usar bem." },
-  { n: "05", title: "Tira-dúvidas", desc: "Espaço aberto para resolver desafios reais." },
-];
-
-function Onboarding() {
-  return (
-    <section className="py-20 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Implantação
-          </span>
-          <h2
-            className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Fluxo de onboarding
-          </h2>
-        </div>
-        <div className="grid md:grid-cols-5 gap-4">
-          {STEPS.map((s) => (
-            <div
-              key={s.n}
-              className="rounded-2xl border border-landing-border p-5 bg-white relative"
-            >
-              <div
-                className="text-3xl font-bold text-landing-yellow"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {s.n}
-              </div>
-              <div className="text-base font-bold text-landing-fg mt-2">{s.title}</div>
-              <p className="text-xs text-landing-muted mt-1 leading-snug">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ============================== PLANOS ============================== */
 function Planos() {
   return (
