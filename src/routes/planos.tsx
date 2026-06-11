@@ -448,8 +448,17 @@ function PlanosPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-lg">{p.nome}</CardTitle>
-                    <p className="text-2xl font-bold text-primary mt-1">{formatBRL(p.valorMensal)}<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
-                    <p className="text-xs text-muted-foreground">Setup: {formatBRL(p.valorSetup)}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1 mb-1">
+                      <Badge variant={p.categoria === "consultoria" ? "default" : "secondary"} className="text-[10px] gap-1">
+                        {p.categoria === "consultoria" ? <><Briefcase className="h-3 w-3" /> Consultoria</> : <><Layers className="h-3 w-3" /> Elora</>}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">{p.cobranca === "unica" ? "Pagamento único" : "Recorrente"}</Badge>
+                      {p.duracaoValor && p.duracaoUnidade && (
+                        <Badge variant="outline" className="text-[10px]">{p.duracaoValor} {p.duracaoUnidade}</Badge>
+                      )}
+                    </div>
+                    <p className="text-2xl font-bold text-primary mt-1">{formatBRL(p.valorMensal)}<span className="text-sm font-normal text-muted-foreground">{p.cobranca === "unica" ? " total" : "/mês"}</span></p>
+                    {p.valorSetup > 0 && <p className="text-xs text-muted-foreground">Setup: {formatBRL(p.valorSetup)}</p>}
                   </div>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => startEdit(p)}><Pencil className="h-4 w-4" /></Button>
