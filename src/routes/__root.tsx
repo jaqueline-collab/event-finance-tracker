@@ -81,23 +81,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Ditós Control" },
-      { name: "description", content: "Event Finance Tracker is an application that manages event-based financial tracking, client status, and monthly results." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Ditós Control" },
-      { property: "og:description", content: "Event Finance Tracker is an application that manages event-based financial tracking, client status, and monthly results." },
+      { title: "EloraCRM — WhatsApp, Instagram e Messenger em um só lugar" },
+      { name: "description", content: "CRM com atendimento omnichannel, chatbot, disparo de mensagens e agentes de IA para WhatsApp, Instagram e Messenger." },
+      { property: "og:title", content: "EloraCRM — Atendimento, Vendas e Automação" },
+      { property: "og:description", content: "Plataforma completa: Central de Atendimento, Chatbot, Disparo de Mensagens, CRM e Agentes Inteligentes." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Ditós Control" },
-      { name: "twitter:description", content: "Event Finance Tracker is an application that manages event-based financial tracking, client status, and monthly results." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8a6702ad-895e-41e0-bec4-23ab7c995b64/id-preview-8d15da95--93154a4b-cc66-4f29-9b34-403413a228d7.lovable.app-1780157348566.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8a6702ad-895e-41e0-bec4-23ab7c995b64/id-preview-8d15da95--93154a4b-cc66-4f29-9b34-403413a228d7.lovable.app-1780157348566.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "EloraCRM" },
+      { name: "twitter:description", content: "Comunicação eficiente e escalável para impulsionar seu negócio." },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap",
       },
     ],
   }),
@@ -159,8 +161,21 @@ function RootComponent() {
     };
   }, []);
 
-  const isAuthRoute =
-    typeof window !== "undefined" && window.location.pathname.startsWith("/auth");
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  // Rotas públicas: landing e fluxo de auth
+  const isPublicRoute = pathname === "/" || pathname.startsWith("/auth");
+  // Rota da landing: não renderiza shell do app
+  const isLanding = pathname === "/";
+
+  // Landing pública: renderiza imediatamente sem esperar checagem de sessão
+  if (isLanding) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
 
   if (checking) {
     return (
@@ -173,7 +188,7 @@ function RootComponent() {
   }
 
   if (!session) {
-    if (!isAuthRoute && typeof window !== "undefined") {
+    if (!isPublicRoute && typeof window !== "undefined") {
       window.location.replace("/auth");
       return null;
     }

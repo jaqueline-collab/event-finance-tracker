@@ -46,9 +46,9 @@ function AuthCallback() {
 
         if (cancelled) return;
         // Limpa a URL pra não vazar tokens no histórico
-        window.history.replaceState({}, "", "/");
+        window.history.replaceState({}, "", "/dashboard");
         toast.success("Bem-vindo!");
-        navigate({ to: "/", replace: true });
+        navigate({ to: "/dashboard", replace: true });
       } catch (err) {
         if (cancelled) return;
         toast.error(traduzirErroAuth(err));

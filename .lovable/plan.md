@@ -1,118 +1,126 @@
-## Visão geral
+## Objetivo
 
-Quatro frentes, implementadas na ordem abaixo (cada uma depende da anterior para os cálculos baterem):
+Criar a landing page pública do **EloraCRM** em `/` com seções de marketing + simulador de preços interativo. O sistema atual (dashboard, clientes, planos, financeiro, etc.) passa a viver sob `/app/*` protegido pelo login existente. Apenas seu e-mail entra no sistema (regra atual mantida).
 
-1. Ciclo de faturamento no plano (data inicial, data final, dia de vencimento, flag proporcional)
-2. Ciclo personalizado por cliente
-3. Cálculo proporcional para movimentos no meio do ciclo (setup, upgrade, downgrade, churn)
-4. Bug do resumo mensal: considerar TODOS os movimentos dentro do ciclo
-5. Componente de filtros estilo Monday (Resumo + Clientes + Financeiro)
-
----
-
-## 1) Ciclo de faturamento no plano
-
-**Migration** adiciona em `elora_planos`:
-- `ciclo_dia_inicial` (int 1–31, default 1)
-- `ciclo_dia_final` (int 1–31, default 30) — entende-se "último dia do mês" quando = 31
-- `dia_vencimento` já existe; passa a ser o vencimento padrão do ciclo
-- `cobranca_proporcional` (bool, default false) — quando true, movimentos no meio do ciclo são proporcionais
-
-**UI em `planos.tsx`** (só aparece para categoria `elora`):
-- Seção "Ciclo de faturamento":
-  - Dia inicial / Dia final (selects 1–31)
-  - Dia de vencimento (já existe — fica nessa mesma seção)
-  - Switch: "Cobrar proporcionalmente para movimentos no meio do ciclo"
-
-## 2) Ciclo personalizado por cliente
-
-**Migration** em `elora_clientes`:
-- `ciclo_personalizado` (bool, default false)
-- `ciclo_dia_inicial` (int nullable)
-- `ciclo_dia_final` (int nullable)
-- (`dataVencimento` já existe e continua sobrescrevendo o do plano)
-
-**UI no formulário de cliente** (`clientes.tsx`):
-- Checkbox "Personalizar ciclo de faturamento"
-- Quando marcado: dia inicial + dia final + data de vencimento
-
-**Helper novo** `getCicloCliente(cliente, plano, ano, mes)` em `src/lib/calc/ciclo.ts`:
-- Retorna `{ inicio: Date, fim: Date, diaVencimento: number, proporcional: boolean }`
-- Prioridade: cliente personalizado > plano > default (1–30)
-
-## 3) Proporcionalidade
-
-Em `src/lib/calc/receita.ts`:
-- Nova função `receitaCicloClienteProporcional(cliente, planos, custos, movimentos, year, month)`:
-  - Pega o ciclo via `getCicloCliente`
-  - Se `proporcional = false` → comportamento atual (snapshot no fim do ciclo)
-  - Se `proporcional = true`:
-    - Identifica todos os movimentos do cliente dentro do ciclo
-    - Para cada "segmento" entre movimentos: calcula receita daquele snapshot × (dias_do_segmento / dias_no_ciclo)
-    - Soma os segmentos
-    - Setup novo cliente: se `dataInicio` cai no meio do ciclo, primeiro segmento começa a partir de `dataInicio`
-    - Churn: último segmento termina em `dataChurn`
-- `receitaCicloCliente` passa a delegar para a nova função
-
-## 4) Fix do bug — fechamento considera todos os movimentos do ciclo
-
-A regressão atual: `clienteSnapshotAt` reverte movimentos **após** uma data, mas o fechamento usa o último dia do mês civil, não o último dia do **ciclo**. Quando o ciclo termina antes do fim do mês (ex: cliente com ciclo 5→4), movimentos do mês civil entram no ciclo errado.
-
-**Correção:**
-- `receitaCicloCliente` passa a snapshotar no `fim` do ciclo retornado por `getCicloCliente` (não no último dia do mês civil)
-- `resumo.tsx` agrupa movimentos por ciclo do cliente (não por mês civil)
-- `clienteFaturaEm` e `obterVencimentoDaCompetencia` ganham parâmetro ciclo
-
-## 5) Filtros estilo Monday
-
-**Componente novo** `src/components/filter-bar.tsx`:
+## Estrutura de rotas
 
 ```text
-[+ Adicionar filtro ▼]  [Plano: Pro, Free ×]  [Data: Este mês ×]  [Status: Ativo ×]
+/                    → Landing (pública, SSR)
+/auth                → Login (existente, sem mudança)
+/app/                → Redireciona para /app/resumo
+/app/resumo          → resumo.tsx atual
+/app/clientes        → clientes.tsx atual
+/app/planos          → planos.tsx atual
+/app/financeiro      → financeiro.tsx atual
+/app/parceiros, /app/orcamentos, /app/usuarios → idem
 ```
 
-- API:
-  ```tsx
-  <FilterBar
-    fields={[
-      { key: 'plano', label: 'Plano', type: 'multi', options: planos },
-      { key: 'data', label: 'Data', type: 'dateRange' },
-      { key: 'status', label: 'Status', type: 'multi', options: [...] },
-      { key: 'parceiro', label: 'Parceiro', type: 'multi', options: parceiros },
-      { key: 'tipo', label: 'Tipo de plano', type: 'multi', options: ['elora','consultoria'] },
-    ]}
-    value={filters}
-    onChange={setFilters}
-  />
-  ```
-- `type: 'multi'` → popover com checkboxes + busca
-- `type: 'dateRange'` → presets ("Hoje", "Este mês", "Mês passado", "Este ano", "Personalizado") + 2 date pickers
-- Cada filtro vira um chip removível; clique no chip reabre o popover
-- Filtros se acumulam com AND
+Os arquivos atuais de rota são movidos para `src/routes/_authenticated/app.*.tsx`, ficando protegidos pelo layout `_authenticated` gerenciado pela integração (já redireciona para `/auth` quando não logado). A sidebar passa a apontar para `/app/...`.
 
-**Aplicar em:**
-- `resumo.tsx` — substitui os filtros atuais (mantém comportamento de "filtroTipo" como um dos filtros)
-- `clientes.tsx` — substitui busca/filtros atuais (mantém o input de busca por nome separado)
-- `financeiro.tsx` — substitui os filtros atuais
+## Identidade visual
 
-## Detalhes técnicos
+Paleta solicitada: **preto, branco, amarelo, azul**. Tokens semânticos em `src/styles.css`:
 
-- **Migrations:**
-  - `add_ciclo_faturamento_plano.sql` — colunas em `elora_planos`
-  - `add_ciclo_personalizado_cliente.sql` — colunas em `elora_clientes`
-- **Tipos** (`src/lib/types.ts`):
-  - `Plano`: `cicloDiaInicial`, `cicloDiaFinal`, `cobrancaProporcional`
-  - `Cliente`: `cicloPersonalizado`, `cicloDiaInicial`, `cicloDiaFinal`
-- **Mappers** (`src/lib/mappers.ts`): persistência dos novos campos
-- **Novo arquivo** `src/lib/calc/ciclo.ts`: `getCicloCliente`, `diasNoCiclo`, `interseccaoComCiclo`
-- **Atualizar** `src/lib/calc/receita.ts`: `receitaCicloCliente` reescrita para considerar ciclo configurável + proporcionalidade
-- **Atualizar** `src/lib/calc/datas.ts`: `clienteFaturaEm` usa ciclo configurável
-- **Novo componente** `src/components/filter-bar.tsx` + tipos compartilhados
-- Substituir filtros em `resumo.tsx`, `clientes.tsx`, `financeiro.tsx`
+- `--background: #ffffff` / `--foreground: #0a0a0a`
+- `--primary: #1d4ed8` (azul forte) / `--primary-foreground: #ffffff`
+- `--accent: #facc15` (amarelo vivo) / `--accent-foreground: #0a0a0a`
+- `--surface-dark: #0a0a0a` para seções escuras (hero, stats, footer)
+- Gradientes utilitários: `--gradient-hero` (azul→preto), `--shadow-bold` (sombra amarela suave para CTAs em destaque)
+- Tipografia: heading **Space Grotesk** (bold/black), body **Inter** — peso forte, vibe SaaS moderno
 
-## Riscos / decisões automáticas
+Composição: hero escuro com texto branco + acentos amarelos nos CTAs principais; seções claras intercaladas (stats, features, planos) com azul como cor de ação e amarelo como destaque pontual.
 
-- **Default ciclo:** dia 1 → último dia do mês (mantém comportamento atual)
-- **Default proporcional:** false (não muda contas existentes até você ligar no plano)
-- **Receita acumulada / histórico do cliente:** passam a usar a nova `receitaCicloCliente` automaticamente
-- **PDF do resumo:** já consome a mesma função, então o fix do bug propaga para o relatório
+## Seções da landing (`src/routes/index.tsx`)
+
+1. **Navbar fixa** — logo EloraCRM (texto), links âncora (Funcionalidades, Planos, Simulador, Contato), botão **Entrar** (amarelo) → `/auth`.
+2. **Hero** (fundo preto) — headline "Para as conversas e o negócio andarem juntos.", subtítulo, CTA "Simular meu plano" (amarelo) + "Entrar" (outline branco). Mockup/ilustração do app à direita.
+3. **Dados de mercado** — 5 cards com stats do WhatsApp (97%, 82%, 75%, 70%, 67%) com fontes (Opinion Box, Hazlo, CNN Brasil).
+4. **Funcionalidades** — grid de 6 cards: Central de Atendimento Omnichannel, Chatbot, Disparo de Mensagens, CRM, Agentes IA (badge BETA), Rastreabilidade de Conversões.
+5. **Onboarding** — timeline horizontal: Kick-Off → Configurações → Conexões → Treinamento → Tira-dúvidas.
+6. **Planos** — 3 cards (Essencial / Escala destacado em amarelo / Corporativo) com preços-vitrine (R$ 349,99 / 599,99 / 899,99) e tabela comparativa colapsável de adicionais.
+7. **Simulador** (seção própria, âncora `#simulador`) — descrito abaixo.
+8. **FAQ** — accordion (~6 perguntas: WhatsApp oficial vs não-oficial, prazo de implantação, integrações, suporte, troca de plano, cancelamento).
+9. **CTA final + Footer** — bloco escuro "Pronto para começar?" com botão Entrar; footer com contato (contato@eloracrm.com, (21) 99550-1331, app.eloracrm.com.br).
+
+Cada seção é um componente em `src/components/landing/`.
+
+## Simulador de preços
+
+Componente `src/components/landing/Simulador.tsx`, totalmente client-side (cálculo na hora, sem backend).
+
+**Inputs:**
+- Plano base: radio Essencial / Escala / Corporativo (cada um traz N usuários inclusos e canais inclusos)
+- Usuários adicionais: stepper (0–50)
+- Canais WhatsApp Oficial (API Meta): stepper
+- Canais WhatsApp Não-Oficial (Z-API): stepper
+- Contas Instagram Direct: stepper
+- Contas Messenger Facebook: stepper
+- Toggles módulos opcionais: Agentes IA, Integração ASAAS (pagamentos), Transcrição de áudio
+
+**Saída (sticky no lado direito em desktop, fixa em baixo no mobile):**
+- Breakdown linha a linha (plano base, cada adicional × quantidade × preço unitário)
+- Total mensal grande em destaque
+- Botão "Falar com vendas" / "Entrar" (CTA amarelo)
+
+**Tabela de preços de vitrine** (arquivo `src/lib/landing/precos-vitrine.ts`, isolada e fácil de editar depois):
+
+```ts
+{
+  planos: {
+    essencial:   { mensal: 349.99, usuariosInclusos: 3, whatsInclusos: 1, instaInclusos: 0, messengerInclusos: 0 },
+    escala:      { mensal: 599.99, usuariosInclusos: 5, whatsInclusos: 1, instaInclusos: 1, messengerInclusos: 0 },
+    corporativo: { mensal: 899.99, usuariosInclusos: 10, whatsInclusos: 1, instaInclusos: 1, messengerInclusos: 1 },
+  },
+  adicionais: {
+    usuarioExtra: 29.99,
+    whatsOficial: 79.99,   // (placeholder — você ajusta depois)
+    whatsNaoOficial: 49.99,
+    instagram: 49.99,
+    messenger: 49.99,
+    moduloIA: 99.00,        // (placeholder)
+    asaas: 69.99,
+    transcricao: 39.90,     // (placeholder)
+  }
+}
+```
+
+> Os valores marcados como placeholder ficam centralizados nesse arquivo para você editar quando definir a tabela final, sem mexer em componente.
+
+## Login / acesso
+
+- Botão "Entrar" e qualquer CTA "Acessar sistema" levam para `/auth` (tela já existente).
+- Mantém-se a regra atual: apenas seu e-mail entra. Nenhuma mudança no fluxo de auth, signup ou bootstrap_admin.
+- Adicionada metadata SEO no `index.tsx` (title, description, og:title, og:description, og:image opcional).
+
+## SEO / metadata
+
+`head()` no `index.tsx`:
+- title: "EloraCRM — WhatsApp, Instagram e Messenger em um só lugar"
+- description: "CRM com atendimento omnichannel, chatbot, disparo de mensagens e agentes de IA para WhatsApp, Instagram e Messenger."
+- og:title / og:description equivalentes
+- viewport responsivo, h1 único no hero, alt text em todas as imagens, lazy load nos mockups
+
+## Arquivos a criar / editar
+
+**Novos:**
+- `src/routes/index.tsx` (sobrescrito — landing pública)
+- `src/components/landing/Navbar.tsx`, `Hero.tsx`, `StatsWhatsApp.tsx`, `Funcionalidades.tsx`, `Onboarding.tsx`, `Planos.tsx`, `Simulador.tsx`, `FAQ.tsx`, `CTAFinal.tsx`, `Footer.tsx`
+- `src/lib/landing/precos-vitrine.ts`
+- `src/routes/_authenticated/app.tsx` (layout pathless do `/app`)
+- `src/routes/_authenticated/app.resumo.tsx`, `app.clientes.tsx`, `app.planos.tsx`, `app.financeiro.tsx`, `app.parceiros.tsx`, `app.orcamentos.tsx`, `app.usuarios.tsx` (movem o conteúdo das rotas atuais)
+
+**Editados:**
+- `src/styles.css` — tokens da paleta preto/branco/amarelo/azul + fontes
+- `src/components/app-sidebar.tsx` — links para `/app/...`
+- `src/routes/__root.tsx` — fontes Google (Space Grotesk + Inter), favicon se necessário
+- `src/routes/auth.tsx` — após login, redirecionar para `/app/resumo` em vez de `/`
+
+**Removidos:**
+- Rotas antigas em `src/routes/resumo.tsx`, `clientes.tsx`, etc. (movidas para `_authenticated/app.*`)
+
+## Fora do escopo desta etapa
+
+- Captura de leads do simulador no banco (pode virar uma etapa seguinte com edge function + tabela `leads`).
+- Variações A/B da landing.
+- Tradução / multi-idioma.
+- Definir a tabela final de preços (você ajusta em `precos-vitrine.ts` quando decidir).
