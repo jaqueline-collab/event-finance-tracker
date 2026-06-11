@@ -401,65 +401,21 @@ function ClientesPage() {
       </div>
 
       {/* Filtros (no topo) */}
-      <Card className="border-border/60">
-        <CardContent className="p-3">
-          <div className="grid gap-2 grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-            <div className="col-span-2 md:col-span-2 xl:col-span-2">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup (período)</Label>
-              <div className="flex items-center gap-1">
-                <Input type="date" value={filtroSetupDe} onChange={(e) => setFiltroSetupDe(e.target.value)} className="h-9 px-2 text-xs" />
-                <span className="text-muted-foreground text-xs">→</span>
-                <Input type="date" value={filtroSetupAte} onChange={(e) => setFiltroSetupAte(e.target.value)} className="h-9 px-2 text-xs" />
-              </div>
-            </div>
-            <div className="col-span-2 md:col-span-2 xl:col-span-2">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn (período)</Label>
-              <div className="flex items-center gap-1">
-                <Input type="date" value={filtroChurnDe} onChange={(e) => setFiltroChurnDe(e.target.value)} className="h-9 px-2 text-xs" />
-                <span className="text-muted-foreground text-xs">→</span>
-                <Input type="date" value={filtroChurnAte} onChange={(e) => setFiltroChurnAte(e.target.value)} className="h-9 px-2 text-xs" />
-              </div>
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Parceiro</Label>
-              <Select value={filtroParceiro} onValueChange={setFiltroParceiro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_todos">Todos</SelectItem>
-                  {parceiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Plano</Label>
-              <Select value={filtroPlano} onValueChange={setFiltroPlano}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_todos">Todos</SelectItem>
-                  {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Situação</Label>
-              <Select value={filtroSituacao} onValueChange={(v: typeof filtroSituacao) => setFiltroSituacao(v)}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_todos">Todas</SelectItem>
-                  <SelectItem value="trial">Trial (até 14 dias)</SelectItem>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {filtrosAtivos && (
-            <div className="flex justify-end mt-2">
-              <Button variant="ghost" size="sm" onClick={limparFiltros}>Limpar filtros</Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <FilterBar
+        fields={[
+          { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "situacao", label: "Situação", type: "multi", options: [
+            { value: "trial", label: "Trial (até 14 dias)" },
+            { value: "ativo", label: "Ativo" },
+            { value: "cancelado", label: "Cancelado" },
+          ] },
+          { key: "setup", label: "Data de setup", type: "dateRange" },
+          { key: "churn", label: "Data de churn", type: "dateRange" },
+        ] as FilterFieldDef[]}
+        value={filtros}
+        onChange={setFiltros}
+      />
 
       {/* Resumo da carteira — cards compactos (seguem os filtros) */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
