@@ -234,18 +234,41 @@ function PlanosPage() {
           <CardContent className="space-y-6">
             {/* Dados Comerciais */}
             <div>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tipo do Plano</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <Label className="mb-1 block">Categoria</Label>
+                  <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v as "elora" | "consultoria" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="elora">Plano Elora (ferramenta)</SelectItem>
+                      <SelectItem value="consultoria">Consultoria / Mentoria / Curso</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1 block">Tipo de cobrança</Label>
+                  <Select value={form.cobranca} onValueChange={(v) => setForm({ ...form, cobranca: v as "recorrente" | "unica" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recorrente">Recorrente (mensal)</SelectItem>
+                      <SelectItem value="unica">Pagamento único</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Dados Comerciais</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-3">
                   <Label className="mb-1 block">Nome do Plano</Label>
-                  <Input placeholder="Ex: Starter, Growth, Scale..." value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+                  <Input placeholder={form.categoria === "consultoria" ? "Ex: Mentoria Trimestral, Curso Avançado..." : "Ex: Starter, Growth, Scale..."} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
                 </div>
                 <div>
-                  <Label className="mb-1 block">Mensalidade cobrada do cliente (R$)</Label>
+                  <Label className="mb-1 block">{form.cobranca === "unica" ? "Valor total (R$)" : "Mensalidade cobrada do cliente (R$)"}</Label>
                   <Input type="number" step="0.01" value={form.valorMensal} onChange={(e) => setForm({ ...form, valorMensal: e.target.value })} />
                 </div>
                 <div>
-                  <Label className="mb-1 block">Taxa de Setup (R$)</Label>
+                  <Label className="mb-1 block">Taxa de Setup / Entrada (R$)</Label>
                   <Input type="number" step="0.01" value={form.valorSetup} onChange={(e) => setForm({ ...form, valorSetup: e.target.value })} />
                 </div>
                 <div>
@@ -260,10 +283,29 @@ function PlanosPage() {
                   />
                   <p className="text-[10px] text-muted-foreground mt-1">Aplicado a clientes deste plano. Cada cliente pode sobrescrever.</p>
                 </div>
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="mb-1 block">Duração (opcional)</Label>
+                    <Input type="number" min={1} placeholder="Ex: 6, 12…" value={form.duracaoValor} onChange={(e) => setForm({ ...form, duracaoValor: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="mb-1 block">Unidade da duração</Label>
+                    <Select value={form.duracaoUnidade || "indefinido"} onValueChange={(v) => setForm({ ...form, duracaoUnidade: v === "indefinido" ? "" : (v as "dias" | "meses" | "anos") })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="indefinido">Sem prazo definido</SelectItem>
+                        <SelectItem value="dias">Dias</SelectItem>
+                        <SelectItem value="meses">Meses</SelectItem>
+                        <SelectItem value="anos">Anos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Franquias */}
+            {/* Franquias — só Elora */}
+            {form.categoria === "elora" && (<>
             <div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Franquias Incluídas</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
