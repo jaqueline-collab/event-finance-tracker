@@ -70,9 +70,11 @@ function ResumoPage() {
       const matchVenc =
         filtroVencimento === "todos" ||
         String(getDiaVencimentoEfetivo(c, planos) ?? "") === filtroVencimento;
-      return matchPlano && matchParceiro && matchVenc;
+      const planoDoCli = planos.find((p) => p.id === c.planoId);
+      const matchTipo = filtroTipo === "todos" || (planoDoCli?.categoria ?? "elora") === filtroTipo;
+      return matchPlano && matchParceiro && matchVenc && matchTipo;
     });
-  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento]);
+  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento, filtroTipo]);
 
   // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
   const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
