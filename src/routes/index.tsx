@@ -19,7 +19,6 @@ import { formatBRL } from "@/lib/calc/format";
 import { Simulador } from "@/components/landing/Simulador";
 import { PawLogo } from "@/components/landing/PawLogo";
 import { VideoIntro } from "@/components/landing/VideoIntro";
-import { SistemaTour } from "@/components/landing/SistemaTour";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -75,12 +74,9 @@ function LandingPage() {
       <VideoIntro />
       <Stats />
       <Funcionalidades />
-      <SistemaTour />
-      <Onboarding />
       <Planos />
       <Simulador />
       <FAQ />
-      <CTAFinal />
       <Footer />
     </div>
   );
@@ -92,7 +88,7 @@ function Navbar() {
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#top" className="flex items-center gap-2">
-          <PawLogo className="h-8 w-8 text-landing-yellow" />
+          <PawLogo className="h-6 w-6 text-white" />
           <span
             className="text-white font-bold tracking-tight text-lg"
             style={{ fontFamily: "var(--font-display)" }}
@@ -137,9 +133,23 @@ function Hero() {
         className="absolute inset-0 opacity-30"
         style={{
           background:
-            "radial-gradient(900px circle at 80% 10%, var(--color-landing-blue) 0%, transparent 55%), radial-gradient(700px circle at 10% 90%, var(--color-landing-yellow) 0%, transparent 50%)",
+            "radial-gradient(900px circle at 80% 10%, var(--color-landing-blue) 0%, transparent 55%), radial-gradient(700px circle at 10% 90%, #ffffff 0%, transparent 65%)",
         }}
       />
+      {/* Marcas de garras "arranhando" a página */}
+      <svg
+        aria-hidden
+        viewBox="0 0 1200 600"
+        className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.07]"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <g stroke="white" strokeWidth="3" strokeLinecap="round" fill="none">
+          <path d="M 80 520 Q 200 360 360 240" />
+          <path d="M 140 560 Q 260 400 420 280" />
+          <path d="M 200 600 Q 320 440 480 320" />
+          <path d="M 260 620 Q 380 480 540 360" />
+        </g>
+      </svg>
       <div className="relative max-w-6xl mx-auto text-center">
         <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-landing-yellow border border-landing-yellow/30 rounded-full px-4 py-1.5">
           <Sparkles className="h-3.5 w-3.5" /> Atendimento + Vendas + IA
@@ -214,9 +224,6 @@ function Stats() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-landing-muted text-center mt-6">
-          Fontes: Opinion Box, Hazlo, CNN Brasil.
-        </p>
       </div>
     </section>
   );
@@ -292,58 +299,12 @@ function Funcionalidades() {
                   {f.title}
                 </h3>
                 {f.badge && (
-                  <span className="text-[10px] font-bold bg-landing-yellow text-landing-fg px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold bg-landing-blue text-white px-1.5 py-0.5 rounded">
                     {f.badge}
                   </span>
                 )}
               </div>
               <p className="text-sm text-landing-muted mt-2 leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ============================== ONBOARDING ============================== */
-const STEPS = [
-  { n: "01", title: "Kick-Off", desc: "Alinhamento dos próximos passos e maturidade." },
-  { n: "02", title: "Configurações", desc: "Criamos sua conta e conectamos os canais." },
-  { n: "03", title: "Conexões", desc: "Integrações com seus números e redes sociais." },
-  { n: "04", title: "Treinamento", desc: "Capacitação prática para a equipe usar bem." },
-  { n: "05", title: "Tira-dúvidas", desc: "Espaço aberto para resolver desafios reais." },
-];
-
-function Onboarding() {
-  return (
-    <section className="py-20 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Implantação
-          </span>
-          <h2
-            className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Fluxo de onboarding
-          </h2>
-        </div>
-        <div className="grid md:grid-cols-5 gap-4">
-          {STEPS.map((s) => (
-            <div
-              key={s.n}
-              className="rounded-2xl border border-landing-border p-5 bg-white relative"
-            >
-              <div
-                className="text-3xl font-bold text-landing-yellow"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {s.n}
-              </div>
-              <div className="text-base font-bold text-landing-fg mt-2">{s.title}</div>
-              <p className="text-xs text-landing-muted mt-1 leading-snug">{s.desc}</p>
             </div>
           ))}
         </div>
@@ -517,39 +478,6 @@ function FAQ() {
   );
 }
 
-/* ============================== CTA FINAL ============================== */
-function CTAFinal() {
-  return (
-    <section className="py-20 px-6 bg-landing-dark text-white">
-      <div className="max-w-3xl mx-auto text-center">
-        <h2
-          className="text-4xl md:text-5xl font-bold leading-tight"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Pronto para colocar seu atendimento <span className="text-landing-yellow">no automático?</span>
-        </h2>
-        <p className="text-white/70 mt-4">
-          Centralize canais, qualifique leads e venda mais — sem trocar de aba.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <a
-            href="#simulador"
-            className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-7 py-3.5 rounded-md transition-colors"
-          >
-            Simular meu plano
-          </a>
-          <a
-            href="/auth"
-            className="border border-white/30 hover:border-white text-white font-semibold px-7 py-3.5 rounded-md transition-colors"
-          >
-            Entrar
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ============================== FOOTER ============================== */
 function Footer() {
   return (
@@ -557,7 +485,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
           <div className="flex items-center gap-2">
-            <PawLogo className="h-8 w-8 text-landing-yellow" />
+            <PawLogo className="h-6 w-6 text-white" />
             <span
               className="text-white font-bold tracking-tight text-lg"
               style={{ fontFamily: "var(--font-display)" }}
