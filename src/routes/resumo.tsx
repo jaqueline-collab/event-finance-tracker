@@ -773,8 +773,13 @@ function ResumoPage() {
                                   const parceiro = parceiros.find((p) => p.id === c.parceiroId);
                                   const rec = receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
                                   return (
-                                    <tr key={c.id} className="border-b border-border/20 last:border-0">
-                                      <td className="py-1.5 font-medium">{c.nome}</td>
+                                    <tr
+                                      key={c.id}
+                                      className="border-b border-border/20 last:border-0 cursor-pointer hover:bg-muted/30 transition-colors"
+                                      onClick={() => setHistoricoCliente({ clienteId: c.id, mesKey: l.mesKey })}
+                                      title="Ver histórico do cliente no mês"
+                                    >
+                                      <td className="py-1.5 font-medium text-primary underline-offset-2 hover:underline">{c.nome}</td>
                                       <td className="py-1.5 text-muted-foreground">{plano?.nome ?? "—"}</td>
                                       <td className="py-1.5 text-muted-foreground">{parceiro?.nome ?? "—"}</td>
                                       <td className="py-1.5 text-right text-muted-foreground text-xs">
