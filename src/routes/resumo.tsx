@@ -35,6 +35,7 @@ function ResumoPage() {
   const [filtroPlano, setFiltroPlano] = useState("todos");
   const [filtroParceiro, setFiltroParceiro] = useState("todos");
   const [filtroVencimento, setFiltroVencimento] = useState("todos");
+  const [filtroTipo, setFiltroTipo] = useState<"todos" | "elora" | "consultoria">("todos");
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
