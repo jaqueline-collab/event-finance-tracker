@@ -412,6 +412,7 @@ function PlanosPage() {
                 </div>
               </div>
             </div>
+            </>)}
 
             {/* Parceiros vinculados */}
             {parceiros.length > 0 && (
