@@ -467,6 +467,7 @@ function PlanosPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
+                {p.categoria === "elora" && (<>
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                   <span>📡 WhatsApp: {p.canaisWhatsInclusos ?? 0} · Instagram: {p.canaisInstaInclusos ?? 0} · Messenger: {p.canaisMessengerInclusos ?? 0}</span>
                   <span>👥 {p.usuariosInclusos} usuário(s) · 💬 {p.contatosInclusos.toLocaleString()} contatos</span>
@@ -477,6 +478,7 @@ function PlanosPage() {
                   {((typeof p.incluiZapi === "number" ? p.incluiZapi : (p.incluiZapi ? 1 : 0)) > 0) && <Badge variant="secondary" className="text-xs gap-1"><Zap className="h-3 w-3" /> Z-API ({typeof p.incluiZapi === "number" ? p.incluiZapi : 1})</Badge>}
                   {p.incluiTranscricao && <Badge variant="secondary" className="text-xs gap-1"><AudioLines className="h-3 w-3" /> Transcrição</Badge>}
                 </div>
+                </>)}
                 {ps.length > 0 && (
                   <div className="pt-1 border-t border-border/60">
                     <p className="text-xs text-muted-foreground mb-1">Parceiros:</p>
