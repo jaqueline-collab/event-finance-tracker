@@ -74,12 +74,9 @@ function LandingPage() {
       <VideoIntro />
       <Stats />
       <Funcionalidades />
-      <SistemaTour />
-      <Onboarding />
       <Planos />
       <Simulador />
       <FAQ />
-      <CTAFinal />
       <Footer />
     </div>
   );
