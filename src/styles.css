@@ -59,6 +59,20 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Landing page tokens (preto, branco, amarelo, azul) */
+  --color-landing-bg: #ffffff;
+  --color-landing-fg: #0a0a0a;
+  --color-landing-dark: #0a0a0a;
+  --color-landing-dark-2: #18181b;
+  --color-landing-blue: #1d4ed8;
+  --color-landing-blue-dark: #1e3a8a;
+  --color-landing-yellow: #facc15;
+  --color-landing-yellow-dark: #eab308;
+  --color-landing-muted: #6b7280;
+  --color-landing-surface: #f9fafb;
+  --color-landing-border: #e5e7eb;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
 }
 
 :root {
