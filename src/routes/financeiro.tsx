@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import {
   useStore,
   formatBRL,
@@ -33,8 +34,9 @@ const statusOptions: { value: StatusFinanceiro; label: string; color: string; Ic
 function FinanceiroPage() {
   const { financeiro, clientes, planos, custos, movimentos, addLancamento, updateLancamento, removeLancamento } = useStore();
 
-  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
-  const [filtroTipo, setFiltroTipo] = useState<string>("todos");
+  const [filtros, setFiltros] = useState<FilterState>({});
+  const statusSel = (filtros.status?.type === "multi" ? filtros.status.values : []) as string[];
+  const tipoSel = (filtros.tipo?.type === "multi" ? filtros.tipo.values : []) as string[];
 
   const today = new Date();
   const currentCompetencia = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -135,10 +137,18 @@ function FinanceiroPage() {
 
   const filtrados = useMemo(() => {
     return financeiro
-      .filter((l) => filtroStatus === "todos" || l.status === filtroStatus)
-      .filter((l) => filtroTipo === "todos" || l.tipo === filtroTipo)
+      .filter((l) => statusSel.length === 0 || statusSel.includes(l.status))
+      .filter((l) => tipoSel.length === 0 || tipoSel.includes(l.tipo))
+      .filter((l) => {
+        const r = filtros.vencimento;
+        if (!r || r.type !== "dateRange" || (!r.from && !r.to)) return true;
+        if (!l.vencimento) return false;
+        if (r.from && l.vencimento < r.from) return false;
+        if (r.to && l.vencimento > r.to) return false;
+        return true;
+      })
       .sort((a, b) => (b.vencimento ?? "").localeCompare(a.vencimento ?? ""));
-  }, [financeiro, filtroStatus, filtroTipo]);
+  }, [financeiro, statusSel, tipoSel, filtros]);
 
   const totais = useMemo(() => {
     const receitas = financeiro.filter((l) => l.tipo === "fechamento");
