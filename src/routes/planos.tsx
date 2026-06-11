@@ -26,6 +26,9 @@ type PlanoForm = {
   valorMensal: string;
   valorSetup: string;
   diaVencimento: string;
+  cicloDiaInicial: string;
+  cicloDiaFinal: string;
+  cobrancaProporcional: boolean;
   canaisWhatsInclusos: string;
   canaisInstaInclusos: string;
   canaisMessengerInclusos: string;
@@ -66,6 +69,9 @@ const defaultForm = (): PlanoForm => ({
   valorMensal: "",
   valorSetup: "",
   diaVencimento: "",
+  cicloDiaInicial: "1",
+  cicloDiaFinal: "31",
+  cobrancaProporcional: false,
   canaisWhatsInclusos: "1",
   canaisInstaInclusos: "0",
   canaisMessengerInclusos: "0",
@@ -125,6 +131,9 @@ function PlanosPage() {
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
       diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
+      cicloDiaInicial: form.cicloDiaInicial ? Math.max(1, Math.min(31, Number(form.cicloDiaInicial))) : 1,
+      cicloDiaFinal: form.cicloDiaFinal ? Math.max(1, Math.min(31, Number(form.cicloDiaFinal))) : 31,
+      cobrancaProporcional: form.cobrancaProporcional,
       canaisInclusos: whatsInc + instaInc + msgInc,
       canaisWhatsInclusos: whatsInc,
       canaisInstaInclusos: instaInc,
@@ -180,6 +189,9 @@ function PlanosPage() {
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
       diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
+      cicloDiaInicial: String(p.cicloDiaInicial ?? 1),
+      cicloDiaFinal: String(p.cicloDiaFinal ?? 31),
+      cobrancaProporcional: Boolean(p.cobrancaProporcional),
       canaisWhatsInclusos: String(p.canaisWhatsInclusos ?? p.canaisInclusos ?? 0),
       canaisInstaInclusos: String(p.canaisInstaInclusos ?? 0),
       canaisMessengerInclusos: String(p.canaisMessengerInclusos ?? 0),
