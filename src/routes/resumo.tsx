@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import {
   useStore, formatBRL, receitaCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
@@ -32,10 +33,14 @@ export const Route = createFileRoute("/resumo")({
 
 function ResumoPage() {
   const { clientes, planos, custos, movimentos, parceiros, addLancamento } = useStore();
-  const [filtroPlano, setFiltroPlano] = useState("todos");
-  const [filtroParceiro, setFiltroParceiro] = useState("todos");
-  const [filtroVencimento, setFiltroVencimento] = useState("todos");
-  const [filtroTipo, setFiltroTipo] = useState<"todos" | "elora" | "consultoria">("todos");
+  const [filtros, setFiltros] = useState<FilterState>({});
+  const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
+  const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
+  const vencSel = (filtros.vencimento?.type === "multi" ? filtros.vencimento.values : []) as string[];
+  const tipoSel = (filtros.tipo?.type === "multi" ? filtros.tipo.values : []) as string[];
+  const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
+    sel.length === 0 ? all : sel.map(nameOf).filter(Boolean).join(", ");
+  const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -65,16 +70,14 @@ function ResumoPage() {
   // Clientes filtrados por plano, parceiro e vencimento
   const clientesFiltrados = useMemo(() => {
     return clientes.filter((c) => {
-      const matchPlano = filtroPlano === "todos" || c.planoId === filtroPlano;
-      const matchParceiro = filtroParceiro === "todos" || c.parceiroId === filtroParceiro;
-      const matchVenc =
-        filtroVencimento === "todos" ||
-        String(getDiaVencimentoEfetivo(c, planos) ?? "") === filtroVencimento;
+      const matchPlano = planoSel.length === 0 || planoSel.includes(c.planoId ?? "");
+      const matchParceiro = parceiroSel.length === 0 || parceiroSel.includes(c.parceiroId ?? "");
+      const matchVenc = vencSel.length === 0 || vencSel.includes(String(getDiaVencimentoEfetivo(c, planos) ?? ""));
       const planoDoCli = planos.find((p) => p.id === c.planoId);
-      const matchTipo = filtroTipo === "todos" || (planoDoCli?.categoria ?? "elora") === filtroTipo;
+      const matchTipo = tipoSel.length === 0 || tipoSel.includes(planoDoCli?.categoria ?? "elora");
       return matchPlano && matchParceiro && matchVenc && matchTipo;
     });
-  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento, filtroTipo]);
+  }, [clientes, planos, planoSel, parceiroSel, vencSel, tipoSel]);
 
   // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
   const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
@@ -162,8 +165,8 @@ function ResumoPage() {
   const exportarPdf = () => {
     const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     const generatedAt = new Date().toLocaleString("pt-BR");
-    const planoSelecionado = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
-    const parceiroSelecionado = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
+    const planoSelecionado = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
+    const parceiroSelecionado = labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id);
 
     pdf.setFontSize(18);
     pdf.text("Resumo Mensal", 40, 42);
@@ -216,7 +219,7 @@ function ResumoPage() {
       });
     });
 
-    pdf.save(`resumo-mensal-${filtroPlano}-${filtroParceiro}.pdf`);
+    pdf.save(`resumo-mensal-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
   };
 
   // ====== Dados para o Fechamento Mensal ======
@@ -407,8 +410,8 @@ function ResumoPage() {
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const planoSel = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
-    const parceiroSel = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
+    const planoSelLabel = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
+    const parceiroSelLabel = labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id);
 
     // Cabeçalho preto
     pdf.setFillColor(15, 15, 15);
@@ -423,7 +426,7 @@ function ResumoPage() {
 
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(10);
-    pdf.text(`Plano: ${planoSel}   |   Parceiro: ${parceiroSel}`, 40, 100);
+    pdf.text(`Plano: ${planoSelLabel}   |   Parceiro: ${parceiroSelLabel}`, 40, 100);
     pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 114);
     pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 128);
 
@@ -562,7 +565,7 @@ function ResumoPage() {
       pdf.text(lines, 40, y + 20);
     }
 
-    pdf.save(`fechamento-${fechamentoMes}-${filtroPlano}-${filtroParceiro}.pdf`);
+    pdf.save(`fechamento-${fechamentoMes}-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
   };
 
   // ====== Enviar para o módulo Financeiro ======
@@ -576,7 +579,11 @@ function ResumoPage() {
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
-    const labelFiltros = `${filtroPlano === "todos" ? "" : ` · ${planos.find((p) => p.id === filtroPlano)?.nome ?? ""}`}${filtroParceiro === "todos" ? "" : ` · ${parceiros.find((p) => p.id === filtroParceiro)?.nome ?? ""}`}${filtroVencimento === "todos" ? "" : ` · venc. dia ${filtroVencimento}`}`;
+    const labelFiltros = [
+      planoSel.length > 0 ? ` · ${planoSel.map((id) => planos.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
+      parceiroSel.length > 0 ? ` · ${parceiroSel.map((id) => parceiros.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
+      vencSel.length > 0 ? ` · venc. dia ${vencSel.join("/")}` : "",
+    ].join("");
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
