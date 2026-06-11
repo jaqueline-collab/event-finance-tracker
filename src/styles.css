@@ -66,8 +66,10 @@
   --color-landing-dark-2: #18181b;
   --color-landing-blue: #1d4ed8;
   --color-landing-blue-dark: #1e3a8a;
-  --color-landing-yellow: #facc15;
-  --color-landing-yellow-dark: #eab308;
+  /* Tom refinado, dourado-champanhe — menos berrante que amarelo puro */
+  --color-landing-yellow: #c9a961;
+  --color-landing-yellow-dark: #a8893f;
+  --color-landing-yellow-soft: #f5ecd2;
   --color-landing-muted: #6b7280;
   --color-landing-surface: #f9fafb;
   --color-landing-border: #e5e7eb;
