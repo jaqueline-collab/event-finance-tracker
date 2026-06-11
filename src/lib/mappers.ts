@@ -43,6 +43,9 @@ export const mapPlanoToDb = (p: Plano) => ({
   parceiro_ids: p.parceiroIds,
   observacao: p.observacao || "",
   dia_vencimento: p.diaVencimento ?? null,
+  ciclo_dia_inicial: p.cicloDiaInicial ?? 1,
+  ciclo_dia_final: p.cicloDiaFinal ?? 31,
+  cobranca_proporcional: p.cobrancaProporcional ?? false,
 });
 
 export const mapDbToPlano = (r: any): Plano => {
@@ -94,6 +97,9 @@ export const mapDbToPlano = (r: any): Plano => {
     parceiroIds: r.parceiro_ids ?? [],
     observacao: r.observacao || "",
     diaVencimento: r.dia_vencimento != null ? Number(r.dia_vencimento) : null,
+    cicloDiaInicial: r.ciclo_dia_inicial != null ? Number(r.ciclo_dia_inicial) : 1,
+    cicloDiaFinal: r.ciclo_dia_final != null ? Number(r.ciclo_dia_final) : 31,
+    cobrancaProporcional: Boolean(r.cobranca_proporcional),
   });
 };
 
@@ -124,6 +130,9 @@ export const mapClienteToDb = (c: Cliente) => ({
   data_inicio: c.dataInicio,
   data_vencimento: c.dataVencimento,
   data_churn: c.dataChurn,
+  ciclo_personalizado: c.cicloPersonalizado ?? false,
+  ciclo_dia_inicial: c.cicloDiaInicial ?? null,
+  ciclo_dia_final: c.cicloDiaFinal ?? null,
   apps: c.apps,
   mau: c.mau,
   canais: c.canais,
@@ -151,6 +160,9 @@ export const mapDbToCliente = (r: any): Cliente => ({
   dataInicio: r.data_inicio,
   dataVencimento: r.data_vencimento || null,
   dataChurn: r.data_churn || null,
+  cicloPersonalizado: Boolean(r.ciclo_personalizado),
+  cicloDiaInicial: r.ciclo_dia_inicial != null ? Number(r.ciclo_dia_inicial) : null,
+  cicloDiaFinal: r.ciclo_dia_final != null ? Number(r.ciclo_dia_final) : null,
   apps: Number(r.apps ?? 0),
   mau: Number(r.mau ?? 0),
   canais: Number(r.canais ?? 1),

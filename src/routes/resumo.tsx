@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import {
   useStore, formatBRL, receitaCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
@@ -32,10 +33,14 @@ export const Route = createFileRoute("/resumo")({
 
 function ResumoPage() {
   const { clientes, planos, custos, movimentos, parceiros, addLancamento } = useStore();
-  const [filtroPlano, setFiltroPlano] = useState("todos");
-  const [filtroParceiro, setFiltroParceiro] = useState("todos");
-  const [filtroVencimento, setFiltroVencimento] = useState("todos");
-  const [filtroTipo, setFiltroTipo] = useState<"todos" | "elora" | "consultoria">("todos");
+  const [filtros, setFiltros] = useState<FilterState>({});
+  const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
+  const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
+  const vencSel = (filtros.vencimento?.type === "multi" ? filtros.vencimento.values : []) as string[];
+  const tipoSel = (filtros.tipo?.type === "multi" ? filtros.tipo.values : []) as string[];
+  const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
+    sel.length === 0 ? all : sel.map(nameOf).filter(Boolean).join(", ");
+  const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -65,16 +70,14 @@ function ResumoPage() {
   // Clientes filtrados por plano, parceiro e vencimento
   const clientesFiltrados = useMemo(() => {
     return clientes.filter((c) => {
-      const matchPlano = filtroPlano === "todos" || c.planoId === filtroPlano;
-      const matchParceiro = filtroParceiro === "todos" || c.parceiroId === filtroParceiro;
-      const matchVenc =
-        filtroVencimento === "todos" ||
-        String(getDiaVencimentoEfetivo(c, planos) ?? "") === filtroVencimento;
+      const matchPlano = planoSel.length === 0 || planoSel.includes(c.planoId ?? "");
+      const matchParceiro = parceiroSel.length === 0 || parceiroSel.includes(c.parceiroId ?? "");
+      const matchVenc = vencSel.length === 0 || vencSel.includes(String(getDiaVencimentoEfetivo(c, planos) ?? ""));
       const planoDoCli = planos.find((p) => p.id === c.planoId);
-      const matchTipo = filtroTipo === "todos" || (planoDoCli?.categoria ?? "elora") === filtroTipo;
+      const matchTipo = tipoSel.length === 0 || tipoSel.includes(planoDoCli?.categoria ?? "elora");
       return matchPlano && matchParceiro && matchVenc && matchTipo;
     });
-  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento, filtroTipo]);
+  }, [clientes, planos, planoSel, parceiroSel, vencSel, tipoSel]);
 
   // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
   const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
@@ -162,8 +165,8 @@ function ResumoPage() {
   const exportarPdf = () => {
     const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     const generatedAt = new Date().toLocaleString("pt-BR");
-    const planoSelecionado = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
-    const parceiroSelecionado = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
+    const planoSelecionado = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
+    const parceiroSelecionado = labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id);
 
     pdf.setFontSize(18);
     pdf.text("Resumo Mensal", 40, 42);
@@ -216,7 +219,7 @@ function ResumoPage() {
       });
     });
 
-    pdf.save(`resumo-mensal-${filtroPlano}-${filtroParceiro}.pdf`);
+    pdf.save(`resumo-mensal-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
   };
 
   // ====== Dados para o Fechamento Mensal ======
@@ -407,8 +410,8 @@ function ResumoPage() {
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const planoSel = filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome ?? "Plano";
-    const parceiroSel = filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome ?? "Parceiro";
+    const planoSelLabel = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
+    const parceiroSelLabel = labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id);
 
     // Cabeçalho preto
     pdf.setFillColor(15, 15, 15);
@@ -423,7 +426,7 @@ function ResumoPage() {
 
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(10);
-    pdf.text(`Plano: ${planoSel}   |   Parceiro: ${parceiroSel}`, 40, 100);
+    pdf.text(`Plano: ${planoSelLabel}   |   Parceiro: ${parceiroSelLabel}`, 40, 100);
     pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 114);
     pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 128);
 
@@ -562,7 +565,7 @@ function ResumoPage() {
       pdf.text(lines, 40, y + 20);
     }
 
-    pdf.save(`fechamento-${fechamentoMes}-${filtroPlano}-${filtroParceiro}.pdf`);
+    pdf.save(`fechamento-${fechamentoMes}-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
   };
 
   // ====== Enviar para o módulo Financeiro ======
@@ -576,7 +579,11 @@ function ResumoPage() {
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
-    const labelFiltros = `${filtroPlano === "todos" ? "" : ` · ${planos.find((p) => p.id === filtroPlano)?.nome ?? ""}`}${filtroParceiro === "todos" ? "" : ` · ${parceiros.find((p) => p.id === filtroParceiro)?.nome ?? ""}`}${filtroVencimento === "todos" ? "" : ` · venc. dia ${filtroVencimento}`}`;
+    const labelFiltros = [
+      planoSel.length > 0 ? ` · ${planoSel.map((id) => planos.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
+      parceiroSel.length > 0 ? ` · ${parceiroSel.map((id) => parceiros.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
+      vencSel.length > 0 ? ` · venc. dia ${vencSel.join("/")}` : "",
+    ].join("");
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
@@ -648,61 +655,28 @@ function ResumoPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border/60 bg-muted/10">
-        <div className="flex flex-col gap-1 min-w-[160px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Tipo</Label>
-          <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as "todos" | "elora" | "consultoria")}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="elora">Plano Elora</SelectItem>
-              <SelectItem value="consultoria">Consultoria</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 min-w-[180px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Plano</Label>
-          <Select value={filtroPlano} onValueChange={setFiltroPlano}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os planos</SelectItem>
-              {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 min-w-[180px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Parceiro</Label>
-          <Select value={filtroParceiro} onValueChange={setFiltroParceiro}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os parceiros</SelectItem>
-              {parceiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 min-w-[180px]">
-          <Label className="text-xs text-muted-foreground">Filtrar por Vencimento</Label>
-          <Select value={filtroVencimento} onValueChange={setFiltroVencimento}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os vencimentos</SelectItem>
-              {diasDisponiveis.map((d) => (
-                <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {(filtroPlano !== "todos" || filtroParceiro !== "todos" || filtroVencimento !== "todos" || filtroTipo !== "todos") && (
-          <div className="flex items-end">
-            <button
-              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); setFiltroVencimento("todos"); setFiltroTipo("todos"); }}
-              className="text-xs text-muted-foreground hover:text-foreground underline h-8"
-            >
-              Limpar filtros
-            </button>
-          </div>
-        )}
-        <div className="flex flex-col gap-1 min-w-[200px]">
+      <FilterBar
+        fields={[
+          {
+            key: "tipo",
+            label: "Tipo",
+            type: "multi",
+            options: [
+              { value: "elora", label: "Plano Elora" },
+              { value: "consultoria", label: "Consultoria" },
+            ],
+          },
+          { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "vencimento", label: "Vencimento", type: "multi", options: diasDisponiveis.map((d) => ({ value: String(d), label: `Dia ${d}` })) },
+        ] as FilterFieldDef[]}
+        value={filtros}
+        onChange={setFiltros}
+      />
+
+      {/* Ação: Gerar fechamento */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1 min-w-[220px]">
           <Label className="text-xs text-muted-foreground">Gerar Fechamento</Label>
           <div className="flex gap-2">
             <Select value={fechamentoMes} onValueChange={setFechamentoMes}>
@@ -841,9 +815,9 @@ function ResumoPage() {
                       <div className="text-xs uppercase tracking-[0.3em] opacity-80">Elora · Fechamento Mensal</div>
                       <DialogTitle className="text-3xl font-bold mt-1 capitalize">{fechamentoData.labelMes}</DialogTitle>
                       <p className="text-xs opacity-80 mt-2">
-                        {filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome}
+                        {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
                         {" · "}
-                        {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
+                        {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
                       </p>
                       <p className="text-[11px] opacity-90 mt-1">
                         Ciclo de faturamento: {fechamentoData.cicloLabel}
@@ -1114,11 +1088,11 @@ function ResumoPage() {
           <DialogHeader>
             <DialogTitle>Prévia do Relatório</DialogTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              {filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome}
+              {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
               {" · "}
-              {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
+              {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
               {" · "}
-              {filtroVencimento === "todos" ? "Todos os vencimentos" : `Dia ${filtroVencimento}`}
+              {vencSel.length === 0 ? "Todos os vencimentos" : vencSel.map((d) => `Dia ${d}`).join(", ")}
               {" · "}{linhas.length} mês(es)
             </p>
           </DialogHeader>

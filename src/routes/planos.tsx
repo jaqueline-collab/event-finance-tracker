@@ -26,6 +26,9 @@ type PlanoForm = {
   valorMensal: string;
   valorSetup: string;
   diaVencimento: string;
+  cicloDiaInicial: string;
+  cicloDiaFinal: string;
+  cobrancaProporcional: boolean;
   canaisWhatsInclusos: string;
   canaisInstaInclusos: string;
   canaisMessengerInclusos: string;
@@ -66,6 +69,9 @@ const defaultForm = (): PlanoForm => ({
   valorMensal: "",
   valorSetup: "",
   diaVencimento: "",
+  cicloDiaInicial: "1",
+  cicloDiaFinal: "31",
+  cobrancaProporcional: false,
   canaisWhatsInclusos: "1",
   canaisInstaInclusos: "0",
   canaisMessengerInclusos: "0",
@@ -125,6 +131,9 @@ function PlanosPage() {
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
       diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
+      cicloDiaInicial: form.cicloDiaInicial ? Math.max(1, Math.min(31, Number(form.cicloDiaInicial))) : 1,
+      cicloDiaFinal: form.cicloDiaFinal ? Math.max(1, Math.min(31, Number(form.cicloDiaFinal))) : 31,
+      cobrancaProporcional: form.cobrancaProporcional,
       canaisInclusos: whatsInc + instaInc + msgInc,
       canaisWhatsInclusos: whatsInc,
       canaisInstaInclusos: instaInc,
@@ -180,6 +189,9 @@ function PlanosPage() {
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
       diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
+      cicloDiaInicial: String(p.cicloDiaInicial ?? 1),
+      cicloDiaFinal: String(p.cicloDiaFinal ?? 31),
+      cobrancaProporcional: Boolean(p.cobrancaProporcional),
       canaisWhatsInclusos: String(p.canaisWhatsInclusos ?? p.canaisInclusos ?? 0),
       canaisInstaInclusos: String(p.canaisInstaInclusos ?? 0),
       canaisMessengerInclusos: String(p.canaisMessengerInclusos ?? 0),
@@ -303,6 +315,33 @@ function PlanosPage() {
                 </div>
               </div>
             </div>
+
+            {/* Ciclo de faturamento — só Elora */}
+            {form.categoria === "elora" && (
+              <div className="border-t border-border/40 pt-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Ciclo de Faturamento</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="mb-1 block">Dia inicial do ciclo</Label>
+                    <Input type="number" min={1} max={31} value={form.cicloDiaInicial} onChange={(e) => setForm({ ...form, cicloDiaInicial: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="mb-1 block">Dia final do ciclo</Label>
+                    <Input type="number" min={1} max={31} value={form.cicloDiaFinal} onChange={(e) => setForm({ ...form, cicloDiaFinal: e.target.value })} />
+                    <p className="text-[10px] text-muted-foreground mt-1">Ex: 1 a 30. Se inicial &gt; final, o ciclo cruza meses.</p>
+                  </div>
+                  <div className="flex flex-col justify-end">
+                    <div className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${form.cobrancaProporcional ? "border-primary bg-primary/10" : "border-border/60"}`}>
+                      <div>
+                        <Label className="text-sm">Cobrança proporcional</Label>
+                        <p className="text-[10px] text-muted-foreground">Setup/upgrade/downgrade/churn no meio do ciclo cobram só os dias usados.</p>
+                      </div>
+                      <Switch checked={form.cobrancaProporcional} onCheckedChange={(v) => setForm({ ...form, cobrancaProporcional: v })} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Franquias — só Elora */}
             {form.categoria === "elora" && (<>

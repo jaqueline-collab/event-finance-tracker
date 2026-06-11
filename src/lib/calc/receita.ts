@@ -1,5 +1,6 @@
 import type { Cliente, CustoBase, Movimento, Plano } from "../types";
 import { clienteAtivoEm, clienteSnapshotAt, obterVencimentoDaCompetencia } from "./datas";
+import { getCicloCliente, isoFromDate } from "./ciclo";
 
 export function receitaMensalCliente(
   cliente: Cliente,
@@ -88,9 +89,50 @@ export function receitaCicloCliente(
   month: number,
 ): number {
   if (!clienteAtivoEm(cliente, year, month)) return 0;
-  const fim = new Date(year, month + 1, 0);
-  const snap = clienteSnapshotAt(cliente, movimentos, fim.toISOString().slice(0, 10));
-  return receitaMensalCliente(snap, planos, custos);
+  const plano = planos.find((p) => p.id === cliente.planoId);
+  const ciclo = getCicloCliente(cliente, plano, year, month);
+
+  // Limites efetivos: respeita data de início do cliente e churn
+  const inicioCliente = new Date(cliente.dataInicio);
+  const churn = cliente.dataChurn ? new Date(cliente.dataChurn) : null;
+  const segInicio = inicioCliente > ciclo.inicio ? inicioCliente : ciclo.inicio;
+  const segFim = churn && churn < ciclo.fim ? churn : ciclo.fim;
+  if (segFim < segInicio) return 0;
+
+  // Sem proporcionalidade: snapshot no fim do ciclo (comportamento histórico).
+  if (!ciclo.proporcional) {
+    const snap = clienteSnapshotAt(cliente, movimentos, isoFromDate(ciclo.fim));
+    return receitaMensalCliente(snap, planos, custos);
+  }
+
+  // Com proporcionalidade: soma segmentos entre cada movimento do ciclo
+  // (excluindo movimentos do tipo "servico" e "churn", que não alteram a base recorrente).
+  const movsCiclo = movimentos
+    .filter((m) => {
+      if (m.clienteId !== cliente.id) return false;
+      if (m.tipo === "servico" || m.tipo === "churn" || m.tipo === "setup") return false;
+      const d = new Date(m.data);
+      return d > segInicio && d <= segFim;
+    })
+    .sort((a, b) => a.data.localeCompare(b.data));
+
+  // Breakpoints: [segInicio, ...mov.data, segFim+1dia]
+  const breakpoints: Date[] = [segInicio];
+  for (const m of movsCiclo) breakpoints.push(new Date(m.data));
+  const fimExclusivo = new Date(segFim.getTime() + 24 * 60 * 60 * 1000);
+  breakpoints.push(fimExclusivo);
+
+  let total = 0;
+  for (let i = 0; i < breakpoints.length - 1; i++) {
+    const s = breakpoints[i];
+    const e = breakpoints[i + 1];
+    const dias = Math.round((e.getTime() - s.getTime()) / (24 * 60 * 60 * 1000));
+    if (dias <= 0) continue;
+    const snap = clienteSnapshotAt(cliente, movimentos, isoFromDate(s));
+    const valor = receitaMensalCliente(snap, planos, custos);
+    total += valor * (dias / ciclo.diasTotal);
+  }
+  return total;
 }
 
 export function clienteFaturaEm(

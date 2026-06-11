@@ -81,6 +81,9 @@ export type Database = {
           canais_messenger: number | null
           canais_whats: number | null
           canais_zapi: number | null
+          ciclo_dia_final: number | null
+          ciclo_dia_inicial: number | null
+          ciclo_personalizado: boolean
           contatos_ativos: number | null
           created_at: string
           data_churn: string | null
@@ -109,6 +112,9 @@ export type Database = {
           canais_messenger?: number | null
           canais_whats?: number | null
           canais_zapi?: number | null
+          ciclo_dia_final?: number | null
+          ciclo_dia_inicial?: number | null
+          ciclo_personalizado?: boolean
           contatos_ativos?: number | null
           created_at?: string
           data_churn?: string | null
@@ -137,6 +143,9 @@ export type Database = {
           canais_messenger?: number | null
           canais_whats?: number | null
           canais_zapi?: number | null
+          ciclo_dia_final?: number | null
+          ciclo_dia_inicial?: number | null
+          ciclo_personalizado?: boolean
           contatos_ativos?: number | null
           created_at?: string
           data_churn?: string | null
@@ -393,7 +402,10 @@ export type Database = {
           canais_messenger_inclusos: number
           canais_whats_inclusos: number
           categoria: string
+          ciclo_dia_final: number
+          ciclo_dia_inicial: number
           cobranca: string
+          cobranca_proporcional: boolean
           contatos_inclusos: number | null
           created_at: string
           dia_vencimento: number | null
@@ -439,7 +451,10 @@ export type Database = {
           canais_messenger_inclusos?: number
           canais_whats_inclusos?: number
           categoria?: string
+          ciclo_dia_final?: number
+          ciclo_dia_inicial?: number
           cobranca?: string
+          cobranca_proporcional?: boolean
           contatos_inclusos?: number | null
           created_at?: string
           dia_vencimento?: number | null
@@ -485,7 +500,10 @@ export type Database = {
           canais_messenger_inclusos?: number
           canais_whats_inclusos?: number
           categoria?: string
+          ciclo_dia_final?: number
+          ciclo_dia_inicial?: number
           cobranca?: string
+          cobranca_proporcional?: boolean
           contatos_inclusos?: number | null
           created_at?: string
           dia_vencimento?: number | null

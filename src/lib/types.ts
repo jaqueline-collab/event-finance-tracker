@@ -23,6 +23,11 @@ export interface Plano {
   valorSetup: number;
   // Dia padrão de vencimento (1-31). Cliente pode sobrescrever via Cliente.dataVencimento.
   diaVencimento?: number | null;
+  // Ciclo de faturamento padrão (dias 1-31). Cliente pode sobrescrever.
+  cicloDiaInicial?: number | null;
+  cicloDiaFinal?: number | null;
+  // Quando true, movimentos no meio do ciclo são cobrados proporcionalmente.
+  cobrancaProporcional?: boolean;
   // Franquias incluídas no plano
   canaisInclusos: number;
   usuariosInclusos: number;
@@ -91,6 +96,10 @@ export interface Cliente {
   dataInicio: string;
   dataVencimento: string | null;
   dataChurn: string | null;
+  // Ciclo de faturamento personalizado (sobrescreve o do plano quando ciclo_personalizado = true)
+  cicloPersonalizado?: boolean;
+  cicloDiaInicial?: number | null;
+  cicloDiaFinal?: number | null;
   apps: number;
   mau: number;
   canais: number;

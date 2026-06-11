@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
+import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 
 export const Route = createFileRoute("/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Elora" }] }),
@@ -47,6 +48,9 @@ function ClientesPage() {
     parceiroId: planos[0]?.parceiroIds?.[0] ?? "",
     dataInicio: new Date().toISOString().slice(0, 10),
     dataVencimento: "",
+    cicloPersonalizado: false,
+    cicloDiaInicial: "",
+    cicloDiaFinal: "",
     canais: 1,
     canaisWhats: 1,
     canaisInsta: 0,
@@ -310,55 +314,41 @@ function ClientesPage() {
   // Pesquisa
   const [search, setSearch] = useState("");
 
-  // Filtros
-  const [filtroSetupDe, setFiltroSetupDe] = useState("");
-  const [filtroSetupAte, setFiltroSetupAte] = useState("");
-  const [filtroChurnDe, setFiltroChurnDe] = useState("");
-  const [filtroChurnAte, setFiltroChurnAte] = useState("");
-  const [filtroParceiro, setFiltroParceiro] = useState("_todos");
-  const [filtroPlano, setFiltroPlano] = useState("_todos");
-  const [filtroSituacao, setFiltroSituacao] = useState<"_todos" | "trial" | "ativo" | "cancelado">("_todos");
-
-  const limparFiltros = () => {
-    setFiltroSetupDe("");
-    setFiltroSetupAte("");
-    setFiltroChurnDe("");
-    setFiltroChurnAte("");
-    setFiltroParceiro("_todos");
-    setFiltroPlano("_todos");
-    setFiltroSituacao("_todos");
-  };
-
-  const filtrosAtivos =
-    !!filtroSetupDe || !!filtroSetupAte || !!filtroChurnDe || !!filtroChurnAte ||
-    filtroParceiro !== "_todos" || filtroPlano !== "_todos" || filtroSituacao !== "_todos";
+  // Filtros estilo Monday (compostos)
+  const [filtros, setFiltros] = useState<FilterState>({});
+  const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
+  const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
+  const situacaoSel = (filtros.situacao?.type === "multi" ? filtros.situacao.values : []) as string[];
+  const setupRange = filtros.setup?.type === "dateRange" ? filtros.setup : null;
+  const churnRange = filtros.churn?.type === "dateRange" ? filtros.churn : null;
+  const filtrosAtivos = Object.keys(filtros).length > 0;
 
   // Aplica os filtros (sem ordenação) — base para métricas e lista
   const clientesFiltrados = useMemo(() => {
     const hoje = new Date();
     return clientes.filter((c) => {
       if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
-      if (filtroParceiro !== "_todos" && (c.parceiroId || "") !== filtroParceiro) return false;
-      if (filtroPlano !== "_todos" && (c.planoId || "") !== filtroPlano) return false;
-      if (filtroSetupDe && (c.dataInicio || "") < filtroSetupDe) return false;
-      if (filtroSetupAte && (c.dataInicio || "") > filtroSetupAte) return false;
-      if (filtroChurnDe && (!c.dataChurn || c.dataChurn < filtroChurnDe)) return false;
-      if (filtroChurnAte && (!c.dataChurn || c.dataChurn > filtroChurnAte)) return false;
-      if (filtroSituacao !== "_todos") {
+      if (parceiroSel.length > 0 && !parceiroSel.includes(c.parceiroId || "")) return false;
+      if (planoSel.length > 0 && !planoSel.includes(c.planoId || "")) return false;
+      if (setupRange?.from && (c.dataInicio || "") < setupRange.from) return false;
+      if (setupRange?.to && (c.dataInicio || "") > setupRange.to) return false;
+      if (churnRange?.from && (!c.dataChurn || c.dataChurn < churnRange.from)) return false;
+      if (churnRange?.to && (!c.dataChurn || c.dataChurn > churnRange.to)) return false;
+      if (situacaoSel.length > 0) {
         const cancelado = !!c.dataChurn;
-        if (filtroSituacao === "cancelado" && !cancelado) return false;
-        if (filtroSituacao === "ativo" || filtroSituacao === "trial") {
-          if (cancelado) return false;
-          const inicio = new Date(c.dataInicio);
-          const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
-          const isTrial = dias <= 14;
-          if (filtroSituacao === "trial" && !isTrial) return false;
-          if (filtroSituacao === "ativo" && isTrial) return false;
-        }
+        const inicio = new Date(c.dataInicio);
+        const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
+        const isTrial = !cancelado && dias <= 14;
+        const isAtivo = !cancelado && !isTrial;
+        const labels: string[] = [];
+        if (cancelado) labels.push("cancelado");
+        if (isTrial) labels.push("trial");
+        if (isAtivo) labels.push("ativo");
+        if (!situacaoSel.some((s) => labels.includes(s))) return false;
       }
       return true;
     });
-  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
+  }, [clientes, search, parceiroSel, planoSel, situacaoSel, setupRange, churnRange]);
 
   // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
   const clientesOrdenados = useMemo(() => {
@@ -411,65 +401,21 @@ function ClientesPage() {
       </div>
 
       {/* Filtros (no topo) */}
-      <Card className="border-border/60">
-        <CardContent className="p-3">
-          <div className="grid gap-2 grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-            <div className="col-span-2 md:col-span-2 xl:col-span-2">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Setup (período)</Label>
-              <div className="flex items-center gap-1">
-                <Input type="date" value={filtroSetupDe} onChange={(e) => setFiltroSetupDe(e.target.value)} className="h-9 px-2 text-xs" />
-                <span className="text-muted-foreground text-xs">→</span>
-                <Input type="date" value={filtroSetupAte} onChange={(e) => setFiltroSetupAte(e.target.value)} className="h-9 px-2 text-xs" />
-              </div>
-            </div>
-            <div className="col-span-2 md:col-span-2 xl:col-span-2">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Churn (período)</Label>
-              <div className="flex items-center gap-1">
-                <Input type="date" value={filtroChurnDe} onChange={(e) => setFiltroChurnDe(e.target.value)} className="h-9 px-2 text-xs" />
-                <span className="text-muted-foreground text-xs">→</span>
-                <Input type="date" value={filtroChurnAte} onChange={(e) => setFiltroChurnAte(e.target.value)} className="h-9 px-2 text-xs" />
-              </div>
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Parceiro</Label>
-              <Select value={filtroParceiro} onValueChange={setFiltroParceiro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_todos">Todos</SelectItem>
-                  {parceiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Plano</Label>
-              <Select value={filtroPlano} onValueChange={setFiltroPlano}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_todos">Todos</SelectItem>
-                  {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Situação</Label>
-              <Select value={filtroSituacao} onValueChange={(v: typeof filtroSituacao) => setFiltroSituacao(v)}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_todos">Todas</SelectItem>
-                  <SelectItem value="trial">Trial (até 14 dias)</SelectItem>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {filtrosAtivos && (
-            <div className="flex justify-end mt-2">
-              <Button variant="ghost" size="sm" onClick={limparFiltros}>Limpar filtros</Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <FilterBar
+        fields={[
+          { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "situacao", label: "Situação", type: "multi", options: [
+            { value: "trial", label: "Trial (até 14 dias)" },
+            { value: "ativo", label: "Ativo" },
+            { value: "cancelado", label: "Cancelado" },
+          ] },
+          { key: "setup", label: "Data de setup", type: "dateRange" },
+          { key: "churn", label: "Data de churn", type: "dateRange" },
+        ] as FilterFieldDef[]}
+        value={filtros}
+        onChange={setFiltros}
+      />
 
       {/* Resumo da carteira — cards compactos (seguem os filtros) */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
@@ -540,6 +486,33 @@ function ClientesPage() {
                     <Label className="mb-1.5 block font-medium">Próximo Vencimento (Dia)</Label>
                     <Input type="number" min={1} max={31} placeholder="Ex: 5, 10, 15..." value={form.dataVencimento} onChange={(e) => setForm({ ...form, dataVencimento: e.target.value })} />
                   </div>
+                </div>
+
+                {/* Personalizar ciclo de faturamento */}
+                <div className="border-t border-border/40 pt-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="ciclo-pers"
+                      checked={form.cicloPersonalizado}
+                      onCheckedChange={(v) => setForm({ ...form, cicloPersonalizado: v })}
+                    />
+                    <Label htmlFor="ciclo-pers" className="text-sm cursor-pointer font-medium">
+                      Personalizar ciclo de faturamento
+                    </Label>
+                    <span className="text-[10px] text-muted-foreground">(sobrescreve o ciclo do plano)</span>
+                  </div>
+                  {form.cicloPersonalizado && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="mb-1.5 block text-xs font-semibold">Dia inicial do ciclo</Label>
+                        <Input type="number" min={1} max={31} placeholder="Ex: 1" value={form.cicloDiaInicial} onChange={(e) => setForm({ ...form, cicloDiaInicial: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="mb-1.5 block text-xs font-semibold">Dia final do ciclo</Label>
+                        <Input type="number" min={1} max={31} placeholder="Ex: 30" value={form.cicloDiaFinal} onChange={(e) => setForm({ ...form, cicloDiaFinal: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-border/40 pt-4 space-y-4">
@@ -812,6 +785,9 @@ function ClientesPage() {
                         transcricaoIA: form.transcricaoIA,
                         valorSetupPago: form.valorSetupPago,
                         valorAcompanhamento: form.valorAcompanhamento,
+                        cicloPersonalizado: form.cicloPersonalizado,
+                        cicloDiaInicial: form.cicloPersonalizado && form.cicloDiaInicial ? Math.max(1, Math.min(31, Number(form.cicloDiaInicial))) : null,
+                        cicloDiaFinal: form.cicloPersonalizado && form.cicloDiaFinal ? Math.max(1, Math.min(31, Number(form.cicloDiaFinal))) : null,
                         extras: {},
                         apps: 1,
                         mau: form.contatosAtivos
@@ -822,6 +798,9 @@ function ClientesPage() {
                         parceiroId: "",
                         dataInicio: new Date().toISOString().slice(0, 10),
                         dataVencimento: "",
+                        cicloPersonalizado: false,
+                        cicloDiaInicial: "",
+                        cicloDiaFinal: "",
                         canais: 1,
                         canaisWhats: 1,
                         canaisInsta: 0,
