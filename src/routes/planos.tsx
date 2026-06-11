@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStore, formatBRL } from "@/lib/store";
 import type { Plano } from "@/lib/types";
-import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines } from "lucide-react";
+import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers } from "lucide-react";
 
 export const Route = createFileRoute("/planos")({
   head: () => ({ meta: [{ title: "Planos · Elora" }] }),
@@ -18,6 +19,10 @@ export const Route = createFileRoute("/planos")({
 
 type PlanoForm = {
   nome: string;
+  categoria: "elora" | "consultoria";
+  cobranca: "recorrente" | "unica";
+  duracaoValor: string;
+  duracaoUnidade: "" | "dias" | "meses" | "anos";
   valorMensal: string;
   valorSetup: string;
   diaVencimento: string;
@@ -54,6 +59,10 @@ type PlanoForm = {
 
 const defaultForm = (): PlanoForm => ({
   nome: "",
+  categoria: "elora",
+  cobranca: "recorrente",
+  duracaoValor: "",
+  duracaoUnidade: "",
   valorMensal: "",
   valorSetup: "",
   diaVencimento: "",
