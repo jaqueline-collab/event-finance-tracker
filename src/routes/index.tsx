@@ -87,8 +87,8 @@ function Navbar() {
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a href="#top" className="flex items-center gap-2">
-          <PawLogo className="h-6 w-6 text-white" />
+        <a href="#top" className="flex items-center gap-2 leading-none">
+          <PawLogo className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
           <span
             className="text-white font-bold tracking-tight text-lg"
             style={{ fontFamily: "var(--font-display)" }}
@@ -111,7 +111,9 @@ function Navbar() {
           </a>
         </nav>
         <a
-          href="/auth"
+          href="https://app.eloracrm.com.br/"
+          target="_blank"
+          rel="noopener noreferrer"
           className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
         >
           Entrar
@@ -136,20 +138,29 @@ function Hero() {
             "radial-gradient(900px circle at 80% 10%, var(--color-landing-blue) 0%, transparent 55%), radial-gradient(700px circle at 10% 90%, #ffffff 0%, transparent 65%)",
         }}
       />
-      {/* Marcas de garras "arranhando" a página */}
-      <svg
+      {/* Patinha "agarrada" no topo, com riscos de garra descendo */}
+      <div
         aria-hidden
-        viewBox="0 0 1200 600"
-        className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.07]"
-        preserveAspectRatio="xMidYMid slice"
+        className="absolute -top-6 right-8 md:right-16 pointer-events-none select-none rotate-12"
       >
-        <g stroke="white" strokeWidth="3" strokeLinecap="round" fill="none">
-          <path d="M 80 520 Q 200 360 360 240" />
-          <path d="M 140 560 Q 260 400 420 280" />
-          <path d="M 200 600 Q 320 440 480 320" />
-          <path d="M 260 620 Q 380 480 540 360" />
-        </g>
-      </svg>
+        <PawLogo className="h-28 w-28 md:h-36 md:w-36 text-landing-yellow/25" />
+        <svg
+          viewBox="0 0 200 240"
+          className="absolute left-1/2 top-[78%] -translate-x-1/2 w-24 md:w-32 h-40 md:h-52 opacity-40"
+        >
+          <g
+            stroke="var(--color-landing-yellow)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            fill="none"
+          >
+            <path d="M40 0 C 50 80, 55 140, 60 230" />
+            <path d="M85 0 C 90 80, 92 140, 95 230" />
+            <path d="M130 0 C 130 80, 132 140, 135 230" />
+            <path d="M170 0 C 165 80, 162 140, 160 230" />
+          </g>
+        </svg>
+      </div>
       <div className="relative max-w-6xl mx-auto text-center">
         <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-landing-yellow border border-landing-yellow/30 rounded-full px-4 py-1.5">
           <Sparkles className="h-3.5 w-3.5" /> Atendimento + Vendas + IA
@@ -173,7 +184,9 @@ function Hero() {
             Simular meu plano <ArrowRight className="h-4 w-4" />
           </a>
           <a
-            href="/auth"
+            href="https://app.eloracrm.com.br/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="border border-white/30 hover:border-white text-white font-semibold px-7 py-3.5 rounded-md text-base transition-colors"
           >
             Entrar
