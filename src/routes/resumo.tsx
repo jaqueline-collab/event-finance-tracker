@@ -1093,6 +1093,203 @@ function ResumoPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Prévia do Relatório (antes de exportar PDF) */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Prévia do Relatório</DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              {filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome}
+              {" · "}
+              {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
+              {" · "}
+              {filtroVencimento === "todos" ? "Todos os vencimentos" : `Dia ${filtroVencimento}`}
+              {" · "}{linhas.length} mês(es)
+            </p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mês</TableHead>
+                  <TableHead className="text-right">Faturados</TableHead>
+                  <TableHead className="text-right">Novos</TableHead>
+                  <TableHead className="text-right">Churns</TableHead>
+                  <TableHead className="text-right">Receita</TableHead>
+                  <TableHead className="text-right">Custo Op.</TableHead>
+                  <TableHead className="text-right">Lucro</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhas.map((l) => (
+                  <TableRow key={l.mesKey}>
+                    <TableCell className="capitalize font-medium">{l.mesLabel}</TableCell>
+                    <TableCell className="text-right">{l.ativos.length}</TableCell>
+                    <TableCell className="text-right text-accent">+{l.novos}</TableCell>
+                    <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
+                    <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
+                    <TableCell className="text-right text-yellow-400">{formatBRL(l.custoHelena)}</TableCell>
+                    <TableCell className={`text-right font-semibold ${l.lucro >= 0 ? "text-accent" : "text-destructive"}`}>
+                      {formatBRL(l.lucro)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
+              <Button variant="outline" onClick={() => setPreviewOpen(false)}>Fechar</Button>
+              <Button onClick={() => { exportarPdf(); setPreviewOpen(false); }} className="gap-2">
+                <Download className="h-4 w-4" /> Exportar PDF
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Histórico do cliente no mês */}
+      <Dialog open={!!historicoCliente} onOpenChange={(o) => !o && setHistoricoCliente(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {historicoCliente && (() => {
+            const cli = clientes.find((c) => c.id === historicoCliente.clienteId);
+            if (!cli) return null;
+            const y = Number(historicoCliente.mesKey.slice(0, 4));
+            const m = Number(historicoCliente.mesKey.slice(5, 7)) - 1;
+            const plano = planos.find((p) => p.id === cli.planoId);
+            const parceiro = parceiros.find((p) => p.id === cli.parceiroId);
+            const inicioMes = new Date(y, m, 0).toISOString().slice(0, 10); // último dia do mês anterior
+            const fimMes = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+            const snapInicio = clienteSnapshotAt(cli, movimentos, inicioMes);
+            const snapFim = clienteSnapshotAt(cli, movimentos, fimMes);
+            const mrrInicio = receitaMensalCliente(snapInicio, planos, custos);
+            const mrrFim = receitaMensalCliente(snapFim, planos, custos);
+            const sistemaFim = Math.max(0, mrrFim - (snapFim.valorAcompanhamento || 0));
+            const acompFim = snapFim.valorAcompanhamento || 0;
+            const recCiclo = receitaCicloCliente(cli, planos, custos, movimentos, y, m);
+            const venc = obterVencimentoDaCompetencia(cli, y, m, planos);
+            const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+            // Movimentos do cliente no mês (ordenados por data crescente)
+            const movsMes = movimentos
+              .filter((mv) => mv.clienteId === cli.id)
+              .filter((mv) => {
+                const d = new Date(mv.data);
+                return d.getFullYear() === y && d.getMonth() === m;
+              })
+              .sort((a, b) => a.data.localeCompare(b.data));
+
+            // delta receita por movimento (snapshot antes vs depois)
+            const deltaDe = (mv: typeof movimentos[number]) => {
+              const after = clienteSnapshotAt(cli, movimentos, mv.data);
+              const before: typeof after = { ...after };
+              const rev = (cur: number | undefined, val: number | null | undefined) =>
+                val === undefined || val === null ? cur : Math.max(0, (cur ?? 0) - val);
+              before.canaisWhats = rev(after.canaisWhats, mv.canaisWhats);
+              before.canaisInsta = rev(after.canaisInsta, mv.canaisInsta);
+              before.canaisMessenger = rev(after.canaisMessenger, mv.canaisMessenger);
+              before.canaisZapi = rev(after.canaisZapi, mv.canaisZapi) ?? after.canaisZapi;
+              before.usuariosAtivos = rev(after.usuariosAtivos, mv.usuariosAtivos) ?? after.usuariosAtivos;
+              before.contatosAtivos = rev(after.contatosAtivos, mv.contatosAtivos) ?? after.contatosAtivos;
+              return receitaMensalCliente(after, planos, custos) - receitaMensalCliente(before, planos, custos);
+            };
+
+            const deltaMes = mrrFim - mrrInicio;
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">{cli.nome}</DialogTitle>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {labelMes} · {plano?.nome ?? "—"}{parceiro ? ` · ${parceiro.nome}` : ""}
+                  </p>
+                </DialogHeader>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">MRR início do mês</div>
+                    <div className="text-lg font-semibold mt-1">{formatBRL(mrrInicio)}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">MRR fim do mês</div>
+                    <div className="text-lg font-semibold mt-1 text-primary">{formatBRL(mrrFim)}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Variação no mês</div>
+                    <div className={`text-lg font-semibold mt-1 ${deltaMes > 0 ? "text-accent" : deltaMes < 0 ? "text-destructive" : ""}`}>
+                      {deltaMes > 0 ? "+" : ""}{formatBRL(deltaMes)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Receita do ciclo</div>
+                    <div className="text-lg font-semibold mt-1">{formatBRL(recCiclo)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">Venc. {formatDiaVencimento(venc)}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Sistema (fim do mês)</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(sistemaFim)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Acompanhamento (fim do mês)</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(acompFim)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold mb-2">Linha do tempo · {labelMes}</h4>
+                  {movsMes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border/40 rounded-md">
+                      Sem movimentações neste mês.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {movsMes.map((mv) => {
+                        const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaDe(mv) : 0;
+                        const isUp = mv.tipo === "upgrade";
+                        const isDown = mv.tipo === "downgrade";
+                        const labelTipo =
+                          mv.tipo === "setup" ? "Setup" :
+                          mv.tipo === "upgrade" ? "Upgrade" :
+                          mv.tipo === "downgrade" ? "Downgrade" :
+                          mv.tipo === "churn" ? "Churn" : "Serviço";
+                        return (
+                          <div key={mv.id} className="flex items-start gap-3 rounded-md border border-border/40 p-3">
+                            <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-accent/20 text-accent" : isDown ? "bg-destructive/20 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                              {isUp ? <TrendingUp className="h-3.5 w-3.5" /> : isDown ? <TrendingDown className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="text-[10px]">{labelTipo}</Badge>
+                                {delta !== 0 && (
+                                  <span className={`text-xs font-semibold ${delta > 0 ? "text-accent" : "text-destructive"}`}>
+                                    {delta > 0 ? "+" : ""}{formatBRL(delta)}/mês
+                                  </span>
+                                )}
+                                {mv.tipo === "servico" && mv.valorServico ? (
+                                  <span className="text-xs font-semibold">{formatBRL(mv.valorServico)}</span>
+                                ) : null}
+                                <span className="text-xs text-muted-foreground ml-auto">{mv.data.split("-").reverse().join("/")}</span>
+                              </div>
+                              {(mv.tipo === "upgrade" || mv.tipo === "downgrade") && (
+                                <div className="text-xs text-muted-foreground mt-1">{descreverMov(mv)}</div>
+                              )}
+                              {mv.observacao && (
+                                <div className="text-xs text-muted-foreground mt-1 italic">{mv.observacao}</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
