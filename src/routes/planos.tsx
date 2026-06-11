@@ -118,6 +118,10 @@ function PlanosPage() {
     const msgInc = Number(form.canaisMessengerInclusos) || 0;
     const planoData: Omit<Plano, "id"> = {
       nome: form.nome,
+      categoria: form.categoria,
+      cobranca: form.cobranca,
+      duracaoValor: form.duracaoValor ? Number(form.duracaoValor) : null,
+      duracaoUnidade: form.duracaoUnidade || null,
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
       diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
@@ -169,6 +173,10 @@ function PlanosPage() {
     setEditId(p.id);
     setForm({
       nome: p.nome,
+      categoria: p.categoria ?? "elora",
+      cobranca: p.cobranca ?? "recorrente",
+      duracaoValor: p.duracaoValor != null ? String(p.duracaoValor) : "",
+      duracaoUnidade: p.duracaoUnidade ?? "",
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
       diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
