@@ -464,39 +464,6 @@ function FAQ() {
   );
 }
 
-/* ============================== CTA FINAL ============================== */
-function CTAFinal() {
-  return (
-    <section className="py-20 px-6 bg-landing-dark text-white">
-      <div className="max-w-3xl mx-auto text-center">
-        <h2
-          className="text-4xl md:text-5xl font-bold leading-tight"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Pronto para colocar seu atendimento <span className="text-landing-yellow">no automático?</span>
-        </h2>
-        <p className="text-white/70 mt-4">
-          Centralize canais, qualifique leads e venda mais — sem trocar de aba.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <a
-            href="#simulador"
-            className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-7 py-3.5 rounded-md transition-colors"
-          >
-            Simular meu plano
-          </a>
-          <a
-            href="/auth"
-            className="border border-white/30 hover:border-white text-white font-semibold px-7 py-3.5 rounded-md transition-colors"
-          >
-            Entrar
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ============================== FOOTER ============================== */
 function Footer() {
   return (
