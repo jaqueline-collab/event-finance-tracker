@@ -1,9 +1,10 @@
 import type { SVGProps } from "react";
 
 /**
- * Patinha de gato com garrinhas à mostra — marca do EloraCRM.
- * Cor herda de `currentColor`. Proporção ajustada para combinar
- * em altura com a wordmark "EloraCRM" (sem dominar).
+ * Patinha de gato — marca do EloraCRM.
+ * Estilo "cartoon limpo": almofada central + 4 dedinhos com unhinhas curtas.
+ * Desenhada no viewBox quadrado com os elementos compactados verticalmente
+ * para alinhar opticamente com a x-height da wordmark "EloraCRM".
  */
 export function PawLogo({
   className,
@@ -19,27 +20,23 @@ export function PawLogo({
       {...props}
     >
       {/* Almofada principal */}
-      <path d="M32 34c-8.2 0-14.5 5.6-14.5 12.2 0 4.5 3.2 7.8 7.6 7.8 2.7 0 4.3-1.1 6.9-1.1s4.2 1.1 6.9 1.1c4.4 0 7.6-3.3 7.6-7.8C46.5 39.6 40.2 34 32 34z" />
-      {/* Dedinho central-esq */}
+      <path d="M32 30c-9 0-16 6-16 13.2 0 5 3.6 8.8 8.6 8.8 3 0 4.8-1.2 7.4-1.2s4.4 1.2 7.4 1.2c5 0 8.6-3.8 8.6-8.8C48 36 41 30 32 30z" />
+      {/* Dedos: 4 elipses + 4 unhinhas curtas */}
       <g>
-        <ellipse cx="24" cy="22" rx="4.2" ry="5.6" />
-        {/* garrinha */}
-        <path d="M21.5 16.5 Q22 13 23.2 15.2 Z" />
+        <ellipse cx="20" cy="20" rx="4.6" ry="5.8" />
+        <path d="M17.6 13.6c.3-1.6 1.7-1.6 2 0 .2 1-.4 1.6-1 1.6s-1.2-.6-1-1.6z" />
       </g>
-      {/* Dedinho central-dir */}
       <g>
-        <ellipse cx="40" cy="22" rx="4.2" ry="5.6" />
-        <path d="M42.5 16.5 Q42 13 40.8 15.2 Z" />
+        <ellipse cx="32" cy="16" rx="4.6" ry="5.8" />
+        <path d="M29.6 9.6c.3-1.6 1.7-1.6 2 0 .2 1-.4 1.6-1 1.6s-1.2-.6-1-1.6z" />
       </g>
-      {/* Dedinho lateral esq */}
       <g>
-        <ellipse cx="13" cy="30" rx="4" ry="5.2" />
-        <path d="M10.5 25 Q10.8 22 12 24.4 Z" />
+        <ellipse cx="44" cy="20" rx="4.6" ry="5.8" />
+        <path d="M41.6 13.6c.3-1.6 1.7-1.6 2 0 .2 1-.4 1.6-1 1.6s-1.2-.6-1-1.6z" />
       </g>
-      {/* Dedinho lateral dir */}
       <g>
-        <ellipse cx="51" cy="30" rx="4" ry="5.2" />
-        <path d="M53.5 25 Q53.2 22 52 24.4 Z" />
+        <ellipse cx="54" cy="30" rx="4.2" ry="5.2" />
+        <path d="M51.8 24c.3-1.5 1.6-1.5 1.9 0 .2 1-.4 1.5-.95 1.5S51.6 25 51.8 24z" />
       </g>
     </svg>
   );
