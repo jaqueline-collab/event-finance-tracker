@@ -205,29 +205,18 @@ function FinanceiroPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border/60 bg-muted/10">
-        <div className="flex flex-col gap-1 min-w-[160px]">
-          <Label className="text-xs text-muted-foreground">Tipo</Label>
-          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="custo">Custo</SelectItem>
-              <SelectItem value="fechamento">Fechamento mensal</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 min-w-[160px]">
-          <Label className="text-xs text-muted-foreground">Status</Label>
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              {statusOptions.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <FilterBar
+        fields={[
+          { key: "tipo", label: "Tipo", type: "multi", options: [
+            { value: "custo", label: "Custo" },
+            { value: "fechamento", label: "Fechamento mensal" },
+          ] },
+          { key: "status", label: "Status", type: "multi", options: statusOptions.map((s) => ({ value: s.value, label: s.label })) },
+          { key: "vencimento", label: "Vencimento", type: "dateRange" },
+        ] as FilterFieldDef[]}
+        value={filtros}
+        onChange={setFiltros}
+      />
 
       {/* Tabela */}
       <Card className="border-border/60">
