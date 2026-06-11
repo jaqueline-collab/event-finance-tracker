@@ -634,9 +634,14 @@ function ResumoPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
           <p className="text-muted-foreground text-sm">Receita, custo operacional e lucro por mês, considerando o próximo vencimento após o setup</p>
         </div>
-        <Button onClick={exportarPdf} disabled={linhas.length === 0} className="gap-2">
-          <Download className="h-4 w-4" /> Exportar PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setPreviewOpen(true)} disabled={linhas.length === 0} variant="outline" className="gap-2">
+            <Eye className="h-4 w-4" /> Visualizar Relatório
+          </Button>
+          <Button onClick={exportarPdf} disabled={linhas.length === 0} className="gap-2">
+            <Download className="h-4 w-4" /> Exportar PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
