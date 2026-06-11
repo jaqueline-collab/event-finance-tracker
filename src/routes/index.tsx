@@ -88,7 +88,7 @@ function Navbar() {
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#top" className="flex items-center gap-2">
-          <PawLogo className="h-8 w-8 text-landing-yellow" />
+          <PawLogo className="h-6 w-6 text-white" />
           <span
             className="text-white font-bold tracking-tight text-lg"
             style={{ fontFamily: "var(--font-display)" }}
@@ -210,9 +210,6 @@ function Stats() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-landing-muted text-center mt-6">
-          Fontes: Opinion Box, Hazlo, CNN Brasil.
-        </p>
       </div>
     </section>
   );
@@ -288,7 +285,7 @@ function Funcionalidades() {
                   {f.title}
                 </h3>
                 {f.badge && (
-                  <span className="text-[10px] font-bold bg-landing-yellow text-landing-fg px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold bg-landing-blue text-white px-1.5 py-0.5 rounded">
                     {f.badge}
                   </span>
                 )}
