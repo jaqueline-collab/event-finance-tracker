@@ -26,6 +26,7 @@ export {
   clienteAtivoEm,
   clienteSnapshotAt,
 } from "./calc/datas";
+export { getCicloCliente } from "./calc/ciclo";
 export {
   calcularCustoExtraCanaisHelena,
   calcularCustoExtraUsuariosHelena,
