@@ -34,7 +34,7 @@ import {
 } from "recharts";
 import { TrendingUp, Users, Wallet, DollarSign, Trophy, Crown } from "lucide-react";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Elora" }] }),
   component: Index,
 });

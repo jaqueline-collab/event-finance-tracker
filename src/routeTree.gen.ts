@@ -15,9 +15,9 @@ import { Route as PlanosRouteImport } from './routes/planos'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 
 const UsuariosRoute = UsuariosRouteImport.update({
@@ -50,6 +50,11 @@ const FinanceiroRoute = FinanceiroRouteImport.update({
   path: '/financeiro',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesRoute = ClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -60,11 +65,6 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -72,9 +72,9 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
+  '/dashboard': typeof DashboardRoute
   '/financeiro': typeof FinanceiroRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiros': typeof ParceirosRoute
@@ -84,9 +84,9 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
+  '/dashboard': typeof DashboardRoute
   '/financeiro': typeof FinanceiroRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiros': typeof ParceirosRoute
@@ -97,9 +97,9 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
+  '/dashboard': typeof DashboardRoute
   '/financeiro': typeof FinanceiroRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiros': typeof ParceirosRoute
@@ -111,9 +111,9 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/auth'
     | '/clientes'
+    | '/dashboard'
     | '/financeiro'
     | '/orcamentos'
     | '/parceiros'
@@ -123,9 +123,9 @@ export interface FileRouteTypes {
     | '/auth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/auth'
     | '/clientes'
+    | '/dashboard'
     | '/financeiro'
     | '/orcamentos'
     | '/parceiros'
@@ -135,9 +135,9 @@ export interface FileRouteTypes {
     | '/auth/callback'
   id:
     | '__root__'
-    | '/'
     | '/auth'
     | '/clientes'
+    | '/dashboard'
     | '/financeiro'
     | '/orcamentos'
     | '/parceiros'
@@ -148,9 +148,9 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRouteWithChildren
   ClientesRoute: typeof ClientesRoute
+  DashboardRoute: typeof DashboardRoute
   FinanceiroRoute: typeof FinanceiroRoute
   OrcamentosRoute: typeof OrcamentosRoute
   ParceirosRoute: typeof ParceirosRoute
@@ -203,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinanceiroRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes': {
       id: '/clientes'
       path: '/clientes'
@@ -215,13 +222,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -245,9 +245,9 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
   ClientesRoute: ClientesRoute,
+  DashboardRoute: DashboardRoute,
   FinanceiroRoute: FinanceiroRoute,
   OrcamentosRoute: OrcamentosRoute,
   ParceirosRoute: ParceirosRoute,
@@ -258,3 +258,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
