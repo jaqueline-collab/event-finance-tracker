@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
+import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 
 export const Route = createFileRoute("/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Elora" }] }),
@@ -313,55 +314,41 @@ function ClientesPage() {
   // Pesquisa
   const [search, setSearch] = useState("");
 
-  // Filtros
-  const [filtroSetupDe, setFiltroSetupDe] = useState("");
-  const [filtroSetupAte, setFiltroSetupAte] = useState("");
-  const [filtroChurnDe, setFiltroChurnDe] = useState("");
-  const [filtroChurnAte, setFiltroChurnAte] = useState("");
-  const [filtroParceiro, setFiltroParceiro] = useState("_todos");
-  const [filtroPlano, setFiltroPlano] = useState("_todos");
-  const [filtroSituacao, setFiltroSituacao] = useState<"_todos" | "trial" | "ativo" | "cancelado">("_todos");
-
-  const limparFiltros = () => {
-    setFiltroSetupDe("");
-    setFiltroSetupAte("");
-    setFiltroChurnDe("");
-    setFiltroChurnAte("");
-    setFiltroParceiro("_todos");
-    setFiltroPlano("_todos");
-    setFiltroSituacao("_todos");
-  };
-
-  const filtrosAtivos =
-    !!filtroSetupDe || !!filtroSetupAte || !!filtroChurnDe || !!filtroChurnAte ||
-    filtroParceiro !== "_todos" || filtroPlano !== "_todos" || filtroSituacao !== "_todos";
+  // Filtros estilo Monday (compostos)
+  const [filtros, setFiltros] = useState<FilterState>({});
+  const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
+  const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
+  const situacaoSel = (filtros.situacao?.type === "multi" ? filtros.situacao.values : []) as string[];
+  const setupRange = filtros.setup?.type === "dateRange" ? filtros.setup : null;
+  const churnRange = filtros.churn?.type === "dateRange" ? filtros.churn : null;
+  const filtrosAtivos = Object.keys(filtros).length > 0;
 
   // Aplica os filtros (sem ordenação) — base para métricas e lista
   const clientesFiltrados = useMemo(() => {
     const hoje = new Date();
     return clientes.filter((c) => {
       if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
-      if (filtroParceiro !== "_todos" && (c.parceiroId || "") !== filtroParceiro) return false;
-      if (filtroPlano !== "_todos" && (c.planoId || "") !== filtroPlano) return false;
-      if (filtroSetupDe && (c.dataInicio || "") < filtroSetupDe) return false;
-      if (filtroSetupAte && (c.dataInicio || "") > filtroSetupAte) return false;
-      if (filtroChurnDe && (!c.dataChurn || c.dataChurn < filtroChurnDe)) return false;
-      if (filtroChurnAte && (!c.dataChurn || c.dataChurn > filtroChurnAte)) return false;
-      if (filtroSituacao !== "_todos") {
+      if (parceiroSel.length > 0 && !parceiroSel.includes(c.parceiroId || "")) return false;
+      if (planoSel.length > 0 && !planoSel.includes(c.planoId || "")) return false;
+      if (setupRange?.from && (c.dataInicio || "") < setupRange.from) return false;
+      if (setupRange?.to && (c.dataInicio || "") > setupRange.to) return false;
+      if (churnRange?.from && (!c.dataChurn || c.dataChurn < churnRange.from)) return false;
+      if (churnRange?.to && (!c.dataChurn || c.dataChurn > churnRange.to)) return false;
+      if (situacaoSel.length > 0) {
         const cancelado = !!c.dataChurn;
-        if (filtroSituacao === "cancelado" && !cancelado) return false;
-        if (filtroSituacao === "ativo" || filtroSituacao === "trial") {
-          if (cancelado) return false;
-          const inicio = new Date(c.dataInicio);
-          const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
-          const isTrial = dias <= 14;
-          if (filtroSituacao === "trial" && !isTrial) return false;
-          if (filtroSituacao === "ativo" && isTrial) return false;
-        }
+        const inicio = new Date(c.dataInicio);
+        const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
+        const isTrial = !cancelado && dias <= 14;
+        const isAtivo = !cancelado && !isTrial;
+        const labels: string[] = [];
+        if (cancelado) labels.push("cancelado");
+        if (isTrial) labels.push("trial");
+        if (isAtivo) labels.push("ativo");
+        if (!situacaoSel.some((s) => labels.includes(s))) return false;
       }
       return true;
     });
-  }, [clientes, search, filtroSetupDe, filtroSetupAte, filtroChurnDe, filtroChurnAte, filtroParceiro, filtroPlano, filtroSituacao]);
+  }, [clientes, search, parceiroSel, planoSel, situacaoSel, setupRange, churnRange]);
 
   // Ordena clientes: ativos por data de setup (mais recente primeiro), cancelados ao final
   const clientesOrdenados = useMemo(() => {
