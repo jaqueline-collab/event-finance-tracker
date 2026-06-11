@@ -133,9 +133,23 @@ function Hero() {
         className="absolute inset-0 opacity-30"
         style={{
           background:
-            "radial-gradient(900px circle at 80% 10%, var(--color-landing-blue) 0%, transparent 55%), radial-gradient(700px circle at 10% 90%, var(--color-landing-yellow) 0%, transparent 50%)",
+            "radial-gradient(900px circle at 80% 10%, var(--color-landing-blue) 0%, transparent 55%), radial-gradient(700px circle at 10% 90%, #ffffff 0%, transparent 65%)",
         }}
       />
+      {/* Marcas de garras "arranhando" a página */}
+      <svg
+        aria-hidden
+        viewBox="0 0 1200 600"
+        className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.07]"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <g stroke="white" strokeWidth="3" strokeLinecap="round" fill="none">
+          <path d="M 80 520 Q 200 360 360 240" />
+          <path d="M 140 560 Q 260 400 420 280" />
+          <path d="M 200 600 Q 320 440 480 320" />
+          <path d="M 260 620 Q 380 480 540 360" />
+        </g>
+      </svg>
       <div className="relative max-w-6xl mx-auto text-center">
         <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-landing-yellow border border-landing-yellow/30 rounded-full px-4 py-1.5">
           <Sparkles className="h-3.5 w-3.5" /> Atendimento + Vendas + IA
