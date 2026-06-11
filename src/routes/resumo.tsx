@@ -815,9 +815,9 @@ function ResumoPage() {
                       <div className="text-xs uppercase tracking-[0.3em] opacity-80">Elora · Fechamento Mensal</div>
                       <DialogTitle className="text-3xl font-bold mt-1 capitalize">{fechamentoData.labelMes}</DialogTitle>
                       <p className="text-xs opacity-80 mt-2">
-                        {filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome}
+                        {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
                         {" · "}
-                        {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
+                        {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
                       </p>
                       <p className="text-[11px] opacity-90 mt-1">
                         Ciclo de faturamento: {fechamentoData.cicloLabel}
@@ -1088,11 +1088,11 @@ function ResumoPage() {
           <DialogHeader>
             <DialogTitle>Prévia do Relatório</DialogTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              {filtroPlano === "todos" ? "Todos os planos" : planos.find((p) => p.id === filtroPlano)?.nome}
+              {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
               {" · "}
-              {filtroParceiro === "todos" ? "Todos os parceiros" : parceiros.find((p) => p.id === filtroParceiro)?.nome}
+              {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
               {" · "}
-              {filtroVencimento === "todos" ? "Todos os vencimentos" : `Dia ${filtroVencimento}`}
+              {vencSel.length === 0 ? "Todos os vencimentos" : vencSel.map((d) => `Dia ${d}`).join(", ")}
               {" · "}{linhas.length} mês(es)
             </p>
           </DialogHeader>
