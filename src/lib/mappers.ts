@@ -3,6 +3,10 @@ import type { Cliente, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMov
 export const mapPlanoToDb = (p: Plano) => ({
   id: p.id,
   nome: p.nome,
+  categoria: p.categoria,
+  cobranca: p.cobranca,
+  duracao_valor: p.duracaoValor ?? null,
+  duracao_unidade: p.duracaoUnidade ?? null,
   valor_mensal: p.valorMensal,
   valor_setup: p.valorSetup,
   canais_inclusos: p.canaisInclusos,
@@ -50,6 +54,10 @@ export const mapDbToPlano = (r: any): Plano => {
   return ({
     id: r.id,
     nome: r.nome,
+    categoria: (r.categoria === "consultoria" ? "consultoria" : "elora") as "elora" | "consultoria",
+    cobranca: (r.cobranca === "unica" ? "unica" : "recorrente") as "recorrente" | "unica",
+    duracaoValor: r.duracao_valor != null ? Number(r.duracao_valor) : null,
+    duracaoUnidade: (r.duracao_unidade === "dias" || r.duracao_unidade === "meses" || r.duracao_unidade === "anos") ? r.duracao_unidade : null,
     valorMensal: Number(r.valor_mensal ?? 0),
     valorSetup: Number(r.valor_setup ?? 0),
     canaisInclusos,

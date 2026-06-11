@@ -392,9 +392,13 @@ export type Database = {
           canais_insta_inclusos: number
           canais_messenger_inclusos: number
           canais_whats_inclusos: number
+          categoria: string
+          cobranca: string
           contatos_inclusos: number | null
           created_at: string
           dia_vencimento: number | null
+          duracao_unidade: string | null
+          duracao_valor: number | null
           id: string
           inclui_asaas: boolean | null
           inclui_ia: boolean | null
@@ -434,9 +438,13 @@ export type Database = {
           canais_insta_inclusos?: number
           canais_messenger_inclusos?: number
           canais_whats_inclusos?: number
+          categoria?: string
+          cobranca?: string
           contatos_inclusos?: number | null
           created_at?: string
           dia_vencimento?: number | null
+          duracao_unidade?: string | null
+          duracao_valor?: number | null
           id: string
           inclui_asaas?: boolean | null
           inclui_ia?: boolean | null
@@ -476,9 +484,13 @@ export type Database = {
           canais_insta_inclusos?: number
           canais_messenger_inclusos?: number
           canais_whats_inclusos?: number
+          categoria?: string
+          cobranca?: string
           contatos_inclusos?: number | null
           created_at?: string
           dia_vencimento?: number | null
+          duracao_unidade?: string | null
+          duracao_valor?: number | null
           id?: string
           inclui_asaas?: boolean | null
           inclui_ia?: boolean | null

@@ -12,6 +12,13 @@ export interface CustoBase {
 export interface Plano {
   id: string;
   nome: string;
+  // Categoria do produto vendido
+  categoria: "elora" | "consultoria";
+  // Tipo de cobrança
+  cobranca: "recorrente" | "unica";
+  // Duração opcional (válido tanto para recorrente quanto única)
+  duracaoValor?: number | null;
+  duracaoUnidade?: "dias" | "meses" | "anos" | null;
   valorMensal: number;
   valorSetup: number;
   // Dia padrão de vencimento (1-31). Cliente pode sobrescrever via Cliente.dataVencimento.

@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStore, formatBRL } from "@/lib/store";
 import type { Plano } from "@/lib/types";
-import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines } from "lucide-react";
+import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers } from "lucide-react";
 
 export const Route = createFileRoute("/planos")({
   head: () => ({ meta: [{ title: "Planos · Elora" }] }),
@@ -18,6 +19,10 @@ export const Route = createFileRoute("/planos")({
 
 type PlanoForm = {
   nome: string;
+  categoria: "elora" | "consultoria";
+  cobranca: "recorrente" | "unica";
+  duracaoValor: string;
+  duracaoUnidade: "" | "dias" | "meses" | "anos";
   valorMensal: string;
   valorSetup: string;
   diaVencimento: string;
@@ -54,6 +59,10 @@ type PlanoForm = {
 
 const defaultForm = (): PlanoForm => ({
   nome: "",
+  categoria: "elora",
+  cobranca: "recorrente",
+  duracaoValor: "",
+  duracaoUnidade: "",
   valorMensal: "",
   valorSetup: "",
   diaVencimento: "",
@@ -109,6 +118,10 @@ function PlanosPage() {
     const msgInc = Number(form.canaisMessengerInclusos) || 0;
     const planoData: Omit<Plano, "id"> = {
       nome: form.nome,
+      categoria: form.categoria,
+      cobranca: form.cobranca,
+      duracaoValor: form.duracaoValor ? Number(form.duracaoValor) : null,
+      duracaoUnidade: form.duracaoUnidade || null,
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
       diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
@@ -160,6 +173,10 @@ function PlanosPage() {
     setEditId(p.id);
     setForm({
       nome: p.nome,
+      categoria: p.categoria ?? "elora",
+      cobranca: p.cobranca ?? "recorrente",
+      duracaoValor: p.duracaoValor != null ? String(p.duracaoValor) : "",
+      duracaoUnidade: p.duracaoUnidade ?? "",
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
       diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
@@ -217,18 +234,41 @@ function PlanosPage() {
           <CardContent className="space-y-6">
             {/* Dados Comerciais */}
             <div>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tipo do Plano</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <Label className="mb-1 block">Categoria</Label>
+                  <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v as "elora" | "consultoria" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="elora">Plano Elora (ferramenta)</SelectItem>
+                      <SelectItem value="consultoria">Consultoria / Mentoria / Curso</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1 block">Tipo de cobrança</Label>
+                  <Select value={form.cobranca} onValueChange={(v) => setForm({ ...form, cobranca: v as "recorrente" | "unica" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recorrente">Recorrente (mensal)</SelectItem>
+                      <SelectItem value="unica">Pagamento único</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Dados Comerciais</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-3">
                   <Label className="mb-1 block">Nome do Plano</Label>
-                  <Input placeholder="Ex: Starter, Growth, Scale..." value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+                  <Input placeholder={form.categoria === "consultoria" ? "Ex: Mentoria Trimestral, Curso Avançado..." : "Ex: Starter, Growth, Scale..."} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
                 </div>
                 <div>
-                  <Label className="mb-1 block">Mensalidade cobrada do cliente (R$)</Label>
+                  <Label className="mb-1 block">{form.cobranca === "unica" ? "Valor total (R$)" : "Mensalidade cobrada do cliente (R$)"}</Label>
                   <Input type="number" step="0.01" value={form.valorMensal} onChange={(e) => setForm({ ...form, valorMensal: e.target.value })} />
                 </div>
                 <div>
-                  <Label className="mb-1 block">Taxa de Setup (R$)</Label>
+                  <Label className="mb-1 block">Taxa de Setup / Entrada (R$)</Label>
                   <Input type="number" step="0.01" value={form.valorSetup} onChange={(e) => setForm({ ...form, valorSetup: e.target.value })} />
                 </div>
                 <div>
@@ -243,10 +283,29 @@ function PlanosPage() {
                   />
                   <p className="text-[10px] text-muted-foreground mt-1">Aplicado a clientes deste plano. Cada cliente pode sobrescrever.</p>
                 </div>
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="mb-1 block">Duração (opcional)</Label>
+                    <Input type="number" min={1} placeholder="Ex: 6, 12…" value={form.duracaoValor} onChange={(e) => setForm({ ...form, duracaoValor: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="mb-1 block">Unidade da duração</Label>
+                    <Select value={form.duracaoUnidade || "indefinido"} onValueChange={(v) => setForm({ ...form, duracaoUnidade: v === "indefinido" ? "" : (v as "dias" | "meses" | "anos") })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="indefinido">Sem prazo definido</SelectItem>
+                        <SelectItem value="dias">Dias</SelectItem>
+                        <SelectItem value="meses">Meses</SelectItem>
+                        <SelectItem value="anos">Anos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Franquias */}
+            {/* Franquias — só Elora */}
+            {form.categoria === "elora" && (<>
             <div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Franquias Incluídas</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -353,6 +412,7 @@ function PlanosPage() {
                 </div>
               </div>
             </div>
+            </>)}
 
             {/* Parceiros vinculados */}
             {parceiros.length > 0 && (
@@ -388,8 +448,17 @@ function PlanosPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-lg">{p.nome}</CardTitle>
-                    <p className="text-2xl font-bold text-primary mt-1">{formatBRL(p.valorMensal)}<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
-                    <p className="text-xs text-muted-foreground">Setup: {formatBRL(p.valorSetup)}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1 mb-1">
+                      <Badge variant={p.categoria === "consultoria" ? "default" : "secondary"} className="text-[10px] gap-1">
+                        {p.categoria === "consultoria" ? <><Briefcase className="h-3 w-3" /> Consultoria</> : <><Layers className="h-3 w-3" /> Elora</>}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">{p.cobranca === "unica" ? "Pagamento único" : "Recorrente"}</Badge>
+                      {p.duracaoValor && p.duracaoUnidade && (
+                        <Badge variant="outline" className="text-[10px]">{p.duracaoValor} {p.duracaoUnidade}</Badge>
+                      )}
+                    </div>
+                    <p className="text-2xl font-bold text-primary mt-1">{formatBRL(p.valorMensal)}<span className="text-sm font-normal text-muted-foreground">{p.cobranca === "unica" ? " total" : "/mês"}</span></p>
+                    {p.valorSetup > 0 && <p className="text-xs text-muted-foreground">Setup: {formatBRL(p.valorSetup)}</p>}
                   </div>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => startEdit(p)}><Pencil className="h-4 w-4" /></Button>
@@ -398,6 +467,7 @@ function PlanosPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
+                {p.categoria === "elora" && (<>
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                   <span>📡 WhatsApp: {p.canaisWhatsInclusos ?? 0} · Instagram: {p.canaisInstaInclusos ?? 0} · Messenger: {p.canaisMessengerInclusos ?? 0}</span>
                   <span>👥 {p.usuariosInclusos} usuário(s) · 💬 {p.contatosInclusos.toLocaleString()} contatos</span>
@@ -408,6 +478,7 @@ function PlanosPage() {
                   {((typeof p.incluiZapi === "number" ? p.incluiZapi : (p.incluiZapi ? 1 : 0)) > 0) && <Badge variant="secondary" className="text-xs gap-1"><Zap className="h-3 w-3" /> Z-API ({typeof p.incluiZapi === "number" ? p.incluiZapi : 1})</Badge>}
                   {p.incluiTranscricao && <Badge variant="secondary" className="text-xs gap-1"><AudioLines className="h-3 w-3" /> Transcrição</Badge>}
                 </div>
+                </>)}
                 {ps.length > 0 && (
                   <div className="pt-1 border-t border-border/60">
                     <p className="text-xs text-muted-foreground mb-1">Parceiros:</p>

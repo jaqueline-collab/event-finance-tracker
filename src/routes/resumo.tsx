@@ -35,6 +35,7 @@ function ResumoPage() {
   const [filtroPlano, setFiltroPlano] = useState("todos");
   const [filtroParceiro, setFiltroParceiro] = useState("todos");
   const [filtroVencimento, setFiltroVencimento] = useState("todos");
+  const [filtroTipo, setFiltroTipo] = useState<"todos" | "elora" | "consultoria">("todos");
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
   const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -69,9 +70,11 @@ function ResumoPage() {
       const matchVenc =
         filtroVencimento === "todos" ||
         String(getDiaVencimentoEfetivo(c, planos) ?? "") === filtroVencimento;
-      return matchPlano && matchParceiro && matchVenc;
+      const planoDoCli = planos.find((p) => p.id === c.planoId);
+      const matchTipo = filtroTipo === "todos" || (planoDoCli?.categoria ?? "elora") === filtroTipo;
+      return matchPlano && matchParceiro && matchVenc && matchTipo;
     });
-  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento]);
+  }, [clientes, planos, filtroPlano, filtroParceiro, filtroVencimento, filtroTipo]);
 
   // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
   const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
@@ -646,6 +649,17 @@ function ResumoPage() {
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border/60 bg-muted/10">
+        <div className="flex flex-col gap-1 min-w-[160px]">
+          <Label className="text-xs text-muted-foreground">Filtrar por Tipo</Label>
+          <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as "todos" | "elora" | "consultoria")}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os tipos</SelectItem>
+              <SelectItem value="elora">Plano Elora</SelectItem>
+              <SelectItem value="consultoria">Consultoria</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex flex-col gap-1 min-w-[180px]">
           <Label className="text-xs text-muted-foreground">Filtrar por Plano</Label>
           <Select value={filtroPlano} onValueChange={setFiltroPlano}>
@@ -678,10 +692,10 @@ function ResumoPage() {
             </SelectContent>
           </Select>
         </div>
-        {(filtroPlano !== "todos" || filtroParceiro !== "todos" || filtroVencimento !== "todos") && (
+        {(filtroPlano !== "todos" || filtroParceiro !== "todos" || filtroVencimento !== "todos" || filtroTipo !== "todos") && (
           <div className="flex items-end">
             <button
-              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); setFiltroVencimento("todos"); }}
+              onClick={() => { setFiltroPlano("todos"); setFiltroParceiro("todos"); setFiltroVencimento("todos"); setFiltroTipo("todos"); }}
               className="text-xs text-muted-foreground hover:text-foreground underline h-8"
             >
               Limpar filtros
