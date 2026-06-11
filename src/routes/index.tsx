@@ -19,7 +19,6 @@ import { formatBRL } from "@/lib/calc/format";
 import { Simulador } from "@/components/landing/Simulador";
 import { PawLogo } from "@/components/landing/PawLogo";
 import { VideoIntro } from "@/components/landing/VideoIntro";
-import { SistemaTour } from "@/components/landing/SistemaTour";
 
 export const Route = createFileRoute("/")({
   head: () => ({
