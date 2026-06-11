@@ -17,6 +17,9 @@ import {
 import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
 import { formatBRL } from "@/lib/calc/format";
 import { Simulador } from "@/components/landing/Simulador";
+import { PawLogo } from "@/components/landing/PawLogo";
+import { VideoIntro } from "@/components/landing/VideoIntro";
+import { SistemaTour } from "@/components/landing/SistemaTour";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -69,8 +72,10 @@ function LandingPage() {
     >
       <Navbar />
       <Hero />
+      <VideoIntro />
       <Stats />
       <Funcionalidades />
+      <SistemaTour />
       <Onboarding />
       <Planos />
       <Simulador />
@@ -87,9 +92,7 @@ function Navbar() {
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#top" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-landing-yellow flex items-center justify-center font-bold text-landing-fg">
-            e
-          </div>
+          <PawLogo className="h-8 w-8 text-landing-yellow" />
           <span
             className="text-white font-bold tracking-tight text-lg"
             style={{ fontFamily: "var(--font-display)" }}
@@ -554,9 +557,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-landing-yellow flex items-center justify-center font-bold text-landing-fg">
-              e
-            </div>
+            <PawLogo className="h-8 w-8 text-landing-yellow" />
             <span
               className="text-white font-bold tracking-tight text-lg"
               style={{ fontFamily: "var(--font-display)" }}
