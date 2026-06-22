@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   MessageCircle,
@@ -16,10 +16,8 @@ import {
 } from "lucide-react";
 import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
 import { formatBRL } from "@/lib/calc/format";
-import { Simulador } from "@/components/landing/Simulador";
 import { PawLogo } from "@/components/landing/PawLogo";
 import { VideoIntro } from "@/components/landing/VideoIntro";
-import catReaching from "@/assets/cat-reaching.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -73,10 +71,8 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
-      <Stats />
       <Funcionalidades />
       <Planos />
-      <Simulador />
       <FAQ />
       <Footer />
     </div>
@@ -104,9 +100,9 @@ function Navbar() {
           <a href="#planos" className="hover:text-landing-yellow transition">
             Planos
           </a>
-          <a href="#simulador" className="hover:text-landing-yellow transition">
+          <Link to="/simulador" className="hover:text-landing-yellow transition">
             Simulador
-          </a>
+          </Link>
           <a href="#contato" className="hover:text-landing-yellow transition">
             Contato
           </a>
@@ -178,12 +174,12 @@ function Hero() {
           chatbot, disparo e agentes de IA. Tudo num só lugar.
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href="#simulador"
+          <Link
+            to="/simulador"
             className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-7 py-3.5 rounded-md text-base transition-colors inline-flex items-center gap-2"
           >
             Simular meu plano <ArrowRight className="h-4 w-4" />
-          </a>
+          </Link>
           <a
             href="https://app.eloracrm.com.br/"
             target="_blank"
