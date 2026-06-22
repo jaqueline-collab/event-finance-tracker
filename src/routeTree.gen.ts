@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as SimuladorRouteImport } from './routes/simulador'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as PlanosRouteImport } from './routes/planos'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
@@ -19,11 +20,17 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidades.$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimuladorRoute = SimuladorRouteImport.update({
+  id: '/simulador',
+  path: '/simulador',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResumoRoute = ResumoRouteImport.update({
@@ -71,6 +78,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FuncionalidadesSlugRoute = FuncionalidadesSlugRouteImport.update({
+  id: '/funcionalidades/$slug',
+  path: '/funcionalidades/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -87,8 +99,10 @@ export interface FileRoutesByFullPath {
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/simulador': typeof SimuladorRoute
   '/usuarios': typeof UsuariosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -100,8 +114,10 @@ export interface FileRoutesByTo {
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/simulador': typeof SimuladorRoute
   '/usuarios': typeof UsuariosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -114,8 +130,10 @@ export interface FileRoutesById {
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
+  '/simulador': typeof SimuladorRoute
   '/usuarios': typeof UsuariosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -129,8 +147,10 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/simulador'
     | '/usuarios'
     | '/auth/callback'
+    | '/funcionalidades/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -142,8 +162,10 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/simulador'
     | '/usuarios'
     | '/auth/callback'
+    | '/funcionalidades/$slug'
   id:
     | '__root__'
     | '/'
@@ -155,8 +177,10 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/planos'
     | '/resumo'
+    | '/simulador'
     | '/usuarios'
     | '/auth/callback'
+    | '/funcionalidades/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -169,7 +193,9 @@ export interface RootRouteChildren {
   ParceirosRoute: typeof ParceirosRoute
   PlanosRoute: typeof PlanosRoute
   ResumoRoute: typeof ResumoRoute
+  SimuladorRoute: typeof SimuladorRoute
   UsuariosRoute: typeof UsuariosRoute
+  FuncionalidadesSlugRoute: typeof FuncionalidadesSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -179,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulador': {
+      id: '/simulador'
+      path: '/simulador'
+      fullPath: '/simulador'
+      preLoaderRoute: typeof SimuladorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resumo': {
@@ -244,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/funcionalidades/$slug': {
+      id: '/funcionalidades/$slug'
+      path: '/funcionalidades/$slug'
+      fullPath: '/funcionalidades/$slug'
+      preLoaderRoute: typeof FuncionalidadesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -274,7 +314,9 @@ const rootRouteChildren: RootRouteChildren = {
   ParceirosRoute: ParceirosRoute,
   PlanosRoute: PlanosRoute,
   ResumoRoute: ResumoRoute,
+  SimuladorRoute: SimuladorRoute,
   UsuariosRoute: UsuariosRoute,
+  FuncionalidadesSlugRoute: FuncionalidadesSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

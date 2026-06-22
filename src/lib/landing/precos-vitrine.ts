@@ -22,14 +22,15 @@ export const PLANOS_VITRINE: PlanoVitrine[] = [
     usuariosInclusos: 3,
     whatsInclusos: 1,
     instaInclusos: 0,
-    messengerInclusos: 0,
+    messengerInclusos: 1,
     recursos: [
       "3 usuários inclusos",
-      "1 canal WhatsApp",
+      "1 canal WhatsApp + Messenger",
       "CRM e Kanban",
       "Chatbot de Atendimento",
+      "Chatbot de Automação",
       "Disparo de Mensagens",
-      "Versão Mobile",
+      "APP Mobile",
     ],
   },
   {
@@ -39,13 +40,12 @@ export const PLANOS_VITRINE: PlanoVitrine[] = [
     usuariosInclusos: 5,
     whatsInclusos: 1,
     instaInclusos: 1,
-    messengerInclusos: 0,
+    messengerInclusos: 1,
     destaque: true,
     recursos: [
       "5 usuários inclusos",
-      "WhatsApp + Instagram Direct",
+      "WhatsApp + Instagram + Messenger",
       "Tudo do Essencial",
-      "Chatbot de Automação",
       "Integração Webhooks + API",
       "Suporte prioritário",
     ],
@@ -62,7 +62,6 @@ export const PLANOS_VITRINE: PlanoVitrine[] = [
       "10 usuários inclusos",
       "WhatsApp + Instagram + Messenger",
       "Tudo do Escala",
-      "SLA dedicado",
       "Onboarding assistido",
       "Account manager",
     ],
@@ -71,13 +70,16 @@ export const PLANOS_VITRINE: PlanoVitrine[] = [
 
 export const ADICIONAIS_VITRINE = {
   usuarioExtra: 29.99,
-  whatsOficial: 79.99,      // placeholder — ajustar
+  whatsOficial: 49.99,
   whatsNaoOficial: 49.99,
+  zapi: 79.99,
   instagram: 49.99,
   messenger: 49.99,
-  moduloIA: 99.0,           // placeholder
-  asaas: 69.99,
-  transcricao: 39.9,        // placeholder
+  moduloIA: 199.99,
+  asaas: 99.99,
+  transcricao: 6.99,
+  tempoSeguranca: 0.99,
+  mensagensAgendadas: 9.99,
 };
 
 export type AdicionaisKey = keyof typeof ADICIONAIS_VITRINE;

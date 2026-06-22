@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   MessageCircle,
@@ -16,10 +16,8 @@ import {
 } from "lucide-react";
 import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
 import { formatBRL } from "@/lib/calc/format";
-import { Simulador } from "@/components/landing/Simulador";
 import { PawLogo } from "@/components/landing/PawLogo";
 import { VideoIntro } from "@/components/landing/VideoIntro";
-import catReaching from "@/assets/cat-reaching.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -73,10 +71,8 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
-      <Stats />
       <Funcionalidades />
       <Planos />
-      <Simulador />
       <FAQ />
       <Footer />
     </div>
@@ -104,9 +100,9 @@ function Navbar() {
           <a href="#planos" className="hover:text-landing-yellow transition">
             Planos
           </a>
-          <a href="#simulador" className="hover:text-landing-yellow transition">
+          <Link to="/simulador" className="hover:text-landing-yellow transition">
             Simulador
-          </a>
+          </Link>
           <a href="#contato" className="hover:text-landing-yellow transition">
             Contato
           </a>
@@ -178,12 +174,12 @@ function Hero() {
           chatbot, disparo e agentes de IA. Tudo num só lugar.
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href="#simulador"
+          <Link
+            to="/simulador"
             className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-7 py-3.5 rounded-md text-base transition-colors inline-flex items-center gap-2"
           >
             Simular meu plano <ArrowRight className="h-4 w-4" />
-          </a>
+          </Link>
           <a
             href="https://app.eloracrm.com.br/"
             target="_blank"
@@ -199,79 +195,41 @@ function Hero() {
 }
 
 /* ============================== STATS ============================== */
-const STATS = [
-  { pct: "97%", text: "afirmam acessar o WhatsApp ao menos uma vez ao dia." },
-  { pct: "82%", text: "já se comunicam com marcas via WhatsApp." },
-  { pct: "75%", text: "já contrataram serviços pelo app." },
-  { pct: "70%", text: "das empresas usam WhatsApp em marketing." },
-  { pct: "67%", text: "do comércio usa WhatsApp como canal primário." },
-];
-
-function Stats() {
-  return (
-    <section className="py-20 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Dados de mercado
-          </span>
-          <h2
-            className="text-3xl md:text-4xl font-bold text-landing-fg mt-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            O WhatsApp já é onde seu cliente está
-          </h2>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {STATS.map((s, i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-landing-border p-6 hover:border-landing-blue transition-colors"
-            >
-              <div
-                className="text-4xl font-bold text-landing-blue"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {s.pct}
-              </div>
-              <p className="text-sm text-landing-muted mt-2 leading-snug">{s.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ============================== FUNCIONALIDADES ============================== */
 const FEATURES = [
   {
+    slug: "central-de-atendimento",
     icon: MessageCircle,
     title: "Central de Atendimento",
     desc: "WhatsApp, Instagram e Messenger integrados. Etiquetas, distribuição automática e CRM dentro da conversa.",
   },
   {
+    slug: "chatbot",
     icon: Bot,
     title: "Chatbot",
     desc: "Crie fluxos para diferentes cenários. Qualifica leads, agenda horários e responde perguntas frequentes.",
   },
   {
+    slug: "disparo-de-mensagens",
     icon: Send,
     title: "Disparo de Mensagens",
     desc: "Campanhas de marketing por WhatsApp com alta taxa de leitura. Promoções, lançamentos e carrinho abandonado.",
   },
   {
+    slug: "crm",
     icon: Users,
     title: "CRM",
     desc: "Gerencie clientes com segmentação inteligente e jornada mapeada. Tudo baseado em conversas reais.",
   },
   {
+    slug: "agentes-inteligentes",
     icon: Sparkles,
     title: "Agentes Inteligentes",
     desc: "Assistentes virtuais com IA que entendem, interagem e resolvem solicitações com tom humanizado.",
     badge: "BETA",
   },
   {
+    slug: "rastreabilidade",
     icon: BarChart3,
     title: "Rastreabilidade",
     desc: "Atribua a origem de cada lead, acompanhe a navegação e meça a conversão de cada campanha.",
@@ -296,11 +254,13 @@ function Funcionalidades() {
             Atendimento, vendas e automação em um só lugar.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map((f) => (
-            <div
+            <Link
               key={f.title}
-              className="rounded-2xl bg-white border border-landing-border p-7 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              to="/funcionalidades/$slug"
+              params={{ slug: f.slug }}
+              className="group rounded-2xl bg-white border border-landing-border p-7 hover:shadow-lg hover:-translate-y-0.5 hover:border-landing-blue transition-all block focus:outline-none focus:ring-2 focus:ring-landing-blue"
             >
               <div className="h-11 w-11 rounded-xl bg-landing-blue/10 text-landing-blue flex items-center justify-center mb-4">
                 <f.icon className="h-5 w-5" />
@@ -319,7 +279,10 @@ function Funcionalidades() {
                 )}
               </div>
               <p className="text-sm text-landing-muted mt-2 leading-relaxed">{f.desc}</p>
-            </div>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-landing-blue opacity-0 group-hover:opacity-100 transition-opacity">
+                Saiba mais <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </Link>
           ))}
         </div>
       </div>
@@ -392,8 +355,8 @@ function Planos() {
                     </li>
                   ))}
                 </ul>
-                <a
-                  href="#simulador"
+                <Link
+                  to="/simulador"
                   className={`mt-7 block text-center font-semibold rounded-md py-3 transition-colors ${
                     destaque
                       ? "bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg"
@@ -401,7 +364,7 @@ function Planos() {
                   }`}
                 >
                   Simular este plano
-                </a>
+                </Link>
               </div>
             );
           })}
@@ -498,16 +461,8 @@ function Footer() {
     <footer id="contato" className="bg-landing-dark-2 text-white/80 py-14 px-6 border-t border-white/10">
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
-          <div className="relative inline-flex items-end leading-none">
-            <img
-              src={catReaching.url}
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-              width={96}
-              height={96}
-              className="h-20 w-20 object-contain -mr-3 -mb-1 select-none pointer-events-none"
-            />
+          <div className="flex items-center gap-2 leading-none">
+            <PawLogo className="h-7 w-7 text-landing-yellow shrink-0" />
             <span
               className="text-white font-bold tracking-tight text-3xl"
               style={{ fontFamily: "var(--font-display)" }}
@@ -526,7 +481,7 @@ function Footer() {
           <ul className="mt-3 space-y-2 text-sm">
             <li><a href="#funcionalidades" className="hover:text-white">Funcionalidades</a></li>
             <li><a href="#planos" className="hover:text-white">Planos</a></li>
-            <li><a href="#simulador" className="hover:text-white">Simulador</a></li>
+            <li><Link to="/simulador" className="hover:text-white">Simulador</Link></li>
             <li>
               <a
                 href="https://app.eloracrm.com.br/"
