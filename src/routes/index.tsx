@@ -355,8 +355,8 @@ function Planos() {
                     </li>
                   ))}
                 </ul>
-                <a
-                  href="#simulador"
+                <Link
+                  to="/simulador"
                   className={`mt-7 block text-center font-semibold rounded-md py-3 transition-colors ${
                     destaque
                       ? "bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg"
@@ -364,7 +364,7 @@ function Planos() {
                   }`}
                 >
                   Simular este plano
-                </a>
+                </Link>
               </div>
             );
           })}
@@ -461,16 +461,8 @@ function Footer() {
     <footer id="contato" className="bg-landing-dark-2 text-white/80 py-14 px-6 border-t border-white/10">
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
-          <div className="relative inline-flex items-end leading-none">
-            <img
-              src={catReaching.url}
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-              width={96}
-              height={96}
-              className="h-20 w-20 object-contain -mr-3 -mb-1 select-none pointer-events-none"
-            />
+          <div className="flex items-center gap-2 leading-none">
+            <PawLogo className="h-7 w-7 text-landing-yellow shrink-0" />
             <span
               className="text-white font-bold tracking-tight text-3xl"
               style={{ fontFamily: "var(--font-display)" }}
@@ -489,7 +481,7 @@ function Footer() {
           <ul className="mt-3 space-y-2 text-sm">
             <li><a href="#funcionalidades" className="hover:text-white">Funcionalidades</a></li>
             <li><a href="#planos" className="hover:text-white">Planos</a></li>
-            <li><a href="#simulador" className="hover:text-white">Simulador</a></li>
+            <li><Link to="/simulador" className="hover:text-white">Simulador</Link></li>
             <li>
               <a
                 href="https://app.eloracrm.com.br/"
