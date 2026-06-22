@@ -219,7 +219,7 @@ export function Simulador() {
                 />
                 <Stepper
                   label="WhatsApp Não-Oficial"
-                  hint={`${formatBRL(ADICIONAIS_VITRINE.whatsNaoOficial)} por número`}
+                  hint={`${formatBRL(ADICIONAIS_VITRINE.whatsNaoOficial)} + ${formatBRL(ADICIONAIS_VITRINE.zapi)} Z-API por número`}
                   value={whatsNaoOficial}
                   onChange={setWhatsNaoOficial}
                 />
