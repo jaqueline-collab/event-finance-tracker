@@ -195,79 +195,41 @@ function Hero() {
 }
 
 /* ============================== STATS ============================== */
-const STATS = [
-  { pct: "97%", text: "afirmam acessar o WhatsApp ao menos uma vez ao dia." },
-  { pct: "82%", text: "já se comunicam com marcas via WhatsApp." },
-  { pct: "75%", text: "já contrataram serviços pelo app." },
-  { pct: "70%", text: "das empresas usam WhatsApp em marketing." },
-  { pct: "67%", text: "do comércio usa WhatsApp como canal primário." },
-];
-
-function Stats() {
-  return (
-    <section className="py-20 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Dados de mercado
-          </span>
-          <h2
-            className="text-3xl md:text-4xl font-bold text-landing-fg mt-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            O WhatsApp já é onde seu cliente está
-          </h2>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {STATS.map((s, i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-landing-border p-6 hover:border-landing-blue transition-colors"
-            >
-              <div
-                className="text-4xl font-bold text-landing-blue"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {s.pct}
-              </div>
-              <p className="text-sm text-landing-muted mt-2 leading-snug">{s.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ============================== FUNCIONALIDADES ============================== */
 const FEATURES = [
   {
+    slug: "central-de-atendimento",
     icon: MessageCircle,
     title: "Central de Atendimento",
     desc: "WhatsApp, Instagram e Messenger integrados. Etiquetas, distribuição automática e CRM dentro da conversa.",
   },
   {
+    slug: "chatbot",
     icon: Bot,
     title: "Chatbot",
     desc: "Crie fluxos para diferentes cenários. Qualifica leads, agenda horários e responde perguntas frequentes.",
   },
   {
+    slug: "disparo-de-mensagens",
     icon: Send,
     title: "Disparo de Mensagens",
     desc: "Campanhas de marketing por WhatsApp com alta taxa de leitura. Promoções, lançamentos e carrinho abandonado.",
   },
   {
+    slug: "crm",
     icon: Users,
     title: "CRM",
     desc: "Gerencie clientes com segmentação inteligente e jornada mapeada. Tudo baseado em conversas reais.",
   },
   {
+    slug: "agentes-inteligentes",
     icon: Sparkles,
     title: "Agentes Inteligentes",
     desc: "Assistentes virtuais com IA que entendem, interagem e resolvem solicitações com tom humanizado.",
     badge: "BETA",
   },
   {
+    slug: "rastreabilidade",
     icon: BarChart3,
     title: "Rastreabilidade",
     desc: "Atribua a origem de cada lead, acompanhe a navegação e meça a conversão de cada campanha.",
@@ -292,11 +254,13 @@ function Funcionalidades() {
             Atendimento, vendas e automação em um só lugar.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map((f) => (
-            <div
+            <Link
               key={f.title}
-              className="rounded-2xl bg-white border border-landing-border p-7 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              to="/funcionalidades/$slug"
+              params={{ slug: f.slug }}
+              className="group rounded-2xl bg-white border border-landing-border p-7 hover:shadow-lg hover:-translate-y-0.5 hover:border-landing-blue transition-all block focus:outline-none focus:ring-2 focus:ring-landing-blue"
             >
               <div className="h-11 w-11 rounded-xl bg-landing-blue/10 text-landing-blue flex items-center justify-center mb-4">
                 <f.icon className="h-5 w-5" />
@@ -315,7 +279,10 @@ function Funcionalidades() {
                 )}
               </div>
               <p className="text-sm text-landing-muted mt-2 leading-relaxed">{f.desc}</p>
-            </div>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-landing-blue opacity-0 group-hover:opacity-100 transition-opacity">
+                Saiba mais <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </Link>
           ))}
         </div>
       </div>
