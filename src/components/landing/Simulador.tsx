@@ -65,6 +65,8 @@ export function Simulador() {
   const [modIA, setModIA] = useState(false);
   const [modAsaas, setModAsaas] = useState(false);
   const [modTranscricao, setModTranscricao] = useState(false);
+  const [modTempoSeguranca, setModTempoSeguranca] = useState(false);
+  const [modMensagensAgendadas, setModMensagensAgendadas] = useState(false);
   const [planoManual, setPlanoManual] = useState<PlanoVitrineKey | null>(null);
 
   // Recomenda o melhor plano com base no que o usuário preencheu.
@@ -106,13 +108,20 @@ export function Simulador() {
         unit: ADICIONAIS_VITRINE.whatsOficial,
         total: whatsOficial * ADICIONAIS_VITRINE.whatsOficial,
       });
-    if (whatsNaoOficial > 0)
+    if (whatsNaoOficial > 0) {
       linhas.push({
         label: "WhatsApp Não-Oficial",
         qtd: whatsNaoOficial,
         unit: ADICIONAIS_VITRINE.whatsNaoOficial,
         total: whatsNaoOficial * ADICIONAIS_VITRINE.whatsNaoOficial,
       });
+      linhas.push({
+        label: "Z-API (não-oficial)",
+        qtd: whatsNaoOficial,
+        unit: ADICIONAIS_VITRINE.zapi,
+        total: whatsNaoOficial * ADICIONAIS_VITRINE.zapi,
+      });
+    }
     if (instagram > 0)
       linhas.push({
         label: "Instagram Direct",
@@ -136,13 +145,26 @@ export function Simulador() {
       });
     if (modTranscricao)
       linhas.push({
-        label: "Transcrição de áudio",
-        total: ADICIONAIS_VITRINE.transcricao,
+        label: "Transcrição de áudio (IA)",
+        qtd: usuarios,
+        unit: ADICIONAIS_VITRINE.transcricao,
+        total: usuarios * ADICIONAIS_VITRINE.transcricao,
+      });
+    if (modTempoSeguranca)
+      linhas.push({
+        label: "Tempo de segurança",
+        total: ADICIONAIS_VITRINE.tempoSeguranca,
+      });
+    if (modMensagensAgendadas)
+      linhas.push({
+        label: "Mensagens agendadas",
+        total: ADICIONAIS_VITRINE.mensagensAgendadas,
       });
     const total = linhas.reduce((s, l) => s + l.total, 0);
     return { linhas, total };
   }, [
     plano,
+    usuarios,
     usuariosExtras,
     whatsOficial,
     whatsNaoOficial,
@@ -151,6 +173,8 @@ export function Simulador() {
     modIA,
     modAsaas,
     modTranscricao,
+    modTempoSeguranca,
+    modMensagensAgendadas,
   ]);
 
   return (
@@ -234,9 +258,21 @@ export function Simulador() {
                 />
                 <ToggleRow
                   label="Transcrição de áudio"
-                  hint={formatBRL(ADICIONAIS_VITRINE.transcricao) + "/mês"}
+                  hint={formatBRL(ADICIONAIS_VITRINE.transcricao) + "/usuário/mês"}
                   checked={modTranscricao}
                   onChange={setModTranscricao}
+                />
+                <ToggleRow
+                  label="Tempo de segurança"
+                  hint={formatBRL(ADICIONAIS_VITRINE.tempoSeguranca) + "/mês"}
+                  checked={modTempoSeguranca}
+                  onChange={setModTempoSeguranca}
+                />
+                <ToggleRow
+                  label="Mensagens agendadas"
+                  hint={formatBRL(ADICIONAIS_VITRINE.mensagensAgendadas) + "/mês"}
+                  checked={modMensagensAgendadas}
+                  onChange={setModMensagensAgendadas}
                 />
               </div>
             </div>
