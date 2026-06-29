@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +53,7 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
     return false;
   });
   const availableFields = fields.filter((f) => !activeKeys.includes(f.key));
+  const [autoOpenKey, setAutoOpenKey] = useState<string | null>(null);
 
   const setField = (key: string, v: FilterValue | null) => {
     const next = { ...value };
@@ -71,6 +72,8 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
             key={key}
             field={field}
             value={value[key]}
+            autoOpen={autoOpenKey === key}
+            onAutoOpened={() => setAutoOpenKey(null)}
             onChange={(v) => setField(key, v)}
             onRemove={() => setField(key, null)}
           />
@@ -87,14 +90,18 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
             {availableFields.map((f) => (
               <DropdownMenuItem
                 key={f.key}
-                onClick={() =>
+                onSelect={(e) => {
+                  e.preventDefault();
                   setField(
                     f.key,
                     f.type === "multi"
                       ? { type: "multi", values: [] }
                       : { type: "dateRange" },
-                  )
-                }
+                  );
+                  // Aguarda o dropdown fechar (e o pointer-events do body voltar)
+                  // antes de abrir o popover do chip recém-criado.
+                  setTimeout(() => setAutoOpenKey(f.key), 180);
+                }}
               >
                 {f.label}
               </DropdownMenuItem>
@@ -117,15 +124,27 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
 function FilterChip({
   field,
   value,
+  autoOpen,
+  onAutoOpened,
   onChange,
   onRemove,
 }: {
   field: FilterFieldDef;
   value: FilterValue;
+  autoOpen?: boolean;
+  onAutoOpened?: () => void;
   onChange: (v: FilterValue) => void;
   onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(value.type === "multi" ? value.values.length === 0 : !value.from && !value.preset);
+  const [open, setOpen] = useState(false);
+  const notifiedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpen && !notifiedRef.current) {
+      notifiedRef.current = true;
+      setOpen(true);
+      onAutoOpened?.();
+    }
+  }, [autoOpen, onAutoOpened]);
 
   const summary = (() => {
     if (field.type === "multi" && value.type === "multi") {
