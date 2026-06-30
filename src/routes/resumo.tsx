@@ -339,27 +339,40 @@ function ResumoPage() {
     });
 
     // Detalhamento por cliente
+    const competenciaKey = `${cy}-${String(cm + 1).padStart(2, "0")}`;
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
       const snap = clienteSnapshotAt(c, movimentos, refSnap);
-      const receita = receitaCicloLocal(c, cy, cm);
+      const subtotal = receitaCicloLocal(c, cy, cm);
       const acomp = snap.valorAcompanhamento || 0;
-      const sistema = Math.max(0, receita - acomp);
+      const sistema = Math.max(0, subtotal - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
+      // Descontos aplicáveis ao cliente nessa competência
+      const descsCliente = descontosAplicaveis(descontos, competenciaKey, "cliente", c.id);
+      const resDesc = calcularDesconto(subtotal, descsCliente);
       // LTV em dias: do início até churn (se houver) ou fim do ciclo fechado
       const inicio = new Date(c.dataInicio);
       const fimCompetencia = new Date(cy, cm + 1, 0);
       const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
       const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
-      return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc, ltvDias };
+      return {
+        cliente: c, plano, parceiro,
+        subtotal,
+        descontosCliente: descsCliente,
+        descontoCliente: resDesc.descontoTotal,
+        receita: resDesc.total,
+        acomp, sistema,
+        movs: movsCliente, venc, ltvDias,
+      };
     });
 
     const totalSistema = detalhesPorCliente.reduce((s, d) => s + d.sistema, 0);
     const totalAcompanhamento = detalhesPorCliente.reduce((s, d) => s + d.acomp, 0);
-    const totalReceita = totalSistema + totalAcompanhamento;
+    const subtotalBruto = detalhesPorCliente.reduce((s, d) => s + d.subtotal, 0);
+    const descontosClientesTotal = detalhesPorCliente.reduce((s, d) => s + d.descontoCliente, 0);
     const totalSetups = setupsNoMes.reduce((s, c) => s + (c.valorSetupPago || 0), 0);
 
     // Métricas adicionais
@@ -391,6 +404,7 @@ function ResumoPage() {
 
     return {
       y, m, labelMes,
+      competenciaKey,
       cicloLabel,
       vencimentoLabel,
       ativos,
@@ -401,7 +415,8 @@ function ResumoPage() {
       detalhesPorCliente,
       totalSistema,
       totalAcompanhamento,
-      totalReceita,
+      subtotalBruto,
+      descontosClientesTotal,
       movsMes,
       ltvMedioDias,
       ticketMedio,
