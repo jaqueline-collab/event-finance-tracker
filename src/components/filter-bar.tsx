@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +10,12 @@ import { cn } from "@/lib/utils";
 
 export type FilterFieldDef =
   | { key: string; label: string; type: "multi"; options: { value: string; label: string }[] }
+  | { key: string; label: string; type: "single"; options: { value: string; label: string }[]; removable?: boolean }
   | { key: string; label: string; type: "dateRange" };
 
 export type FilterValue =
   | { type: "multi"; values: string[] }
+  | { type: "single"; value: string }
   | { type: "dateRange"; from?: string; to?: string; preset?: string };
 
 export type FilterState = Record<string, FilterValue>;
@@ -42,9 +44,10 @@ export interface FilterBarProps {
   value: FilterState;
   onChange: (next: FilterState) => void;
   className?: string;
+  action?: ReactNode;
 }
 
-export function FilterBar({ fields, value, onChange, className }: FilterBarProps) {
+export function FilterBar({ fields, value, onChange, className, action }: FilterBarProps) {
   const activeKeys = Object.keys(value).filter((k) => {
     const v = value[k];
     return Boolean(v && fields.some((f) => f.key === k));
@@ -65,6 +68,7 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
       {activeKeys.map((key) => {
         const field = fields.find((f) => f.key === key);
         if (!field) return null;
+        const removable = field.type === "single" ? field.removable !== false : true;
         return (
           <FilterChip
             key={key}
@@ -74,6 +78,7 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
             onAutoOpened={() => setAutoOpenKey(null)}
             onChange={(v) => setField(key, v)}
             onRemove={() => setField(key, null)}
+            removable={removable}
           />
         );
       })}
@@ -93,7 +98,9 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
                     f.key,
                     f.type === "multi"
                       ? { type: "multi", values: [] }
-                      : { type: "dateRange" },
+                      : f.type === "single"
+                        ? { type: "single", value: f.options[0]?.value ?? "" }
+                        : { type: "dateRange" },
                   );
                   setAddMenuOpen(false);
                   setAutoOpenKey(f.key);
@@ -105,14 +112,17 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      {activeKeys.length > 0 && (
-        <button
-          onClick={() => onChange({})}
-          className="text-xs text-muted-foreground hover:text-foreground underline ml-auto"
-        >
-          Limpar filtros
-        </button>
-      )}
+      <div className="ml-auto flex items-center gap-2">
+        {activeKeys.length > 0 && (
+          <button
+            onClick={() => onChange({})}
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            Limpar filtros
+          </button>
+        )}
+        {action}
+      </div>
     </div>
   );
 }
@@ -124,6 +134,7 @@ function FilterChip({
   onAutoOpened,
   onChange,
   onRemove,
+  removable = true,
 }: {
   field: FilterFieldDef;
   value: FilterValue;
@@ -131,6 +142,7 @@ function FilterChip({
   onAutoOpened?: () => void;
   onChange: (v: FilterValue) => void;
   onRemove: () => void;
+  removable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -150,6 +162,9 @@ function FilterChip({
         .slice(0, 2);
       const extra = value.values.length > 2 ? ` +${value.values.length - 2}` : "";
       return labels.join(", ") + extra;
+    }
+    if (field.type === "single" && value.type === "single") {
+      return field.options.find((o) => o.value === value.value)?.label ?? value.value ?? "—";
     }
     if (field.type === "dateRange" && value.type === "dateRange") {
       if (value.preset) return DATE_PRESETS.find((p) => p.key === value.preset)?.label ?? "período";
@@ -174,24 +189,71 @@ function FilterChip({
             <span className="font-medium">{summary}</span>
           </button>
         </PopoverTrigger>
-        <button
+        {removable && <button
           type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
           className="h-full px-2 text-muted-foreground hover:text-destructive focus-visible:outline-none"
           aria-label="Remover filtro"
         >
           <X className="h-3 w-3" />
-        </button>
+        </button>}
       </div>
       <PopoverContent className="w-72 p-3" align="start">
         {field.type === "multi" && value.type === "multi" && (
           <MultiPicker field={field} value={value} onChange={onChange} />
+        )}
+        {field.type === "single" && value.type === "single" && (
+          <SinglePicker field={field} value={value} onChange={onChange} />
         )}
         {field.type === "dateRange" && value.type === "dateRange" && (
           <DateRangePicker value={value} onChange={onChange} />
         )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+function SinglePicker({
+  field,
+  value,
+  onChange,
+}: {
+  field: Extract<FilterFieldDef, { type: "single" }>;
+  value: Extract<FilterValue, { type: "single" }>;
+  onChange: (v: FilterValue) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = field.options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div className="space-y-2">
+      {field.options.length > 8 && (
+        <Input
+          autoFocus
+          placeholder={`Buscar ${field.label.toLowerCase()}…`}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 text-sm"
+        />
+      )}
+      <div className="max-h-72 overflow-y-auto space-y-0.5 pr-1">
+        {filtered.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange({ type: "single", value: o.value })}
+            className={cn(
+              "w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted capitalize",
+              value.value === o.value && "bg-primary/10 text-primary font-medium",
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+        {filtered.length === 0 && (
+          <div className="text-xs text-muted-foreground text-center py-3">Nenhuma opção</div>
+        )}
+      </div>
+    </div>
   );
 }
 

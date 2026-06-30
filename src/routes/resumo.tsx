@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Download, Eye, FileText, TrendingUp, TrendingDown } from "lucide-react";
@@ -52,7 +51,14 @@ function ResumoPage() {
     const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   })();
-  const [fechamentoMes, setFechamentoMes] = useState<string>(defaultCompetencia);
+  const fechamentoMes = (filtros.competencia?.type === "single" ? filtros.competencia.value : "") || defaultCompetencia;
+  // Garante que a competência sempre apareça como chip ativo.
+  useEffect(() => {
+    if (filtros.competencia?.type !== "single") {
+      setFiltros({ ...filtros, competencia: { type: "single", value: defaultCompetencia } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
@@ -876,6 +882,15 @@ function ResumoPage() {
       <FilterBar
         fields={[
           {
+            key: "competencia",
+            label: "Competência",
+            type: "single",
+            removable: false,
+            options: opcoesFechamento.length > 0
+              ? opcoesFechamento.map((o) => ({ value: o.key, label: o.label }))
+              : [{ value: defaultCompetencia, label: new Date(`${defaultCompetencia}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) }],
+          },
+          {
             key: "tipo",
             label: "Tipo",
             type: "multi",
@@ -890,27 +905,12 @@ function ResumoPage() {
         ] as FilterFieldDef[]}
         value={filtros}
         onChange={setFiltros}
+        action={
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => setFechamentoOpen(true)}>
+            <FileText className="h-3.5 w-3.5" /> Gerar Fechamento
+          </Button>
+        }
       />
-
-      {/* Ação: Gerar fechamento */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1 min-w-[220px]">
-          <Label className="text-xs text-muted-foreground">Gerar Fechamento</Label>
-          <div className="flex gap-2">
-            <Select value={fechamentoMes} onValueChange={setFechamentoMes}>
-              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent className="max-h-72">
-                {opcoesFechamento.map((o) => (
-                  <SelectItem key={o.key} value={o.key} className="capitalize">{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" className="h-8 gap-1.5" onClick={() => setFechamentoOpen(true)}>
-              <FileText className="h-3.5 w-3.5" /> Gerar
-            </Button>
-          </div>
-        </div>
-      </div>
 
       <Card className="border-border/60">
         <CardHeader>
