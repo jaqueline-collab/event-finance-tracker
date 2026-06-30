@@ -1202,6 +1202,7 @@ function ResumoPage() {
                           <th className="text-right p-2 font-medium">Sistema</th>
                           <th className="text-right p-2 font-medium">Acomp.</th>
                           <th className="text-right p-2 font-medium">Total</th>
+                          <th className="text-right p-2 font-medium w-12"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1218,20 +1219,123 @@ function ResumoPage() {
                                 aria-label={`Selecionar ${d.cliente.nome}`}
                               />
                             </td>
-                            <td className="p-2 font-medium">{d.cliente.nome}</td>
+                            <td className="p-2 font-medium">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{d.cliente.nome}</span>
+                                {d.descontosCliente.map((dc) => (
+                                  <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-yellow-500/40 text-yellow-600 bg-yellow-500/10">
+                                    <Tag className="h-2.5 w-2.5" />
+                                    {descreverDesconto(dc)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
                             <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
                             <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
                             <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
                             <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
                             <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
-                            <td className="p-2 text-right font-semibold text-primary">{formatBRL(d.receita)}</td>
+                            <td className="p-2 text-right font-semibold text-primary">
+                              {d.descontoCliente > 0 ? (
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span className="line-through text-[11px] text-muted-foreground font-normal">{formatBRL(d.subtotal)}</span>
+                                  <span>{formatBRL(d.receita)}</span>
+                                </div>
+                              ) : (
+                                formatBRL(d.receita)
+                              )}
+                            </td>
+                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                title="Aplicar desconto a este cliente"
+                                onClick={() => setDescontoModal({ escopo: "cliente", clienteId: d.cliente.id, clienteNome: d.cliente.nome })}
+                              >
+                                <Tag className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
                           </tr>
                         ))}
                         {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={8} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                          <tr><td colSpan={9} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Resumo Subtotal/Descontos/Total e ações */}
+                  <div className="mt-3 rounded-lg border border-border/60 p-3 bg-muted/10">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        Aplique descontos por cliente (botão <Tag className="inline h-3 w-3 align-middle" />) ou no fechamento inteiro.
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => setDescontoModal({ escopo: "fechamento_inteiro", clienteId: null })}
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Desconto no fechamento
+                      </Button>
+                    </div>
+
+                    {(fechamentoSelecionado?.descontosGerais.length ?? 0) > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoSelecionado!.descontosGerais.map((dg) => (
+                          <div key={dg.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                              <span className="font-medium">Fechamento inteiro · {descreverDesconto(dg)}</span>
+                              {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
+                              {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                            </div>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dg.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Descontos por cliente listados para gestão (remover) */}
+                    {fechamentoData.detalhesPorCliente.some((d) => d.descontosCliente.length > 0) && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoData.detalhesPorCliente.flatMap((d) =>
+                          d.descontosCliente.map((dc) => (
+                            <div key={dc.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                                <span className="font-medium truncate">{d.cliente.nome} · {descreverDesconto(dc)}</span>
+                                {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
+                                {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                              </div>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dc.id)}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          )),
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-3 border-t border-border/40 pt-2 space-y-1 text-sm">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>{formatBRL(fechamentoSelecionado?.subtotalBruto ?? 0)}</span>
+                      </div>
+                      {(fechamentoSelecionado?.descontoTotal ?? 0) > 0 && (
+                        <div className="flex justify-between text-yellow-600 dark:text-yellow-500">
+                          <span>Descontos</span>
+                          <span>-{formatBRL(fechamentoSelecionado!.descontoTotal)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold text-primary text-base">
+                        <span>Total do fechamento</span>
+                        <span>{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
