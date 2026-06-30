@@ -1594,6 +1594,67 @@ function ResumoPage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Aplicar Desconto */}
+      <Dialog open={!!descontoModal} onOpenChange={(o) => { if (!o) { setDescontoModal(null); resetDescontoForm(); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {descontoModal?.escopo === "cliente"
+                ? `Desconto · ${descontoModal?.clienteNome ?? ""}`
+                : "Desconto no fechamento inteiro"}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Competência {fechamentoData?.labelMes ?? ""}
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Tipo</Label>
+              <RadioGroup value={descTipo} onValueChange={(v) => setDescTipo(v as any)} className="flex flex-wrap gap-3 mt-1">
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="valor" /> Valor em R$
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="percentual" /> Percentual
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="isencao_total" /> Isenção total
+                </label>
+              </RadioGroup>
+            </div>
+
+            {descTipo !== "isencao_total" && (
+              <div>
+                <Label className="text-xs">{descTipo === "valor" ? "Valor (R$)" : "Percentual (%)"}</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={descValor}
+                  onChange={(e) => setDescValor(e.target.value)}
+                  placeholder={descTipo === "valor" ? "Ex.: 50,00" : "Ex.: 10"}
+                />
+              </div>
+            )}
+
+            <div>
+              <Label className="text-xs">Motivo (opcional)</Label>
+              <Input value={descMotivo} onChange={(e) => setDescMotivo(e.target.value)} placeholder="Ex.: cortesia, ajuste comercial" />
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox checked={descRecorrente} onCheckedChange={(v) => setDescRecorrente(Boolean(v))} />
+              <span>Aplicar também em competências futuras (recorrente)</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setDescontoModal(null); resetDescontoForm(); }}>Cancelar</Button>
+            <Button onClick={salvarDesconto}>Aplicar desconto</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
