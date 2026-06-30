@@ -789,7 +789,7 @@ function ResumoPage() {
               <TableRow>
                 <TableHead className="w-[30px]"></TableHead>
                 <TableHead>Mês de Competência</TableHead>
-                <TableHead className="text-right">Faturados</TableHead>
+                <TableHead>Data de vencimento</TableHead>
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
                 <TableHead className="text-right">Receita Total</TableHead>
