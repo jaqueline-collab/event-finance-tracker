@@ -21,6 +21,7 @@ import {
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
 } from "@/lib/store";
+import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
 import { Mail, Send } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
