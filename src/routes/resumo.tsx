@@ -860,11 +860,6 @@ function ResumoPage() {
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
-    const labelFiltros = [
-      planoSel.length > 0 ? ` · ${planoSel.map((id) => planos.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
-      parceiroSel.length > 0 ? ` · ${parceiroSel.map((id) => parceiros.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
-      vencSel.length > 0 ? ` · venc. dia ${vencSel.join("/")}` : "",
-    ].join("");
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
@@ -873,8 +868,9 @@ function ResumoPage() {
       const dia = dias.length > 0 ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length) : 10;
       const ultimoDia = new Date(y, m + 1, 0).getDate();
       const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+      const descricao = (descricaoConsolidada || "").trim() || `Fechamento ${labelMes} · ciclo ${cicloLabel}`;
       addLancamento({
-        descricao: `Fechamento ${labelMes}${labelFiltros} · ciclo ${cicloLabel}`,
+        descricao,
         tipo: "fechamento",
         categoria: "Receita",
         valor: Number(totalReceita.toFixed(2)),
@@ -890,8 +886,10 @@ function ResumoPage() {
         const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
         const ultimoDia = new Date(y, m + 1, 0).getDate();
         const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+        const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
+          || d.cliente.nomeFinanceiro || d.cliente.nome;
         addLancamento({
-          descricao: `${d.cliente.nomeFinanceiro || d.cliente.nome} · Fechamento ${labelMes} · ciclo ${cicloLabel}`,
+          descricao: descricaoCli,
           tipo: "fechamento",
           categoria: "Receita",
           valor: Number(d.receita.toFixed(2)),
