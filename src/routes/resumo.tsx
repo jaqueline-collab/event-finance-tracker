@@ -36,7 +36,7 @@ export const Route = createFileRoute("/resumo")({
 });
 
 function ResumoPage() {
-  const { clientes, planos, custos, movimentos, parceiros, addLancamento } = useStore();
+  const { clientes, planos, custos, movimentos, parceiros, addLancamento, descontos, addDesconto, removeDesconto } = useStore();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
   const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
   const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
