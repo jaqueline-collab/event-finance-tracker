@@ -45,6 +45,7 @@ function ClientesPage() {
   
   const [form, setForm] = useState({
     nome: "",
+    nomeFinanceiro: "",
     planoId: planos[0]?.id ?? "",
     parceiroId: planos[0]?.parceiroIds?.[0] ?? "",
     dataInicio: new Date().toISOString().slice(0, 10),
@@ -460,6 +461,14 @@ function ClientesPage() {
                     <Label className="mb-1.5 block font-medium">Nome do Cliente</Label>
                     <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex: Acn Corp Ltda" />
                   </div>
+                  <div className="md:col-span-2">
+                    <Label className="mb-1.5 block font-medium">Nome para Financeiro</Label>
+                    <Input
+                      value={form.nomeFinanceiro}
+                      onChange={(e) => setForm({ ...form, nomeFinanceiro: e.target.value })}
+                      placeholder="Nome que aparecerá no PDF e nos lançamentos do Financeiro (opcional)"
+                    />
+                  </div>
                   <div>
                     <Label className="mb-1.5 block font-medium">Plano Contratado</Label>
                     <Select value={form.planoId} onValueChange={handlePlanoChange}>
@@ -768,6 +777,7 @@ function ClientesPage() {
                     onClick={() => {
                       addCliente({
                         nome: form.nome,
+                        nomeFinanceiro: form.nomeFinanceiro.trim() || null,
                         planoId: form.planoId,
                         dataInicio: form.dataInicio,
                         dataChurn: null,
@@ -795,6 +805,7 @@ function ClientesPage() {
                       });
                       setForm({
                         nome: "",
+                        nomeFinanceiro: "",
                         planoId: planos[0]?.id ?? "",
                         parceiroId: "",
                         dataInicio: new Date().toISOString().slice(0, 10),
