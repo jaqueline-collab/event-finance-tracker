@@ -1,0 +1,1 @@
+ALTER TABLE public.elora_clientes ADD COLUMN IF NOT EXISTS nome_financeiro text;

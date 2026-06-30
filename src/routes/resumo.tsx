@@ -667,7 +667,7 @@ function ResumoPage() {
       startY: (pdf as any).lastAutoTable.finalY + 16,
       head: [["Cliente", "Plano", "Parceiro", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
       body: fechamentoSelecionado.detalhes.map((d) => [
-        d.cliente.nome,
+        d.cliente.nomeFinanceiro || d.cliente.nome,
         d.plano?.nome ?? "—",
         d.parceiro?.nome ?? "—",
         d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
@@ -834,7 +834,7 @@ function ResumoPage() {
         const ultimoDia = new Date(y, m + 1, 0).getDate();
         const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
         addLancamento({
-          descricao: `${d.cliente.nome} · Fechamento ${labelMes} · ciclo ${cicloLabel}`,
+          descricao: `${d.cliente.nomeFinanceiro || d.cliente.nome} · Fechamento ${labelMes} · ciclo ${cicloLabel}`,
           tipo: "fechamento",
           categoria: "Receita",
           valor: Number(d.receita.toFixed(2)),

@@ -93,6 +93,7 @@ export type Database = {
           id: string
           mau: number | null
           nome: string
+          nome_financeiro: string | null
           observacao: string | null
           parceiro_id: string | null
           plano_id: string | null
@@ -124,6 +125,7 @@ export type Database = {
           id: string
           mau?: number | null
           nome: string
+          nome_financeiro?: string | null
           observacao?: string | null
           parceiro_id?: string | null
           plano_id?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           id?: string
           mau?: number | null
           nome?: string
+          nome_financeiro?: string | null
           observacao?: string | null
           parceiro_id?: string | null
           plano_id?: string | null
