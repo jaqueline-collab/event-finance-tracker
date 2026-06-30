@@ -838,14 +838,14 @@ function ResumoPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="text-xs uppercase tracking-[0.3em] opacity-80">Elora · Fechamento Mensal</div>
-                      <DialogTitle className="text-3xl font-bold mt-1 capitalize">{fechamentoData.labelMes}</DialogTitle>
+                      <DialogTitle className="text-3xl font-bold mt-1 capitalize">Competência {fechamentoData.labelMes}</DialogTitle>
                       <p className="text-xs opacity-80 mt-2">
                         {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
                         {" · "}
                         {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
                       </p>
                       <p className="text-[11px] opacity-90 mt-1">
-                        Ciclo de faturamento: {fechamentoData.cicloLabel}
+                        Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
                       </p>
                     </div>
                     <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
