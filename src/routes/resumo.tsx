@@ -898,6 +898,12 @@ function ResumoPage() {
                       <p className="text-[11px] opacity-90 mt-1">
                         Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
                       </p>
+                      {fechamentoData.aguardandoCicloFechar.length > 0 && (
+                        <p className="text-[11px] opacity-90 mt-1">
+                          ⏳ {fechamentoData.aguardandoCicloFechar.length} cliente(s) aguardando fim do ciclo (
+                          {fechamentoData.aguardandoCicloFechar.map((c) => c.nome).join(", ")}) — entram no próximo fechamento.
+                        </p>
+                      )}
                     </div>
                     <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
                       <Download className="h-4 w-4" /> Exportar PDF
