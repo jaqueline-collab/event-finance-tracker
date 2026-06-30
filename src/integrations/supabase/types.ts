@@ -212,6 +212,7 @@ export type Database = {
           motivo: string | null
           recorrente: boolean
           tipo: string
+          user_id: string
           valor: number | null
         }
         Insert: {
@@ -225,6 +226,7 @@ export type Database = {
           motivo?: string | null
           recorrente?: boolean
           tipo: string
+          user_id?: string
           valor?: number | null
         }
         Update: {
@@ -238,6 +240,7 @@ export type Database = {
           motivo?: string | null
           recorrente?: boolean
           tipo?: string
+          user_id?: string
           valor?: number | null
         }
         Relationships: [

@@ -1,70 +1,79 @@
-## Descontos no Resumo Mensal + auditoria Majestic
+## 1. Corrigir alertas de segurança
 
-### 1. Modelo de desconto (banco)
+### `elora_descontos` sem escopo por usuário (achado crítico do scanner)
 
-Nova tabela `elora_descontos`:
+Hoje a tabela tem políticas RLS com `using (true)` / `with check (true)`: qualquer usuário autenticado lê e altera descontos de qualquer outra conta. Todas as outras tabelas Elora já são escopadas por `user_id = auth.uid()`.
+
+Migration:
+
+1. `ALTER TABLE public.elora_descontos ADD COLUMN user_id uuid DEFAULT auth.uid();`
+2. Backfill: `UPDATE public.elora_descontos SET user_id = c.user_id FROM public.elora_clientes c WHERE elora_descontos.cliente_id = c.id;` (descontos globais sem cliente recebem o `user_id` do admin atual).
+3. `ALTER COLUMN user_id SET NOT NULL`.
+4. Dropar as 4 policies "Authenticated can …" e recriar `own_select/insert/update/delete_elora_descontos` escopadas a `user_id = auth.uid()`, padrão idêntico ao `elora_clientes`.
+5. Marcar o finding `elora_descontos_unscoped_access` e o warning genérico do linter como corrigidos.
+
+Frontend (`store.ts`, `mappers.ts`): incluir `user_id` no insert a partir da sessão Supabase. Sem mudança de UI.
+
+## 2. Investigar Majestic (validar hipótese)
+
+Sua hipótese: a Majestic entrou em 17/03 já com o plano maior (2 adicionais a mais), e por isso o Monday está R$ 59,98 acima do app em abril.
+
+Estado atual cadastrado (plano Essencial Rabbit Agency, ciclo 5→4):
 
 ```text
-id, cliente_id, tipo ('valor' | 'percentual' | 'isencao_total'),
-escopo ('cliente' | 'fechamento_inteiro'),
-valor (numérico, nulo quando isenção),
-competencia_inicio (YYYY-MM, primeira competência aplicada),
-competencia_fim (YYYY-MM, null = sem fim),
-recorrente (bool), motivo (texto), criado_em
+data_inicio       2026-03-17
+canais_whats      2   (1 incluso → 1 exc)
+canais_messenger  1   (1 incluso → 0 exc)
+canais_zapi       1   (1 exc)
+usuarios_ativos   4   (3 inclusos → 1 exc)
+acompanhamento    R$ 250
 ```
 
-- `escopo = 'cliente'`: abate do total daquele cliente na competência.
-- `escopo = 'fechamento_inteiro'`: abate do total geral do relatório do mês (linha "Desconto global").
-- `tipo = 'isencao_total'` + `escopo = 'cliente'`: zera a cobrança do cliente naquele mês.
-- `recorrente = false`: vale só na `competencia_inicio`.
-- `recorrente = true`: vale de `competencia_inicio` até `competencia_fim` (ou infinito se null).
+Único movimento cadastrado: `2026-04-15 upgrade usuarios_ativos: 2  zapi: true` — ou seja, pré-15/04 ela estava com 2 usuários e sem Z-API.
 
-Grants + RLS no padrão das outras tabelas Elora.
+Snapshot do app em abril (fim do ciclo 04/05): 199,99 + 250 + 29,99 (whats exc) + 29,99 (user exc) + 69,99 (zapi) = **R$ 579,96**. Delta para o Monday ≈ R$ 59,98 = exatamente **2 × R$ 29,99 (2 adicionais)**.
 
-### 2. UI no Resumo Mensal
+Vou entregar antes de tocar em qualquer dado:
 
-- Em cada linha do cliente: botão "Aplicar desconto" → modal com
-  - Tipo: Valor (R$) / Percentual (%) / Isentar cobrança inteira
-  - Recorrência: Só nesta competência / Recorrente (com data fim opcional)
-  - Motivo (texto livre)
-- Acima da tabela: botão "Desconto no fechamento" (escopo global) com os mesmos campos exceto isenção.
-- Coluna nova "Desconto" entre Valor bruto e Valor líquido; total do rodapé passa a mostrar bruto, descontos, líquido.
-- Chip removível ao lado do nome do cliente quando há desconto ativo na competência (clicar abre/edita/remove).
-- Tudo entra no PDF do fechamento como linha discriminada com o motivo.
+1. Comparativo lado a lado **Majestic × Monday** para fev/mar/abr/mai (estado, movimentos, valor app, valor Monday, delta).
+2. Duas hipóteses possíveis:
+   - **A**: 2 adicionais existem desde 17/03 (mar, abr e mai abaixo no app).
+   - **B**: 2 adicionais entraram no upgrade de 15/04 (só abr e mai abaixo).
+3. Lista exata do ajuste para o app bater com o Monday — só executo após sua confirmação.
 
-### 3. Cálculo
+Para fechar a hipótese preciso de uma linha sua: na cobrança da Majestic em abril no Monday, o que aparece detalhado além de `Essencial Rabbit + 250 assessoria + 1 whats extra + 1 user extra + 1 Z-API`? São 2 canais Insta, 2 usuários a mais, outro módulo?
 
-`receitaCicloCliente` continua intacta (cobrança cheia por padrão).
-Camada nova `aplicarDescontos(valorBruto, descontosDaCompetencia)` aplicada no Resumo:
+## 3. Cadastrar Cecilia Bunn (faltando no plano Rabbit)
 
-1. Por cliente: aplica todos os descontos com `escopo='cliente'` da competência (soma valores, soma %, isenção sobrepõe e zera).
-2. Soma os líquidos → total bruto descontado.
-3. Aplica descontos `escopo='fechamento_inteiro'` sobre esse total.
+Na auditoria do plano Rabbit identificamos que a Cecilia Bunn não está no banco, e por isso o fechamento ficou abaixo do Monday. Vou cadastrá-la assim que você confirmar os dados.
 
-KPIs do topo e PDF passam a refletir o líquido; o bruto fica visível como referência.
+Preciso de você (pode mandar tudo numa linha só):
 
-### 4. Auditoria Majestic (entrega em texto, sem alterar banco)
+```text
+Nome completo:
+Data de setup (início):
+Data de churn (se houver):
+Plano: (Essencial Rabbit Agency? outro?)
+Canais Whats / Insta / Messenger:
+Z-API (qtd):
+Usuários ativos:
+Transcrição IA (sim/não):
+Agente IA (sim/não):
+Valor de acompanhamento (assessoria) mensal:
+Valor de setup pago (se houve):
+Ciclo personalizado? (se não, herda 5→4 do Rabbit)
+```
 
-Antes do desconto, gero o comparativo Majestic × Monday para fevereiro/março/abril:
+Se algum desses campos for o padrão do Rabbit já me diz "padrão" que eu preencho.
 
-- Estado cadastrado no app (plano, ciclo, valor mensal, assessoria, canais, usuários, transcrição, Z-API, IA).
-- Movimentos cadastrados (datas e deltas).
-- Valor calculado pelo app em cada competência.
-- Valor do Monday em cada competência (Sistema + Assessoria).
-- Diferença e hipótese: upgrade faltando, data divergente, módulo a mais/menos.
-- Lista final do que precisa ser cadastrado para o app bater com o Monday — você confirma antes de qualquer alteração.
+## Ordem de execução
 
-### 5. Ordem de execução
+1. Migration de `elora_descontos` + ajuste no store/mappers + marcar findings como corrigidos.
+2. Comparativo Majestic × Monday em texto — aguardo confirmação antes de cadastrar movimentos.
+3. Cadastro da Cecilia Bunn assim que os dados chegarem.
 
-1. Migration `elora_descontos` + grants/RLS.
-2. Store + tipos + mappers.
-3. Cálculo `aplicarDescontos` + integração no Resumo (tabela, KPIs, PDF, prévia).
-4. Modal de desconto por cliente + global, com chips removíveis.
-5. Auditoria Majestic em texto.
+## Detalhes técnicos
 
-### Detalhes técnicos
-
-- A persistência é por `competencia_inicio` (mês de início do ciclo), coerente com a semântica vigente no app.
-- Para recorrentes, o filtro no Resumo busca `competencia_inicio <= comp <= coalesce(competencia_fim, comp)`.
-- Edição/remoção via mesmo modal; histórico fica preservado pelo `criado_em`.
-- Os descontos não tocam em `elora_movimentos` — são uma camada de cobrança, não de assinatura.
+- Backfill roda antes do `NOT NULL` para não quebrar linhas existentes.
+- `DEFAULT auth.uid()` simplifica inserts no client.
+- Nenhum cálculo de Resumo Mensal muda nesta etapa — só descontos passam a ser por usuário.
