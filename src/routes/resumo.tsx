@@ -22,9 +22,11 @@ import {
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
 } from "@/lib/store";
+import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
+import type { Desconto } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 
