@@ -21,6 +21,7 @@ import {
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
 } from "@/lib/store";
+import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
 import { Mail, Send } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -83,17 +84,37 @@ function ResumoPage() {
     });
   }, [clientes, planos, planoSel, parceiroSel, vencSel, tipoSel]);
 
-  // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
+  // Resolve o ciclo de faturamento do cliente para a competência (y, m).
+  // Respeita ciclo personalizado do cliente, ciclo do plano (ex.: Rabbit 5→4)
+  // ou default 1→31.
+  const cicloDoCliente = (c: typeof clientes[number], y: number, m: number) => {
+    const plano = planos.find((p) => p.id === c.planoId);
+    return getCicloCliente(c, plano, y, m);
+  };
+
+  // Cliente esteve ativo em qualquer dia do ciclo (competência y/m do cliente).
   const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
-    const cicloInicio = new Date(y, m, 1);
-    const cicloFim = new Date(y, m + 1, 0);
+    const ciclo = cicloDoCliente(c, y, m);
     const ini = new Date(c.dataInicio);
-    if (ini > cicloFim) return false;
+    if (ini > ciclo.fim) return false;
     if (c.dataChurn) {
       const churn = new Date(c.dataChurn);
-      if (churn < cicloInicio) return false;
+      if (churn < ciclo.inicio) return false;
     }
     return true;
+  };
+
+  // Cliente é elegível ao fechamento de uma competência apenas quando o ciclo
+  // dele já encerrou (último dia do ciclo < hoje).
+  const clienteElegivelParaFechamento = (
+    c: typeof clientes[number],
+    y: number,
+    m: number,
+    hoje: Date,
+  ) => {
+    if (!clienteAtivoNoCiclo(c, y, m)) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    return ciclo.fim < hoje;
   };
 
   // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
@@ -238,10 +259,32 @@ function ResumoPage() {
     // Ex.: competência Junho/2026 = ciclo 01/06 a 30/06, cobrado em ~05/07.
     const cy = y;
     const cm = m;
-    const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
-    const cicloInicio = new Date(cy, cm, 1);
-    const cicloFim = new Date(cy, cm + 1, 0);
-    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
+    const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    // Apenas clientes cujo ciclo da competência já encerrou entram no fechamento.
+    const ativosTodos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
+    const ativos = ativosTodos.filter((c) => clienteElegivelParaFechamento(c, cy, cm, hoje));
+    const aguardandoCicloFechar = ativosTodos.filter((c) => !clienteElegivelParaFechamento(c, cy, cm, hoje));
+    // Faixa de ciclos representativa (pode haver clientes com ciclos diferentes).
+    const ciclos = ativos.map((c) => cicloDoCliente(c, cy, cm));
+    const cicloLabel = (() => {
+      if (ciclos.length === 0) {
+        const ini = new Date(cy, cm, 1);
+        const fim = new Date(cy, cm + 1, 0);
+        return `${ini.toLocaleDateString("pt-BR")} a ${fim.toLocaleDateString("pt-BR")}`;
+      }
+      const inis = ciclos.map((c) => c.inicio.getTime());
+      const fims = ciclos.map((c) => c.fim.getTime());
+      const minIni = new Date(Math.min(...inis));
+      const maxIni = new Date(Math.max(...inis));
+      const minFim = new Date(Math.min(...fims));
+      const maxFim = new Date(Math.max(...fims));
+      const sameIni = minIni.getTime() === maxIni.getTime();
+      const sameFim = minFim.getTime() === maxFim.getTime();
+      if (sameIni && sameFim) {
+        return `${minIni.toLocaleDateString("pt-BR")} a ${maxFim.toLocaleDateString("pt-BR")}`;
+      }
+      return `${minIni.toLocaleDateString("pt-BR")}–${maxIni.toLocaleDateString("pt-BR")} a ${minFim.toLocaleDateString("pt-BR")}–${maxFim.toLocaleDateString("pt-BR")}`;
+    })();
     // Data de vencimento média/representativa da competência (apenas informativa)
     const vencimentosCompetencia = ativos
       .map((c) => obterVencimentoDaCompetencia(c, cy, cm, planos))
@@ -332,6 +375,7 @@ function ResumoPage() {
       cicloLabel,
       vencimentoLabel,
       ativos,
+      aguardandoCicloFechar,
       setupsNoMes,
       churnsNoMes,
       totalSetups,
@@ -388,25 +432,32 @@ function ResumoPage() {
   };
 
   const opcoesFechamento = useMemo(() => {
-    // Lista apenas competências cujo ciclo JÁ ENCERROU (último dia do ciclo < hoje).
-    // A competência É o ciclo de faturamento (ex.: Maio/2026 = 01/05–31/05),
-    // cobrada no mês seguinte.
-    const out: { key: string; label: string }[] = [];
+    // Lista competências que tenham pelo menos 1 cliente filtrado com
+    // o ciclo já encerrado (cicloFim < hoje). Como diferentes planos têm
+    // ciclos diferentes (ex.: Distribox 1→31 fecha 30/06; Rabbit 5→4
+    // fecha só em 04/07), o seletor passa a ser por ciclo do cliente.
+    const out: { key: string; label: string; elegiveis: number; aguardando: number }[] = [];
     const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    // Inicia na competência do mês corrente e volta no tempo
     const base = new Date(today.getFullYear(), today.getMonth(), 1);
     for (let i = 0; i < 36; i++) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-      const cicloFim = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      if (cicloFim >= hoje) continue; // competência ainda em curso
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      let elegiveis = 0;
+      let aguardando = 0;
+      for (const c of clientesFiltrados) {
+        if (!clienteAtivoNoCiclo(c, y, m)) continue;
+        if (clienteElegivelParaFechamento(c, y, m, hoje)) elegiveis++;
+        else aguardando++;
+      }
+      if (elegiveis === 0) continue;
+      const key = `${y}-${String(m + 1).padStart(2, "0")}`;
       const mesLabel = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-      const mesVencRef = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-        .toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
-      out.push({ key, label: `${mesLabel}  ·  venc. ${mesVencRef}` });
+      const sufixo = aguardando > 0 ? `  ·  ${elegiveis} prontos / ${aguardando} aguardando` : `  ·  ${elegiveis} prontos`;
+      out.push({ key, label: `${mesLabel}${sufixo}`, elegiveis, aguardando });
     }
     return out;
-  }, [today]);
+  }, [today, clientesFiltrados, planos]);
 
   const fmtDelta = (label: string, v: number | undefined | null) => {
     if (v === undefined || v === null || v === 0) return null;
@@ -847,6 +898,12 @@ function ResumoPage() {
                       <p className="text-[11px] opacity-90 mt-1">
                         Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
                       </p>
+                      {fechamentoData.aguardandoCicloFechar.length > 0 && (
+                        <p className="text-[11px] opacity-90 mt-1">
+                          ⏳ {fechamentoData.aguardandoCicloFechar.length} cliente(s) aguardando fim do ciclo (
+                          {fechamentoData.aguardandoCicloFechar.map((c) => c.nome).join(", ")}) — entram no próximo fechamento.
+                        </p>
+                      )}
                     </div>
                     <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
                       <Download className="h-4 w-4" /> Exportar PDF
