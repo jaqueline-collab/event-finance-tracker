@@ -205,16 +205,26 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: 96,
-      head: [["Mês", "Faturados", "Novos", "Churns", "Receita Total", "Custo Operacional", "Lucro Líquido"]],
-      body: linhas.map((l) => [
-        l.mesLabel,
-        String(l.ativos.length),
-        String(l.novos),
-        String(l.churns),
-        formatBRL(l.receita),
-        formatBRL(l.custoHelena),
-        formatBRL(l.lucro),
-      ]),
+      head: [["Mês de Competência", "Data de vencimento", "Novos", "Churns", "Receita Total", "Custo Operacional", "Lucro Líquido"]],
+      body: linhas.map((l) => {
+        const y = Number(l.mesKey.slice(0, 4));
+        const m = Number(l.mesKey.slice(5, 7)) - 1;
+        const vencs = Array.from(new Set(l.ativos.map((c) => obterVencimentoDaCompetencia(c, y, m, planos)).filter((v): v is string => Boolean(v)))).sort();
+        const vencLabel = vencs.length === 0
+          ? "—"
+          : vencs.length === 1
+            ? new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")
+            : `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
+        return [
+          l.mesLabel,
+          vencLabel,
+          String(l.novos),
+          String(l.churns),
+          formatBRL(l.receita),
+          formatBRL(l.custoHelena),
+          formatBRL(l.lucro),
+        ];
+      }),
       styles: { fontSize: 9, cellPadding: 6 },
       headStyles: { fillColor: [28, 63, 170] },
       margin: { left: 40, right: 40 },
