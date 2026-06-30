@@ -108,6 +108,7 @@ export function obterVencimentoDaCompetencia(
 }
 
 export function clienteAtivoEm(cliente: Cliente, year: number, month: number): boolean {
+  // Aceita ativo no MÊS calendário (uso legado em métricas não-ciclo).
   const fimMes = new Date(year, month + 1, 0);
   const inicioMes = new Date(year, month, 1);
   const inicio = new Date(cliente.dataInicio);
