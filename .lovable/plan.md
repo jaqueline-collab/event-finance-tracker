@@ -1,79 +1,63 @@
-## 1. Corrigir alertas de segurança
-
-### `elora_descontos` sem escopo por usuário (achado crítico do scanner)
-
-Hoje a tabela tem políticas RLS com `using (true)` / `with check (true)`: qualquer usuário autenticado lê e altera descontos de qualquer outra conta. Todas as outras tabelas Elora já são escopadas por `user_id = auth.uid()`.
-
-Migration:
-
-1. `ALTER TABLE public.elora_descontos ADD COLUMN user_id uuid DEFAULT auth.uid();`
-2. Backfill: `UPDATE public.elora_descontos SET user_id = c.user_id FROM public.elora_clientes c WHERE elora_descontos.cliente_id = c.id;` (descontos globais sem cliente recebem o `user_id` do admin atual).
-3. `ALTER COLUMN user_id SET NOT NULL`.
-4. Dropar as 4 policies "Authenticated can …" e recriar `own_select/insert/update/delete_elora_descontos` escopadas a `user_id = auth.uid()`, padrão idêntico ao `elora_clientes`.
-5. Marcar o finding `elora_descontos_unscoped_access` e o warning genérico do linter como corrigidos.
-
-Frontend (`store.ts`, `mappers.ts`): incluir `user_id` no insert a partir da sessão Supabase. Sem mudança de UI.
-
-## 2. Investigar Majestic (validar hipótese)
-
-Sua hipótese: a Majestic entrou em 17/03 já com o plano maior (2 adicionais a mais), e por isso o Monday está R$ 59,98 acima do app em abril.
-
-Estado atual cadastrado (plano Essencial Rabbit Agency, ciclo 5→4):
+## 1. Cadastrar Dra. Cecilia Bunn
 
 ```text
-data_inicio       2026-03-17
-canais_whats      2   (1 incluso → 1 exc)
-canais_messenger  1   (1 incluso → 0 exc)
-canais_zapi       1   (1 exc)
-usuarios_ativos   4   (3 inclusos → 1 exc)
-acompanhamento    R$ 250
+Nome:            Dra. Cecilia Bunn
+CPF/CNPJ:        08.965.305/748   → observação
+Plano:           Essencial Rabbit Agency (ciclo padrão 5→4)
+Data setup:      2026-06-12
+Canais:          1 whats incluso, sem Insta/Messenger
+Z-API:           1
+Usuários:        3 (inclusos)
+Acompanhamento:  R$ 250,00
 ```
 
-Único movimento cadastrado: `2026-04-15 upgrade usuarios_ativos: 2  zapi: true` — ou seja, pré-15/04 ela estava com 2 usuários e sem Z-API.
+Receita: 199,99 + 69,99 (Z-API) + 250 = **R$ 519,98** ✓ Monday. Entra no fechamento de julho (ciclo 12/06→04/07).
 
-Snapshot do app em abril (fim do ciclo 04/05): 199,99 + 250 + 29,99 (whats exc) + 29,99 (user exc) + 69,99 (zapi) = **R$ 579,96**. Delta para o Monday ≈ R$ 59,98 = exatamente **2 × R$ 29,99 (2 adicionais)**.
+## 2. Upgrade Instituto Murilo Fischer — 22/06/2026
 
-Vou entregar antes de tocar em qualquer dado:
+1. Ler `usuarios_ativos` atual da Fischer.
+2. Inserir movimento `tipo=upgrade`, data `2026-06-22`, `usuarios_ativos = atual + 1`, observação "Upgrade +1 login".
+3. Atualizar `elora_clientes.usuarios_ativos`.
 
-1. Comparativo lado a lado **Majestic × Monday** para fev/mar/abr/mai (estado, movimentos, valor app, valor Monday, delta).
-2. Duas hipóteses possíveis:
-   - **A**: 2 adicionais existem desde 17/03 (mar, abr e mai abaixo no app).
-   - **B**: 2 adicionais entraram no upgrade de 15/04 (só abr e mai abaixo).
-3. Lista exata do ajuste para o app bater com o Monday — só executo após sua confirmação.
+## 3. Resumo Mensal: descontos refletindo + vencimento completo
 
-Para fechar a hipótese preciso de uma linha sua: na cobrança da Majestic em abril no Monday, o que aparece detalhado além de `Essencial Rabbit + 250 assessoria + 1 whats extra + 1 user extra + 1 Z-API`? São 2 canais Insta, 2 usuários a mais, outro módulo?
+Dois ajustes em `src/routes/resumo.tsx`:
 
-## 3. Cadastrar Cecilia Bunn (faltando no plano Rabbit)
+**a) Vencimento com mês/ano**  
+Hoje a coluna mostra só o dia (ex.: `04`). Trocar para `dd/MM/yyyy` (ex.: `04/07/2026`). Aplicar tanto na tabela quanto no PDF gerado.
 
-Na auditoria do plano Rabbit identificamos que a Cecilia Bunn não está no banco, e por isso o fechamento ficou abaixo do Monday. Vou cadastrá-la assim que você confirmar os dados.
+**b) Descontos refletindo no resumo**  
+Hoje os descontos aparecem como chip amarelo ao lado do cliente e no totalizador inferior, mas o **valor da linha do cliente continua mostrando o subtotal cheio**. Ajustar:
 
-Preciso de você (pode mandar tudo numa linha só):
+- Coluna "Total" da linha do cliente: mostrar `subtotal riscado` + `total com desconto` em destaque, igual ao card inferior.
+- Soma "Subtotal" / "Descontos" / "Total" do fechamento já existe — manter.
+- PDF do fechamento: incluir coluna "Desconto" e "Total líquido" por cliente, e linha de descontos no rodapé.
+- Timeline do cliente (drawer ao clicar na linha): adicionar item "Desconto aplicado" com valor e motivo, posicionado no fim do ciclo.
+
+## 4. Majestic — reconciliação (aguardando 1 linha sua)
+
+Planilha Monday só traz MRR consolidado (R$ 639,94 = 389,94 sistema + 250 assess) e a aba "updates" não tem registros da Majestic. Delta sistema = R$ 59,98 = exatamente **2 × R$ 29,99** → 2 adicionais que não estão cadastrados desde 17/03.
+
+Composições possíveis:
 
 ```text
-Nome completo:
-Data de setup (início):
-Data de churn (se houver):
-Plano: (Essencial Rabbit Agency? outro?)
-Canais Whats / Insta / Messenger:
-Z-API (qtd):
-Usuários ativos:
-Transcrição IA (sim/não):
-Agente IA (sim/não):
-Valor de acompanhamento (assessoria) mensal:
-Valor de setup pago (se houve):
-Ciclo personalizado? (se não, herda 5→4 do Rabbit)
+A) Rabbit + 1 whats + 1 insta + 1 messenger + 1 user + 1 z-api  = 389,94
+B) Rabbit + 1 whats + 3 users + 1 z-api                          = 389,94
 ```
 
-Se algum desses campos for o padrão do Rabbit já me diz "padrão" que eu preencho.
+Me confirma **A**, **B** ou outra. Lanço movimento retroativo `tipo=upgrade` em `2026-03-17` com o estado correto — fechamentos de mar/abr/mai retroagem e passam a bater com o Monday.
 
-## Ordem de execução
+## 5. Ordem de execução
 
-1. Migration de `elora_descontos` + ajuste no store/mappers + marcar findings como corrigidos.
-2. Comparativo Majestic × Monday em texto — aguardo confirmação antes de cadastrar movimentos.
-3. Cadastro da Cecilia Bunn assim que os dados chegarem.
+1. Inserir Cecilia Bunn.
+2. Ler Fischer atual + lançar upgrade 22/06.
+3. Ajustar `resumo.tsx`: vencimento `dd/MM/yyyy`, descontos refletidos na linha + PDF + timeline.
+4. Aguardar você confirmar A/B → lançar retroativo Majestic 17/03.
 
 ## Detalhes técnicos
 
-- Backfill roda antes do `NOT NULL` para não quebrar linhas existentes.
-- `DEFAULT auth.uid()` simplifica inserts no client.
-- Nenhum cálculo de Resumo Mensal muda nesta etapa — só descontos passam a ser por usuário.
+- Cecilia herda ciclo do plano (sem `ciclo_personalizado`).
+- Movimento Fischer guarda só `usuarios_ativos` + observação; demais campos null (snapshot reaproveita).
+- Formatação do vencimento via `format(vencimento, 'dd/MM/yyyy', { locale: ptBR })`.
+- Desconto na linha: usar `aplicarDescontosCliente` (já existe em `src/lib/calc/desconto.ts`) — devolve `{ subtotal, totalLiquido, descontos[] }`. Renderizar ambos quando `descontos.length > 0`.
+- PDF: ampliar a tabela em 1 coluna; ajustar larguras proporcionais.

@@ -183,9 +183,12 @@ function ResumoPage() {
       novos: number;
       churns: number;
       receita: number;
+      receitaBruta: number;
+      descontoTotal: number;
       custoHelena: number;
       lucro: number;
       setup: number;
+      receitaPorCliente: Map<string, { bruto: number; liquido: number; desconto: number }>;
     }[] = [];
     const cursor = new Date(minD.getFullYear(), minD.getMonth(), 1);
     while (cursor <= now) {
@@ -201,7 +204,23 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const receita = ativos.reduce((s, c) => s + receitaCicloLocal(c, y, m), 0);
+      const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+      const receitaPorCliente = new Map<string, { bruto: number; liquido: number; desconto: number }>();
+      let receitaBruta = 0;
+      let descontoClientes = 0;
+      for (const c of ativos) {
+        const bruto = receitaCicloLocal(c, y, m);
+        const descsCli = descontosAplicaveis(descontos, competenciaKey, "cliente", c.id);
+        const res = calcularDesconto(bruto, descsCli);
+        receitaPorCliente.set(c.id, { bruto, liquido: res.total, desconto: res.descontoTotal });
+        receitaBruta += bruto;
+        descontoClientes += res.descontoTotal;
+      }
+      const subtotalPosClientes = receitaBruta - descontoClientes;
+      const descontosGerais = descontosAplicaveis(descontos, competenciaKey, "fechamento_inteiro");
+      const resGeral = calcularDesconto(subtotalPosClientes, descontosGerais);
+      const receita = resGeral.total;
+      const descontoTotal = descontoClientes + resGeral.descontoTotal;
       // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
         const venc = obterVencimentoDaCompetencia(c, y, m, planos);
@@ -222,20 +241,23 @@ function ResumoPage() {
 
       const receitaTotal = receita + setup + servicos;
       out.push({
-        mesKey: `${y}-${String(m + 1).padStart(2, "0")}`,
+        mesKey: competenciaKey,
         mesLabel: cursor.toLocaleDateString("pt-BR", { month: "long", year: "2-digit" }),
         ativos,
         novos,
         churns,
         receita: receitaTotal,
+        receitaBruta: receitaBruta + setup + servicos,
+        descontoTotal,
         custoHelena,
         lucro: receitaTotal - custoHelena,
         setup: setup + servicos,
+        receitaPorCliente,
       });
       cursor.setMonth(cursor.getMonth() + 1);
     }
     return out.reverse();
-  }, [clientesFiltrados, planos, custos, movimentos]);
+  }, [clientesFiltrados, planos, custos, movimentos, descontos]);
 
   const exportarPdf = () => {
     const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
@@ -285,17 +307,24 @@ function ResumoPage() {
 
       autoTable(pdf, {
         startY: 76,
-        head: [["Cliente", "Plano", "Parceiro", "Próx. vencimento", "Status", "Receita/mês"]],
+        head: [["Cliente", "Plano", "Parceiro", "Vencimento", "Status", "Receita/mês"]],
         body: linha.ativos.map((c) => {
           const plano = planos.find((p) => p.id === c.planoId);
           const parceiro = parceiros.find((p) => p.id === c.parceiroId);
+          const ly = Number(linha.mesKey.slice(0, 4));
+          const lm = Number(linha.mesKey.slice(5, 7)) - 1;
+          const vencIso = obterVencimentoDaCompetencia(c, ly, lm, planos);
+          const info = linha.receitaPorCliente.get(c.id);
+          const rec = info?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, ly, lm);
           return [
             c.nome,
             plano?.nome ?? "—",
             parceiro?.nome ?? "—",
-            formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1, planos)),
+            vencIso ? new Date(`${vencIso}T12:00:00`).toLocaleDateString("pt-BR") : "—",
             c.dataChurn ? "Churn" : "Ativo",
-          formatBRL(receitaCicloCliente(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
+            (info && info.desconto > 0)
+              ? `${formatBRL(rec)} (desc. -${formatBRL(info.desconto)})`
+              : formatBRL(rec),
           ];
         }),
         styles: { fontSize: 9, cellPadding: 6 },
@@ -630,7 +659,7 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
-      head: [["Cliente", "Plano", "Parceiro", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Total"]],
+      head: [["Cliente", "Plano", "Parceiro", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
       body: fechamentoSelecionado.detalhes.map((d) => [
         d.cliente.nome,
         d.plano?.nome ?? "—",
@@ -639,10 +668,27 @@ function ResumoPage() {
         String(d.ltvDias),
         formatBRL(d.sistema),
         formatBRL(d.acomp),
+        d.descontoCliente > 0 ? `-${formatBRL(d.descontoCliente)}` : "—",
         formatBRL(d.receita),
       ]),
       styles: { fontSize: 10, cellPadding: 6 },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
+    });
+
+    // Linha de totalizador do fechamento (subtotal, desconto geral, total)
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 6,
+      head: [["", "Valor"]],
+      showHead: "never",
+      body: [
+        ["Subtotal", formatBRL(fechamentoSelecionado.subtotalBruto)],
+        ...(fechamentoSelecionado.descontoTotal > 0
+          ? [["Descontos aplicados", `-${formatBRL(fechamentoSelecionado.descontoTotal)}`]]
+          : []),
+        ["Total do fechamento", formatBRL(fechamentoSelecionado.totalReceita)],
+      ],
+      styles: { fontSize: 10, cellPadding: 6 },
+      columnStyles: { 0: { halign: "right", fontStyle: "bold" }, 1: { halign: "right" } },
     });
 
     if (fechamentoData.movsMes.length > 0) {
@@ -947,7 +993,10 @@ function ResumoPage() {
                                 {l.ativos.map((c) => {
                                   const plano = planos.find((p) => p.id === c.planoId);
                                   const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-                                  const rec = receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
+                                  const linhaInfo = l.receitaPorCliente.get(c.id);
+                                  const rec = linhaInfo?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
+                                  const recBruto = linhaInfo?.bruto ?? rec;
+                                  const temDesconto = linhaInfo ? linhaInfo.desconto > 0 : false;
                                   return (
                                     <tr
                                       key={c.id}
@@ -961,7 +1010,7 @@ function ResumoPage() {
                                       <td className="py-1.5 text-right text-muted-foreground text-xs">
                                         {(() => {
                                           const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1, planos);
-                                          return vencimento ? `dia ${formatDiaVencimento(vencimento)}` : "—";
+                                          return vencimento ? new Date(`${vencimento}T12:00:00`).toLocaleDateString("pt-BR") : "—";
                                         })()}
                                       </td>
                                       <td className="py-1.5 text-right">
@@ -969,7 +1018,16 @@ function ResumoPage() {
                                           ? <Badge variant="destructive" className="text-xs">Churn</Badge>
                                           : <Badge className="bg-accent/20 text-accent text-xs">Ativo</Badge>}
                                       </td>
-                                      <td className="py-1.5 text-right text-primary font-medium">{formatBRL(rec)}</td>
+                                      <td className="py-1.5 text-right text-primary font-medium">
+                                        {temDesconto ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="line-through text-[10px] text-muted-foreground font-normal">{formatBRL(recBruto)}</span>
+                                            <span>{formatBRL(rec)}</span>
+                                          </div>
+                                        ) : (
+                                          formatBRL(rec)
+                                        )}
+                                      </td>
                                     </tr>
                                   );
                                 })}
@@ -1472,6 +1530,11 @@ function ResumoPage() {
             const recCiclo = receitaCicloCliente(cli, planos, custos, movimentos, y, m);
             const venc = obterVencimentoDaCompetencia(cli, y, m, planos);
             const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            const competenciaKeyDrawer = `${y}-${String(m + 1).padStart(2, "0")}`;
+            const descsClienteDrawer = descontosAplicaveis(descontos, competenciaKeyDrawer, "cliente", cli.id);
+            const resDescDrawer = calcularDesconto(recCiclo, descsClienteDrawer);
+            const recCicloLiquido = resDescDrawer.total;
+            const descontoCicloTotal = resDescDrawer.descontoTotal;
 
             // Movimentos do cliente no mês (ordenados por data crescente)
             const movsMes = movimentos
@@ -1525,8 +1588,17 @@ function ResumoPage() {
                   </div>
                   <div className="rounded-lg border border-border/60 p-3">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Receita do ciclo</div>
-                    <div className="text-lg font-semibold mt-1">{formatBRL(recCiclo)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">Venc. {formatDiaVencimento(venc)}</div>
+                    {descontoCicloTotal > 0 ? (
+                      <div className="flex flex-col leading-tight mt-1">
+                        <span className="line-through text-xs text-muted-foreground font-normal">{formatBRL(recCiclo)}</span>
+                        <span className="text-lg font-semibold">{formatBRL(recCicloLiquido)}</span>
+                      </div>
+                    ) : (
+                      <div className="text-lg font-semibold mt-1">{formatBRL(recCiclo)}</div>
+                    )}
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Venc. {venc ? new Date(`${venc}T12:00:00`).toLocaleDateString("pt-BR") : "—"}
+                    </div>
                   </div>
                 </div>
 
@@ -1543,7 +1615,7 @@ function ResumoPage() {
 
                 <div className="mt-4">
                   <h4 className="text-sm font-semibold mb-2">Linha do tempo · {labelMes}</h4>
-                  {movsMes.length === 0 ? (
+                  {movsMes.length === 0 && descsClienteDrawer.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border/40 rounded-md">
                       Sem movimentações neste mês.
                     </p>
@@ -1586,6 +1658,27 @@ function ResumoPage() {
                           </div>
                         );
                       })}
+                      {descsClienteDrawer.map((dc) => (
+                        <div key={dc.id} className="flex items-start gap-3 rounded-md border border-yellow-500/40 bg-yellow-500/5 p-3">
+                          <div className="mt-0.5 rounded-full p-1.5 bg-yellow-500/20 text-yellow-600">
+                            <Tag className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-700">Desconto</Badge>
+                              <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-500">
+                                -{formatBRL(calcularDesconto(recCiclo, [dc]).descontoTotal)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">· {descreverDesconto(dc)}</span>
+                              {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                              <span className="text-xs text-muted-foreground ml-auto">fim do ciclo</span>
+                            </div>
+                            {dc.motivo && (
+                              <div className="text-xs text-muted-foreground mt-1 italic">{dc.motivo}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
