@@ -457,7 +457,7 @@ function ResumoPage() {
       out.push({ key, label: `${mesLabel}${sufixo}`, elegiveis, aguardando });
     }
     return out;
-  }, [today]);
+  }, [today, clientesFiltrados, planos]);
 
   const fmtDelta = (label: string, v: number | undefined | null) => {
     if (v === undefined || v === null || v === 0) return null;
