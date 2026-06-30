@@ -19,10 +19,12 @@ export interface CicloFaturamento {
 }
 
 /**
- * Resolve o ciclo de faturamento que FECHA na competência (year, month).
- * Convenção: o ciclo termina no `diaFinal` do mês y/m. Se `diaInicial <= diaFinal`
- * o ciclo é do mesmo mês; senão, começa no mês anterior (ciclo wrap-around).
- * Prioridade: cliente personalizado > plano > default 1→31.
+ * Resolve o ciclo de faturamento da competência (year, month).
+ * Convenção: a competência É o mês em que o ciclo COMEÇA. O ciclo inicia
+ * no `diaInicial` desse mês. Se `diaFinal >= diaInicial`, encerra no mesmo
+ * mês; senão, encerra no mês seguinte (wrap-around).
+ * Vencimento/recebimento cai logo após o `fim` (calculado em outro módulo).
+ * Prioridade de configuração: cliente personalizado > plano > default 1→31.
  */
 export function getCicloCliente(
   cliente: Cliente,
@@ -40,11 +42,11 @@ export function getCicloCliente(
     inicio = new Date(year, month, clampDay(year, month, di));
     fim = new Date(year, month, clampDay(year, month, df));
   } else {
-    // wrap: começa no mês anterior
-    const pm = month === 0 ? 11 : month - 1;
-    const py = month === 0 ? year - 1 : year;
-    inicio = new Date(py, pm, clampDay(py, pm, di));
-    fim = new Date(year, month, clampDay(year, month, df));
+    // wrap: começa no mês da competência e termina no mês seguinte
+    const nm = month === 11 ? 0 : month + 1;
+    const ny = month === 11 ? year + 1 : year;
+    inicio = new Date(year, month, clampDay(year, month, di));
+    fim = new Date(ny, nm, clampDay(ny, nm, df));
   }
   const diasTotal = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / DAY_MS) + 1);
   return {
