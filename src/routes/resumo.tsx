@@ -64,6 +64,50 @@ function ResumoPage() {
   const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
   const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
 
+  // Modal de criação de desconto
+  const [descontoModal, setDescontoModal] = useState<null | {
+    escopo: "cliente" | "fechamento_inteiro";
+    clienteId: string | null;
+    clienteNome?: string;
+  }>(null);
+  const [descTipo, setDescTipo] = useState<"valor" | "percentual" | "isencao_total">("valor");
+  const [descValor, setDescValor] = useState<string>("");
+  const [descRecorrente, setDescRecorrente] = useState<boolean>(false);
+  const [descMotivo, setDescMotivo] = useState<string>("");
+
+  const resetDescontoForm = () => {
+    setDescTipo("valor");
+    setDescValor("");
+    setDescRecorrente(false);
+    setDescMotivo("");
+  };
+
+  const salvarDesconto = () => {
+    if (!descontoModal || !fechamentoData) return;
+    const valorNum = descTipo === "isencao_total" ? null : Number(descValor.replace(",", "."));
+    if (descTipo !== "isencao_total" && (!Number.isFinite(valorNum!) || valorNum! <= 0)) {
+      toast.error("Informe um valor válido.");
+      return;
+    }
+    if (descTipo === "percentual" && (valorNum ?? 0) > 100) {
+      toast.error("Percentual não pode passar de 100%.");
+      return;
+    }
+    addDesconto({
+      clienteId: descontoModal.clienteId,
+      tipo: descTipo,
+      escopo: descontoModal.escopo,
+      valor: valorNum,
+      competenciaInicio: fechamentoData.competenciaKey,
+      competenciaFim: null,
+      recorrente: descRecorrente,
+      motivo: descMotivo.trim() || null,
+    });
+    toast.success("Desconto aplicado.");
+    setDescontoModal(null);
+    resetDescontoForm();
+  };
+
   // Dias de vencimento distintos (planos + clientes), para o filtro
   const diasDisponiveis = useMemo(() => {
     const set = new Set<number>();
