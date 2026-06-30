@@ -43,8 +43,12 @@ function ResumoPage() {
   const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
-  const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  const [fechamentoMes, setFechamentoMes] = useState<string>(currentKey);
+  // Default = competência mais recente já encerrada (mês anterior).
+  const defaultCompetencia = (() => {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  const [fechamentoMes, setFechamentoMes] = useState<string>(defaultCompetencia);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
@@ -230,17 +234,28 @@ function ResumoPage() {
     const m = Number(mStr) - 1;
     const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-    // Ciclo de competência: o fechamento de JUNHO contempla os movimentos do
-    // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
-    const cy = m === 0 ? y - 1 : y;
-    const cm = m === 0 ? 11 : m - 1;
-    // Ativos = clientes que estiveram ativos em qualquer dia do ciclo fechado
-    // (mês anterior). Quem inicia depois do ciclo (ex.: setup 01/06 no fechamento
-    // de junho) só aparece no fechamento seguinte.
+    // A competência selecionada É o ciclo que está sendo fechado.
+    // Ex.: competência Junho/2026 = ciclo 01/06 a 30/06, cobrado em ~05/07.
+    const cy = y;
+    const cm = m;
     const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
     const cicloInicio = new Date(cy, cm, 1);
     const cicloFim = new Date(cy, cm + 1, 0);
     const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
+    // Data de vencimento média/representativa da competência (apenas informativa)
+    const vencimentosCompetencia = ativos
+      .map((c) => obterVencimentoDaCompetencia(c, cy, cm, planos))
+      .filter((x): x is string => Boolean(x));
+    const vencimentoLabel = vencimentosCompetencia.length > 0
+      ? (() => {
+          const dias = vencimentosCompetencia.map((v) => Number(v.slice(8, 10)));
+          const min = Math.min(...dias);
+          const max = Math.max(...dias);
+          const mesVencRef = new Date(cy, cm + 1, 1);
+          const mesLabel = mesVencRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+          return min === max ? `${String(min).padStart(2,"0")}/${mesLabel}` : `dias ${min}–${max}/${mesLabel}`;
+        })()
+      : "—";
 
     const setupsNoMes = clientesFiltrados.filter((c) => {
       const d = new Date(c.dataInicio);
@@ -315,6 +330,7 @@ function ResumoPage() {
     return {
       y, m, labelMes,
       cicloLabel,
+      vencimentoLabel,
       ativos,
       setupsNoMes,
       churnsNoMes,
@@ -372,13 +388,22 @@ function ResumoPage() {
   };
 
   const opcoesFechamento = useMemo(() => {
-    // Lista os últimos 24 meses + 1 à frente
+    // Lista apenas competências cujo ciclo JÁ ENCERROU (último dia do ciclo < hoje).
+    // A competência É o ciclo de faturamento (ex.: Maio/2026 = 01/05–31/05),
+    // cobrada no mês seguinte.
     const out: { key: string; label: string }[] = [];
-    const base = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    for (let i = 0; i < 26; i++) {
+    const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    // Inicia na competência do mês corrente e volta no tempo
+    const base = new Date(today.getFullYear(), today.getMonth(), 1);
+    for (let i = 0; i < 36; i++) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const cicloFim = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      if (cicloFim >= hoje) continue; // competência ainda em curso
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      out.push({ key, label: d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) });
+      const mesLabel = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const mesVencRef = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+        .toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+      out.push({ key, label: `${mesLabel}  ·  venc. ${mesVencRef}` });
     }
     return out;
   }, [today]);
@@ -422,13 +447,13 @@ function ResumoPage() {
     pdf.text("Elora", 40, 36);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(12);
-    pdf.text(`Fechamento Mensal · ${fechamentoData.labelMes}`, 40, 58);
+    pdf.text(`Fechamento Mensal · Competência ${fechamentoData.labelMes}`, 40, 58);
 
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(10);
     pdf.text(`Plano: ${planoSelLabel}   |   Parceiro: ${parceiroSelLabel}`, 40, 100);
     pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 114);
-    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 128);
+    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}   |   Vencimento: ${fechamentoData.vencimentoLabel}`, 40, 128);
 
     autoTable(pdf, {
       startY: 146,
@@ -813,14 +838,14 @@ function ResumoPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="text-xs uppercase tracking-[0.3em] opacity-80">Elora · Fechamento Mensal</div>
-                      <DialogTitle className="text-3xl font-bold mt-1 capitalize">{fechamentoData.labelMes}</DialogTitle>
+                      <DialogTitle className="text-3xl font-bold mt-1 capitalize">Competência {fechamentoData.labelMes}</DialogTitle>
                       <p className="text-xs opacity-80 mt-2">
                         {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
                         {" · "}
                         {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
                       </p>
                       <p className="text-[11px] opacity-90 mt-1">
-                        Ciclo de faturamento: {fechamentoData.cicloLabel}
+                        Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
                       </p>
                     </div>
                     <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
