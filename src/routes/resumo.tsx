@@ -536,11 +536,12 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
-      head: [["Cliente", "Plano", "Parceiro", "LTV (dias)", "Sistema", "Acompanh.", "Total"]],
+      head: [["Cliente", "Plano", "Parceiro", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Total"]],
       body: fechamentoSelecionado.detalhes.map((d) => [
         d.cliente.nome,
         d.plano?.nome ?? "—",
         d.parceiro?.nome ?? "—",
+        d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
         String(d.ltvDias),
         formatBRL(d.sistema),
         formatBRL(d.acomp),
@@ -1086,6 +1087,7 @@ function ResumoPage() {
                           </th>
                           <th className="text-left p-2 font-medium">Cliente</th>
                           <th className="text-left p-2 font-medium">Plano</th>
+                          <th className="text-left p-2 font-medium">Vencimento</th>
                           <th className="text-right p-2 font-medium">LTV</th>
                           <th className="text-right p-2 font-medium">Sistema</th>
                           <th className="text-right p-2 font-medium">Acomp.</th>
@@ -1108,6 +1110,7 @@ function ResumoPage() {
                             </td>
                             <td className="p-2 font-medium">{d.cliente.nome}</td>
                             <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
+                            <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
                             <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
                             <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
                             <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
@@ -1115,7 +1118,7 @@ function ResumoPage() {
                           </tr>
                         ))}
                         {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={7} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                          <tr><td colSpan={8} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
                         )}
                       </tbody>
                     </table>
