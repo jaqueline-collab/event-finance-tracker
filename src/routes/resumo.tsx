@@ -811,7 +811,23 @@ function ResumoPage() {
                         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </TableCell>
                       <TableCell className="font-medium capitalize">{l.mesLabel}</TableCell>
-                      <TableCell className="text-right">{l.ativos.length}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {(() => {
+                          const y = Number(l.mesKey.slice(0, 4));
+                          const m = Number(l.mesKey.slice(5, 7)) - 1;
+                          const vencs = Array.from(
+                            new Set(
+                              l.ativos
+                                .map((c) => obterVencimentoDaCompetencia(c, y, m, planos))
+                                .filter((v): v is string => Boolean(v)),
+                            ),
+                          ).sort();
+                          if (vencs.length === 0) return "—";
+                          if (vencs.length === 1)
+                            return new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR");
+                          return `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
+                        })()}
+                      </TableCell>
                       <TableCell className="text-right text-accent">+{l.novos}</TableCell>
                       <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                       <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
