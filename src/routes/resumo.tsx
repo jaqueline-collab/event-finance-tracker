@@ -67,7 +67,7 @@ function ResumoPage() {
     const migrationKey = "elora.filters.resumo.competencia-optional";
     if (window.localStorage.getItem(migrationKey)) return;
     window.localStorage.setItem(migrationKey, "1");
-    if (filtros.competencia?.type === "single" && filtros.competencia.value === defaultCompetencia) {
+    if (filtros.competencia?.type === "single") {
       const next = { ...filtros };
       delete next.competencia;
       setFiltros(next);
