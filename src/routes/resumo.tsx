@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
+import { usePersistentFilters } from "@/hooks/use-persistent-filters";
 import {
   useStore, formatBRL, receitaCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/resumo")({
 
 function ResumoPage() {
   const { clientes, planos, custos, movimentos, parceiros, addLancamento } = useStore();
-  const [filtros, setFiltros] = useState<FilterState>({});
+  const [filtros, setFiltros] = usePersistentFilters("resumo");
   const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
   const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
   const vencSel = (filtros.vencimento?.type === "multi" ? filtros.vencimento.values : []) as string[];
