@@ -91,6 +91,7 @@ export type TipoMovimento =
 export interface Cliente {
   id: string;
   nome: string;
+  nomeFinanceiro?: string | null;
   planoId: string | null;
   parceiroId?: string | null;
   dataInicio: string;

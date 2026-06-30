@@ -125,6 +125,7 @@ export const mapDbToParceiro = (r: any): Parceiro => ({
 export const mapClienteToDb = (c: Cliente) => ({
   id: c.id,
   nome: c.nome,
+  nome_financeiro: c.nomeFinanceiro ?? null,
   plano_id: c.planoId,
   parceiro_id: c.parceiroId,
   data_inicio: c.dataInicio,
@@ -155,6 +156,7 @@ export const mapClienteToDb = (c: Cliente) => ({
 export const mapDbToCliente = (r: any): Cliente => ({
   id: r.id,
   nome: r.nome,
+  nomeFinanceiro: r.nome_financeiro ?? null,
   planoId: r.plano_id || null,
   parceiroId: r.parceiro_id || null,
   dataInicio: r.data_inicio,
