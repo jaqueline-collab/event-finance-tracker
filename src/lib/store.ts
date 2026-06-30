@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cliente, CustoBase, LancamentoFinanceiro, Movimento, Parceiro, Plano } from "./types";
+import type { Cliente, CustoBase, Desconto, LancamentoFinanceiro, Movimento, Parceiro, Plano } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   mapPlanoToDb,
@@ -12,6 +12,8 @@ import {
   mapDbToMovimento,
   mapFinanceiroToDb,
   mapDbToFinanceiro,
+  mapDescontoToDb,
+  mapDbToDesconto,
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
 
@@ -46,6 +48,11 @@ export {
   faturamentoAcumuladoCliente,
 } from "./calc/receita";
 export { custoMensalCliente } from "./calc/custo";
+export {
+  descontosAplicaveis,
+  calcularDesconto,
+  descreverDesconto,
+} from "./calc/desconto";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -56,6 +63,7 @@ interface State {
   movimentos: Movimento[];
   parceiros: Parceiro[];
   financeiro: LancamentoFinanceiro[];
+  descontos: Desconto[];
   // sync
   syncFromSupabase: () => Promise<void>;
   // custos
@@ -81,6 +89,10 @@ interface State {
   addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => string;
   updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => void;
   removeLancamento: (id: string) => void;
+  // descontos
+  addDesconto: (d: Omit<Desconto, "id">) => string;
+  updateDesconto: (id: string, d: Partial<Desconto>) => void;
+  removeDesconto: (id: string) => void;
   // reset
   resetAll: () => void;
   seedDemo: () => void;
