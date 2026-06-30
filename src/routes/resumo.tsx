@@ -114,8 +114,11 @@ function ResumoPage() {
     hoje: Date,
   ) => {
     if (!clienteAtivoNoCiclo(c, y, m)) return false;
-    const ciclo = cicloDoCliente(c, y, m);
-    return ciclo.fim < hoje;
+    // Elegível quando o vencimento da competência já passou (≤ hoje).
+    const venc = obterVencimentoDaCompetencia(c, y, m, planos);
+    if (!venc) return false;
+    const vd = new Date(`${venc}T12:00:00`);
+    return vd <= hoje;
   };
 
   // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
