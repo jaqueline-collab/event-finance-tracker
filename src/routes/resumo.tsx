@@ -43,8 +43,12 @@ function ResumoPage() {
   const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
-  const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  const [fechamentoMes, setFechamentoMes] = useState<string>(currentKey);
+  // Default = competência mais recente já encerrada (mês anterior).
+  const defaultCompetencia = (() => {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  const [fechamentoMes, setFechamentoMes] = useState<string>(defaultCompetencia);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
