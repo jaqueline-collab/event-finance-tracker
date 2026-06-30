@@ -84,17 +84,37 @@ function ResumoPage() {
     });
   }, [clientes, planos, planoSel, parceiroSel, vencSel, tipoSel]);
 
-  // Cliente esteve ativo em qualquer dia do ciclo (mês y/m).
+  // Resolve o ciclo de faturamento do cliente para a competência (y, m).
+  // Respeita ciclo personalizado do cliente, ciclo do plano (ex.: Rabbit 5→4)
+  // ou default 1→31.
+  const cicloDoCliente = (c: typeof clientes[number], y: number, m: number) => {
+    const plano = planos.find((p) => p.id === c.planoId);
+    return getCicloCliente(c, plano, y, m);
+  };
+
+  // Cliente esteve ativo em qualquer dia do ciclo (competência y/m do cliente).
   const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
-    const cicloInicio = new Date(y, m, 1);
-    const cicloFim = new Date(y, m + 1, 0);
+    const ciclo = cicloDoCliente(c, y, m);
     const ini = new Date(c.dataInicio);
-    if (ini > cicloFim) return false;
+    if (ini > ciclo.fim) return false;
     if (c.dataChurn) {
       const churn = new Date(c.dataChurn);
-      if (churn < cicloInicio) return false;
+      if (churn < ciclo.inicio) return false;
     }
     return true;
+  };
+
+  // Cliente é elegível ao fechamento de uma competência apenas quando o ciclo
+  // dele já encerrou (último dia do ciclo < hoje).
+  const clienteElegivelParaFechamento = (
+    c: typeof clientes[number],
+    y: number,
+    m: number,
+    hoje: Date,
+  ) => {
+    if (!clienteAtivoNoCiclo(c, y, m)) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    return ciclo.fim < hoje;
   };
 
   // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
