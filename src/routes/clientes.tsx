@@ -19,6 +19,7 @@ import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custo
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
+import { usePersistentFilters } from "@/hooks/use-persistent-filters";
 
 export const Route = createFileRoute("/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Elora" }] }),
@@ -315,7 +316,7 @@ function ClientesPage() {
   const [search, setSearch] = useState("");
 
   // Filtros estilo Monday (compostos)
-  const [filtros, setFiltros] = useState<FilterState>({});
+  const [filtros, setFiltros] = usePersistentFilters("clientes");
   const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
   const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
   const situacaoSel = (filtros.situacao?.type === "multi" ? filtros.situacao.values : []) as string[];
