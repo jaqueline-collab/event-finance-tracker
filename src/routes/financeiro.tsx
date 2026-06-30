@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
+import { usePersistentFilters } from "@/hooks/use-persistent-filters";
 import {
   useStore,
   formatBRL,
@@ -34,7 +35,7 @@ const statusOptions: { value: StatusFinanceiro; label: string; color: string; Ic
 function FinanceiroPage() {
   const { financeiro, clientes, planos, custos, movimentos, addLancamento, updateLancamento, removeLancamento } = useStore();
 
-  const [filtros, setFiltros] = useState<FilterState>({});
+  const [filtros, setFiltros] = usePersistentFilters("financeiro");
   const statusSel = (filtros.status?.type === "multi" ? filtros.status.values : []) as string[];
   const tipoSel = (filtros.tipo?.type === "multi" ? filtros.tipo.values : []) as string[];
 
