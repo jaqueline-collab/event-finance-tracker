@@ -379,8 +379,9 @@ function ResumoPage() {
     const ltvMedioDias = detalhesPorCliente.length > 0
       ? detalhesPorCliente.reduce((s, d) => s + d.ltvDias, 0) / detalhesPorCliente.length
       : 0;
+    const totalReceitaPosDesc = detalhesPorCliente.reduce((s, d) => s + d.receita, 0);
     const ticketMedio = detalhesPorCliente.length > 0
-      ? totalReceita / detalhesPorCliente.length
+      ? totalReceitaPosDesc / detalhesPorCliente.length
       : 0;
 
     // Delta de receita por movimento (impacto financeiro)
