@@ -2,6 +2,19 @@ import type { Cliente, CustoBase, Movimento, Plano } from "../types";
 import { clienteAtivoEm, clienteSnapshotAt, obterVencimentoDaCompetencia } from "./datas";
 import { getCicloCliente, isoFromDate } from "./ciclo";
 
+function ativoNoCiclo(
+  cliente: Cliente,
+  ciclo: { inicio: Date; fim: Date },
+): boolean {
+  const inicio = new Date(cliente.dataInicio);
+  if (inicio > ciclo.fim) return false;
+  if (cliente.dataChurn) {
+    const churn = new Date(cliente.dataChurn);
+    if (churn < ciclo.inicio) return false;
+  }
+  return true;
+}
+
 export function receitaMensalCliente(
   cliente: Cliente,
   planos: Plano[],
@@ -88,9 +101,9 @@ export function receitaCicloCliente(
   year: number,
   month: number,
 ): number {
-  if (!clienteAtivoEm(cliente, year, month)) return 0;
   const plano = planos.find((p) => p.id === cliente.planoId);
   const ciclo = getCicloCliente(cliente, plano, year, month);
+  if (!ativoNoCiclo(cliente, ciclo)) return 0;
 
   // Limites efetivos: respeita data de início do cliente e churn
   const inicioCliente = new Date(cliente.dataInicio);
@@ -99,7 +112,8 @@ export function receitaCicloCliente(
   const segFim = churn && churn < ciclo.fim ? churn : ciclo.fim;
   if (segFim < segInicio) return 0;
 
-  // Sem proporcionalidade: snapshot no fim do ciclo (comportamento histórico).
+  // Sem proporcionalidade: snapshot no fim do ciclo (cobrança cheia mesmo
+  // com churn ou início no meio do ciclo — alinhado ao comportamento do Monday).
   if (!ciclo.proporcional) {
     const snap = clienteSnapshotAt(cliente, movimentos, isoFromDate(ciclo.fim));
     return receitaMensalCliente(snap, planos, custos);

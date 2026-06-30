@@ -1,4 +1,5 @@
 import type { Cliente, Movimento, Plano } from "../types";
+import { getCicloCliente } from "./ciclo";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_ONLY_RE = /^\d{1,2}$/;
@@ -70,33 +71,44 @@ export function obterVencimentoDaCompetencia(
   month: number,
   planos?: Plano[],
 ): string | null {
-  let dataVencEfetiva: string | null | undefined = cliente.dataVencimento;
-  if (!parseDiaVencimento(dataVencEfetiva) && planos) {
-    const plano = planos.find((p) => p.id === cliente.planoId);
-    if (plano?.diaVencimento) {
-      dataVencEfetiva = String(Math.max(1, Math.min(plano.diaVencimento, 31)));
-    }
+  // Competência = mês em que o CICLO começa. Vencimento = primeiro dia após o
+  // fim do ciclo no `diaVencimento` configurado (cliente > plano).
+  const plano = planos?.find((p) => p.id === cliente.planoId);
+  let diaVencimento: number | null = parseDiaVencimento(cliente.dataVencimento);
+  if (!diaVencimento && plano?.diaVencimento) {
+    diaVencimento = Math.max(1, Math.min(plano.diaVencimento, 31));
   }
-  const primeiroVencimento = normalizarDataVencimento(cliente.dataInicio, dataVencEfetiva);
-  const diaVencimento = parseDiaVencimento(primeiroVencimento);
+  if (!diaVencimento) {
+    // Sem dia configurado: usa o dia inicial do ciclo seguinte como fallback
+    diaVencimento = plano?.cicloDiaInicial ?? 1;
+  }
 
-  if (!primeiroVencimento || !diaVencimento) return null;
+  const ciclo = getCicloCliente(cliente, plano, year, month);
 
-  const primeiraCobranca = toLocalNoonDate(primeiroVencimento);
-  const cobrancaCompetencia = new Date(year, month, clampBillingDay(year, month, diaVencimento), 12);
+  // Candidato: `diaVencimento` no mês do fim do ciclo
+  const fim = ciclo.fim;
+  let vy = fim.getFullYear();
+  let vm = fim.getMonth();
+  let candidato = new Date(vy, vm, clampBillingDay(vy, vm, diaVencimento), 12);
+  // Garante que o vencimento cai estritamente após o fim do ciclo
+  if (candidato <= fim) {
+    vm += 1;
+    candidato = new Date(vy, vm, clampBillingDay(vy, vm, diaVencimento), 12);
+  }
 
-  if (cobrancaCompetencia < primeiraCobranca) return null;
-
+  // Cliente só fatura nesta competência se esteve ativo em algum dia do ciclo
+  const inicioCliente = toLocalNoonDate(cliente.dataInicio);
+  if (inicioCliente > ciclo.fim) return null;
   if (cliente.dataChurn && ISO_DATE_RE.test(cliente.dataChurn)) {
     const churn = toLocalNoonDate(cliente.dataChurn);
-    const vencimentoAnterior = new Date(year, month - 1, clampBillingDay(year, month - 1, diaVencimento), 12);
-    if (churn < vencimentoAnterior) return null;
+    if (churn < ciclo.inicio) return null;
   }
 
-  return formatIsoDate(cobrancaCompetencia);
+  return formatIsoDate(candidato);
 }
 
 export function clienteAtivoEm(cliente: Cliente, year: number, month: number): boolean {
+  // Aceita ativo no MÊS calendário (uso legado em métricas não-ciclo).
   const fimMes = new Date(year, month + 1, 0);
   const inicioMes = new Date(year, month, 1);
   const inicio = new Date(cliente.dataInicio);

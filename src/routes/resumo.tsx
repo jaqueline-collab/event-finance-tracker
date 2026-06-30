@@ -114,8 +114,11 @@ function ResumoPage() {
     hoje: Date,
   ) => {
     if (!clienteAtivoNoCiclo(c, y, m)) return false;
-    const ciclo = cicloDoCliente(c, y, m);
-    return ciclo.fim < hoje;
+    // Elegível quando o vencimento da competência já passou (≤ hoje).
+    const venc = obterVencimentoDaCompetencia(c, y, m, planos);
+    if (!venc) return false;
+    const vd = new Date(`${venc}T12:00:00`);
+    return vd <= hoje;
   };
 
   // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
@@ -202,16 +205,26 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: 96,
-      head: [["Mês", "Faturados", "Novos", "Churns", "Receita Total", "Custo Operacional", "Lucro Líquido"]],
-      body: linhas.map((l) => [
-        l.mesLabel,
-        String(l.ativos.length),
-        String(l.novos),
-        String(l.churns),
-        formatBRL(l.receita),
-        formatBRL(l.custoHelena),
-        formatBRL(l.lucro),
-      ]),
+      head: [["Mês de Competência", "Data de vencimento", "Novos", "Churns", "Receita Total", "Custo Operacional", "Lucro Líquido"]],
+      body: linhas.map((l) => {
+        const y = Number(l.mesKey.slice(0, 4));
+        const m = Number(l.mesKey.slice(5, 7)) - 1;
+        const vencs = Array.from(new Set(l.ativos.map((c) => obterVencimentoDaCompetencia(c, y, m, planos)).filter((v): v is string => Boolean(v)))).sort();
+        const vencLabel = vencs.length === 0
+          ? "—"
+          : vencs.length === 1
+            ? new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")
+            : `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
+        return [
+          l.mesLabel,
+          vencLabel,
+          String(l.novos),
+          String(l.churns),
+          formatBRL(l.receita),
+          formatBRL(l.custoHelena),
+          formatBRL(l.lucro),
+        ];
+      }),
       styles: { fontSize: 9, cellPadding: 6 },
       headStyles: { fillColor: [28, 63, 170] },
       margin: { left: 40, right: 40 },
@@ -292,12 +305,15 @@ function ResumoPage() {
       .filter((x): x is string => Boolean(x));
     const vencimentoLabel = vencimentosCompetencia.length > 0
       ? (() => {
-          const dias = vencimentosCompetencia.map((v) => Number(v.slice(8, 10)));
-          const min = Math.min(...dias);
-          const max = Math.max(...dias);
-          const mesVencRef = new Date(cy, cm + 1, 1);
-          const mesLabel = mesVencRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-          return min === max ? `${String(min).padStart(2,"0")}/${mesLabel}` : `dias ${min}–${max}/${mesLabel}`;
+          // Mostra a(s) data(s) reais de recebimento.
+          const unique = Array.from(new Set(vencimentosCompetencia));
+          unique.sort();
+          if (unique.length === 1) {
+            return new Date(`${unique[0]}T12:00:00`).toLocaleDateString("pt-BR");
+          }
+          const min = new Date(`${unique[0]}T12:00:00`).toLocaleDateString("pt-BR");
+          const max = new Date(`${unique[unique.length - 1]}T12:00:00`).toLocaleDateString("pt-BR");
+          return `${min} a ${max}`;
         })()
       : "—";
 
@@ -783,7 +799,7 @@ function ResumoPage() {
               <TableRow>
                 <TableHead className="w-[30px]"></TableHead>
                 <TableHead>Mês de Competência</TableHead>
-                <TableHead className="text-right">Faturados</TableHead>
+                <TableHead>Data de vencimento</TableHead>
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
                 <TableHead className="text-right">Receita Total</TableHead>
@@ -805,7 +821,23 @@ function ResumoPage() {
                         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </TableCell>
                       <TableCell className="font-medium capitalize">{l.mesLabel}</TableCell>
-                      <TableCell className="text-right">{l.ativos.length}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {(() => {
+                          const y = Number(l.mesKey.slice(0, 4));
+                          const m = Number(l.mesKey.slice(5, 7)) - 1;
+                          const vencs = Array.from(
+                            new Set(
+                              l.ativos
+                                .map((c) => obterVencimentoDaCompetencia(c, y, m, planos))
+                                .filter((v): v is string => Boolean(v)),
+                            ),
+                          ).sort();
+                          if (vencs.length === 0) return "—";
+                          if (vencs.length === 1)
+                            return new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR");
+                          return `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
+                        })()}
+                      </TableCell>
                       <TableCell className="text-right text-accent">+{l.novos}</TableCell>
                       <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                       <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
@@ -1187,7 +1219,7 @@ function ResumoPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Mês</TableHead>
-                  <TableHead className="text-right">Faturados</TableHead>
+                  <TableHead>Vencimento</TableHead>
                   <TableHead className="text-right">Novos</TableHead>
                   <TableHead className="text-right">Churns</TableHead>
                   <TableHead className="text-right">Receita</TableHead>
@@ -1199,7 +1231,23 @@ function ResumoPage() {
                 {linhas.map((l) => (
                   <TableRow key={l.mesKey}>
                     <TableCell className="capitalize font-medium">{l.mesLabel}</TableCell>
-                    <TableCell className="text-right">{l.ativos.length}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {(() => {
+                        const y = Number(l.mesKey.slice(0, 4));
+                        const m = Number(l.mesKey.slice(5, 7)) - 1;
+                        const vencs = Array.from(
+                          new Set(
+                            l.ativos
+                              .map((c) => obterVencimentoDaCompetencia(c, y, m, planos))
+                              .filter((v): v is string => Boolean(v)),
+                          ),
+                        ).sort();
+                        if (vencs.length === 0) return "—";
+                        if (vencs.length === 1)
+                          return new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR");
+                        return `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
+                      })()}
+                    </TableCell>
                     <TableCell className="text-right text-accent">+{l.novos}</TableCell>
                     <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                     <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
