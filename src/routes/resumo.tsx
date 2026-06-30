@@ -447,13 +447,13 @@ function ResumoPage() {
     pdf.text("Elora", 40, 36);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(12);
-    pdf.text(`Fechamento Mensal · ${fechamentoData.labelMes}`, 40, 58);
+    pdf.text(`Fechamento Mensal · Competência ${fechamentoData.labelMes}`, 40, 58);
 
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(10);
     pdf.text(`Plano: ${planoSelLabel}   |   Parceiro: ${parceiroSelLabel}`, 40, 100);
     pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 114);
-    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}`, 40, 128);
+    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}   |   Vencimento: ${fechamentoData.vencimentoLabel}`, 40, 128);
 
     autoTable(pdf, {
       startY: 146,
