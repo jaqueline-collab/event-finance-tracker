@@ -259,10 +259,32 @@ function ResumoPage() {
     // Ex.: competência Junho/2026 = ciclo 01/06 a 30/06, cobrado em ~05/07.
     const cy = y;
     const cm = m;
-    const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
-    const cicloInicio = new Date(cy, cm, 1);
-    const cicloFim = new Date(cy, cm + 1, 0);
-    const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
+    const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    // Apenas clientes cujo ciclo da competência já encerrou entram no fechamento.
+    const ativosTodos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
+    const ativos = ativosTodos.filter((c) => clienteElegivelParaFechamento(c, cy, cm, hoje));
+    const aguardandoCicloFechar = ativosTodos.filter((c) => !clienteElegivelParaFechamento(c, cy, cm, hoje));
+    // Faixa de ciclos representativa (pode haver clientes com ciclos diferentes).
+    const ciclos = ativos.map((c) => cicloDoCliente(c, cy, cm));
+    const cicloLabel = (() => {
+      if (ciclos.length === 0) {
+        const ini = new Date(cy, cm, 1);
+        const fim = new Date(cy, cm + 1, 0);
+        return `${ini.toLocaleDateString("pt-BR")} a ${fim.toLocaleDateString("pt-BR")}`;
+      }
+      const inis = ciclos.map((c) => c.inicio.getTime());
+      const fims = ciclos.map((c) => c.fim.getTime());
+      const minIni = new Date(Math.min(...inis));
+      const maxIni = new Date(Math.max(...inis));
+      const minFim = new Date(Math.min(...fims));
+      const maxFim = new Date(Math.max(...fims));
+      const sameIni = minIni.getTime() === maxIni.getTime();
+      const sameFim = minFim.getTime() === maxFim.getTime();
+      if (sameIni && sameFim) {
+        return `${minIni.toLocaleDateString("pt-BR")} a ${maxFim.toLocaleDateString("pt-BR")}`;
+      }
+      return `${minIni.toLocaleDateString("pt-BR")}–${maxIni.toLocaleDateString("pt-BR")} a ${minFim.toLocaleDateString("pt-BR")}–${maxFim.toLocaleDateString("pt-BR")}`;
+    })();
     // Data de vencimento média/representativa da competência (apenas informativa)
     const vencimentosCompetencia = ativos
       .map((c) => obterVencimentoDaCompetencia(c, cy, cm, planos))
