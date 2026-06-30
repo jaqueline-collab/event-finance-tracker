@@ -230,17 +230,28 @@ function ResumoPage() {
     const m = Number(mStr) - 1;
     const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-    // Ciclo de competência: o fechamento de JUNHO contempla os movimentos do
-    // mês anterior (MAIO). É o ciclo que está sendo fechado nesta competência.
-    const cy = m === 0 ? y - 1 : y;
-    const cm = m === 0 ? 11 : m - 1;
-    // Ativos = clientes que estiveram ativos em qualquer dia do ciclo fechado
-    // (mês anterior). Quem inicia depois do ciclo (ex.: setup 01/06 no fechamento
-    // de junho) só aparece no fechamento seguinte.
+    // A competência selecionada É o ciclo que está sendo fechado.
+    // Ex.: competência Junho/2026 = ciclo 01/06 a 30/06, cobrado em ~05/07.
+    const cy = y;
+    const cm = m;
     const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
     const cicloInicio = new Date(cy, cm, 1);
     const cicloFim = new Date(cy, cm + 1, 0);
     const cicloLabel = `${cicloInicio.toLocaleDateString("pt-BR")} a ${cicloFim.toLocaleDateString("pt-BR")}`;
+    // Data de vencimento média/representativa da competência (apenas informativa)
+    const vencimentosCompetencia = ativos
+      .map((c) => obterVencimentoDaCompetencia(c, cy, cm, planos))
+      .filter((x): x is string => Boolean(x));
+    const vencimentoLabel = vencimentosCompetencia.length > 0
+      ? (() => {
+          const dias = vencimentosCompetencia.map((v) => Number(v.slice(8, 10)));
+          const min = Math.min(...dias);
+          const max = Math.max(...dias);
+          const mesVencRef = new Date(cy, cm + 1, 1);
+          const mesLabel = mesVencRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+          return min === max ? `${String(min).padStart(2,"0")}/${mesLabel}` : `dias ${min}–${max}/${mesLabel}`;
+        })()
+      : "—";
 
     const setupsNoMes = clientesFiltrados.filter((c) => {
       const d = new Date(c.dataInicio);
@@ -315,6 +326,7 @@ function ResumoPage() {
     return {
       y, m, labelMes,
       cicloLabel,
+      vencimentoLabel,
       ativos,
       setupsNoMes,
       churnsNoMes,
