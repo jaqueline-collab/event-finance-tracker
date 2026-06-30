@@ -1,4 +1,4 @@
-import type { Cliente, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
+import type { Cliente, Desconto, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
 
 export const mapPlanoToDb = (p: Plano) => ({
   id: p.id,
