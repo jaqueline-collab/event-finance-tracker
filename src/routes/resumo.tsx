@@ -1173,6 +1173,73 @@ function ResumoPage() {
                       <span>1 lançamento por cliente</span>
                     </label>
                   </RadioGroup>
+                  {modoEnvio === "consolidado" ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="desc-consolidada" className="text-xs text-muted-foreground">
+                          Nome do boleto / descrição no Financeiro
+                        </Label>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary hover:underline"
+                          onClick={() => {
+                            setDescricaoConsolidada(defaultDescricaoConsolidada);
+                            setDescricaoConsolidadaTocada(false);
+                          }}
+                        >
+                          Restaurar padrão
+                        </button>
+                      </div>
+                      <Input
+                        id="desc-consolidada"
+                        value={descricaoConsolidada}
+                        onChange={(e) => {
+                          setDescricaoConsolidada(e.target.value);
+                          setDescricaoConsolidadaTocada(true);
+                        }}
+                        placeholder={defaultDescricaoConsolidada}
+                      />
+                    </div>
+                  ) : (
+                    fechamentoSelecionado && fechamentoSelecionado.detalhes.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">
+                            Nome do boleto por cliente (vai para Descrição no Financeiro)
+                          </Label>
+                          <button
+                            type="button"
+                            className="text-[11px] text-primary hover:underline"
+                            onClick={() => {
+                              setDescricoesPorCliente({ ...defaultDescricoesPorCliente });
+                              setDescricoesPorClienteTocadas({});
+                            }}
+                          >
+                            Restaurar padrões
+                          </button>
+                        </div>
+                        <div className="rounded-md border border-border/60 max-h-[260px] overflow-y-auto divide-y divide-border/40">
+                          {fechamentoSelecionado.detalhes.map((d) => (
+                            <div key={d.cliente.id} className="flex items-center gap-2 p-2">
+                              <div className="text-xs text-muted-foreground w-44 shrink-0 truncate" title={d.cliente.nome}>
+                                {d.cliente.nome}
+                              </div>
+                              <Input
+                                value={descricoesPorCliente[d.cliente.id] ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDescricoesPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
+                                  setDescricoesPorClienteTocadas((prev) => ({ ...prev, [d.cliente.id]: true }));
+                                }}
+                                placeholder={defaultDescricoesPorCliente[d.cliente.id] ?? ""}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  )}
                 </div>
 
                 {/* Enviar por e-mail */}
