@@ -200,6 +200,56 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_descontos: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string | null
+          competencia_fim: string | null
+          competencia_inicio: string
+          criado_em: string
+          escopo: string
+          id: string
+          motivo: string | null
+          recorrente: boolean
+          tipo: string
+          valor: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          competencia_fim?: string | null
+          competencia_inicio: string
+          criado_em?: string
+          escopo: string
+          id?: string
+          motivo?: string | null
+          recorrente?: boolean
+          tipo: string
+          valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          competencia_fim?: string | null
+          competencia_inicio?: string
+          criado_em?: string
+          escopo?: string
+          id?: string
+          motivo?: string | null
+          recorrente?: boolean
+          tipo?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_descontos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_financeiro: {
         Row: {
           categoria: string | null

@@ -1,73 +1,70 @@
-## Entendi a regra do Monday
+## Descontos no Resumo Mensal + auditoria Majestic
+
+### 1. Modelo de desconto (banco)
+
+Nova tabela `elora_descontos`:
 
 ```text
-Competência: mês em que o ciclo COMEÇA
-Data de recebimento: vencimento, sempre no mês seguinte (dia conforme plano/cliente)
+id, cliente_id, tipo ('valor' | 'percentual' | 'isencao_total'),
+escopo ('cliente' | 'fechamento_inteiro'),
+valor (numérico, nulo quando isenção),
+competencia_inicio (YYYY-MM, primeira competência aplicada),
+competencia_fim (YYYY-MM, null = sem fim),
+recorrente (bool), motivo (texto), criado_em
 ```
 
-Para o plano Rabbit (ciclo 5→4):
+- `escopo = 'cliente'`: abate do total daquele cliente na competência.
+- `escopo = 'fechamento_inteiro'`: abate do total geral do relatório do mês (linha "Desconto global").
+- `tipo = 'isencao_total'` + `escopo = 'cliente'`: zera a cobrança do cliente naquele mês.
+- `recorrente = false`: vale só na `competencia_inicio`.
+- `recorrente = true`: vale de `competencia_inicio` até `competencia_fim` (ou infinito se null).
 
-```text
-Competência Fevereiro/2026 → ciclo 05/02 a 04/03 → recebimento 05/03/2026
-Competência Março/2026     → ciclo 05/03 a 04/04 → recebimento 05/04/2026
-Competência Abril/2026     → ciclo 05/04 a 04/05 → recebimento 05/05/2026
-```
+Grants + RLS no padrão das outras tabelas Elora.
 
-Para o plano Distribox (ciclo 1→31):
+### 2. UI no Resumo Mensal
 
-```text
-Competência Fevereiro/2026 → ciclo 01/02 a 28/02 → recebimento dia configurado em Março/2026
-```
+- Em cada linha do cliente: botão "Aplicar desconto" → modal com
+  - Tipo: Valor (R$) / Percentual (%) / Isentar cobrança inteira
+  - Recorrência: Só nesta competência / Recorrente (com data fim opcional)
+  - Motivo (texto livre)
+- Acima da tabela: botão "Desconto no fechamento" (escopo global) com os mesmos campos exceto isenção.
+- Coluna nova "Desconto" entre Valor bruto e Valor líquido; total do rodapé passa a mostrar bruto, descontos, líquido.
+- Chip removível ao lado do nome do cliente quando há desconto ativo na competência (clicar abre/edita/remove).
+- Tudo entra no PDF do fechamento como linha discriminada com o motivo.
 
-Hoje o app trata competência como o mês em que o ciclo **termina** e calcula o vencimento no mês seguinte ao mês selecionado. Isso desloca tudo em 1 mês contra o Monday e zera fevereiro.
+### 3. Cálculo
 
-## Plano
+`receitaCicloCliente` continua intacta (cobrança cheia por padrão).
+Camada nova `aplicarDescontos(valorBruto, descontosDaCompetencia)` aplicada no Resumo:
 
-### 1. Alinhar a semântica de competência
-- Mudar a competência para representar o mês em que o ciclo **começa**.
-- Vencimento = último dia do ciclo + 1, no dia configurado do plano/cliente.
-- Resultado:
-  - Rabbit fevereiro vence 05/03;
-  - Rabbit março vence 05/04 (é o que o Monday chama de “Março - 2026”, R$ 6.899,67);
-  - Rabbit abril vence 05/05;
-  - Distribox fevereiro vence em março no dia configurado.
-- Atualiza:
-  - seletor de competência;
-  - cabeçalho do modal de fechamento;
-  - PDF;
-  - tabela principal do histórico (label do mês e dado do vencimento);
-  - filtro de vencimento (continua filtrando pelo dia do recebimento).
+1. Por cliente: aplica todos os descontos com `escopo='cliente'` da competência (soma valores, soma %, isenção sobrepõe e zera).
+2. Soma os líquidos → total bruto descontado.
+3. Aplica descontos `escopo='fechamento_inteiro'` sobre esse total.
 
-### 2. Coluna “Data de vencimento” no histórico
-- Substituir a coluna **Faturados** da tabela do histórico por **Data de vencimento**, logo após **Mês de Competência**.
-- Quantidade de clientes passa a aparecer só no detalhe expandido.
-- A mesma coluna entra na prévia e no PDF do relatório.
+KPIs do topo e PDF passam a refletir o líquido; o bruto fica visível como referência.
 
-### 3. Inclusão correta de clientes no ciclo
-- Cliente entra na competência se esteve ativo em qualquer dia do ciclo da competência.
-- Churn no meio do ciclo continua cobrando integralmente quando o plano está com a chave de proporcional desabilitada, igual ao Monday (ex.: Gabriele 31/03 e Pedro 18/03 cobram cheio no recebimento 05/04).
-- Proporcional só rateia quando a chave estiver ativa.
-- A data de início do cliente também é tratada como cobrança cheia quando proporcional está desligado (entra no recebimento seguinte com o valor integral).
+### 4. Auditoria Majestic (entrega em texto, sem alterar banco)
 
-### 4. Auditar a diferença sem forçar o valor
-- Comparar linha a linha contra o Monday anexado para:
-  - Fevereiro/2026 — recebimento 05/03 — Monday R$ 6.259,73 (Sistema 3.159,73 / Assessoria 3.100);
-  - Março/2026 — recebimento 05/04 — Monday R$ 6.899,67 (Sistema 3.549,67 / Assessoria 3.350);
-  - Abril/2026 — recebimento 05/05 — Monday R$ 6.179,63 (Sistema 3.329,63 / Assessoria 2.850).
-- Para cada cliente do ciclo, mostrar:
-  - valor Sistema no Monday;
-  - valor Acompanhamento no Monday;
-  - valor Sistema calculado pelo app;
-  - valor Acompanhamento no app;
-  - diferença e causa provável (cadastro divergente, movimento faltando, transcrição diferente, vencimento desviado etc.).
-- Entregar essa auditoria em texto antes de qualquer correção de dados.
+Antes do desconto, gero o comparativo Majestic × Monday para fevereiro/março/abril:
 
-### 5. Só corrigir dados depois de confirmar a causa
-- Se a auditoria apontar problema de cadastro ou movimento, listo explicitamente o que está diferente.
-- Você confirma antes de eu rodar a alteração no banco.
-- Nada de “forçar” o total para bater.
+- Estado cadastrado no app (plano, ciclo, valor mensal, assessoria, canais, usuários, transcrição, Z-API, IA).
+- Movimentos cadastrados (datas e deltas).
+- Valor calculado pelo app em cada competência.
+- Valor do Monday em cada competência (Sistema + Assessoria).
+- Diferença e hipótese: upgrade faltando, data divergente, módulo a mais/menos.
+- Lista final do que precisa ser cadastrado para o app bater com o Monday — você confirma antes de qualquer alteração.
 
-### Observações técnicas
-- A função de ciclo passa a receber o mês de início da competência. Hoje ela recebe o mês de fim e faz wrap; será o oposto.
-- O snapshot de fim de ciclo continua sendo a referência para receita recorrente quando proporcional está desligado.
-- A regra de “cliente elegível para fechamento” passa a comparar o vencimento da competência com a data de hoje, não o fim do ciclo.
+### 5. Ordem de execução
+
+1. Migration `elora_descontos` + grants/RLS.
+2. Store + tipos + mappers.
+3. Cálculo `aplicarDescontos` + integração no Resumo (tabela, KPIs, PDF, prévia).
+4. Modal de desconto por cliente + global, com chips removíveis.
+5. Auditoria Majestic em texto.
+
+### Detalhes técnicos
+
+- A persistência é por `competencia_inicio` (mês de início do ciclo), coerente com a semântica vigente no app.
+- Para recorrentes, o filtro no Resumo busca `competencia_inicio <= comp <= coalesce(competencia_fim, comp)`.
+- Edição/remoção via mesmo modal; histórico fica preservado pelo `criado_em`.
+- Os descontos não tocam em `elora_movimentos` — são uma camada de cobrança, não de assinatura.
