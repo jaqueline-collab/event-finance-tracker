@@ -1026,7 +1026,7 @@ function ResumoPage() {
                                         })()}
                                       </td>
                                       <td className="py-1.5 text-right">
-                                        {c.dataChurn
+                                        {clienteJaChurnouNaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1)
                                           ? <Badge variant="destructive" className="text-xs">Churn</Badge>
                                           : <Badge className="bg-accent/20 text-accent text-xs">Ativo</Badge>}
                                       </td>
