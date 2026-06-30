@@ -83,6 +83,11 @@ function ResumoPage() {
   const [observacaoPdf, setObservacaoPdf] = useState("");
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
   const [emailDestino, setEmailDestino] = useState("");
+  // Nome do boleto / descrição que será gravada no Financeiro.
+  const [descricaoConsolidada, setDescricaoConsolidada] = useState<string>("");
+  const [descricaoConsolidadaTocada, setDescricaoConsolidadaTocada] = useState(false);
+  const [descricoesPorCliente, setDescricoesPorCliente] = useState<Record<string, string>>({});
+  const [descricoesPorClienteTocadas, setDescricoesPorClienteTocadas] = useState<Record<string, boolean>>({});
   // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
   const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
   const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
@@ -174,6 +179,22 @@ function ResumoPage() {
     return true;
   };
 
+  // Churn dentro do ciclo de faturamento da competência (não do mês calendário).
+  const churnNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
+    if (!c.dataChurn) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    const churn = new Date(`${c.dataChurn}T12:00:00`);
+    return churn >= ciclo.inicio && churn <= ciclo.fim;
+  };
+
+  // Cliente já churnou até o fim deste ciclo (inclui ciclos posteriores ao churn).
+  const clienteJaChurnouNaCompetencia = (c: typeof clientes[number], y: number, m: number) => {
+    if (!c.dataChurn) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    const churn = new Date(`${c.dataChurn}T12:00:00`);
+    return churn <= ciclo.fim;
+  };
+
   // Cliente é elegível ao fechamento de uma competência apenas quando o ciclo
   // dele já encerrou (último dia do ciclo < hoje).
   const clienteElegivelParaFechamento = (
@@ -227,9 +248,7 @@ function ResumoPage() {
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
       const churns = clientesFiltrados.filter((c) => {
-        if (!c.dataChurn) return false;
-        const d = new Date(c.dataChurn);
-        return d.getFullYear() === y && d.getMonth() === m;
+        return churnNoCiclo(c, y, m);
       }).length;
       const receitaPorCliente = new Map<string, { bruto: number; liquido: number; desconto: number }>();
       let receitaBruta = 0;
@@ -417,11 +436,7 @@ function ResumoPage() {
       const d = new Date(c.dataInicio);
       return d.getFullYear() === cy && d.getMonth() === cm;
     });
-    const churnsNoMes = clientesFiltrados.filter((c) => {
-      if (!c.dataChurn) return false;
-      const d = new Date(c.dataChurn);
-      return d.getFullYear() === cy && d.getMonth() === cm;
-    });
+    const churnsNoMes = clientesFiltrados.filter((c) => churnNoCiclo(c, cy, cm));
 
     // Movimentos de upgrade/downgrade do CICLO (mês anterior) para os clientes filtrados
     const clienteIds = new Set(clientesFiltrados.map((c) => c.id));
@@ -527,8 +542,40 @@ function ResumoPage() {
     if (fechamentoKey && fechamentoKey !== selecaoInicializada && fechamentoData) {
       setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
       setSelecaoInicializada(fechamentoKey);
+      // Reseta descrições para os defaults sempre que muda a competência/clientes.
+      setDescricaoConsolidadaTocada(false);
+      setDescricoesPorClienteTocadas({});
     }
   }, [fechamentoKey, selecaoInicializada, fechamentoData]);
+
+  // Defaults de descrição (recalculados quando muda a competência).
+  const defaultDescricaoConsolidada = useMemo(() => {
+    if (!fechamentoData) return "";
+    return `Fechamento ${fechamentoData.labelMes} · ciclo ${fechamentoData.cicloLabel}`;
+  }, [fechamentoData]);
+
+  const defaultDescricoesPorCliente = useMemo(() => {
+    if (!fechamentoData) return {} as Record<string, string>;
+    const map: Record<string, string> = {};
+    for (const d of fechamentoData.detalhesPorCliente) {
+      map[d.cliente.id] = d.cliente.nomeFinanceiro || d.cliente.nome;
+    }
+    return map;
+  }, [fechamentoData]);
+
+  // Aplica defaults para campos não tocados pelo usuário.
+  useEffect(() => {
+    if (!descricaoConsolidadaTocada) setDescricaoConsolidada(defaultDescricaoConsolidada);
+  }, [defaultDescricaoConsolidada, descricaoConsolidadaTocada]);
+  useEffect(() => {
+    setDescricoesPorCliente((prev) => {
+      const next = { ...prev };
+      for (const [id, val] of Object.entries(defaultDescricoesPorCliente)) {
+        if (!descricoesPorClienteTocadas[id]) next[id] = val;
+      }
+      return next;
+    });
+  }, [defaultDescricoesPorCliente, descricoesPorClienteTocadas]);
 
   const fechamentoSelecionado = useMemo(() => {
     if (!fechamentoData) return null;
@@ -813,11 +860,6 @@ function ResumoPage() {
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
-    const labelFiltros = [
-      planoSel.length > 0 ? ` · ${planoSel.map((id) => planos.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
-      parceiroSel.length > 0 ? ` · ${parceiroSel.map((id) => parceiros.find((p) => p.id === id)?.nome ?? "").filter(Boolean).join("/")}` : "",
-      vencSel.length > 0 ? ` · venc. dia ${vencSel.join("/")}` : "",
-    ].join("");
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
@@ -826,8 +868,9 @@ function ResumoPage() {
       const dia = dias.length > 0 ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length) : 10;
       const ultimoDia = new Date(y, m + 1, 0).getDate();
       const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+      const descricao = (descricaoConsolidada || "").trim() || `Fechamento ${labelMes} · ciclo ${cicloLabel}`;
       addLancamento({
-        descricao: `Fechamento ${labelMes}${labelFiltros} · ciclo ${cicloLabel}`,
+        descricao,
         tipo: "fechamento",
         categoria: "Receita",
         valor: Number(totalReceita.toFixed(2)),
@@ -843,8 +886,10 @@ function ResumoPage() {
         const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
         const ultimoDia = new Date(y, m + 1, 0).getDate();
         const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+        const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
+          || d.cliente.nomeFinanceiro || d.cliente.nome;
         addLancamento({
-          descricao: `${d.cliente.nomeFinanceiro || d.cliente.nome} · Fechamento ${labelMes} · ciclo ${cicloLabel}`,
+          descricao: descricaoCli,
           tipo: "fechamento",
           categoria: "Receita",
           valor: Number(d.receita.toFixed(2)),
@@ -1016,7 +1061,7 @@ function ResumoPage() {
                                         })()}
                                       </td>
                                       <td className="py-1.5 text-right">
-                                        {c.dataChurn
+                                        {clienteJaChurnouNaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1)
                                           ? <Badge variant="destructive" className="text-xs">Churn</Badge>
                                           : <Badge className="bg-accent/20 text-accent text-xs">Ativo</Badge>}
                                       </td>
@@ -1128,6 +1173,73 @@ function ResumoPage() {
                       <span>1 lançamento por cliente</span>
                     </label>
                   </RadioGroup>
+                  {modoEnvio === "consolidado" ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="desc-consolidada" className="text-xs text-muted-foreground">
+                          Nome do boleto / descrição no Financeiro
+                        </Label>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary hover:underline"
+                          onClick={() => {
+                            setDescricaoConsolidada(defaultDescricaoConsolidada);
+                            setDescricaoConsolidadaTocada(false);
+                          }}
+                        >
+                          Restaurar padrão
+                        </button>
+                      </div>
+                      <Input
+                        id="desc-consolidada"
+                        value={descricaoConsolidada}
+                        onChange={(e) => {
+                          setDescricaoConsolidada(e.target.value);
+                          setDescricaoConsolidadaTocada(true);
+                        }}
+                        placeholder={defaultDescricaoConsolidada}
+                      />
+                    </div>
+                  ) : (
+                    fechamentoSelecionado && fechamentoSelecionado.detalhes.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">
+                            Nome do boleto por cliente (vai para Descrição no Financeiro)
+                          </Label>
+                          <button
+                            type="button"
+                            className="text-[11px] text-primary hover:underline"
+                            onClick={() => {
+                              setDescricoesPorCliente({ ...defaultDescricoesPorCliente });
+                              setDescricoesPorClienteTocadas({});
+                            }}
+                          >
+                            Restaurar padrões
+                          </button>
+                        </div>
+                        <div className="rounded-md border border-border/60 max-h-[260px] overflow-y-auto divide-y divide-border/40">
+                          {fechamentoSelecionado.detalhes.map((d) => (
+                            <div key={d.cliente.id} className="flex items-center gap-2 p-2">
+                              <div className="text-xs text-muted-foreground w-44 shrink-0 truncate" title={d.cliente.nome}>
+                                {d.cliente.nome}
+                              </div>
+                              <Input
+                                value={descricoesPorCliente[d.cliente.id] ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDescricoesPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
+                                  setDescricoesPorClienteTocadas((prev) => ({ ...prev, [d.cliente.id]: true }));
+                                }}
+                                placeholder={defaultDescricoesPorCliente[d.cliente.id] ?? ""}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  )}
                 </div>
 
                 {/* Enviar por e-mail */}
