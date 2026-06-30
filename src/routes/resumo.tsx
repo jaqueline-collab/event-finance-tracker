@@ -41,9 +41,20 @@ function ResumoPage() {
   const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
   const vencSel = (filtros.vencimento?.type === "multi" ? filtros.vencimento.values : []) as string[];
   const tipoSel = (filtros.tipo?.type === "multi" ? filtros.tipo.values : []) as string[];
+  const competenciaSel = filtros.competencia?.type === "single" ? filtros.competencia.value : "";
   const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
     sel.length === 0 ? all : sel.map(nameOf).filter(Boolean).join(", ");
   const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
+  const abreviarPlano = (nome?: string | null) => {
+    if (!nome) return "—";
+    return nome
+      .replace(/Distribox LTDA\s*/i, "Distribox ")
+      .replace(/Exclusive/i, "Excl.")
+      .replace(/Essencial\s*/i, "Ess. ")
+      .replace(/Agency/i, "Ag.")
+      .replace(/Consultoria/i, "Cons.")
+      .trim();
+  };
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const today = new Date();
   // Default = competência mais recente já encerrada (mês anterior).
@@ -51,14 +62,20 @@ function ResumoPage() {
     const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   })();
-  const fechamentoMes = (filtros.competencia?.type === "single" ? filtros.competencia.value : "") || defaultCompetencia;
-  // Garante que a competência sempre apareça como chip ativo.
   useEffect(() => {
-    if (filtros.competencia?.type !== "single") {
-      setFiltros({ ...filtros, competencia: { type: "single", value: defaultCompetencia } });
+    if (typeof window === "undefined") return;
+    const migrationKey = "elora.filters.resumo.competencia-optional";
+    if (window.localStorage.getItem(migrationKey)) return;
+    window.localStorage.setItem(migrationKey, "1");
+    if (filtros.competencia?.type === "single") {
+      const next = { ...filtros };
+      delete next.competencia;
+      setFiltros(next);
     }
+    // roda uma única vez para limpar o chip fixo legado
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const fechamentoMes = competenciaSel || defaultCompetencia;
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
@@ -192,7 +209,6 @@ function ResumoPage() {
       receitaBruta: number;
       descontoTotal: number;
       custoHelena: number;
-      lucro: number;
       setup: number;
       receitaPorCliente: Map<string, { bruto: number; liquido: number; desconto: number }>;
     }[] = [];
@@ -200,6 +216,11 @@ function ResumoPage() {
     while (cursor <= now) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
+      const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+      if (competenciaSel && competenciaKey !== competenciaSel) {
+        cursor.setMonth(cursor.getMonth() + 1);
+        continue;
+      }
       const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, y, m));
       const novos = clientesFiltrados.filter((c) => {
         const d = new Date(c.dataInicio);
@@ -210,7 +231,6 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
       const receitaPorCliente = new Map<string, { bruto: number; liquido: number; desconto: number }>();
       let receitaBruta = 0;
       let descontoClientes = 0;
@@ -227,7 +247,7 @@ function ResumoPage() {
       const resGeral = calcularDesconto(subtotalPosClientes, descontosGerais);
       const receita = resGeral.total;
       const descontoTotal = descontoClientes + resGeral.descontoTotal;
-      // Custo Operacional também respeita o snapshot histórico de cada cliente
+      // Custo sistêmico também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
         const venc = obterVencimentoDaCompetencia(c, y, m, planos);
         const ref = venc ?? new Date(y, m + 1, 0).toISOString().slice(0, 10);
@@ -256,30 +276,28 @@ function ResumoPage() {
         receitaBruta: receitaBruta + setup + servicos,
         descontoTotal,
         custoHelena,
-        lucro: receitaTotal - custoHelena,
         setup: setup + servicos,
         receitaPorCliente,
       });
       cursor.setMonth(cursor.getMonth() + 1);
     }
     return out.reverse();
-  }, [clientesFiltrados, planos, custos, movimentos, descontos]);
+  }, [clientesFiltrados, planos, custos, movimentos, descontos, competenciaSel]);
 
   const exportarPdf = () => {
     const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     const generatedAt = new Date().toLocaleString("pt-BR");
     const planoSelecionado = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
-    const parceiroSelecionado = labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id);
 
     pdf.setFontSize(18);
     pdf.text("Resumo Mensal", 40, 42);
     pdf.setFontSize(10);
-    pdf.text(`Plano: ${planoSelecionado}  |  Parceiro: ${parceiroSelecionado}`, 40, 62);
+    pdf.text(`Plano: ${planoSelecionado}`, 40, 62);
     pdf.text(`Gerado em: ${generatedAt}`, 40, 78);
 
     autoTable(pdf, {
       startY: 96,
-      head: [["Mês de Competência", "Data de vencimento", "Novos", "Churns", "Receita Total", "Custo Operacional", "Lucro Líquido"]],
+      head: [["Mês de Competência", "Data de vencimento", "Novos", "Churns", "Receita Total", "Custo Sistêmico"]],
       body: linhas.map((l) => {
         const y = Number(l.mesKey.slice(0, 4));
         const m = Number(l.mesKey.slice(5, 7)) - 1;
@@ -296,7 +314,6 @@ function ResumoPage() {
           String(l.churns),
           formatBRL(l.receita),
           formatBRL(l.custoHelena),
-          formatBRL(l.lucro),
         ];
       }),
       styles: { fontSize: 9, cellPadding: 6 },
@@ -313,10 +330,9 @@ function ResumoPage() {
 
       autoTable(pdf, {
         startY: 76,
-        head: [["Cliente", "Plano", "Parceiro", "Vencimento", "Status", "Receita/mês"]],
+        head: [["Cliente", "Plano", "Vencimento", "Status", "Receita/mês"]],
         body: linha.ativos.map((c) => {
           const plano = planos.find((p) => p.id === c.planoId);
-          const parceiro = parceiros.find((p) => p.id === c.parceiroId);
           const ly = Number(linha.mesKey.slice(0, 4));
           const lm = Number(linha.mesKey.slice(5, 7)) - 1;
           const vencIso = obterVencimentoDaCompetencia(c, ly, lm, planos);
@@ -324,8 +340,7 @@ function ResumoPage() {
           const rec = info?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, ly, lm);
           return [
             c.nome,
-            plano?.nome ?? "—",
-            parceiro?.nome ?? "—",
+            abreviarPlano(plano?.nome),
             vencIso ? new Date(`${vencIso}T12:00:00`).toLocaleDateString("pt-BR") : "—",
             c.dataChurn ? "Churn" : "Ativo",
             (info && info.desconto > 0)
@@ -421,7 +436,6 @@ function ResumoPage() {
     const competenciaKey = `${cy}-${String(cm + 1).padStart(2, "0")}`;
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
-      const parceiro = parceiros.find((p) => p.id === c.parceiroId);
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
       const snap = clienteSnapshotAt(c, movimentos, refSnap);
@@ -438,7 +452,7 @@ function ResumoPage() {
       const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
       const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
       return {
-        cliente: c, plano, parceiro,
+        cliente: c, plano,
         subtotal,
         descontosCliente: descsCliente,
         descontoCliente: resDesc.descontoTotal,
@@ -502,7 +516,7 @@ function ResumoPage() {
       ticketMedio,
       calcDeltaReceita,
     };
-  }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, parceiros]);
+  }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, descontos]);
 
   // Sempre que a competência ou os clientes do fechamento mudarem, marca todos por padrão
   const fechamentoKey = useMemo(() => {
@@ -583,8 +597,7 @@ function ResumoPage() {
       if (elegiveis === 0) continue;
       const key = `${y}-${String(m + 1).padStart(2, "0")}`;
       const mesLabel = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-      const sufixo = aguardando > 0 ? `  ·  ${elegiveis} prontos / ${aguardando} aguardando` : `  ·  ${elegiveis} prontos`;
-      out.push({ key, label: `${mesLabel}${sufixo}`, elegiveis, aguardando });
+      out.push({ key, label: mesLabel, elegiveis, aguardando });
     }
     return out;
   }, [today, clientesFiltrados, planos]);
@@ -617,8 +630,6 @@ function ResumoPage() {
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const planoSelLabel = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
-    const parceiroSelLabel = labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id);
-
     // Cabeçalho preto
     pdf.setFillColor(15, 15, 15);
     pdf.rect(0, 0, pageW, 78, "F");
@@ -632,7 +643,7 @@ function ResumoPage() {
 
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(10);
-    pdf.text(`Plano: ${planoSelLabel}   |   Parceiro: ${parceiroSelLabel}`, 40, 100);
+    pdf.text(`Plano: ${planoSelLabel}`, 40, 100);
     pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 114);
     pdf.text(`Ciclo: ${fechamentoData.cicloLabel}   |   Vencimento: ${fechamentoData.vencimentoLabel}`, 40, 128);
 
@@ -665,11 +676,10 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
-      head: [["Cliente", "Plano", "Parceiro", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
+      head: [["Cliente", "Plano", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
       body: fechamentoSelecionado.detalhes.map((d) => [
         d.cliente.nomeFinanceiro || d.cliente.nome,
-        d.plano?.nome ?? "—",
-        d.parceiro?.nome ?? "—",
+        abreviarPlano(d.plano?.nome),
         d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
         String(d.ltvDias),
         formatBRL(d.sistema),
@@ -866,7 +876,7 @@ function ResumoPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
-          <p className="text-muted-foreground text-sm">Receita, custo operacional e lucro por mês, considerando o próximo vencimento após o setup</p>
+          <p className="text-muted-foreground text-sm">Receita e custo sistêmico por mês, considerando o próximo vencimento após o setup</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setPreviewOpen(true)} disabled={linhas.length === 0} variant="outline" className="gap-2">
@@ -885,7 +895,6 @@ function ResumoPage() {
             key: "competencia",
             label: "Competência",
             type: "single",
-            removable: false,
             options: opcoesFechamento.length > 0
               ? opcoesFechamento.map((o) => ({ value: o.key, label: o.label }))
               : [{ value: defaultCompetencia, label: new Date(`${defaultCompetencia}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) }],
@@ -915,7 +924,7 @@ function ResumoPage() {
       <Card className="border-border/60">
         <CardHeader>
           <CardTitle>Histórico</CardTitle>
-          <CardDescription>Inclui mensalidades recorrentes, setups e serviços avulsos. Custo operacional líquido (com descontos de escala).</CardDescription>
+          <CardDescription>Inclui mensalidades recorrentes, setups e serviços avulsos. Custo sistêmico líquido.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -927,8 +936,7 @@ function ResumoPage() {
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
                 <TableHead className="text-right">Receita Total</TableHead>
-                <TableHead className="text-right">Custo Operacional</TableHead>
-                <TableHead className="text-right">Lucro Líquido</TableHead>
+                <TableHead className="text-right">Custo Sistêmico</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -966,14 +974,11 @@ function ResumoPage() {
                       <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                       <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
                       <TableCell className="text-right text-yellow-400">{formatBRL(l.custoHelena)}</TableCell>
-                      <TableCell className={`text-right font-semibold ${l.lucro >= 0 ? "text-accent" : "text-destructive"}`}>
-                        {formatBRL(l.lucro)}
-                      </TableCell>
                     </TableRow>
 
                     {isExpanded && (
                       <TableRow key={`${l.mesKey}-detail`} className="bg-muted/10 hover:bg-muted/10">
-                        <TableCell colSpan={8} className="py-0">
+                        <TableCell colSpan={7} className="py-0">
                           <div className="py-3 px-2">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                               Clientes faturados em {l.mesLabel}
@@ -983,7 +988,6 @@ function ResumoPage() {
                                 <tr className="text-xs text-muted-foreground border-b border-border/40">
                                   <th className="text-left pb-1 font-medium">Cliente</th>
                                   <th className="text-left pb-1 font-medium">Plano</th>
-                                  <th className="text-left pb-1 font-medium">Parceiro</th>
                                   <th className="text-right pb-1 font-medium">Vencimento</th>
                                   <th className="text-right pb-1 font-medium">Status</th>
                                   <th className="text-right pb-1 font-medium">Receita/mês</th>
@@ -992,7 +996,6 @@ function ResumoPage() {
                               <tbody>
                                 {l.ativos.map((c) => {
                                   const plano = planos.find((p) => p.id === c.planoId);
-                                  const parceiro = parceiros.find((p) => p.id === c.parceiroId);
                                   const linhaInfo = l.receitaPorCliente.get(c.id);
                                   const rec = linhaInfo?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
                                   const recBruto = linhaInfo?.bruto ?? rec;
@@ -1005,8 +1008,7 @@ function ResumoPage() {
                                       title="Ver histórico do cliente no mês"
                                     >
                                       <td className="py-1.5 font-medium text-primary underline-offset-2 hover:underline">{c.nome}</td>
-                                      <td className="py-1.5 text-muted-foreground">{plano?.nome ?? "—"}</td>
-                                      <td className="py-1.5 text-muted-foreground">{parceiro?.nome ?? "—"}</td>
+                                      <td className="py-1.5 text-muted-foreground">{abreviarPlano(plano?.nome)}</td>
                                       <td className="py-1.5 text-right text-muted-foreground text-xs">
                                         {(() => {
                                           const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1, planos);
@@ -1041,7 +1043,7 @@ function ResumoPage() {
                 );
               })}
               {linhas.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Cadastre clientes para ver o resumo.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cadastre clientes para ver o resumo.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -1062,8 +1064,6 @@ function ResumoPage() {
                       <DialogTitle className="text-3xl font-bold mt-1 capitalize">Competência {fechamentoData.labelMes}</DialogTitle>
                       <p className="text-xs opacity-80 mt-2">
                         {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
-                        {" · "}
-                        {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
                       </p>
                       <p className="text-[11px] opacity-90 mt-1">
                         Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
@@ -1288,7 +1288,7 @@ function ResumoPage() {
                                 ))}
                               </div>
                             </td>
-                            <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
+                            <td className="p-2 text-muted-foreground">{abreviarPlano(d.plano?.nome)}</td>
                             <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
                             <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
                             <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
@@ -1448,8 +1448,6 @@ function ResumoPage() {
             <p className="text-xs text-muted-foreground mt-1">
               {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
               {" · "}
-              {labelMulti(parceiroSel, "Todos os parceiros", (id) => parceiros.find((p) => p.id === id)?.nome ?? id)}
-              {" · "}
               {vencSel.length === 0 ? "Todos os vencimentos" : vencSel.map((d) => `Dia ${d}`).join(", ")}
               {" · "}{linhas.length} mês(es)
             </p>
@@ -1463,8 +1461,7 @@ function ResumoPage() {
                   <TableHead className="text-right">Novos</TableHead>
                   <TableHead className="text-right">Churns</TableHead>
                   <TableHead className="text-right">Receita</TableHead>
-                  <TableHead className="text-right">Custo Op.</TableHead>
-                  <TableHead className="text-right">Lucro</TableHead>
+                  <TableHead className="text-right">Custo Sist.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1492,9 +1489,6 @@ function ResumoPage() {
                     <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                     <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
                     <TableCell className="text-right text-yellow-400">{formatBRL(l.custoHelena)}</TableCell>
-                    <TableCell className={`text-right font-semibold ${l.lucro >= 0 ? "text-accent" : "text-destructive"}`}>
-                      {formatBRL(l.lucro)}
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1518,7 +1512,6 @@ function ResumoPage() {
             const y = Number(historicoCliente.mesKey.slice(0, 4));
             const m = Number(historicoCliente.mesKey.slice(5, 7)) - 1;
             const plano = planos.find((p) => p.id === cli.planoId);
-            const parceiro = parceiros.find((p) => p.id === cli.parceiroId);
             const inicioMes = new Date(y, m, 0).toISOString().slice(0, 10); // último dia do mês anterior
             const fimMes = new Date(y, m + 1, 0).toISOString().slice(0, 10);
             const snapInicio = clienteSnapshotAt(cli, movimentos, inicioMes);
@@ -1567,7 +1560,7 @@ function ResumoPage() {
                 <DialogHeader>
                   <DialogTitle className="text-2xl">{cli.nome}</DialogTitle>
                   <p className="text-sm text-muted-foreground capitalize">
-                    {labelMes} · {plano?.nome ?? "—"}{parceiro ? ` · ${parceiro.nome}` : ""}
+                    {labelMes} · {abreviarPlano(plano?.nome)}
                   </p>
                 </DialogHeader>
 
