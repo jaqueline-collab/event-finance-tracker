@@ -243,9 +243,7 @@ function ResumoPage() {
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
       const churns = clientesFiltrados.filter((c) => {
-        if (!c.dataChurn) return false;
-        const d = new Date(c.dataChurn);
-        return d.getFullYear() === y && d.getMonth() === m;
+        return churnNoCiclo(c, y, m);
       }).length;
       const receitaPorCliente = new Map<string, { bruto: number; liquido: number; desconto: number }>();
       let receitaBruta = 0;
