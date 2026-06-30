@@ -160,3 +160,23 @@ export interface LancamentoFinanceiro {
   observacao?: string;
   criadoEm?: string;
 }
+
+// Descontos aplicados em fechamentos mensais.
+// - tipo "valor": abatimento fixo em R$
+// - tipo "percentual": abatimento em % sobre o subtotal
+// - tipo "isencao_total": zera a fatura
+// - escopo "cliente": atinge apenas o cliente_id informado
+// - escopo "fechamento_inteiro": atinge o fechamento todo
+// - recorrente: se true, vale a partir de competenciaInicio em diante (até competenciaFim opcional);
+//   se false, vale apenas em competenciaInicio.
+export interface Desconto {
+  id: string;
+  clienteId: string | null;
+  tipo: "valor" | "percentual" | "isencao_total";
+  escopo: "cliente" | "fechamento_inteiro";
+  valor: number | null;
+  competenciaInicio: string; // formato YYYY-MM
+  competenciaFim: string | null;
+  recorrente: boolean;
+  motivo?: string | null;
+}
