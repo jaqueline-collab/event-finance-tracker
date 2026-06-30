@@ -445,6 +445,38 @@ export const useStore = create<State>()(
         });
       },
 
+      // Descontos
+      addDesconto: (d) => {
+        const id = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
+          ? (crypto as any).randomUUID()
+          : uid();
+        const novo: Desconto = { ...d, id };
+        set({ descontos: [...get().descontos, novo] });
+        (supabase as any).from("elora_descontos").insert(mapDescontoToDb(novo)).then(({ error }: any) => {
+          if (error) {
+            console.error("Erro ao salvar desconto:", error);
+            set({ descontos: get().descontos.filter((x) => x.id !== id) });
+          }
+        });
+        return id;
+      },
+      updateDesconto: (id, d) => {
+        const descontos = get().descontos.map((x) => (x.id === id ? { ...x, ...d } : x));
+        set({ descontos });
+        const updated = descontos.find((x) => x.id === id);
+        if (updated) {
+          (supabase as any).from("elora_descontos").update(mapDescontoToDb(updated)).eq("id", id).then(({ error }: any) => {
+            if (error) console.error("Erro ao atualizar desconto:", error);
+          });
+        }
+      },
+      removeDesconto: (id) => {
+        set({ descontos: get().descontos.filter((x) => x.id !== id) });
+        (supabase as any).from("elora_descontos").delete().eq("id", id).then(({ error }: any) => {
+          if (error) console.error("Erro ao remover desconto:", error);
+        });
+      },
+
       resetAll: () => {
         set({ custos: defaultCustos, planos: defaultPlanos, clientes: [], movimentos: [], parceiros: [] });
         // Limpar nuvem
