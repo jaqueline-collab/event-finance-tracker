@@ -307,17 +307,24 @@ function ResumoPage() {
 
       autoTable(pdf, {
         startY: 76,
-        head: [["Cliente", "Plano", "Parceiro", "Próx. vencimento", "Status", "Receita/mês"]],
+        head: [["Cliente", "Plano", "Parceiro", "Vencimento", "Status", "Receita/mês"]],
         body: linha.ativos.map((c) => {
           const plano = planos.find((p) => p.id === c.planoId);
           const parceiro = parceiros.find((p) => p.id === c.parceiroId);
+          const ly = Number(linha.mesKey.slice(0, 4));
+          const lm = Number(linha.mesKey.slice(5, 7)) - 1;
+          const vencIso = obterVencimentoDaCompetencia(c, ly, lm, planos);
+          const info = linha.receitaPorCliente.get(c.id);
+          const rec = info?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, ly, lm);
           return [
             c.nome,
             plano?.nome ?? "—",
             parceiro?.nome ?? "—",
-            formatDiaVencimento(obterVencimentoDaCompetencia(c, Number(linha.mesKey.slice(0, 4)), Number(linha.mesKey.slice(5, 7)) - 1, planos)),
+            vencIso ? new Date(`${vencIso}T12:00:00`).toLocaleDateString("pt-BR") : "—",
             c.dataChurn ? "Churn" : "Ativo",
-          formatBRL(receitaCicloCliente(c, planos, custos, movimentos, Number(linha.mesKey.slice(0,4)), Number(linha.mesKey.slice(5,7)) - 1)),
+            (info && info.desconto > 0)
+              ? `${formatBRL(rec)} (desc. -${formatBRL(info.desconto)})`
+              : formatBRL(rec),
           ];
         }),
         styles: { fontSize: 9, cellPadding: 6 },
