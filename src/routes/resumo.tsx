@@ -174,6 +174,22 @@ function ResumoPage() {
     return true;
   };
 
+  // Churn dentro do ciclo de faturamento da competência (não do mês calendário).
+  const churnNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
+    if (!c.dataChurn) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    const churn = new Date(`${c.dataChurn}T12:00:00`);
+    return churn >= ciclo.inicio && churn <= ciclo.fim;
+  };
+
+  // Cliente já churnou até o fim deste ciclo (inclui ciclos posteriores ao churn).
+  const clienteJaChurnouNaCompetencia = (c: typeof clientes[number], y: number, m: number) => {
+    if (!c.dataChurn) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    const churn = new Date(`${c.dataChurn}T12:00:00`);
+    return churn <= ciclo.fim;
+  };
+
   // Cliente é elegível ao fechamento de uma competência apenas quando o ciclo
   // dele já encerrou (último dia do ciclo < hoje).
   const clienteElegivelParaFechamento = (
