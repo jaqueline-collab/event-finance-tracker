@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Download, Eye, FileText, TrendingUp, TrendingDown } from "lucide-react";
@@ -53,9 +52,6 @@ function ResumoPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   })();
   const fechamentoMes = (filtros.competencia?.type === "single" ? filtros.competencia.value : "") || defaultCompetencia;
-  const setFechamentoMes = (v: string) => {
-    setFiltros({ ...filtros, competencia: { type: "single", value: v } });
-  };
   // Garante que a competência sempre apareça como chip ativo.
   useEffect(() => {
     if (filtros.competencia?.type !== "single") {
