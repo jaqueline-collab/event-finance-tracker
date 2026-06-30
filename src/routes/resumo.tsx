@@ -384,13 +384,22 @@ function ResumoPage() {
   };
 
   const opcoesFechamento = useMemo(() => {
-    // Lista os últimos 24 meses + 1 à frente
+    // Lista apenas competências cujo ciclo JÁ ENCERROU (último dia do ciclo < hoje).
+    // A competência É o ciclo de faturamento (ex.: Maio/2026 = 01/05–31/05),
+    // cobrada no mês seguinte.
     const out: { key: string; label: string }[] = [];
-    const base = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    for (let i = 0; i < 26; i++) {
+    const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    // Inicia na competência do mês corrente e volta no tempo
+    const base = new Date(today.getFullYear(), today.getMonth(), 1);
+    for (let i = 0; i < 36; i++) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const cicloFim = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      if (cicloFim >= hoje) continue; // competência ainda em curso
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      out.push({ key, label: d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) });
+      const mesLabel = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const mesVencRef = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+        .toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+      out.push({ key, label: `${mesLabel}  ·  venc. ${mesVencRef}` });
     }
     return out;
   }, [today]);
