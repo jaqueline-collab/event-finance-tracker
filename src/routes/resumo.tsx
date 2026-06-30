@@ -183,9 +183,12 @@ function ResumoPage() {
       novos: number;
       churns: number;
       receita: number;
+      receitaBruta: number;
+      descontoTotal: number;
       custoHelena: number;
       lucro: number;
       setup: number;
+      receitaPorCliente: Map<string, { bruto: number; liquido: number; desconto: number }>;
     }[] = [];
     const cursor = new Date(minD.getFullYear(), minD.getMonth(), 1);
     while (cursor <= now) {
@@ -201,7 +204,23 @@ function ResumoPage() {
         const d = new Date(c.dataChurn);
         return d.getFullYear() === y && d.getMonth() === m;
       }).length;
-      const receita = ativos.reduce((s, c) => s + receitaCicloLocal(c, y, m), 0);
+      const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+      const receitaPorCliente = new Map<string, { bruto: number; liquido: number; desconto: number }>();
+      let receitaBruta = 0;
+      let descontoClientes = 0;
+      for (const c of ativos) {
+        const bruto = receitaCicloLocal(c, y, m);
+        const descsCli = descontosAplicaveis(descontos, competenciaKey, "cliente", c.id);
+        const res = calcularDesconto(bruto, descsCli);
+        receitaPorCliente.set(c.id, { bruto, liquido: res.total, desconto: res.descontoTotal });
+        receitaBruta += bruto;
+        descontoClientes += res.descontoTotal;
+      }
+      const subtotalPosClientes = receitaBruta - descontoClientes;
+      const descontosGerais = descontosAplicaveis(descontos, competenciaKey, "fechamento_inteiro");
+      const resGeral = calcularDesconto(subtotalPosClientes, descontosGerais);
+      const receita = resGeral.total;
+      const descontoTotal = descontoClientes + resGeral.descontoTotal;
       // Custo Operacional também respeita o snapshot histórico de cada cliente
       const ativosSnapshot = ativos.map((c) => {
         const venc = obterVencimentoDaCompetencia(c, y, m, planos);
@@ -222,20 +241,23 @@ function ResumoPage() {
 
       const receitaTotal = receita + setup + servicos;
       out.push({
-        mesKey: `${y}-${String(m + 1).padStart(2, "0")}`,
+        mesKey: competenciaKey,
         mesLabel: cursor.toLocaleDateString("pt-BR", { month: "long", year: "2-digit" }),
         ativos,
         novos,
         churns,
         receita: receitaTotal,
+        receitaBruta: receitaBruta + setup + servicos,
+        descontoTotal,
         custoHelena,
         lucro: receitaTotal - custoHelena,
         setup: setup + servicos,
+        receitaPorCliente,
       });
       cursor.setMonth(cursor.getMonth() + 1);
     }
     return out.reverse();
-  }, [clientesFiltrados, planos, custos, movimentos]);
+  }, [clientesFiltrados, planos, custos, movimentos, descontos]);
 
   const exportarPdf = () => {
     const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
