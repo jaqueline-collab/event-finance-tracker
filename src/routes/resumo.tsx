@@ -443,13 +443,29 @@ function ResumoPage() {
     const detalhes = fechamentoData.detalhesPorCliente.filter((d) => sel.has(d.cliente.id));
     const totalSistema = detalhes.reduce((s, d) => s + d.sistema, 0);
     const totalAcompanhamento = detalhes.reduce((s, d) => s + d.acomp, 0);
-    const totalReceita = totalSistema + totalAcompanhamento;
+    const subtotalBruto = detalhes.reduce((s, d) => s + d.subtotal, 0);
+    const descontosClientesTotal = detalhes.reduce((s, d) => s + d.descontoCliente, 0);
+    const subtotalPosClientes = subtotalBruto - descontosClientesTotal;
+
+    // Descontos do fechamento inteiro (escopo geral)
+    const descontosGeraisLista = descontosAplicaveis(descontos, fechamentoData.competenciaKey, "fechamento_inteiro");
+    const resGeral = calcularDesconto(subtotalPosClientes, descontosGeraisLista);
+    const totalReceita = resGeral.total;
+    const descontoTotal = descontosClientesTotal + resGeral.descontoTotal;
     const ticketMedio = detalhes.length > 0 ? totalReceita / detalhes.length : 0;
     const ltvMedioDias = detalhes.length > 0
       ? detalhes.reduce((s, d) => s + d.ltvDias, 0) / detalhes.length
       : 0;
-    return { detalhes, totalSistema, totalAcompanhamento, totalReceita, ticketMedio, ltvMedioDias, count: detalhes.length };
-  }, [fechamentoData, selectedClienteIds]);
+    return {
+      detalhes, totalSistema, totalAcompanhamento,
+      subtotalBruto, descontosClientesTotal,
+      descontosGerais: descontosGeraisLista,
+      descontoGeral: resGeral.descontoTotal,
+      descontoTotal,
+      totalReceita,
+      ticketMedio, ltvMedioDias, count: detalhes.length,
+    };
+  }, [fechamentoData, selectedClienteIds, descontos]);
 
   const toggleCliente = (id: string) => {
     setSelectedClienteIds((prev) => {
