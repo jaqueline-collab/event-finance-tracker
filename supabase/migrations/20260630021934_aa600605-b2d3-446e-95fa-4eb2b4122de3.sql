@@ -1,0 +1,1 @@
+UPDATE public.elora_clientes SET usuarios_ativos = 6 WHERE id = '3skd9m3k';
