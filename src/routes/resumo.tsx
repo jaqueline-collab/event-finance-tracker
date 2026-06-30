@@ -1598,7 +1598,7 @@ function ResumoPage() {
 
                 <div className="mt-4">
                   <h4 className="text-sm font-semibold mb-2">Linha do tempo · {labelMes}</h4>
-                  {movsMes.length === 0 ? (
+                  {movsMes.length === 0 && descsClienteDrawer.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border/40 rounded-md">
                       Sem movimentações neste mês.
                     </p>
@@ -1641,6 +1641,27 @@ function ResumoPage() {
                           </div>
                         );
                       })}
+                      {descsClienteDrawer.map((dc) => (
+                        <div key={dc.id} className="flex items-start gap-3 rounded-md border border-yellow-500/40 bg-yellow-500/5 p-3">
+                          <div className="mt-0.5 rounded-full p-1.5 bg-yellow-500/20 text-yellow-600">
+                            <Tag className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-700">Desconto</Badge>
+                              <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-500">
+                                -{formatBRL(calcularDesconto(recCiclo, [dc]).descontoTotal)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">· {descreverDesconto(dc)}</span>
+                              {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                              <span className="text-xs text-muted-foreground ml-auto">fim do ciclo</span>
+                            </div>
+                            {dc.motivo && (
+                              <div className="text-xs text-muted-foreground mt-1 italic">{dc.motivo}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
