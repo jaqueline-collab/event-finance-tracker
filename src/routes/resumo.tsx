@@ -295,12 +295,15 @@ function ResumoPage() {
       .filter((x): x is string => Boolean(x));
     const vencimentoLabel = vencimentosCompetencia.length > 0
       ? (() => {
-          const dias = vencimentosCompetencia.map((v) => Number(v.slice(8, 10)));
-          const min = Math.min(...dias);
-          const max = Math.max(...dias);
-          const mesVencRef = new Date(cy, cm + 1, 1);
-          const mesLabel = mesVencRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-          return min === max ? `${String(min).padStart(2,"0")}/${mesLabel}` : `dias ${min}–${max}/${mesLabel}`;
+          // Mostra a(s) data(s) reais de recebimento.
+          const unique = Array.from(new Set(vencimentosCompetencia));
+          unique.sort();
+          if (unique.length === 1) {
+            return new Date(`${unique[0]}T12:00:00`).toLocaleDateString("pt-BR");
+          }
+          const min = new Date(`${unique[0]}T12:00:00`).toLocaleDateString("pt-BR");
+          const max = new Date(`${unique[unique.length - 1]}T12:00:00`).toLocaleDateString("pt-BR");
+          return `${min} a ${max}`;
         })()
       : "—";
 
