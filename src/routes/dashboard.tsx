@@ -105,7 +105,7 @@ function Index() {
   }, [clientes, planos, custos, movimentos]);
 
   const kpis = [
-    { label: "Clientes ativos", value: String(ativos.length), icon: Users, hint: `${clientes.length} no total` },
+    { label: "Clientes ativos", value: String(ativos.length), icon: Users },
     { label: "MRR", value: formatBRL(mrr), icon: DollarSign, hint: "Receita recorrente mensal" },
     { label: "Lucro sobre o Sistema", value: formatBRL(lucroSistema), icon: Wallet, hint: `Receita do sistema (${formatBRL(receitaSistema)}) − custo operacional` },
     { label: "Lucro Total", value: formatBRL(lucroTotal), icon: TrendingUp, hint: `MRR − custo operacional (${formatBRL(custoOperacional)})` },

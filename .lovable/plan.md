@@ -1,27 +1,29 @@
-Vou ajustar somente a tela de Resumo Mensal (`/resumo`) e seus PDFs:
+## 1. "Clientes ativos" deve mostrar só o número de ativos
 
-1. **Filtro de competência**
-   - Remover o chip fixo obrigatório de competência.
-   - Fazer **Competência** aparecer como os outros filtros: entra pelo botão **Adicionar filtro**, pode ser removido e fica persistido até limpar/trocar.
-   - Se não houver competência selecionada, o resumo mostra o histórico normalmente; para **Gerar Fechamento**, usa a competência escolhida no filtro ou a competência padrão mais recente.
-   - Remover do rótulo das opções textos como **“29 prontos”, “26 prontos”, “aguardando”** — fica só o mês/ano.
+Hoje exibimos `ativos / total` (ou um hint "X no total") em dois lugares:
 
-2. **Colunas do Histórico no Resumo**
-   - Remover a coluna **Parceiro** da tabela expandida de clientes.
-   - Manter **Cliente**, **Plano**, **Vencimento**, **Status** e **Receita/mês**.
-   - Abreviar nomes de plano na exibição quando forem longos.
+- **`src/routes/clientes.tsx`** (card de resumo da carteira) — remover o `/ {clientesFiltrados.length}` ao lado do número.
+- **`src/routes/dashboard.tsx`** (KPI "Clientes ativos") — remover o `hint: "${clientes.length} no total"`.
 
-3. **Custo sistêmico**
-   - Substituir todos os textos visíveis de **Custo Operacional** por **Custo Sistêmico** onde esse valor ainda aparecer.
-   - Remover a coluna **Lucro Líquido** do histórico e do PDF de resumo, conforme você pediu para deixar o resultado mais limpo.
-   - Manter **Sistema / Valor do Sistema** no fechamento, sem chamar isso de operacional.
+Resultado: o número exibido será exclusivamente a contagem de clientes ativos (`!dataChurn`), respeitando os filtros aplicados quando houver.
 
-4. **PDFs e textos auxiliares**
-   - No PDF de resumo e no PDF de fechamento, remover a coluna **Parceiro** nas tabelas de clientes.
-   - Tirar “Parceiro” do cabeçalho do PDF quando for só informativo visual, mantendo o filtro funcionando internamente se já existir selecionado.
-   - Atualizar subtítulos/descrições que ainda falam em “custo operacional”.
+## 2. Investigar "Lucro sobre o sistema" negativo
 
-5. **Validação**
-   - Conferir no código que não ficou texto visível com “Custo Operacional”.
-   - Conferir que não existe mais “prontos” no filtro de competência.
-   - Conferir que as colunas removidas não aparecem no Resumo nem nos PDFs.
+Na tabela da aba **Clientes**, a coluna **Lucro sob o sistema** é calculada como:
+
+```
+lucroSistema = receitaSistemaCliente - custoMensalCliente
+             = (receita_total - valorAcompanhamento) - custo_helena_líquido
+```
+
+Ou seja, o valor de **acompanhamento (consultoria)** é descontado da receita antes de comparar com o custo do sistema (Helena/canais/usuários). Quando o plano tem acompanhamento alto, a "receita do sistema" fica pequena e pode ficar abaixo do custo operacional — gerando lucro negativo mesmo que o cliente seja lucrativo no total.
+
+**Próximo passo (investigação, sem alterar código):** rodar uma query no banco listando os clientes ativos com `receitaSistema − custo < 0`, mostrando para cada um: receita total, acompanhamento, receita sistêmica, custo estimado e plano. Assim você consegue ver caso a caso se o negativo é (a) esperado pelo desenho do plano (acompanhamento "subsidia" o sistema) ou (b) algum cliente fora da curva que precisa revisão de preço.
+
+Depois de ver a lista, decidimos se:
+- ajustamos a fórmula da coluna (ex.: considerar acompanhamento como receita do sistema também), ou
+- mantemos como está e tratamos caso a caso comercialmente.
+
+## Detalhes técnicos
+
+Mudanças de UI são pontuais (2 arquivos, ~3 linhas). A parte 2 é diagnóstico — não toca código até decidirmos o que fazer com os clientes negativos.
