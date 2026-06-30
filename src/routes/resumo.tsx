@@ -431,11 +431,7 @@ function ResumoPage() {
       const d = new Date(c.dataInicio);
       return d.getFullYear() === cy && d.getMonth() === cm;
     });
-    const churnsNoMes = clientesFiltrados.filter((c) => {
-      if (!c.dataChurn) return false;
-      const d = new Date(c.dataChurn);
-      return d.getFullYear() === cy && d.getMonth() === cm;
-    });
+    const churnsNoMes = clientesFiltrados.filter((c) => churnNoCiclo(c, cy, cm));
 
     // Movimentos de upgrade/downgrade do CICLO (mês anterior) para os clientes filtrados
     const clienteIds = new Set(clientesFiltrados.map((c) => c.id));
