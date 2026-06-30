@@ -120,16 +120,18 @@ export const useStore = create<State>()(
       movimentos: [],
       parceiros: [],
       financeiro: [],
+      descontos: [],
 
       // Sincronização assíncrona
       syncFromSupabase: async () => {
         try {
-          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes] = await Promise.all([
+          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes, descRes] = await Promise.all([
             supabase.from("elora_planos").select("*"),
             supabase.from("elora_parceiros").select("*"),
             supabase.from("elora_clientes").select("*"),
             supabase.from("elora_movimentos").select("*"),
             (supabase as any).from("elora_financeiro").select("*"),
+            (supabase as any).from("elora_descontos").select("*"),
           ]);
 
           if (planosRes.data && planosRes.data.length > 0) {
@@ -146,6 +148,9 @@ export const useStore = create<State>()(
           }
           if (finRes?.data) {
             set({ financeiro: finRes.data.map(mapDbToFinanceiro) });
+          }
+          if (descRes?.data) {
+            set({ descontos: descRes.data.map(mapDbToDesconto) });
           }
         } catch (e) {
           console.error("Erro ao carregar dados do Supabase:", e);
