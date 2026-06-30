@@ -163,24 +163,26 @@ function FilterChip({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          ref={triggerRef}
-          type="button"
-          className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-background border border-border/60 text-xs cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <span className="text-muted-foreground">{field.label}:</span>
-          <span className="font-medium">{summary}</span>
+      <div className="inline-flex items-center h-8 rounded-md bg-background border border-border/60 text-xs hover:border-primary/50 focus-within:ring-1 focus-within:ring-ring">
+        <PopoverTrigger asChild>
           <button
+            ref={triggerRef}
             type="button"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
-            className="ml-1 text-muted-foreground hover:text-destructive"
-            aria-label="Remover filtro"
+            className="inline-flex items-center gap-1 h-full pl-2 pr-1 cursor-pointer focus-visible:outline-none"
           >
-            <X className="h-3 w-3" />
+            <span className="text-muted-foreground">{field.label}:</span>
+            <span className="font-medium">{summary}</span>
           </button>
+        </PopoverTrigger>
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+          className="h-full px-2 text-muted-foreground hover:text-destructive focus-visible:outline-none"
+          aria-label="Remover filtro"
+        >
+          <X className="h-3 w-3" />
         </button>
-      </PopoverTrigger>
+      </div>
       <PopoverContent className="w-72 p-3" align="start">
         {field.type === "multi" && value.type === "multi" && (
           <MultiPicker field={field} value={value} onChange={onChange} />
