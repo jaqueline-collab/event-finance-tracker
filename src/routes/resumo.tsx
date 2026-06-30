@@ -542,8 +542,40 @@ function ResumoPage() {
     if (fechamentoKey && fechamentoKey !== selecaoInicializada && fechamentoData) {
       setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
       setSelecaoInicializada(fechamentoKey);
+      // Reseta descrições para os defaults sempre que muda a competência/clientes.
+      setDescricaoConsolidadaTocada(false);
+      setDescricoesPorClienteTocadas({});
     }
   }, [fechamentoKey, selecaoInicializada, fechamentoData]);
+
+  // Defaults de descrição (recalculados quando muda a competência).
+  const defaultDescricaoConsolidada = useMemo(() => {
+    if (!fechamentoData) return "";
+    return `Fechamento ${fechamentoData.labelMes} · ciclo ${fechamentoData.cicloLabel}`;
+  }, [fechamentoData]);
+
+  const defaultDescricoesPorCliente = useMemo(() => {
+    if (!fechamentoData) return {} as Record<string, string>;
+    const map: Record<string, string> = {};
+    for (const d of fechamentoData.detalhesPorCliente) {
+      map[d.cliente.id] = d.cliente.nomeFinanceiro || d.cliente.nome;
+    }
+    return map;
+  }, [fechamentoData]);
+
+  // Aplica defaults para campos não tocados pelo usuário.
+  useEffect(() => {
+    if (!descricaoConsolidadaTocada) setDescricaoConsolidada(defaultDescricaoConsolidada);
+  }, [defaultDescricaoConsolidada, descricaoConsolidadaTocada]);
+  useEffect(() => {
+    setDescricoesPorCliente((prev) => {
+      const next = { ...prev };
+      for (const [id, val] of Object.entries(defaultDescricoesPorCliente)) {
+        if (!descricoesPorClienteTocadas[id]) next[id] = val;
+      }
+      return next;
+    });
+  }, [defaultDescricoesPorCliente, descricoesPorClienteTocadas]);
 
   const fechamentoSelecionado = useMemo(() => {
     if (!fechamentoData) return null;
