@@ -1,52 +1,73 @@
-## O que descobri primeiro (importante)
+## Entendi a regra do Monday
 
-As alterações de dados que combinamos na rodada anterior **não persistiram** no banco — provavelmente a migration não chegou a ser aprovada/rodada. Estado atual:
+```text
+Competência: mês em que o ciclo COMEÇA
+Data de recebimento: vencimento, sempre no mês seguinte (dia conforme plano/cliente)
+```
 
-- Plano **Rabbit** ainda está com ciclo `1 → 31` (deveria ser `5 → 4`).
-- **Dr Alexandre Mansur** ainda com `valor_acompanhamento = 246` (deveria ser `250`).
-- **Érico Servano**: existe o movimento `churn 2026-06-24` em `elora_movimentos`, mas `elora_clientes.data_churn` continua vazio (incoerência que distorce o fechamento).
+Para o plano Rabbit (ciclo 5→4):
 
-Isso por si só já explica boa parte da divergência com a planilha do Monday (que tem vencimento dia 5 → ciclo 5→4). Vou aplicar de verdade, via migration, antes de comparar números.
+```text
+Competência Fevereiro/2026 → ciclo 05/02 a 04/03 → recebimento 05/03/2026
+Competência Março/2026     → ciclo 05/03 a 04/04 → recebimento 05/04/2026
+Competência Abril/2026     → ciclo 05/04 a 04/05 → recebimento 05/05/2026
+```
+
+Para o plano Distribox (ciclo 1→31):
+
+```text
+Competência Fevereiro/2026 → ciclo 01/02 a 28/02 → recebimento dia configurado em Março/2026
+```
+
+Hoje o app trata competência como o mês em que o ciclo **termina** e calcula o vencimento no mês seguinte ao mês selecionado. Isso desloca tudo em 1 mês contra o Monday e zera fevereiro.
 
 ## Plano
 
-### 1. Reaplicar correções de dados (migration)
-- `elora_planos`: ciclo do Rabbit (`rwq5rggn`) `1→31` → **`5→4`**.
-- `elora_clientes` (Dr Alexandre Mansur): `valor_acompanhamento` 246 → **250**.
-- `elora_clientes` (Érico Servano): `data_churn = 2026-06-24` (mantém o movimento já existente).
+### 1. Alinhar a semântica de competência
+- Mudar a competência para representar o mês em que o ciclo **começa**.
+- Vencimento = último dia do ciclo + 1, no dia configurado do plano/cliente.
+- Resultado:
+  - Rabbit fevereiro vence 05/03;
+  - Rabbit março vence 05/04 (é o que o Monday chama de “Março - 2026”, R$ 6.899,67);
+  - Rabbit abril vence 05/05;
+  - Distribox fevereiro vence em março no dia configurado.
+- Atualiza:
+  - seletor de competência;
+  - cabeçalho do modal de fechamento;
+  - PDF;
+  - tabela principal do histórico (label do mês e dado do vencimento);
+  - filtro de vencimento (continua filtrando pelo dia do recebimento).
 
-### 2. Persistência de filtros por página
-Hoje o `FilterBar` mantém estado só em memória do componente — recarregou, perdeu. Vou:
-- Criar um hook `usePersistentFilters(scope: string, defaults?: FilterState)` que serializa o `FilterState` em `localStorage` com chave por escopo (`elora.filters.<scope>`).
-- Plugar em cada tela que usa filtros: **Clientes** (`scope: "clientes"`), **Financeiro** (`scope: "financeiro"`), **Resumo Mensal** (`scope: "resumo"`), **Parceiros** se aplicável.
-- Cada escopo tem seu próprio padrão e os filtros só somem quando o usuário clicar em "Limpar filtros" (já existe) ou remover o chip. SSR-safe (lazy init, sem tocar `localStorage` na primeira render do servidor).
+### 2. Coluna “Data de vencimento” no histórico
+- Substituir a coluna **Faturados** da tabela do histórico por **Data de vencimento**, logo após **Mês de Competência**.
+- Quantidade de clientes passa a aparecer só no detalhe expandido.
+- A mesma coluna entra na prévia e no PDF do relatório.
 
-### 3. Resumo Mensal — exibir vencimento
-- Adicionar coluna **Vencimento** na tabela do modal e do PDF, ao lado de "Cliente / Plano". Valor: `obterVencimentoDaCompetencia(cliente, y, m, planos)` formatado `dd/mm/aa`.
-- Manter o `vencimentoLabel` no cabeçalho como faixa (quando há vencimentos diferentes), mas agora também por linha.
+### 3. Inclusão correta de clientes no ciclo
+- Cliente entra na competência se esteve ativo em qualquer dia do ciclo da competência.
+- Churn no meio do ciclo continua cobrando integralmente quando o plano está com a chave de proporcional desabilitada, igual ao Monday (ex.: Gabriele 31/03 e Pedro 18/03 cobram cheio no recebimento 05/04).
+- Proporcional só rateia quando a chave estiver ativa.
+- A data de início do cliente também é tratada como cobrança cheia quando proporcional está desligado (entra no recebimento seguinte com o valor integral).
 
-### 4. Reconciliação contra a planilha (Rabbit, competência Junho/2026)
-Referência do print: Total 7.829,54 · Sistema 4.229,54 · Assessoria 3.600 · Recebimento 05/jul · 13 itens.
+### 4. Auditar a diferença sem forçar o valor
+- Comparar linha a linha contra o Monday anexado para:
+  - Fevereiro/2026 — recebimento 05/03 — Monday R$ 6.259,73 (Sistema 3.159,73 / Assessoria 3.100);
+  - Março/2026 — recebimento 05/04 — Monday R$ 6.899,67 (Sistema 3.549,67 / Assessoria 3.350);
+  - Abril/2026 — recebimento 05/05 — Monday R$ 6.179,63 (Sistema 3.329,63 / Assessoria 2.850).
+- Para cada cliente do ciclo, mostrar:
+  - valor Sistema no Monday;
+  - valor Acompanhamento no Monday;
+  - valor Sistema calculado pelo app;
+  - valor Acompanhamento no app;
+  - diferença e causa provável (cadastro divergente, movimento faltando, transcrição diferente, vencimento desviado etc.).
+- Entregar essa auditoria em texto antes de qualquer correção de dados.
 
-Depois das correções do passo 1, vou:
-- Rodar uma query somando, por cliente Rabbit ativo no ciclo 05/06–04/07/2026, o snapshot de fim de ciclo (`receitaCicloCliente` lógica).
-- Cruzar linha a linha com o detalhe da planilha (você pode me passar o expand de **Junho - 2026** do Monday — os 13 itens com Sistema/Assessoria por cliente — ou eu listo o meu cálculo aqui e você confere).
-- Onde divergir, identificar a causa (canais/usuários incorretos no cadastro, valor de acompanhamento, movimento faltando, churn fora do lugar, plano com inclusos diferentes etc.) e propor correção pontual de dados.
+### 5. Só corrigir dados depois de confirmar a causa
+- Se a auditoria apontar problema de cadastro ou movimento, listo explicitamente o que está diferente.
+- Você confirma antes de eu rodar a alteração no banco.
+- Nada de “forçar” o total para bater.
 
-Repetir o mesmo procedimento para as competências fechadas anteriores (Fev–Mai) para garantir alinhamento histórico.
-
-## Detalhes técnicos
-
-- `usePersistentFilters` em `src/hooks/use-persistent-filters.ts`. Assinatura:
-  `function usePersistentFilters(scope: string, defaults?: FilterState): [FilterState, (next: FilterState) => void]`. `useState(() => ler localStorage)` + `useEffect` para gravar. Guard `typeof window !== "undefined"`.
-- `FilterBar` não muda — quem decide persistência é o consumidor (cada rota).
-- Migration única, idempotente (`UPDATE ... WHERE ...`), sem schema change.
-- Coluna Vencimento no PDF: ajustar a tabela em `src/routes/resumo.tsx` (gerador atual) sem mudar layout geral — só uma coluna a mais.
-
-## Pergunta antes de implementar
-
-Para o passo 4, você prefere:
-(a) que eu liste o meu cálculo por cliente do ciclo 05/06–04/07 e você compara com o Monday, ou
-(b) você me passa o detalhe expandido de **Junho - 2026** do Monday (13 linhas com Sistema/Assessoria) e eu faço o diff?
-
-A opção (b) é mais rápida e precisa.
+### Observações técnicas
+- A função de ciclo passa a receber o mês de início da competência. Hoje ela recebe o mês de fim e faz wrap; será o oposto.
+- O snapshot de fim de ciclo continua sendo a referência para receita recorrente quando proporcional está desligado.
+- A regra de “cliente elegível para fechamento” passa a comparar o vencimento da competência com a data de hoje, não o fim do ciclo.
