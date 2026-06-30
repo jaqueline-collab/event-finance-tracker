@@ -432,22 +432,29 @@ function ResumoPage() {
   };
 
   const opcoesFechamento = useMemo(() => {
-    // Lista apenas competências cujo ciclo JÁ ENCERROU (último dia do ciclo < hoje).
-    // A competência É o ciclo de faturamento (ex.: Maio/2026 = 01/05–31/05),
-    // cobrada no mês seguinte.
-    const out: { key: string; label: string }[] = [];
+    // Lista competências que tenham pelo menos 1 cliente filtrado com
+    // o ciclo já encerrado (cicloFim < hoje). Como diferentes planos têm
+    // ciclos diferentes (ex.: Distribox 1→31 fecha 30/06; Rabbit 5→4
+    // fecha só em 04/07), o seletor passa a ser por ciclo do cliente.
+    const out: { key: string; label: string; elegiveis: number; aguardando: number }[] = [];
     const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    // Inicia na competência do mês corrente e volta no tempo
     const base = new Date(today.getFullYear(), today.getMonth(), 1);
     for (let i = 0; i < 36; i++) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-      const cicloFim = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      if (cicloFim >= hoje) continue; // competência ainda em curso
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      let elegiveis = 0;
+      let aguardando = 0;
+      for (const c of clientesFiltrados) {
+        if (!clienteAtivoNoCiclo(c, y, m)) continue;
+        if (clienteElegivelParaFechamento(c, y, m, hoje)) elegiveis++;
+        else aguardando++;
+      }
+      if (elegiveis === 0) continue;
+      const key = `${y}-${String(m + 1).padStart(2, "0")}`;
       const mesLabel = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-      const mesVencRef = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-        .toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
-      out.push({ key, label: `${mesLabel}  ·  venc. ${mesVencRef}` });
+      const sufixo = aguardando > 0 ? `  ·  ${elegiveis} prontos / ${aguardando} aguardando` : `  ·  ${elegiveis} prontos`;
+      out.push({ key, label: `${mesLabel}${sufixo}`, elegiveis, aguardando });
     }
     return out;
   }, [today]);
