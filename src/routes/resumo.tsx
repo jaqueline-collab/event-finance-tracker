@@ -969,7 +969,10 @@ function ResumoPage() {
                                 {l.ativos.map((c) => {
                                   const plano = planos.find((p) => p.id === c.planoId);
                                   const parceiro = parceiros.find((p) => p.id === c.parceiroId);
-                                  const rec = receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
+                                  const linhaInfo = l.receitaPorCliente.get(c.id);
+                                  const rec = linhaInfo?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
+                                  const recBruto = linhaInfo?.bruto ?? rec;
+                                  const temDesconto = linhaInfo ? linhaInfo.desconto > 0 : false;
                                   return (
                                     <tr
                                       key={c.id}
@@ -983,7 +986,7 @@ function ResumoPage() {
                                       <td className="py-1.5 text-right text-muted-foreground text-xs">
                                         {(() => {
                                           const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1, planos);
-                                          return vencimento ? `dia ${formatDiaVencimento(vencimento)}` : "—";
+                                          return vencimento ? new Date(`${vencimento}T12:00:00`).toLocaleDateString("pt-BR") : "—";
                                         })()}
                                       </td>
                                       <td className="py-1.5 text-right">
@@ -991,7 +994,16 @@ function ResumoPage() {
                                           ? <Badge variant="destructive" className="text-xs">Churn</Badge>
                                           : <Badge className="bg-accent/20 text-accent text-xs">Ativo</Badge>}
                                       </td>
-                                      <td className="py-1.5 text-right text-primary font-medium">{formatBRL(rec)}</td>
+                                      <td className="py-1.5 text-right text-primary font-medium">
+                                        {temDesconto ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="line-through text-[10px] text-muted-foreground font-normal">{formatBRL(recBruto)}</span>
+                                            <span>{formatBRL(rec)}</span>
+                                          </div>
+                                        ) : (
+                                          formatBRL(rec)
+                                        )}
+                                      </td>
                                     </tr>
                                   );
                                 })}
