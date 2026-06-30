@@ -47,13 +47,11 @@ export interface FilterBarProps {
 export function FilterBar({ fields, value, onChange, className }: FilterBarProps) {
   const activeKeys = Object.keys(value).filter((k) => {
     const v = value[k];
-    if (!v) return false;
-    if (v.type === "multi") return v.values.length > 0;
-    if (v.type === "dateRange") return Boolean(v.from || v.to || v.preset);
-    return false;
+    return Boolean(v && fields.some((f) => f.key === k));
   });
   const availableFields = fields.filter((f) => !activeKeys.includes(f.key));
   const [autoOpenKey, setAutoOpenKey] = useState<string | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   const setField = (key: string, v: FilterValue | null) => {
     const next = { ...value };
@@ -80,7 +78,7 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
         );
       })}
       {availableFields.length > 0 && (
-        <DropdownMenu>
+        <DropdownMenu modal={false} open={addMenuOpen} onOpenChange={setAddMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1 border-dashed">
               <Plus className="h-3.5 w-3.5" /> Adicionar filtro
@@ -90,17 +88,15 @@ export function FilterBar({ fields, value, onChange, className }: FilterBarProps
             {availableFields.map((f) => (
               <DropdownMenuItem
                 key={f.key}
-                onSelect={(e) => {
-                  e.preventDefault();
+                onSelect={() => {
                   setField(
                     f.key,
                     f.type === "multi"
                       ? { type: "multi", values: [] }
                       : { type: "dateRange" },
                   );
-                  // Aguarda o dropdown fechar (e o pointer-events do body voltar)
-                  // antes de abrir o popover do chip recém-criado.
-                  setTimeout(() => setAutoOpenKey(f.key), 180);
+                  setAddMenuOpen(false);
+                  setAutoOpenKey(f.key);
                 }}
               >
                 {f.label}
@@ -137,12 +133,12 @@ function FilterChip({
   onRemove: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const notifiedRef = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (autoOpen && !notifiedRef.current) {
-      notifiedRef.current = true;
+    if (autoOpen) {
       setOpen(true);
       onAutoOpened?.();
+      requestAnimationFrame(() => triggerRef.current?.focus());
     }
   }, [autoOpen, onAutoOpened]);
 
@@ -167,19 +163,26 @@ function FilterChip({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-background border border-border/60 text-xs cursor-pointer hover:border-primary/50">
-          <span className="text-muted-foreground">{field.label}:</span>
-          <span className="font-medium">{summary}</span>
+      <div className="inline-flex items-center h-8 rounded-md bg-background border border-border/60 text-xs hover:border-primary/50 focus-within:ring-1 focus-within:ring-ring">
+        <PopoverTrigger asChild>
           <button
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="ml-1 text-muted-foreground hover:text-destructive"
-            aria-label="Remover filtro"
+            ref={triggerRef}
+            type="button"
+            className="inline-flex items-center gap-1 h-full pl-2 pr-1 cursor-pointer focus-visible:outline-none"
           >
-            <X className="h-3 w-3" />
+            <span className="text-muted-foreground">{field.label}:</span>
+            <span className="font-medium">{summary}</span>
           </button>
-        </div>
-      </PopoverTrigger>
+        </PopoverTrigger>
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+          className="h-full px-2 text-muted-foreground hover:text-destructive focus-visible:outline-none"
+          aria-label="Remover filtro"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
       <PopoverContent className="w-72 p-3" align="start">
         {field.type === "multi" && value.type === "multi" && (
           <MultiPicker field={field} value={value} onChange={onChange} />
