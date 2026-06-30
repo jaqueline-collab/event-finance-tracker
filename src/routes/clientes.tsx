@@ -433,7 +433,6 @@ function ClientesPage() {
           </div>
           <div className="text-base font-semibold text-foreground">
             {clientesFiltrados.filter((c) => !c.dataChurn).length}
-            <span className="text-xs font-normal text-muted-foreground ml-1">/ {clientesFiltrados.length}</span>
           </div>
         </div>
         <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
