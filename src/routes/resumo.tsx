@@ -1513,6 +1513,11 @@ function ResumoPage() {
             const recCiclo = receitaCicloCliente(cli, planos, custos, movimentos, y, m);
             const venc = obterVencimentoDaCompetencia(cli, y, m, planos);
             const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            const competenciaKeyDrawer = `${y}-${String(m + 1).padStart(2, "0")}`;
+            const descsClienteDrawer = descontosAplicaveis(descontos, competenciaKeyDrawer, "cliente", cli.id);
+            const resDescDrawer = calcularDesconto(recCiclo, descsClienteDrawer);
+            const recCicloLiquido = resDescDrawer.total;
+            const descontoCicloTotal = resDescDrawer.descontoTotal;
 
             // Movimentos do cliente no mês (ordenados por data crescente)
             const movsMes = movimentos
@@ -1566,8 +1571,17 @@ function ResumoPage() {
                   </div>
                   <div className="rounded-lg border border-border/60 p-3">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Receita do ciclo</div>
-                    <div className="text-lg font-semibold mt-1">{formatBRL(recCiclo)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">Venc. {formatDiaVencimento(venc)}</div>
+                    {descontoCicloTotal > 0 ? (
+                      <div className="flex flex-col leading-tight mt-1">
+                        <span className="line-through text-xs text-muted-foreground font-normal">{formatBRL(recCiclo)}</span>
+                        <span className="text-lg font-semibold">{formatBRL(recCicloLiquido)}</span>
+                      </div>
+                    ) : (
+                      <div className="text-lg font-semibold mt-1">{formatBRL(recCiclo)}</div>
+                    )}
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Venc. {venc ? new Date(`${venc}T12:00:00`).toLocaleDateString("pt-BR") : "—"}
+                    </div>
                   </div>
                 </div>
 
