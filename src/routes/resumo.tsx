@@ -659,7 +659,7 @@ function ResumoPage() {
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
-      head: [["Cliente", "Plano", "Parceiro", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Total"]],
+      head: [["Cliente", "Plano", "Parceiro", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
       body: fechamentoSelecionado.detalhes.map((d) => [
         d.cliente.nome,
         d.plano?.nome ?? "—",
@@ -668,10 +668,27 @@ function ResumoPage() {
         String(d.ltvDias),
         formatBRL(d.sistema),
         formatBRL(d.acomp),
+        d.descontoCliente > 0 ? `-${formatBRL(d.descontoCliente)}` : "—",
         formatBRL(d.receita),
       ]),
       styles: { fontSize: 10, cellPadding: 6 },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
+    });
+
+    // Linha de totalizador do fechamento (subtotal, desconto geral, total)
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 6,
+      head: [["", "Valor"]],
+      showHead: "never",
+      body: [
+        ["Subtotal", formatBRL(fechamentoSelecionado.subtotalBruto)],
+        ...(fechamentoSelecionado.descontoTotal > 0
+          ? [["Descontos aplicados", `-${formatBRL(fechamentoSelecionado.descontoTotal)}`]]
+          : []),
+        ["Total do fechamento", formatBRL(fechamentoSelecionado.totalReceita)],
+      ],
+      styles: { fontSize: 10, cellPadding: 6 },
+      columnStyles: { 0: { halign: "right", fontStyle: "bold" }, 1: { halign: "right" } },
     });
 
     if (fechamentoData.movsMes.length > 0) {
