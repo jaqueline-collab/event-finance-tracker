@@ -196,7 +196,6 @@ function ResumoPage() {
       receitaBruta: number;
       descontoTotal: number;
       custoHelena: number;
-      lucro: number;
       setup: number;
       receitaPorCliente: Map<string, { bruto: number; liquido: number; desconto: number }>;
     }[] = [];
@@ -264,7 +263,6 @@ function ResumoPage() {
         receitaBruta: receitaBruta + setup + servicos,
         descontoTotal,
         custoHelena,
-        lucro: receitaTotal - custoHelena,
         setup: setup + servicos,
         receitaPorCliente,
       });
@@ -425,7 +423,6 @@ function ResumoPage() {
     const competenciaKey = `${cy}-${String(cm + 1).padStart(2, "0")}`;
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
-      const parceiro = parceiros.find((p) => p.id === c.parceiroId);
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
       const snap = clienteSnapshotAt(c, movimentos, refSnap);
@@ -442,7 +439,7 @@ function ResumoPage() {
       const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
       const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
       return {
-        cliente: c, plano, parceiro,
+        cliente: c, plano,
         subtotal,
         descontosCliente: descsCliente,
         descontoCliente: resDesc.descontoTotal,
@@ -506,7 +503,7 @@ function ResumoPage() {
       ticketMedio,
       calcDeltaReceita,
     };
-  }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, parceiros]);
+  }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, descontos]);
 
   // Sempre que a competência ou os clientes do fechamento mudarem, marca todos por padrão
   const fechamentoKey = useMemo(() => {
