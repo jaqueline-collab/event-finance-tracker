@@ -62,6 +62,19 @@ function ResumoPage() {
     const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   })();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const migrationKey = "elora.filters.resumo.competencia-optional";
+    if (window.localStorage.getItem(migrationKey)) return;
+    window.localStorage.setItem(migrationKey, "1");
+    if (filtros.competencia?.type === "single" && filtros.competencia.value === defaultCompetencia) {
+      const next = { ...filtros };
+      delete next.competencia;
+      setFiltros(next);
+    }
+    // roda uma única vez para limpar o chip fixo legado
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const fechamentoMes = competenciaSel || defaultCompetencia;
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
