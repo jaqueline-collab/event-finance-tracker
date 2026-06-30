@@ -56,6 +56,13 @@ function ResumoPage() {
   const setFechamentoMes = (v: string) => {
     setFiltros({ ...filtros, competencia: { type: "single", value: v } });
   };
+  // Garante que a competência sempre apareça como chip ativo.
+  useEffect(() => {
+    if (filtros.competencia?.type !== "single") {
+      setFiltros({ ...filtros, competencia: { type: "single", value: defaultCompetencia } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
