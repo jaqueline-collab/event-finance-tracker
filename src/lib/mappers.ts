@@ -1,4 +1,4 @@
-import type { Cliente, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
+import type { Cliente, Desconto, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
 
 export const mapPlanoToDb = (p: Plano) => ({
   id: p.id,
@@ -233,4 +233,28 @@ export const mapDbToFinanceiro = (r: any): LancamentoFinanceiro => ({
   nfNumero: r.nf_numero || undefined,
   observacao: r.observacao || undefined,
   criadoEm: r.created_at ?? undefined,
+});
+
+export const mapDescontoToDb = (d: Desconto) => ({
+  id: d.id,
+  cliente_id: d.clienteId,
+  tipo: d.tipo,
+  escopo: d.escopo,
+  valor: d.valor,
+  competencia_inicio: d.competenciaInicio,
+  competencia_fim: d.competenciaFim,
+  recorrente: d.recorrente,
+  motivo: d.motivo ?? null,
+});
+
+export const mapDbToDesconto = (r: any): Desconto => ({
+  id: r.id,
+  clienteId: r.cliente_id ?? null,
+  tipo: r.tipo,
+  escopo: r.escopo,
+  valor: r.valor !== null && r.valor !== undefined ? Number(r.valor) : null,
+  competenciaInicio: r.competencia_inicio,
+  competenciaFim: r.competencia_fim ?? null,
+  recorrente: Boolean(r.recorrente),
+  motivo: r.motivo ?? null,
 });

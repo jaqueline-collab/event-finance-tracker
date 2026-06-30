@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cliente, CustoBase, LancamentoFinanceiro, Movimento, Parceiro, Plano } from "./types";
+import type { Cliente, CustoBase, Desconto, LancamentoFinanceiro, Movimento, Parceiro, Plano } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   mapPlanoToDb,
@@ -12,6 +12,8 @@ import {
   mapDbToMovimento,
   mapFinanceiroToDb,
   mapDbToFinanceiro,
+  mapDescontoToDb,
+  mapDbToDesconto,
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
 
@@ -46,6 +48,11 @@ export {
   faturamentoAcumuladoCliente,
 } from "./calc/receita";
 export { custoMensalCliente } from "./calc/custo";
+export {
+  descontosAplicaveis,
+  calcularDesconto,
+  descreverDesconto,
+} from "./calc/desconto";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -56,6 +63,7 @@ interface State {
   movimentos: Movimento[];
   parceiros: Parceiro[];
   financeiro: LancamentoFinanceiro[];
+  descontos: Desconto[];
   // sync
   syncFromSupabase: () => Promise<void>;
   // custos
@@ -81,6 +89,10 @@ interface State {
   addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => string;
   updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => void;
   removeLancamento: (id: string) => void;
+  // descontos
+  addDesconto: (d: Omit<Desconto, "id">) => string;
+  updateDesconto: (id: string, d: Partial<Desconto>) => void;
+  removeDesconto: (id: string) => void;
   // reset
   resetAll: () => void;
   seedDemo: () => void;
@@ -108,16 +120,18 @@ export const useStore = create<State>()(
       movimentos: [],
       parceiros: [],
       financeiro: [],
+      descontos: [],
 
       // Sincronização assíncrona
       syncFromSupabase: async () => {
         try {
-          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes] = await Promise.all([
+          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes, descRes] = await Promise.all([
             supabase.from("elora_planos").select("*"),
             supabase.from("elora_parceiros").select("*"),
             supabase.from("elora_clientes").select("*"),
             supabase.from("elora_movimentos").select("*"),
             (supabase as any).from("elora_financeiro").select("*"),
+            (supabase as any).from("elora_descontos").select("*"),
           ]);
 
           if (planosRes.data && planosRes.data.length > 0) {
@@ -134,6 +148,9 @@ export const useStore = create<State>()(
           }
           if (finRes?.data) {
             set({ financeiro: finRes.data.map(mapDbToFinanceiro) });
+          }
+          if (descRes?.data) {
+            set({ descontos: descRes.data.map(mapDbToDesconto) });
           }
         } catch (e) {
           console.error("Erro ao carregar dados do Supabase:", e);
@@ -425,6 +442,38 @@ export const useStore = create<State>()(
         set({ financeiro: get().financeiro.filter((x) => x.id !== id) });
         (supabase as any).from("elora_financeiro").delete().eq("id", id).then(({ error }: any) => {
           if (error) console.error("Erro ao remover lançamento financeiro:", error);
+        });
+      },
+
+      // Descontos
+      addDesconto: (d) => {
+        const id = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
+          ? (crypto as any).randomUUID()
+          : uid();
+        const novo: Desconto = { ...d, id };
+        set({ descontos: [...get().descontos, novo] });
+        (supabase as any).from("elora_descontos").insert(mapDescontoToDb(novo)).then(({ error }: any) => {
+          if (error) {
+            console.error("Erro ao salvar desconto:", error);
+            set({ descontos: get().descontos.filter((x) => x.id !== id) });
+          }
+        });
+        return id;
+      },
+      updateDesconto: (id, d) => {
+        const descontos = get().descontos.map((x) => (x.id === id ? { ...x, ...d } : x));
+        set({ descontos });
+        const updated = descontos.find((x) => x.id === id);
+        if (updated) {
+          (supabase as any).from("elora_descontos").update(mapDescontoToDb(updated)).eq("id", id).then(({ error }: any) => {
+            if (error) console.error("Erro ao atualizar desconto:", error);
+          });
+        }
+      },
+      removeDesconto: (id) => {
+        set({ descontos: get().descontos.filter((x) => x.id !== id) });
+        (supabase as any).from("elora_descontos").delete().eq("id", id).then(({ error }: any) => {
+          if (error) console.error("Erro ao remover desconto:", error);
         });
       },
 

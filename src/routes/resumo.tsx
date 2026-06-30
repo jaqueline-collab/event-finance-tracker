@@ -22,9 +22,11 @@ import {
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
 } from "@/lib/store";
+import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
+import type { Desconto } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 
@@ -34,7 +36,7 @@ export const Route = createFileRoute("/resumo")({
 });
 
 function ResumoPage() {
-  const { clientes, planos, custos, movimentos, parceiros, addLancamento } = useStore();
+  const { clientes, planos, custos, movimentos, parceiros, addLancamento, descontos, addDesconto, removeDesconto } = useStore();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
   const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
   const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
@@ -61,6 +63,50 @@ function ResumoPage() {
   // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
   const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
   const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
+
+  // Modal de criação de desconto
+  const [descontoModal, setDescontoModal] = useState<null | {
+    escopo: "cliente" | "fechamento_inteiro";
+    clienteId: string | null;
+    clienteNome?: string;
+  }>(null);
+  const [descTipo, setDescTipo] = useState<"valor" | "percentual" | "isencao_total">("valor");
+  const [descValor, setDescValor] = useState<string>("");
+  const [descRecorrente, setDescRecorrente] = useState<boolean>(false);
+  const [descMotivo, setDescMotivo] = useState<string>("");
+
+  const resetDescontoForm = () => {
+    setDescTipo("valor");
+    setDescValor("");
+    setDescRecorrente(false);
+    setDescMotivo("");
+  };
+
+  const salvarDesconto = () => {
+    if (!descontoModal || !fechamentoData) return;
+    const valorNum = descTipo === "isencao_total" ? null : Number(descValor.replace(",", "."));
+    if (descTipo !== "isencao_total" && (!Number.isFinite(valorNum!) || valorNum! <= 0)) {
+      toast.error("Informe um valor válido.");
+      return;
+    }
+    if (descTipo === "percentual" && (valorNum ?? 0) > 100) {
+      toast.error("Percentual não pode passar de 100%.");
+      return;
+    }
+    addDesconto({
+      clienteId: descontoModal.clienteId,
+      tipo: descTipo,
+      escopo: descontoModal.escopo,
+      valor: valorNum,
+      competenciaInicio: fechamentoData.competenciaKey,
+      competenciaFim: null,
+      recorrente: descRecorrente,
+      motivo: descMotivo.trim() || null,
+    });
+    toast.success("Desconto aplicado.");
+    setDescontoModal(null);
+    resetDescontoForm();
+  };
 
   // Dias de vencimento distintos (planos + clientes), para o filtro
   const diasDisponiveis = useMemo(() => {
@@ -337,35 +383,49 @@ function ResumoPage() {
     });
 
     // Detalhamento por cliente
+    const competenciaKey = `${cy}-${String(cm + 1).padStart(2, "0")}`;
     const detalhesPorCliente = ativos.map((c) => {
       const plano = planos.find((p) => p.id === c.planoId);
       const parceiro = parceiros.find((p) => p.id === c.parceiroId);
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
       const snap = clienteSnapshotAt(c, movimentos, refSnap);
-      const receita = receitaCicloLocal(c, cy, cm);
+      const subtotal = receitaCicloLocal(c, cy, cm);
       const acomp = snap.valorAcompanhamento || 0;
-      const sistema = Math.max(0, receita - acomp);
+      const sistema = Math.max(0, subtotal - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
+      // Descontos aplicáveis ao cliente nessa competência
+      const descsCliente = descontosAplicaveis(descontos, competenciaKey, "cliente", c.id);
+      const resDesc = calcularDesconto(subtotal, descsCliente);
       // LTV em dias: do início até churn (se houver) ou fim do ciclo fechado
       const inicio = new Date(c.dataInicio);
       const fimCompetencia = new Date(cy, cm + 1, 0);
       const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
       const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
-      return { cliente: c, plano, parceiro, receita, acomp, sistema, movs: movsCliente, venc, ltvDias };
+      return {
+        cliente: c, plano, parceiro,
+        subtotal,
+        descontosCliente: descsCliente,
+        descontoCliente: resDesc.descontoTotal,
+        receita: resDesc.total,
+        acomp, sistema,
+        movs: movsCliente, venc, ltvDias,
+      };
     });
 
     const totalSistema = detalhesPorCliente.reduce((s, d) => s + d.sistema, 0);
     const totalAcompanhamento = detalhesPorCliente.reduce((s, d) => s + d.acomp, 0);
-    const totalReceita = totalSistema + totalAcompanhamento;
+    const subtotalBruto = detalhesPorCliente.reduce((s, d) => s + d.subtotal, 0);
+    const descontosClientesTotal = detalhesPorCliente.reduce((s, d) => s + d.descontoCliente, 0);
     const totalSetups = setupsNoMes.reduce((s, c) => s + (c.valorSetupPago || 0), 0);
 
     // Métricas adicionais
     const ltvMedioDias = detalhesPorCliente.length > 0
       ? detalhesPorCliente.reduce((s, d) => s + d.ltvDias, 0) / detalhesPorCliente.length
       : 0;
+    const totalReceitaPosDesc = detalhesPorCliente.reduce((s, d) => s + d.receita, 0);
     const ticketMedio = detalhesPorCliente.length > 0
-      ? totalReceita / detalhesPorCliente.length
+      ? totalReceitaPosDesc / detalhesPorCliente.length
       : 0;
 
     // Delta de receita por movimento (impacto financeiro)
@@ -389,6 +449,7 @@ function ResumoPage() {
 
     return {
       y, m, labelMes,
+      competenciaKey,
       cicloLabel,
       vencimentoLabel,
       ativos,
@@ -399,7 +460,8 @@ function ResumoPage() {
       detalhesPorCliente,
       totalSistema,
       totalAcompanhamento,
-      totalReceita,
+      subtotalBruto,
+      descontosClientesTotal,
       movsMes,
       ltvMedioDias,
       ticketMedio,
@@ -425,13 +487,29 @@ function ResumoPage() {
     const detalhes = fechamentoData.detalhesPorCliente.filter((d) => sel.has(d.cliente.id));
     const totalSistema = detalhes.reduce((s, d) => s + d.sistema, 0);
     const totalAcompanhamento = detalhes.reduce((s, d) => s + d.acomp, 0);
-    const totalReceita = totalSistema + totalAcompanhamento;
+    const subtotalBruto = detalhes.reduce((s, d) => s + d.subtotal, 0);
+    const descontosClientesTotal = detalhes.reduce((s, d) => s + d.descontoCliente, 0);
+    const subtotalPosClientes = subtotalBruto - descontosClientesTotal;
+
+    // Descontos do fechamento inteiro (escopo geral)
+    const descontosGeraisLista = descontosAplicaveis(descontos, fechamentoData.competenciaKey, "fechamento_inteiro");
+    const resGeral = calcularDesconto(subtotalPosClientes, descontosGeraisLista);
+    const totalReceita = resGeral.total;
+    const descontoTotal = descontosClientesTotal + resGeral.descontoTotal;
     const ticketMedio = detalhes.length > 0 ? totalReceita / detalhes.length : 0;
     const ltvMedioDias = detalhes.length > 0
       ? detalhes.reduce((s, d) => s + d.ltvDias, 0) / detalhes.length
       : 0;
-    return { detalhes, totalSistema, totalAcompanhamento, totalReceita, ticketMedio, ltvMedioDias, count: detalhes.length };
-  }, [fechamentoData, selectedClienteIds]);
+    return {
+      detalhes, totalSistema, totalAcompanhamento,
+      subtotalBruto, descontosClientesTotal,
+      descontosGerais: descontosGeraisLista,
+      descontoGeral: resGeral.descontoTotal,
+      descontoTotal,
+      totalReceita,
+      ticketMedio, ltvMedioDias, count: detalhes.length,
+    };
+  }, [fechamentoData, selectedClienteIds, descontos]);
 
   const toggleCliente = (id: string) => {
     setSelectedClienteIds((prev) => {
@@ -1124,6 +1202,7 @@ function ResumoPage() {
                           <th className="text-right p-2 font-medium">Sistema</th>
                           <th className="text-right p-2 font-medium">Acomp.</th>
                           <th className="text-right p-2 font-medium">Total</th>
+                          <th className="text-right p-2 font-medium w-12"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1140,20 +1219,123 @@ function ResumoPage() {
                                 aria-label={`Selecionar ${d.cliente.nome}`}
                               />
                             </td>
-                            <td className="p-2 font-medium">{d.cliente.nome}</td>
+                            <td className="p-2 font-medium">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{d.cliente.nome}</span>
+                                {d.descontosCliente.map((dc) => (
+                                  <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-yellow-500/40 text-yellow-600 bg-yellow-500/10">
+                                    <Tag className="h-2.5 w-2.5" />
+                                    {descreverDesconto(dc)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
                             <td className="p-2 text-muted-foreground">{d.plano?.nome ?? "—"}</td>
                             <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
                             <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
                             <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
                             <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
-                            <td className="p-2 text-right font-semibold text-primary">{formatBRL(d.receita)}</td>
+                            <td className="p-2 text-right font-semibold text-primary">
+                              {d.descontoCliente > 0 ? (
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span className="line-through text-[11px] text-muted-foreground font-normal">{formatBRL(d.subtotal)}</span>
+                                  <span>{formatBRL(d.receita)}</span>
+                                </div>
+                              ) : (
+                                formatBRL(d.receita)
+                              )}
+                            </td>
+                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                title="Aplicar desconto a este cliente"
+                                onClick={() => setDescontoModal({ escopo: "cliente", clienteId: d.cliente.id, clienteNome: d.cliente.nome })}
+                              >
+                                <Tag className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
                           </tr>
                         ))}
                         {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={8} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                          <tr><td colSpan={9} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Resumo Subtotal/Descontos/Total e ações */}
+                  <div className="mt-3 rounded-lg border border-border/60 p-3 bg-muted/10">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        Aplique descontos por cliente (botão <Tag className="inline h-3 w-3 align-middle" />) ou no fechamento inteiro.
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => setDescontoModal({ escopo: "fechamento_inteiro", clienteId: null })}
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Desconto no fechamento
+                      </Button>
+                    </div>
+
+                    {(fechamentoSelecionado?.descontosGerais.length ?? 0) > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoSelecionado!.descontosGerais.map((dg) => (
+                          <div key={dg.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                              <span className="font-medium">Fechamento inteiro · {descreverDesconto(dg)}</span>
+                              {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
+                              {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                            </div>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dg.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Descontos por cliente listados para gestão (remover) */}
+                    {fechamentoData.detalhesPorCliente.some((d) => d.descontosCliente.length > 0) && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoData.detalhesPorCliente.flatMap((d) =>
+                          d.descontosCliente.map((dc) => (
+                            <div key={dc.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                                <span className="font-medium truncate">{d.cliente.nome} · {descreverDesconto(dc)}</span>
+                                {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
+                                {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                              </div>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dc.id)}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          )),
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-3 border-t border-border/40 pt-2 space-y-1 text-sm">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>{formatBRL(fechamentoSelecionado?.subtotalBruto ?? 0)}</span>
+                      </div>
+                      {(fechamentoSelecionado?.descontoTotal ?? 0) > 0 && (
+                        <div className="flex justify-between text-yellow-600 dark:text-yellow-500">
+                          <span>Descontos</span>
+                          <span>-{formatBRL(fechamentoSelecionado!.descontoTotal)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold text-primary text-base">
+                        <span>Total do fechamento</span>
+                        <span>{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1410,6 +1592,67 @@ function ResumoPage() {
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Aplicar Desconto */}
+      <Dialog open={!!descontoModal} onOpenChange={(o) => { if (!o) { setDescontoModal(null); resetDescontoForm(); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {descontoModal?.escopo === "cliente"
+                ? `Desconto · ${descontoModal?.clienteNome ?? ""}`
+                : "Desconto no fechamento inteiro"}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Competência {fechamentoData?.labelMes ?? ""}
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Tipo</Label>
+              <RadioGroup value={descTipo} onValueChange={(v) => setDescTipo(v as any)} className="flex flex-wrap gap-3 mt-1">
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="valor" /> Valor em R$
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="percentual" /> Percentual
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="isencao_total" /> Isenção total
+                </label>
+              </RadioGroup>
+            </div>
+
+            {descTipo !== "isencao_total" && (
+              <div>
+                <Label className="text-xs">{descTipo === "valor" ? "Valor (R$)" : "Percentual (%)"}</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={descValor}
+                  onChange={(e) => setDescValor(e.target.value)}
+                  placeholder={descTipo === "valor" ? "Ex.: 50,00" : "Ex.: 10"}
+                />
+              </div>
+            )}
+
+            <div>
+              <Label className="text-xs">Motivo (opcional)</Label>
+              <Input value={descMotivo} onChange={(e) => setDescMotivo(e.target.value)} placeholder="Ex.: cortesia, ajuste comercial" />
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox checked={descRecorrente} onCheckedChange={(v) => setDescRecorrente(Boolean(v))} />
+              <span>Aplicar também em competências futuras (recorrente)</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setDescontoModal(null); resetDescontoForm(); }}>Cancelar</Button>
+            <Button onClick={salvarDesconto}>Aplicar desconto</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
