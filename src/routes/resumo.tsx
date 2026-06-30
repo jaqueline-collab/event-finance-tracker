@@ -375,6 +375,7 @@ function ResumoPage() {
       cicloLabel,
       vencimentoLabel,
       ativos,
+      aguardandoCicloFechar,
       setupsNoMes,
       churnsNoMes,
       totalSetups,
