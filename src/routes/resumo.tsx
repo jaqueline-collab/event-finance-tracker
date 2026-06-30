@@ -83,6 +83,11 @@ function ResumoPage() {
   const [observacaoPdf, setObservacaoPdf] = useState("");
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
   const [emailDestino, setEmailDestino] = useState("");
+  // Nome do boleto / descrição que será gravada no Financeiro.
+  const [descricaoConsolidada, setDescricaoConsolidada] = useState<string>("");
+  const [descricaoConsolidadaTocada, setDescricaoConsolidadaTocada] = useState(false);
+  const [descricoesPorCliente, setDescricoesPorCliente] = useState<Record<string, string>>({});
+  const [descricoesPorClienteTocadas, setDescricoesPorClienteTocadas] = useState<Record<string, boolean>>({});
   // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
   const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
   const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
