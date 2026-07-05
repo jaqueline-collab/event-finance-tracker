@@ -20,6 +20,11 @@ export type FilterValue =
 
 export type FilterState = Record<string, FilterValue>;
 
+function optionLabel(option: { value: string; label: string } | undefined): string {
+  if (!option) return "—";
+  return String(option.label ?? option.value ?? "—");
+}
+
 const DATE_PRESETS: { key: string; label: string; compute: () => { from: string; to: string } }[] = [
   { key: "hoje", label: "Hoje", compute: () => { const d = iso(new Date()); return { from: d, to: d }; } },
   { key: "este_mes", label: "Este mês", compute: () => mes(0) },
@@ -158,13 +163,13 @@ function FilterChip({
     if (field.type === "multi" && value.type === "multi") {
       if (value.values.length === 0) return "qualquer";
       const labels = value.values
-        .map((v) => field.options.find((o) => o.value === v)?.label ?? v)
+        .map((v) => optionLabel(field.options.find((o) => o.value === v)) || v)
         .slice(0, 2);
       const extra = value.values.length > 2 ? ` +${value.values.length - 2}` : "";
       return labels.join(", ") + extra;
     }
     if (field.type === "single" && value.type === "single") {
-      return field.options.find((o) => o.value === value.value)?.label ?? value.value ?? "—";
+      return optionLabel(field.options.find((o) => o.value === value.value)) || value.value || "—";
     }
     if (field.type === "dateRange" && value.type === "dateRange") {
       if (value.preset) return DATE_PRESETS.find((p) => p.key === value.preset)?.label ?? "período";
@@ -223,7 +228,7 @@ function SinglePicker({
   onChange: (v: FilterValue) => void;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = field.options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
+  const filtered = field.options.filter((o) => optionLabel(o).toLowerCase().includes(search.toLowerCase()));
   return (
     <div className="space-y-2">
       {field.options.length > 8 && (
@@ -246,7 +251,7 @@ function SinglePicker({
               value.value === o.value && "bg-primary/10 text-primary font-medium",
             )}
           >
-            {o.label}
+            {optionLabel(o)}
           </button>
         ))}
         {filtered.length === 0 && (
@@ -267,7 +272,7 @@ function MultiPicker({
   onChange: (v: FilterValue) => void;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = field.options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
+  const filtered = field.options.filter((o) => optionLabel(o).toLowerCase().includes(search.toLowerCase()));
   const toggle = (val: string) => {
     const has = value.values.includes(val);
     const next = has ? value.values.filter((v) => v !== val) : [...value.values, val];
@@ -286,7 +291,7 @@ function MultiPicker({
         {filtered.map((o) => (
           <label key={o.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
             <Checkbox checked={value.values.includes(o.value)} onCheckedChange={() => toggle(o.value)} />
-            <span className="flex-1">{o.label}</span>
+            <span className="flex-1">{optionLabel(o)}</span>
           </label>
         ))}
         {filtered.length === 0 && (
