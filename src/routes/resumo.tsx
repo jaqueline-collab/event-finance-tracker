@@ -1770,69 +1770,6 @@ function ResumoPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Prévia do Relatório (antes de exportar PDF) */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Prévia do Relatório</DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
-              {" · "}
-              {vencSel.length === 0 ? "Todos os vencimentos" : vencSel.map((d) => `Dia ${d}`).join(", ")}
-              {" · "}{linhas.length} mês(es)
-            </p>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mês</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead className="text-right">Novos</TableHead>
-                  <TableHead className="text-right">Churns</TableHead>
-                  <TableHead className="text-right">Receita</TableHead>
-                  <TableHead className="text-right">Custo Sist.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {linhas.map((l) => (
-                  <TableRow key={l.mesKey}>
-                    <TableCell className="capitalize font-medium">{l.mesLabel}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {(() => {
-                        const y = Number(l.mesKey.slice(0, 4));
-                        const m = Number(l.mesKey.slice(5, 7)) - 1;
-                        const vencs = Array.from(
-                          new Set(
-                            l.ativos
-                              .map((c) => obterVencimentoDaCompetencia(c, y, m, planos))
-                              .filter((v): v is string => Boolean(v)),
-                          ),
-                        ).sort();
-                        if (vencs.length === 0) return "—";
-                        if (vencs.length === 1)
-                          return new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR");
-                        return `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
-                      })()}
-                    </TableCell>
-                    <TableCell className="text-right text-accent">+{l.novos}</TableCell>
-                    <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
-                    <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
-                    <TableCell className="text-right text-yellow-400">{formatBRL(l.custoHelena)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
-              <Button variant="outline" onClick={() => setPreviewOpen(false)}>Fechar</Button>
-              <Button onClick={() => { exportarPdf(); setPreviewOpen(false); }} className="gap-2">
-                <Download className="h-4 w-4" /> Exportar PDF
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Modal: Histórico do cliente no mês */}
       <Dialog open={!!historicoCliente} onOpenChange={(o) => !o && setHistoricoCliente(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
