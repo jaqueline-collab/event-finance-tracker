@@ -968,8 +968,8 @@ function ResumoPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
-          <p className="text-muted-foreground text-sm">Receita e custo sistêmico por mês, considerando o próximo vencimento após o setup</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Fechamento Mensal</h1>
+          <p className="text-muted-foreground text-sm">Cada competência agrupa os fechamentos gerados. Clientes ficam disponíveis assim que o último dia do ciclo passa.</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setPreviewOpen(true)} disabled={linhas.length === 0} variant="outline" className="gap-2">
