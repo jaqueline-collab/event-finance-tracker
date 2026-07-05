@@ -1,4 +1,15 @@
-import type { Cliente, Desconto, LancamentoFinanceiro, Movimento, Parceiro, Plano, TipoMovimento } from "./types";
+import type {
+  Cliente,
+  Desconto,
+  Fechamento,
+  FechamentoItem,
+  FechamentoStatus,
+  LancamentoFinanceiro,
+  Movimento,
+  Parceiro,
+  Plano,
+  TipoMovimento,
+} from "./types";
 
 export const mapPlanoToDb = (p: Plano) => ({
   id: p.id,
@@ -259,4 +270,60 @@ export const mapDbToDesconto = (r: any): Desconto => ({
   competenciaFim: r.competencia_fim ?? null,
   recorrente: Boolean(r.recorrente),
   motivo: r.motivo ?? null,
+});
+
+export const mapFechamentoToDb = (f: Fechamento) => ({
+  id: f.id,
+  competencia: f.competencia,
+  titulo: f.titulo,
+  descricao: f.descricao ?? null,
+  status: f.status,
+  total_bruto: f.totalBruto,
+  total_desconto: f.totalDesconto,
+  total_liquido: f.totalLiquido,
+  observacao: f.observacao ?? null,
+});
+
+export const mapDbToFechamento = (r: any): Fechamento => ({
+  id: r.id,
+  competencia: r.competencia,
+  titulo: r.titulo,
+  descricao: r.descricao ?? null,
+  status: (r.status as FechamentoStatus) ?? "emitido",
+  criadoPor: r.criado_por ?? null,
+  totalBruto: Number(r.total_bruto ?? 0),
+  totalDesconto: Number(r.total_desconto ?? 0),
+  totalLiquido: Number(r.total_liquido ?? 0),
+  observacao: r.observacao ?? null,
+  criadoEm: r.criado_em ?? undefined,
+});
+
+export const mapFechamentoItemToDb = (i: FechamentoItem) => ({
+  id: i.id,
+  fechamento_id: i.fechamentoId,
+  cliente_id: i.clienteId,
+  plano_id: i.planoId ?? null,
+  ciclo_inicio: i.cicloInicio ?? null,
+  ciclo_fim: i.cicloFim ?? null,
+  vencimento: i.vencimento ?? null,
+  valor_bruto: i.valorBruto,
+  valor_desconto: i.valorDesconto,
+  valor_liquido: i.valorLiquido,
+  lancamento_financeiro_id: i.lancamentoFinanceiroId ?? null,
+  payload_snapshot: i.payloadSnapshot ?? null,
+});
+
+export const mapDbToFechamentoItem = (r: any): FechamentoItem => ({
+  id: r.id,
+  fechamentoId: r.fechamento_id,
+  clienteId: r.cliente_id,
+  planoId: r.plano_id ?? null,
+  cicloInicio: r.ciclo_inicio ?? null,
+  cicloFim: r.ciclo_fim ?? null,
+  vencimento: r.vencimento ?? null,
+  valorBruto: Number(r.valor_bruto ?? 0),
+  valorDesconto: Number(r.valor_desconto ?? 0),
+  valorLiquido: Number(r.valor_liquido ?? 0),
+  lancamentoFinanceiroId: r.lancamento_financeiro_id ?? null,
+  payloadSnapshot: r.payload_snapshot ?? null,
 });
