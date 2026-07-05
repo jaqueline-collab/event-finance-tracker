@@ -82,6 +82,10 @@ function ResumoPage() {
   const parceiroSel = getMultiFilterValues(filtros, "parceiro");
   const vencSel = getMultiFilterValues(filtros, "vencimento");
   const tipoSel = getMultiFilterValues(filtros, "tipo");
+  const planoSelKey = planoSel.join("|");
+  const parceiroSelKey = parceiroSel.join("|");
+  const vencSelKey = vencSel.join("|");
+  const tipoSelKey = tipoSel.join("|");
   const rawCompetenciaSel = getSingleFilterValue(filtros, "competencia");
   const competenciaSel = isValidCompetenciaKey(rawCompetenciaSel) ? rawCompetenciaSel : "";
   const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
@@ -203,7 +207,7 @@ function ResumoPage() {
       const matchTipo = tipoSel.length === 0 || tipoSel.includes(planoDoCli?.categoria ?? "elora");
       return matchPlano && matchParceiro && matchVenc && matchTipo;
     });
-  }, [clientes, planos, planoSel, parceiroSel, vencSel, tipoSel]);
+  }, [clientes, planos, planoSelKey, parceiroSelKey, vencSelKey, tipoSelKey]);
 
   // Resolve o ciclo de faturamento do cliente para a competência (y, m).
   // Respeita ciclo personalizado do cliente, ciclo do plano (ex.: Rabbit 5→4)
@@ -241,8 +245,8 @@ function ResumoPage() {
     return churn <= ciclo.fim;
   };
 
-  // Cliente é elegível ao fechamento de uma competência apenas quando o ciclo
-  // dele já encerrou (último dia do ciclo < hoje).
+  // Cliente é elegível ao fechamento de uma competência quando o ciclo já
+  // encerrou ou quando hoje é o último dia do ciclo.
   const clienteElegivelParaFechamento = (
     c: typeof clientes[number],
     y: number,
@@ -250,9 +254,9 @@ function ResumoPage() {
     hoje: Date,
   ) => {
     if (!clienteAtivoNoCiclo(c, y, m)) return false;
-    // Elegível quando o último dia do ciclo já passou (ciclo.fim < hoje).
     const ciclo = cicloDoCliente(c, y, m);
-    return ciclo.fim < hoje;
+    const fim = new Date(ciclo.fim.getFullYear(), ciclo.fim.getMonth(), ciclo.fim.getDate());
+    return fim <= hoje;
   };
 
   // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
@@ -584,7 +588,11 @@ function ResumoPage() {
   }, [fechamentoData, fechamentoMes]);
   useEffect(() => {
     if (fechamentoKey && fechamentoKey !== selecaoInicializada && fechamentoData) {
-      setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
+      const ids = fechamentoData.ativos.map((c) => c.id);
+      setSelectedClienteIds((prev) => {
+        if (prev.size === ids.length && ids.every((id) => prev.has(id))) return prev;
+        return new Set(ids);
+      });
       setSelecaoInicializada(fechamentoKey);
       // Reseta descrições para os defaults sempre que muda a competência/clientes.
       setDescricaoConsolidadaTocada(false);
@@ -609,15 +617,21 @@ function ResumoPage() {
 
   // Aplica defaults para campos não tocados pelo usuário.
   useEffect(() => {
-    if (!descricaoConsolidadaTocada) setDescricaoConsolidada(defaultDescricaoConsolidada);
-  }, [defaultDescricaoConsolidada, descricaoConsolidadaTocada]);
+    if (!descricaoConsolidadaTocada && descricaoConsolidada !== defaultDescricaoConsolidada) {
+      setDescricaoConsolidada(defaultDescricaoConsolidada);
+    }
+  }, [defaultDescricaoConsolidada, descricaoConsolidada, descricaoConsolidadaTocada]);
   useEffect(() => {
     setDescricoesPorCliente((prev) => {
+      let changed = false;
       const next = { ...prev };
       for (const [id, val] of Object.entries(defaultDescricoesPorCliente)) {
-        if (!descricoesPorClienteTocadas[id]) next[id] = val;
+        if (!descricoesPorClienteTocadas[id] && next[id] !== val) {
+          next[id] = val;
+          changed = true;
+        }
       }
-      return next;
+      return changed ? next : prev;
     });
   }, [defaultDescricoesPorCliente, descricoesPorClienteTocadas]);
 
