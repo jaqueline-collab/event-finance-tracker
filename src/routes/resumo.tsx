@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Download, Eye, FileText, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown, Eraser } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,7 +98,9 @@ function ResumoPage() {
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
-  const today = new Date();
+  // Estabiliza a data-base: se recriada a cada render, causa loop infinito
+  // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
+  const today = useMemo(() => new Date(), []);
   // Default = competência mais recente já encerrada (mês anterior).
   const defaultCompetencia = (() => {
     const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -120,7 +122,6 @@ function ResumoPage() {
   }, []);
   const fechamentoMes = competenciaNovoFechamento || competenciaSel || defaultCompetencia;
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
   const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [observacaoPdf, setObservacaoPdf] = useState("");
