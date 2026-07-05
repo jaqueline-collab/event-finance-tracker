@@ -20,6 +20,46 @@ export type FilterValue =
 
 export type FilterState = Record<string, FilterValue>;
 
+function normalizeValueForField(field: FilterFieldDef, value: FilterValue | undefined): FilterValue | null {
+  if (!value || value.type !== field.type) return null;
+
+  if (field.type === "multi" && value.type === "multi") {
+    const allowed = new Set(field.options.map((o) => o.value));
+    return {
+      type: "multi",
+      values: Array.isArray(value.values)
+        ? value.values.filter((v): v is string => typeof v === "string" && allowed.has(v))
+        : [],
+    };
+  }
+
+  if (field.type === "single" && value.type === "single") {
+    const allowed = new Set(field.options.map((o) => o.value));
+    if (typeof value.value !== "string" || !allowed.has(value.value)) return null;
+    return { type: "single", value: value.value };
+  }
+
+  if (field.type === "dateRange" && value.type === "dateRange") {
+    return {
+      type: "dateRange",
+      from: typeof value.from === "string" ? value.from : undefined,
+      to: typeof value.to === "string" ? value.to : undefined,
+      preset: typeof value.preset === "string" ? value.preset : undefined,
+    };
+  }
+
+  return null;
+}
+
+function normalizeFilterStateForFields(value: FilterState, fields: FilterFieldDef[]): FilterState {
+  const normalized: FilterState = {};
+  for (const field of fields) {
+    const nextValue = normalizeValueForField(field, value[field.key]);
+    if (nextValue) normalized[field.key] = nextValue;
+  }
+  return normalized;
+}
+
 function optionLabel(option: { value: string; label: string } | undefined): string {
   if (!option) return "—";
   return String(option.label ?? option.value ?? "—");
@@ -53,8 +93,9 @@ export interface FilterBarProps {
 }
 
 export function FilterBar({ fields, value, onChange, className, action }: FilterBarProps) {
-  const activeKeys = Object.keys(value).filter((k) => {
-    const v = value[k];
+  const normalizedValue = normalizeFilterStateForFields(value, fields);
+  const activeKeys = Object.keys(normalizedValue).filter((k) => {
+    const v = normalizedValue[k];
     return Boolean(v && fields.some((f) => f.key === k));
   });
   const availableFields = fields.filter((f) => !activeKeys.includes(f.key));
@@ -62,7 +103,7 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
   const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   const setField = (key: string, v: FilterValue | null) => {
-    const next = { ...value };
+    const next = { ...normalizedValue };
     if (v === null) delete next[key]; else next[key] = v;
     onChange(next);
   };
@@ -78,7 +119,7 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
           <FilterChip
             key={key}
             field={field}
-            value={value[key]}
+            value={normalizedValue[key]}
             autoOpen={autoOpenKey === key}
             onAutoOpened={() => setAutoOpenKey(null)}
             onChange={(v) => setField(key, v)}
@@ -161,11 +202,12 @@ function FilterChip({
 
   const summary = (() => {
     if (field.type === "multi" && value.type === "multi") {
-      if (value.values.length === 0) return "qualquer";
-      const labels = value.values
+      const values = Array.isArray(value.values) ? value.values : [];
+      if (values.length === 0) return "qualquer";
+      const labels = values
         .map((v) => optionLabel(field.options.find((o) => o.value === v)) || v)
         .slice(0, 2);
-      const extra = value.values.length > 2 ? ` +${value.values.length - 2}` : "";
+      const extra = values.length > 2 ? ` +${values.length - 2}` : "";
       return labels.join(", ") + extra;
     }
     if (field.type === "single" && value.type === "single") {
@@ -273,9 +315,10 @@ function MultiPicker({
 }) {
   const [search, setSearch] = useState("");
   const filtered = field.options.filter((o) => optionLabel(o).toLowerCase().includes(search.toLowerCase()));
+  const selectedValues = Array.isArray(value.values) ? value.values : [];
   const toggle = (val: string) => {
-    const has = value.values.includes(val);
-    const next = has ? value.values.filter((v) => v !== val) : [...value.values, val];
+    const has = selectedValues.includes(val);
+    const next = has ? selectedValues.filter((v) => v !== val) : [...selectedValues, val];
     onChange({ type: "multi", values: next });
   };
   return (
@@ -290,7 +333,7 @@ function MultiPicker({
       <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
         {filtered.map((o) => (
           <label key={o.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
-            <Checkbox checked={value.values.includes(o.value)} onCheckedChange={() => toggle(o.value)} />
+            <Checkbox checked={selectedValues.includes(o.value)} onCheckedChange={() => toggle(o.value)} />
             <span className="flex-1">{optionLabel(o)}</span>
           </label>
         ))}
@@ -298,7 +341,7 @@ function MultiPicker({
           <div className="text-xs text-muted-foreground text-center py-3">Nenhuma opção</div>
         )}
       </div>
-      {value.values.length > 0 && (
+      {selectedValues.length > 0 && (
         <button
           onClick={() => onChange({ type: "multi", values: [] })}
           className="text-[10px] text-muted-foreground hover:text-foreground underline w-full text-right"

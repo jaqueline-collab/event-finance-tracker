@@ -29,6 +29,18 @@ import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 
+function getMultiFilterValues(filtros: FilterState, key: string): string[] {
+  const value = filtros[key];
+  if (!value || value.type !== "multi" || !Array.isArray(value.values)) return [];
+  return value.values.filter((v): v is string => typeof v === "string");
+}
+
+function getSingleFilterValue(filtros: FilterState, key: string): string {
+  const value = filtros[key];
+  if (!value || value.type !== "single" || typeof value.value !== "string") return "";
+  return value.value;
+}
+
 export const Route = createFileRoute("/resumo")({
   head: () => ({ meta: [{ title: "Resumo Mensal · Elora" }] }),
   component: ResumoPage,
@@ -37,11 +49,11 @@ export const Route = createFileRoute("/resumo")({
 function ResumoPage() {
   const { clientes, planos, custos, movimentos, parceiros, addLancamento, descontos, addDesconto, removeDesconto } = useStore();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
-  const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
-  const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
-  const vencSel = (filtros.vencimento?.type === "multi" ? filtros.vencimento.values : []) as string[];
-  const tipoSel = (filtros.tipo?.type === "multi" ? filtros.tipo.values : []) as string[];
-  const competenciaSel = filtros.competencia?.type === "single" ? filtros.competencia.value : "";
+  const planoSel = getMultiFilterValues(filtros, "plano");
+  const parceiroSel = getMultiFilterValues(filtros, "parceiro");
+  const vencSel = getMultiFilterValues(filtros, "vencimento");
+  const tipoSel = getMultiFilterValues(filtros, "tipo");
+  const competenciaSel = getSingleFilterValue(filtros, "competencia");
   const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
     sel.length === 0 ? all : sel.map(nameOf).filter(Boolean).join(", ");
   const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
