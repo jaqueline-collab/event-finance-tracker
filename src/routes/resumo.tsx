@@ -72,7 +72,7 @@ function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros,
     addLancamento, descontos, addDesconto, removeDesconto,
-    fechamentos, fechamentoItens, addFechamento, removeFechamento,
+    fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento,
   } = useStore();
   const { isAdmin } = useCurrentUserAccess();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
@@ -104,6 +104,7 @@ function ResumoPage() {
     const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   })();
+  const [competenciaNovoFechamento, setCompetenciaNovoFechamento] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const migrationKey = "elora.filters.resumo.competencia-optional";
@@ -117,7 +118,7 @@ function ResumoPage() {
     // roda uma única vez para limpar o chip fixo legado
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const fechamentoMes = competenciaSel || defaultCompetencia;
+  const fechamentoMes = competenciaNovoFechamento || competenciaSel || defaultCompetencia;
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
@@ -654,6 +655,16 @@ function ResumoPage() {
       return next;
     });
   };
+
+  const abrirNovoFechamento = (mesKey?: string) => {
+    const competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
+    setCompetenciaNovoFechamento(competencia);
+    setFiltros({
+      ...filtros,
+      competencia: { type: "single", value: competencia },
+    });
+    setFechamentoOpen(true);
+  };
   const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
     fechamentoData.ativos.every((c) => selectedClienteIds.has(c.id));
   const toggleTodos = () => {
@@ -1087,7 +1098,7 @@ function ResumoPage() {
         value={filtros}
         onChange={setFiltros}
         action={
-          <Button size="sm" className="h-8 gap-1.5" onClick={() => setFechamentoOpen(true)}>
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => abrirNovoFechamento()}>
             <FileText className="h-3.5 w-3.5" /> Gerar Fechamento
           </Button>
         }
@@ -1142,13 +1153,7 @@ function ResumoPage() {
                           size="sm"
                           variant="outline"
                           className="h-7 gap-1.5"
-                          onClick={() => {
-                            setFiltros({
-                              ...filtros,
-                              competencia: { type: "single", value: l.mesKey },
-                            });
-                            setFechamentoOpen(true);
-                          }}
+                          onClick={() => abrirNovoFechamento(l.mesKey)}
                         >
                           <Plus className="h-3.5 w-3.5" /> Novo fechamento
                         </Button>
@@ -1304,7 +1309,13 @@ function ResumoPage() {
       </AlertDialog>
 
       {/* Modal: Prévia do Fechamento */}
-      <Dialog open={fechamentoOpen} onOpenChange={setFechamentoOpen}>
+      <Dialog
+        open={fechamentoOpen}
+        onOpenChange={(open) => {
+          setFechamentoOpen(open);
+          if (!open) setCompetenciaNovoFechamento(null);
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
           {fechamentoData && (
             <>

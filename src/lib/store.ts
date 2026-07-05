@@ -133,6 +133,22 @@ const defaultPlanos: Plano[] = [
   { id: uid(), nome: "Scale", categoria: "elora", cobranca: "recorrente", duracaoValor: null, duracaoUnidade: null, valorMensal: 1197, valorSetup: 1997, canaisInclusos: 6, usuariosInclusos: 25, contatosInclusos: 10000, canaisWhatsInclusos: 2, canaisInstaInclusos: 2, canaisMessengerInclusos: 2, incluiIA: true, incluiAsaas: true, incluiZapi: 1, incluiTranscricao: true, licencaBase: 149.90, precoCanaisExc: 29.90, precoUsuariosExc: 19.90, precoContatosExc: 0.045, precoIA: 50.00, precoAsaas: 49.50, precoZapi: 69.00, precoTranscricaoUser: 3.99, precoCanalWhatsExc: 29.90, precoCanalInstaExc: 29.90, precoCanalMessengerExc: 29.90, valorCanaisExc: 59.90, valorUsuariosExc: 39.90, valorContatosExc: 0.10, valorIA: 99.00, valorAsaas: 89.00, valorZapi: 149.00, valorTranscricaoUser: 7.99, valorCanalWhatsExc: 59.90, valorCanalInstaExc: 59.90, valorCanalMessengerExc: 59.90, parceiroIds: [] },
 ];
 
+function normalizePersistedState(state: unknown): Partial<State> {
+  const s = state && typeof state === "object" ? (state as Partial<State>) : {};
+  return {
+    ...s,
+    custos: Array.isArray(s.custos) ? s.custos : defaultCustos,
+    planos: Array.isArray(s.planos) ? s.planos : defaultPlanos,
+    clientes: Array.isArray(s.clientes) ? s.clientes : [],
+    movimentos: Array.isArray(s.movimentos) ? s.movimentos : [],
+    parceiros: Array.isArray(s.parceiros) ? s.parceiros : [],
+    financeiro: Array.isArray(s.financeiro) ? s.financeiro : [],
+    descontos: Array.isArray(s.descontos) ? s.descontos : [],
+    fechamentos: Array.isArray(s.fechamentos) ? s.fechamentos : [],
+    fechamentoItens: Array.isArray(s.fechamentoItens) ? s.fechamentoItens : [],
+  };
+}
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
@@ -641,7 +657,15 @@ export const useStore = create<State>()(
         supabase.from("elora_clientes").insert(mapClienteToDb(demoCliente));
       },
     }),
-    { name: "elora-control-v1" },
+    {
+      name: "elora-control-v1",
+      version: 2,
+      migrate: (persistedState) => normalizePersistedState(persistedState),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...normalizePersistedState(persistedState),
+      }),
+    },
   ),
 );
 
