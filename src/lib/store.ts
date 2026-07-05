@@ -143,17 +143,21 @@ export const useStore = create<State>()(
       parceiros: [],
       financeiro: [],
       descontos: [],
+      fechamentos: [],
+      fechamentoItens: [],
 
       // Sincronização assíncrona
       syncFromSupabase: async () => {
         try {
-          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes, descRes] = await Promise.all([
+          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes, descRes, fechRes, fechItRes] = await Promise.all([
             supabase.from("elora_planos").select("*"),
             supabase.from("elora_parceiros").select("*"),
             supabase.from("elora_clientes").select("*"),
             supabase.from("elora_movimentos").select("*"),
             (supabase as any).from("elora_financeiro").select("*"),
             (supabase as any).from("elora_descontos").select("*"),
+            (supabase as any).from("elora_fechamentos").select("*"),
+            (supabase as any).from("elora_fechamento_itens").select("*"),
           ]);
 
           if (planosRes.data && planosRes.data.length > 0) {
@@ -173,6 +177,12 @@ export const useStore = create<State>()(
           }
           if (descRes?.data) {
             set({ descontos: descRes.data.map(mapDbToDesconto) });
+          }
+          if (fechRes?.data) {
+            set({ fechamentos: fechRes.data.map(mapDbToFechamento) });
+          }
+          if (fechItRes?.data) {
+            set({ fechamentoItens: fechItRes.data.map(mapDbToFechamentoItem) });
           }
         } catch (e) {
           console.error("Erro ao carregar dados do Supabase:", e);
