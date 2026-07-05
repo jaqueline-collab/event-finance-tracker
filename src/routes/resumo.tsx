@@ -41,6 +41,12 @@ function getSingleFilterValue(filtros: FilterState, key: string): string {
   return value.value;
 }
 
+function isValidCompetenciaKey(value: string): boolean {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false;
+  const [year, month] = value.split("-").map(Number);
+  return Number.isInteger(year) && Number.isInteger(month) && year >= 2000 && month >= 1 && month <= 12;
+}
+
 export const Route = createFileRoute("/resumo")({
   head: () => ({ meta: [{ title: "Resumo Mensal · Elora" }] }),
   component: ResumoPage,
@@ -53,7 +59,8 @@ function ResumoPage() {
   const parceiroSel = getMultiFilterValues(filtros, "parceiro");
   const vencSel = getMultiFilterValues(filtros, "vencimento");
   const tipoSel = getMultiFilterValues(filtros, "tipo");
-  const competenciaSel = getSingleFilterValue(filtros, "competencia");
+  const rawCompetenciaSel = getSingleFilterValue(filtros, "competencia");
+  const competenciaSel = isValidCompetenciaKey(rawCompetenciaSel) ? rawCompetenciaSel : "";
   const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
     sel.length === 0 ? all : sel.map(nameOf).filter(Boolean).join(", ");
   const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
@@ -660,6 +667,16 @@ function ResumoPage() {
     }
     return out;
   }, [today, clientesFiltrados, planos]);
+
+  useEffect(() => {
+    if (!rawCompetenciaSel) return;
+    const selecionadaExiste = opcoesFechamento.some((opcao) => opcao.key === rawCompetenciaSel);
+    if (!isValidCompetenciaKey(rawCompetenciaSel) || (opcoesFechamento.length > 0 && !selecionadaExiste)) {
+      const next = { ...filtros };
+      delete next.competencia;
+      setFiltros(next);
+    }
+  }, [rawCompetenciaSel, opcoesFechamento, filtros, setFiltros]);
 
   const fmtDelta = (label: string, v: number | undefined | null) => {
     if (v === undefined || v === null || v === 0) return null;
