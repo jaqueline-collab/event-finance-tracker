@@ -1,9 +1,32 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, X, Filter as FilterIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+function useOutsideClose(
+  ref: React.RefObject<HTMLElement | null>,
+  onClose: () => void,
+  enabled: boolean,
+) {
+  useEffect(() => {
+    if (!enabled) return;
+    const onDown = (e: MouseEvent) => {
+      const el = ref.current;
+      if (el && !el.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [ref, onClose, enabled]);
+}
 
 export type FilterFieldDef =
   | { key: string; label: string; type: "multi"; options: { value: string; label: string }[] }
@@ -97,6 +120,8 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
   });
   const availableFields = fields.filter((f) => !activeKeys.includes(f.key));
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+  useOutsideClose(addMenuRef, () => setAddMenuOpen(false), addMenuOpen);
 
   const setField = (key: string, v: FilterValue | null) => {
     const next = { ...normalizedValue };
@@ -123,7 +148,7 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
         );
       })}
       {availableFields.length > 0 && (
-        <div className="relative">
+        <div className="relative" ref={addMenuRef}>
           <Button
             type="button"
             variant="outline"
@@ -188,6 +213,8 @@ function FilterChip({
   removable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const chipRef = useRef<HTMLDivElement>(null);
+  useOutsideClose(chipRef, () => setOpen(false), open);
 
   const summary = (() => {
     if (field.type === "multi" && value.type === "multi") {
@@ -213,7 +240,7 @@ function FilterChip({
   })();
 
   return (
-    <div className="relative inline-flex">
+    <div className="relative inline-flex" ref={chipRef}>
       <div className="inline-flex items-center h-8 rounded-md bg-background border border-border/60 text-xs hover:border-primary/50 focus-within:ring-1 focus-within:ring-ring">
         <button
           type="button"
@@ -234,14 +261,6 @@ function FilterChip({
       </div>
       {open && (
       <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-md border border-border bg-popover p-3 text-popover-foreground shadow-md">
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline-none"
-          aria-label="Fechar"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
         {field.type === "multi" && value.type === "multi" && (
           <MultiPicker field={field} value={value} onChange={onChange} />
         )}
