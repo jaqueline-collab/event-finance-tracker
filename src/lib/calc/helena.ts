@@ -62,7 +62,7 @@ export function calcularCustoBrutoHelena(clientesAtivos: Cliente[]): number {
   let custoOpcionais = 0;
 
   for (const c of clientesAtivos) {
-    const canaisWhats = c.canaisWhats !== undefined ? c.canaisWhats : (c.canaisZapi || (c.zapi ? 1 : 0));
+    const canaisWhats = c.canaisWhats ?? 0;
     const canaisInsta = c.canaisInsta || 0;
     const canaisMessenger = c.canaisMessenger || 0;
 
@@ -77,7 +77,7 @@ export function calcularCustoBrutoHelena(clientesAtivos: Cliente[]): number {
     if (c.agentesIA) custoOpcionais += 50.00;
     if (c.asaas) custoOpcionais += 49.50;
 
-    const qtdZapi = Math.max(canaisWhats, (c.zapi ? 1 : 0));
+    const qtdZapi = c.canaisZapi ?? 0;
     custoOpcionais += qtdZapi * 69.00;
 
     if (c.transcricaoIA) custoOpcionais += (c.usuariosAtivos || 0) * 3.99;
