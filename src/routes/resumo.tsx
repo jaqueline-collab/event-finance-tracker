@@ -13,6 +13,17 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import { usePersistentFilters } from "@/hooks/use-persistent-filters";
+import { useCurrentUserAccess } from "@/lib/permissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   useStore, formatBRL, receitaCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
@@ -47,13 +58,23 @@ function isValidCompetenciaKey(value: string): boolean {
   return Number.isInteger(year) && Number.isInteger(month) && year >= 2000 && month >= 1 && month <= 12;
 }
 
+function formatCompetenciaLabel(y: number, m: number): string {
+  const mesNome = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long" });
+  return `${mesNome.charAt(0).toUpperCase()}${mesNome.slice(1)}/${y}`;
+}
+
 export const Route = createFileRoute("/resumo")({
-  head: () => ({ meta: [{ title: "Resumo Mensal · Elora" }] }),
+  head: () => ({ meta: [{ title: "Fechamento Mensal · Elora" }] }),
   component: ResumoPage,
 });
 
 function ResumoPage() {
-  const { clientes, planos, custos, movimentos, parceiros, addLancamento, descontos, addDesconto, removeDesconto } = useStore();
+  const {
+    clientes, planos, custos, movimentos, parceiros,
+    addLancamento, descontos, addDesconto, removeDesconto,
+    fechamentos, fechamentoItens, addFechamento, removeFechamento,
+  } = useStore();
+  const { isAdmin } = useCurrentUserAccess();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
   const planoSel = getMultiFilterValues(filtros, "plano");
   const parceiroSel = getMultiFilterValues(filtros, "parceiro");
