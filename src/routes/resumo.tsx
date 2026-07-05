@@ -898,7 +898,7 @@ function ResumoPage() {
   };
 
   // ====== Enviar para o módulo Financeiro ======
-  const enviarParaFinanceiro = () => {
+  const enviarParaFinanceiro = async () => {
     if (!fechamentoData || !fechamentoSelecionado) return;
     const { y, m, labelMes, cicloLabel } = fechamentoData;
     const detalhesPorCliente = fechamentoSelecionado.detalhes;
@@ -908,6 +908,38 @@ function ResumoPage() {
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+    // Quantidade de fechamentos já existentes nessa competência (para numerar o título)
+    const jaExistentes = fechamentos.filter((f) => f.competencia === competenciaKey).length;
+    const tituloFechamento = (descricaoConsolidada || "").trim()
+      || `${jaExistentes + 1}º fechamento · ${labelMes}`;
+    // Snapshot dos itens para persistência
+    const itensSnapshot = detalhesPorCliente.map((d) => ({
+      clienteId: d.cliente.id,
+      planoId: d.plano?.id ?? null,
+      cicloInicio: null as string | null,
+      cicloFim: null as string | null,
+      vencimento: d.venc ?? null,
+      valorBruto: Number(d.subtotal.toFixed(2)),
+      valorDesconto: Number(d.descontoCliente.toFixed(2)),
+      valorLiquido: Number(d.receita.toFixed(2)),
+      lancamentoFinanceiroId: null as string | null,
+      payloadSnapshot: {
+        clienteNome: d.cliente.nome,
+        planoNome: d.plano?.nome ?? null,
+        sistema: d.sistema,
+        acompanhamento: d.acomp,
+        ltvDias: d.ltvDias,
+        descontosCliente: d.descontosCliente,
+      } as Record<string, unknown>,
+    }));
+    // Preenche ciclo por item
+    for (let i = 0; i < detalhesPorCliente.length; i++) {
+      const c = detalhesPorCliente[i].cliente;
+      const cic = cicloDoCliente(c, y, m);
+      itensSnapshot[i].cicloInicio = cic.inicio.toISOString().slice(0, 10);
+      itensSnapshot[i].cicloFim = cic.fim.toISOString().slice(0, 10);
+    }
+
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
@@ -917,7 +949,7 @@ function ResumoPage() {
       const ultimoDia = new Date(y, m + 1, 0).getDate();
       const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
       const descricao = (descricaoConsolidada || "").trim() || `Fechamento ${labelMes} · ciclo ${cicloLabel}`;
-      addLancamento({
+      const lancId = addLancamento({
         descricao,
         tipo: "fechamento",
         categoria: "Receita",
@@ -927,6 +959,25 @@ function ResumoPage() {
         status: "pendente",
         nfEmitida: false,
       });
+      // Vincula todos os itens ao lançamento consolidado
+      for (const it of itensSnapshot) it.lancamentoFinanceiroId = lancId;
+      try {
+        await addFechamento(
+          {
+            competencia: competenciaKey,
+            titulo: tituloFechamento,
+            descricao: descricao,
+            status: "emitido",
+            totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
+            totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
+            totalLiquido: Number(totalReceita.toFixed(2)),
+            observacao: observacaoPdf.trim() || null,
+          },
+          itensSnapshot,
+        );
+      } catch (e) {
+        console.error(e);
+      }
       toast.success("1 lançamento consolidado enviado ao Financeiro.");
     } else {
       let n = 0;
@@ -936,7 +987,7 @@ function ResumoPage() {
         const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
         const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
           || d.cliente.nomeFinanceiro || d.cliente.nome;
-        addLancamento({
+        const lancId = addLancamento({
           descricao: descricaoCli,
           tipo: "fechamento",
           categoria: "Receita",
@@ -946,10 +997,30 @@ function ResumoPage() {
           status: "pendente",
           nfEmitida: false,
         });
+        const item = itensSnapshot.find((x) => x.clienteId === d.cliente.id);
+        if (item) item.lancamentoFinanceiroId = lancId;
         n++;
+      }
+      try {
+        await addFechamento(
+          {
+            competencia: competenciaKey,
+            titulo: tituloFechamento,
+            descricao: `Fechamento por cliente · ${labelMes}`,
+            status: "emitido",
+            totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
+            totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
+            totalLiquido: Number(totalReceita.toFixed(2)),
+            observacao: observacaoPdf.trim() || null,
+          },
+          itensSnapshot,
+        );
+      } catch (e) {
+        console.error(e);
       }
       toast.success(`${n} lançamento(s) por cliente enviado(s) ao Financeiro.`);
     }
+    setFechamentoOpen(false);
   };
 
   // ====== Enviar por e-mail (placeholder até configurar domínio) ======
