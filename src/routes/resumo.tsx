@@ -709,12 +709,9 @@ function ResumoPage() {
     const invalida = !isValidCompetenciaKey(rawCompetenciaSel);
     const foraDasOpcoes = keys.length > 0 && !keys.includes(rawCompetenciaSel);
     if (invalida || foraDasOpcoes) {
-      setFiltros((prev) => {
-        if (!prev.competencia) return prev;
-        const next = { ...prev };
-        delete next.competencia;
-        return next;
-      });
+      const next = { ...filtrosRef.current };
+      delete next.competencia;
+      setFiltros(next);
     }
   }, [rawCompetenciaSel, opcoesFechamentoKeys, setFiltros]);
 
