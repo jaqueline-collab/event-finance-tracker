@@ -37,7 +37,7 @@ import { useCurrentUserAccess, type ModuleKey } from "@/lib/permissions";
 const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
   { title: "Clientes", url: "/clientes", icon: Users, moduleKey: "clientes" },
-  { title: "Resumo Mensal", url: "/resumo", icon: CalendarRange, moduleKey: "resumo" },
+  { title: "Fechamento Mensal", url: "/resumo", icon: CalendarRange, moduleKey: "resumo" },
   { title: "Financeiro", url: "/financeiro", icon: Wallet, moduleKey: "financeiro" },
   { title: "Funil", url: "/orcamentos", icon: Kanban, moduleKey: "orcamentos" },
 ];

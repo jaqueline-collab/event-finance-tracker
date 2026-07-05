@@ -1,6 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cliente, CustoBase, Desconto, LancamentoFinanceiro, Movimento, Parceiro, Plano } from "./types";
+import type {
+  Cliente,
+  CustoBase,
+  Desconto,
+  Fechamento,
+  FechamentoItem,
+  LancamentoFinanceiro,
+  Movimento,
+  Parceiro,
+  Plano,
+} from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   mapPlanoToDb,
@@ -14,6 +24,10 @@ import {
   mapDbToFinanceiro,
   mapDescontoToDb,
   mapDbToDesconto,
+  mapFechamentoToDb,
+  mapDbToFechamento,
+  mapFechamentoItemToDb,
+  mapDbToFechamentoItem,
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
 
@@ -64,6 +78,8 @@ interface State {
   parceiros: Parceiro[];
   financeiro: LancamentoFinanceiro[];
   descontos: Desconto[];
+  fechamentos: Fechamento[];
+  fechamentoItens: FechamentoItem[];
   // sync
   syncFromSupabase: () => Promise<void>;
   // custos
@@ -93,6 +109,12 @@ interface State {
   addDesconto: (d: Omit<Desconto, "id">) => string;
   updateDesconto: (id: string, d: Partial<Desconto>) => void;
   removeDesconto: (id: string) => void;
+  // fechamentos
+  addFechamento: (
+    f: Omit<Fechamento, "id">,
+    itens: Omit<FechamentoItem, "id" | "fechamentoId">[],
+  ) => Promise<string>;
+  removeFechamento: (id: string) => Promise<void>;
   // reset
   resetAll: () => void;
   seedDemo: () => void;
@@ -121,17 +143,21 @@ export const useStore = create<State>()(
       parceiros: [],
       financeiro: [],
       descontos: [],
+      fechamentos: [],
+      fechamentoItens: [],
 
       // Sincronização assíncrona
       syncFromSupabase: async () => {
         try {
-          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes, descRes] = await Promise.all([
+          const [planosRes, parceirosRes, clientesRes, movimentosRes, finRes, descRes, fechRes, fechItRes] = await Promise.all([
             supabase.from("elora_planos").select("*"),
             supabase.from("elora_parceiros").select("*"),
             supabase.from("elora_clientes").select("*"),
             supabase.from("elora_movimentos").select("*"),
             (supabase as any).from("elora_financeiro").select("*"),
             (supabase as any).from("elora_descontos").select("*"),
+            (supabase as any).from("elora_fechamentos").select("*"),
+            (supabase as any).from("elora_fechamento_itens").select("*"),
           ]);
 
           if (planosRes.data && planosRes.data.length > 0) {
@@ -151,6 +177,12 @@ export const useStore = create<State>()(
           }
           if (descRes?.data) {
             set({ descontos: descRes.data.map(mapDbToDesconto) });
+          }
+          if (fechRes?.data) {
+            set({ fechamentos: fechRes.data.map(mapDbToFechamento) });
+          }
+          if (fechItRes?.data) {
+            set({ fechamentoItens: fechItRes.data.map(mapDbToFechamentoItem) });
           }
         } catch (e) {
           console.error("Erro ao carregar dados do Supabase:", e);
@@ -475,6 +507,78 @@ export const useStore = create<State>()(
         (supabase as any).from("elora_descontos").delete().eq("id", id).then(({ error }: any) => {
           if (error) console.error("Erro ao remover desconto:", error);
         });
+      },
+
+      // Fechamentos persistidos
+      addFechamento: async (f, itens) => {
+        const id = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
+          ? (crypto as any).randomUUID()
+          : uid();
+        const novo: Fechamento = { ...f, id };
+        const novosItens: FechamentoItem[] = itens.map((it) => ({
+          ...it,
+          id: (typeof crypto !== "undefined" && (crypto as any).randomUUID)
+            ? (crypto as any).randomUUID()
+            : uid(),
+          fechamentoId: id,
+        }));
+        set({
+          fechamentos: [...get().fechamentos, novo],
+          fechamentoItens: [...get().fechamentoItens, ...novosItens],
+        });
+        const { error: errF } = await (supabase as any)
+          .from("elora_fechamentos")
+          .insert(mapFechamentoToDb(novo));
+        if (errF) {
+          console.error("Erro ao salvar fechamento:", errF);
+          set({
+            fechamentos: get().fechamentos.filter((x) => x.id !== id),
+            fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
+          });
+          throw errF;
+        }
+        if (novosItens.length > 0) {
+          const { error: errI } = await (supabase as any)
+            .from("elora_fechamento_itens")
+            .insert(novosItens.map(mapFechamentoItemToDb));
+          if (errI) {
+            console.error("Erro ao salvar itens do fechamento:", errI);
+          }
+        }
+        return id;
+      },
+      removeFechamento: async (id) => {
+        const itens = get().fechamentoItens.filter((x) => x.fechamentoId === id);
+        const lancamentosVinculados = itens
+          .map((it) => it.lancamentoFinanceiroId)
+          .filter((x): x is string => Boolean(x));
+        set({
+          fechamentos: get().fechamentos.filter((x) => x.id !== id),
+          fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
+          financeiro: get().financeiro.filter((l) => !lancamentosVinculados.includes(l.id)),
+        });
+        // Remove lançamentos financeiros gerados pelo fechamento
+        if (lancamentosVinculados.length > 0) {
+          const { error: errFin } = await (supabase as any)
+            .from("elora_financeiro")
+            .delete()
+            .in("id", lancamentosVinculados);
+          if (errFin) console.error("Erro ao remover lançamentos vinculados:", errFin);
+        }
+        // CASCADE remove itens; ainda assim, deleta explicitamente por segurança
+        const { error: errI } = await (supabase as any)
+          .from("elora_fechamento_itens")
+          .delete()
+          .eq("fechamento_id", id);
+        if (errI) console.error("Erro ao remover itens do fechamento:", errI);
+        const { error: errF } = await (supabase as any)
+          .from("elora_fechamentos")
+          .delete()
+          .eq("id", id);
+        if (errF) {
+          console.error("Erro ao remover fechamento:", errF);
+          throw errF;
+        }
       },
 
       resetAll: () => {

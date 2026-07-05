@@ -181,3 +181,35 @@ export interface Desconto {
   recorrente: boolean;
   motivo?: string | null;
 }
+
+// ==== Fechamento Mensal persistido ====
+export type FechamentoStatus = "rascunho" | "emitido" | "cancelado";
+
+export interface Fechamento {
+  id: string;
+  competencia: string; // AAAA-MM
+  titulo: string;
+  descricao?: string | null;
+  status: FechamentoStatus;
+  criadoPor?: string | null;
+  totalBruto: number;
+  totalDesconto: number;
+  totalLiquido: number;
+  observacao?: string | null;
+  criadoEm?: string;
+}
+
+export interface FechamentoItem {
+  id: string;
+  fechamentoId: string;
+  clienteId: string;
+  planoId?: string | null;
+  cicloInicio?: string | null;
+  cicloFim?: string | null;
+  vencimento?: string | null;
+  valorBruto: number;
+  valorDesconto: number;
+  valorLiquido: number;
+  lancamentoFinanceiroId?: string | null;
+  payloadSnapshot?: Record<string, unknown> | null;
+}

@@ -256,6 +256,107 @@ export type Database = {
           },
         ]
       }
+      elora_fechamento_itens: {
+        Row: {
+          ciclo_fim: string | null
+          ciclo_inicio: string | null
+          cliente_id: string
+          criado_em: string
+          fechamento_id: string
+          id: string
+          lancamento_financeiro_id: string | null
+          payload_snapshot: Json | null
+          plano_id: string | null
+          valor_bruto: number
+          valor_desconto: number
+          valor_liquido: number
+          vencimento: string | null
+        }
+        Insert: {
+          ciclo_fim?: string | null
+          ciclo_inicio?: string | null
+          cliente_id: string
+          criado_em?: string
+          fechamento_id: string
+          id?: string
+          lancamento_financeiro_id?: string | null
+          payload_snapshot?: Json | null
+          plano_id?: string | null
+          valor_bruto?: number
+          valor_desconto?: number
+          valor_liquido?: number
+          vencimento?: string | null
+        }
+        Update: {
+          ciclo_fim?: string | null
+          ciclo_inicio?: string | null
+          cliente_id?: string
+          criado_em?: string
+          fechamento_id?: string
+          id?: string
+          lancamento_financeiro_id?: string | null
+          payload_snapshot?: Json | null
+          plano_id?: string | null
+          valor_bruto?: number
+          valor_desconto?: number
+          valor_liquido?: number
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_fechamento_itens_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "elora_fechamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_fechamentos: {
+        Row: {
+          atualizado_em: string
+          competencia: string
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          observacao: string | null
+          status: string
+          titulo: string
+          total_bruto: number
+          total_desconto: number
+          total_liquido: number
+        }
+        Insert: {
+          atualizado_em?: string
+          competencia: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          observacao?: string | null
+          status?: string
+          titulo: string
+          total_bruto?: number
+          total_desconto?: number
+          total_liquido?: number
+        }
+        Update: {
+          atualizado_em?: string
+          competencia?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          observacao?: string | null
+          status?: string
+          titulo?: string
+          total_bruto?: number
+          total_desconto?: number
+          total_liquido?: number
+        }
+        Relationships: []
+      }
       elora_financeiro: {
         Row: {
           categoria: string | null

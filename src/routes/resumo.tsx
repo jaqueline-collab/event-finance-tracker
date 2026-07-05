@@ -13,6 +13,17 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import { usePersistentFilters } from "@/hooks/use-persistent-filters";
+import { useCurrentUserAccess } from "@/lib/permissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   useStore, formatBRL, receitaCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
@@ -47,13 +58,23 @@ function isValidCompetenciaKey(value: string): boolean {
   return Number.isInteger(year) && Number.isInteger(month) && year >= 2000 && month >= 1 && month <= 12;
 }
 
+function formatCompetenciaLabel(y: number, m: number): string {
+  const mesNome = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long" });
+  return `${mesNome.charAt(0).toUpperCase()}${mesNome.slice(1)}/${y}`;
+}
+
 export const Route = createFileRoute("/resumo")({
-  head: () => ({ meta: [{ title: "Resumo Mensal · Elora" }] }),
+  head: () => ({ meta: [{ title: "Fechamento Mensal · Elora" }] }),
   component: ResumoPage,
 });
 
 function ResumoPage() {
-  const { clientes, planos, custos, movimentos, parceiros, addLancamento, descontos, addDesconto, removeDesconto } = useStore();
+  const {
+    clientes, planos, custos, movimentos, parceiros,
+    addLancamento, descontos, addDesconto, removeDesconto,
+    fechamentos, fechamentoItens, addFechamento, removeFechamento,
+  } = useStore();
+  const { isAdmin } = useCurrentUserAccess();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
   const planoSel = getMultiFilterValues(filtros, "plano");
   const parceiroSel = getMultiFilterValues(filtros, "parceiro");
@@ -75,6 +96,8 @@ function ResumoPage() {
       .trim();
   };
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
+  const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
+  const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const today = new Date();
   // Default = competência mais recente já encerrada (mês anterior).
   const defaultCompetencia = (() => {
@@ -223,11 +246,9 @@ function ResumoPage() {
     hoje: Date,
   ) => {
     if (!clienteAtivoNoCiclo(c, y, m)) return false;
-    // Elegível quando o vencimento da competência já passou (≤ hoje).
-    const venc = obterVencimentoDaCompetencia(c, y, m, planos);
-    if (!venc) return false;
-    const vd = new Date(`${venc}T12:00:00`);
-    return vd <= hoje;
+    // Elegível quando o último dia do ciclo já passou (ciclo.fim < hoje).
+    const ciclo = cicloDoCliente(c, y, m);
+    return ciclo.fim < hoje;
   };
 
   // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
@@ -306,7 +327,7 @@ function ResumoPage() {
       const receitaTotal = receita + setup + servicos;
       out.push({
         mesKey: competenciaKey,
-        mesLabel: cursor.toLocaleDateString("pt-BR", { month: "long", year: "2-digit" }),
+        mesLabel: formatCompetenciaLabel(y, m),
         ativos,
         novos,
         churns,
@@ -328,7 +349,7 @@ function ResumoPage() {
     const planoSelecionado = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
 
     pdf.setFontSize(18);
-    pdf.text("Resumo Mensal", 40, 42);
+    pdf.text("Fechamento Mensal", 40, 42);
     pdf.setFontSize(10);
     pdf.text(`Plano: ${planoSelecionado}`, 40, 62);
     pdf.text(`Gerado em: ${generatedAt}`, 40, 78);
@@ -401,7 +422,7 @@ function ResumoPage() {
     const [yStr, mStr] = fechamentoMes.split("-");
     const y = Number(yStr);
     const m = Number(mStr) - 1;
-    const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const labelMes = formatCompetenciaLabel(y, m);
 
     // A competência selecionada É o ciclo que está sendo fechado.
     // Ex.: competência Junho/2026 = ciclo 01/06 a 30/06, cobrado em ~05/07.
@@ -662,7 +683,7 @@ function ResumoPage() {
       }
       if (elegiveis === 0) continue;
       const key = `${y}-${String(m + 1).padStart(2, "0")}`;
-      const mesLabel = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const mesLabel = formatCompetenciaLabel(y, m);
       out.push({ key, label: mesLabel, elegiveis, aguardando });
     }
     return out;
@@ -879,7 +900,7 @@ function ResumoPage() {
   };
 
   // ====== Enviar para o módulo Financeiro ======
-  const enviarParaFinanceiro = () => {
+  const enviarParaFinanceiro = async () => {
     if (!fechamentoData || !fechamentoSelecionado) return;
     const { y, m, labelMes, cicloLabel } = fechamentoData;
     const detalhesPorCliente = fechamentoSelecionado.detalhes;
@@ -889,6 +910,38 @@ function ResumoPage() {
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+    // Quantidade de fechamentos já existentes nessa competência (para numerar o título)
+    const jaExistentes = fechamentos.filter((f) => f.competencia === competenciaKey).length;
+    const tituloFechamento = (descricaoConsolidada || "").trim()
+      || `${jaExistentes + 1}º fechamento · ${labelMes}`;
+    // Snapshot dos itens para persistência
+    const itensSnapshot = detalhesPorCliente.map((d) => ({
+      clienteId: d.cliente.id,
+      planoId: d.plano?.id ?? null,
+      cicloInicio: null as string | null,
+      cicloFim: null as string | null,
+      vencimento: d.venc ?? null,
+      valorBruto: Number(d.subtotal.toFixed(2)),
+      valorDesconto: Number(d.descontoCliente.toFixed(2)),
+      valorLiquido: Number(d.receita.toFixed(2)),
+      lancamentoFinanceiroId: null as string | null,
+      payloadSnapshot: {
+        clienteNome: d.cliente.nome,
+        planoNome: d.plano?.nome ?? null,
+        sistema: d.sistema,
+        acompanhamento: d.acomp,
+        ltvDias: d.ltvDias,
+        descontosCliente: d.descontosCliente,
+      } as Record<string, unknown>,
+    }));
+    // Preenche ciclo por item
+    for (let i = 0; i < detalhesPorCliente.length; i++) {
+      const c = detalhesPorCliente[i].cliente;
+      const cic = cicloDoCliente(c, y, m);
+      itensSnapshot[i].cicloInicio = cic.inicio.toISOString().slice(0, 10);
+      itensSnapshot[i].cicloFim = cic.fim.toISOString().slice(0, 10);
+    }
+
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
@@ -898,7 +951,7 @@ function ResumoPage() {
       const ultimoDia = new Date(y, m + 1, 0).getDate();
       const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
       const descricao = (descricaoConsolidada || "").trim() || `Fechamento ${labelMes} · ciclo ${cicloLabel}`;
-      addLancamento({
+      const lancId = addLancamento({
         descricao,
         tipo: "fechamento",
         categoria: "Receita",
@@ -908,6 +961,25 @@ function ResumoPage() {
         status: "pendente",
         nfEmitida: false,
       });
+      // Vincula todos os itens ao lançamento consolidado
+      for (const it of itensSnapshot) it.lancamentoFinanceiroId = lancId;
+      try {
+        await addFechamento(
+          {
+            competencia: competenciaKey,
+            titulo: tituloFechamento,
+            descricao: descricao,
+            status: "emitido",
+            totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
+            totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
+            totalLiquido: Number(totalReceita.toFixed(2)),
+            observacao: observacaoPdf.trim() || null,
+          },
+          itensSnapshot,
+        );
+      } catch (e) {
+        console.error(e);
+      }
       toast.success("1 lançamento consolidado enviado ao Financeiro.");
     } else {
       let n = 0;
@@ -917,7 +989,7 @@ function ResumoPage() {
         const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
         const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
           || d.cliente.nomeFinanceiro || d.cliente.nome;
-        addLancamento({
+        const lancId = addLancamento({
           descricao: descricaoCli,
           tipo: "fechamento",
           categoria: "Receita",
@@ -927,10 +999,30 @@ function ResumoPage() {
           status: "pendente",
           nfEmitida: false,
         });
+        const item = itensSnapshot.find((x) => x.clienteId === d.cliente.id);
+        if (item) item.lancamentoFinanceiroId = lancId;
         n++;
+      }
+      try {
+        await addFechamento(
+          {
+            competencia: competenciaKey,
+            titulo: tituloFechamento,
+            descricao: `Fechamento por cliente · ${labelMes}`,
+            status: "emitido",
+            totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
+            totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
+            totalLiquido: Number(totalReceita.toFixed(2)),
+            observacao: observacaoPdf.trim() || null,
+          },
+          itensSnapshot,
+        );
+      } catch (e) {
+        console.error(e);
       }
       toast.success(`${n} lançamento(s) por cliente enviado(s) ao Financeiro.`);
     }
+    setFechamentoOpen(false);
   };
 
   // ====== Enviar por e-mail (placeholder até configurar domínio) ======
@@ -949,8 +1041,8 @@ function ResumoPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Resumo Mensal</h1>
-          <p className="text-muted-foreground text-sm">Receita e custo sistêmico por mês, considerando o próximo vencimento após o setup</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Fechamento Mensal</h1>
+          <p className="text-muted-foreground text-sm">Cada competência agrupa os fechamentos gerados. Clientes ficam disponíveis assim que o último dia do ciclo passa.</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setPreviewOpen(true)} disabled={linhas.length === 0} variant="outline" className="gap-2">
@@ -971,7 +1063,13 @@ function ResumoPage() {
             type: "single",
             options: opcoesFechamento.length > 0
               ? opcoesFechamento.map((o) => ({ value: o.key, label: o.label }))
-              : [{ value: defaultCompetencia, label: new Date(`${defaultCompetencia}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) }],
+              : [{
+                  value: defaultCompetencia,
+                  label: formatCompetenciaLabel(
+                    Number(defaultCompetencia.slice(0, 4)),
+                    Number(defaultCompetencia.slice(5, 7)) - 1,
+                  ),
+                }],
           },
           {
             key: "tipo",
@@ -997,8 +1095,10 @@ function ResumoPage() {
 
       <Card className="border-border/60">
         <CardHeader>
-          <CardTitle>Histórico</CardTitle>
-          <CardDescription>Inclui mensalidades recorrentes, setups e serviços avulsos. Custo sistêmico líquido.</CardDescription>
+          <CardTitle>Fechamentos</CardTitle>
+          <CardDescription>
+            Cada competência agrupa os fechamentos gerados. Expanda para ver os fechamentos, as contas incluídas e os detalhes de cada conta.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -1006,108 +1106,158 @@ function ResumoPage() {
               <TableRow>
                 <TableHead className="w-[30px]"></TableHead>
                 <TableHead>Mês de Competência</TableHead>
-                <TableHead>Data de vencimento</TableHead>
+                <TableHead className="text-right">Fechamentos</TableHead>
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
-                <TableHead className="text-right">Receita Total</TableHead>
-                <TableHead className="text-right">Custo Sistêmico</TableHead>
+                <TableHead className="text-right">Total faturado</TableHead>
+                <TableHead className="text-right w-[180px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {linhas.map((l) => {
                 const isExpanded = expandedMes === l.mesKey;
+                const fechDaComp = fechamentos
+                  .filter((f) => f.competencia === l.mesKey)
+                  .sort((a, b) => (b.criadoEm ?? "").localeCompare(a.criadoEm ?? ""));
+                const totalFechado = fechDaComp.reduce((s, f) => s + f.totalLiquido, 0);
                 return (
                   <Fragment key={l.mesKey}>
                     <TableRow
                       className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => setExpandedMes(isExpanded ? null : l.mesKey)}
+                      onClick={() => {
+                        setExpandedMes(isExpanded ? null : l.mesKey);
+                        setExpandedFechamento(null);
+                      }}
                     >
                       <TableCell className="text-muted-foreground">
                         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </TableCell>
-                      <TableCell className="font-medium capitalize">{l.mesLabel}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {(() => {
-                          const y = Number(l.mesKey.slice(0, 4));
-                          const m = Number(l.mesKey.slice(5, 7)) - 1;
-                          const vencs = Array.from(
-                            new Set(
-                              l.ativos
-                                .map((c) => obterVencimentoDaCompetencia(c, y, m, planos))
-                                .filter((v): v is string => Boolean(v)),
-                            ),
-                          ).sort();
-                          if (vencs.length === 0) return "—";
-                          if (vencs.length === 1)
-                            return new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR");
-                          return `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
-                        })()}
-                      </TableCell>
+                      <TableCell className="font-medium">{l.mesLabel}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{fechDaComp.length}</TableCell>
                       <TableCell className="text-right text-accent">+{l.novos}</TableCell>
                       <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
-                      <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
-                      <TableCell className="text-right text-yellow-400">{formatBRL(l.custoHelena)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatBRL(totalFechado)}</TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1.5"
+                          onClick={() => {
+                            setFiltros({
+                              ...filtros,
+                              competencia: { type: "single", value: l.mesKey },
+                            });
+                            setFechamentoOpen(true);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Novo fechamento
+                        </Button>
+                      </TableCell>
                     </TableRow>
 
                     {isExpanded && (
                       <TableRow key={`${l.mesKey}-detail`} className="bg-muted/10 hover:bg-muted/10">
                         <TableCell colSpan={7} className="py-0">
-                          <div className="py-3 px-2">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                              Clientes faturados em {l.mesLabel}
-                            </p>
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="text-xs text-muted-foreground border-b border-border/40">
-                                  <th className="text-left pb-1 font-medium">Cliente</th>
-                                  <th className="text-left pb-1 font-medium">Plano</th>
-                                  <th className="text-right pb-1 font-medium">Vencimento</th>
-                                  <th className="text-right pb-1 font-medium">Status</th>
-                                  <th className="text-right pb-1 font-medium">Receita/mês</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {l.ativos.map((c) => {
-                                  const plano = planos.find((p) => p.id === c.planoId);
-                                  const linhaInfo = l.receitaPorCliente.get(c.id);
-                                  const rec = linhaInfo?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, Number(l.mesKey.slice(0,4)), Number(l.mesKey.slice(5,7)) - 1);
-                                  const recBruto = linhaInfo?.bruto ?? rec;
-                                  const temDesconto = linhaInfo ? linhaInfo.desconto > 0 : false;
-                                  return (
-                                    <tr
-                                      key={c.id}
-                                      className="border-b border-border/20 last:border-0 cursor-pointer hover:bg-muted/30 transition-colors"
-                                      onClick={() => setHistoricoCliente({ clienteId: c.id, mesKey: l.mesKey })}
-                                      title="Ver histórico do cliente no mês"
-                                    >
-                                      <td className="py-1.5 font-medium text-primary underline-offset-2 hover:underline">{c.nome}</td>
-                                      <td className="py-1.5 text-muted-foreground">{abreviarPlano(plano?.nome)}</td>
-                                      <td className="py-1.5 text-right text-muted-foreground text-xs">
-                                        {(() => {
-                                          const vencimento = obterVencimentoDaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1, planos);
-                                          return vencimento ? new Date(`${vencimento}T12:00:00`).toLocaleDateString("pt-BR") : "—";
-                                        })()}
-                                      </td>
-                                      <td className="py-1.5 text-right">
-                                        {clienteJaChurnouNaCompetencia(c, Number(l.mesKey.slice(0, 4)), Number(l.mesKey.slice(5, 7)) - 1)
-                                          ? <Badge variant="destructive" className="text-xs">Churn</Badge>
-                                          : <Badge className="bg-accent/20 text-accent text-xs">Ativo</Badge>}
-                                      </td>
-                                      <td className="py-1.5 text-right text-primary font-medium">
-                                        {temDesconto ? (
-                                          <div className="flex flex-col items-end leading-tight">
-                                            <span className="line-through text-[10px] text-muted-foreground font-normal">{formatBRL(recBruto)}</span>
-                                            <span>{formatBRL(rec)}</span>
-                                          </div>
-                                        ) : (
-                                          formatBRL(rec)
-                                        )}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                          <div className="py-3 pl-6 pr-2 space-y-2">
+                            {fechDaComp.length === 0 && (
+                              <div className="text-xs text-muted-foreground py-2">
+                                Nenhum fechamento criado nesta competência ainda. Use “Novo fechamento” para gerar um.
+                              </div>
+                            )}
+                            {fechDaComp.map((f) => {
+                              const isFechExpanded = expandedFechamento === f.id;
+                              const itens = fechamentoItens.filter((i) => i.fechamentoId === f.id);
+                              const criadoEmLabel = f.criadoEm
+                                ? new Date(f.criadoEm).toLocaleDateString("pt-BR")
+                                : "—";
+                              return (
+                                <div key={f.id} className="rounded border border-border/50 bg-background/40">
+                                  <div
+                                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30"
+                                    onClick={() => setExpandedFechamento(isFechExpanded ? null : f.id)}
+                                  >
+                                    {isFechExpanded
+                                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                      : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="font-medium text-sm">{f.titulo}</span>
+                                    <Badge variant="outline" className="text-[10px] ml-1">{itens.length} conta(s)</Badge>
+                                    <span className="ml-auto flex items-center gap-3">
+                                      <span className="text-xs text-muted-foreground">{criadoEmLabel}</span>
+                                      <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
+                                      {isAdmin && (
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7"
+                                          title="Excluir fechamento"
+                                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                        </Button>
+                                      )}
+                                    </span>
+                                  </div>
+                                  {isFechExpanded && (
+                                    <div className="border-t border-border/40 px-3 py-2">
+                                      <table className="w-full text-sm">
+                                        <thead>
+                                          <tr className="text-xs text-muted-foreground border-b border-border/40">
+                                            <th className="text-left pb-1 font-medium">Cliente</th>
+                                            <th className="text-left pb-1 font-medium">Plano</th>
+                                            <th className="text-right pb-1 font-medium">Ciclo</th>
+                                            <th className="text-right pb-1 font-medium">Vencimento</th>
+                                            <th className="text-right pb-1 font-medium">Total</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {itens.map((it) => {
+                                            const cli = clientes.find((c) => c.id === it.clienteId);
+                                            const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                                            const nome = cli?.nome ?? snap.clienteNome ?? "—";
+                                            const planoNome = planos.find((p) => p.id === it.planoId)?.nome ?? snap.planoNome ?? null;
+                                            return (
+                                              <tr
+                                                key={it.id}
+                                                className="border-b border-border/20 last:border-0 cursor-pointer hover:bg-muted/30 transition-colors"
+                                                onClick={() => setHistoricoCliente({ clienteId: it.clienteId, mesKey: l.mesKey })}
+                                                title="Ver detalhes desta conta"
+                                              >
+                                                <td className="py-1.5 font-medium text-primary underline-offset-2 hover:underline">{nome}</td>
+                                                <td className="py-1.5 text-muted-foreground">{abreviarPlano(planoNome)}</td>
+                                                <td className="py-1.5 text-right text-muted-foreground text-xs">
+                                                  {it.cicloInicio && it.cicloFim
+                                                    ? `${new Date(`${it.cicloInicio}T12:00:00`).toLocaleDateString("pt-BR")} → ${new Date(`${it.cicloFim}T12:00:00`).toLocaleDateString("pt-BR")}`
+                                                    : "—"}
+                                                </td>
+                                                <td className="py-1.5 text-right text-muted-foreground text-xs">
+                                                  {it.vencimento
+                                                    ? new Date(`${it.vencimento}T12:00:00`).toLocaleDateString("pt-BR")
+                                                    : "—"}
+                                                </td>
+                                                <td className="py-1.5 text-right text-primary font-medium">
+                                                  {it.valorDesconto > 0 ? (
+                                                    <div className="flex flex-col items-end leading-tight">
+                                                      <span className="line-through text-[10px] text-muted-foreground font-normal">{formatBRL(it.valorBruto)}</span>
+                                                      <span>{formatBRL(it.valorLiquido)}</span>
+                                                    </div>
+                                                  ) : (
+                                                    formatBRL(it.valorLiquido)
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                          {itens.length === 0 && (
+                                            <tr><td colSpan={5} className="py-2 text-center text-xs text-muted-foreground">Fechamento sem contas.</td></tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1116,12 +1266,42 @@ function ResumoPage() {
                 );
               })}
               {linhas.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cadastre clientes para ver o resumo.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cadastre clientes para começar a gerar fechamentos.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Confirm delete fechamento (admin only) */}
+      <AlertDialog open={!!confirmDeleteFech} onOpenChange={(o) => !o && setConfirmDeleteFech(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir fechamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação também remove os lançamentos financeiros gerados por este fechamento, se houver. Não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDeleteFech) return;
+                try {
+                  await removeFechamento(confirmDeleteFech);
+                  toast.success("Fechamento excluído.");
+                } catch {
+                  toast.error("Falha ao excluir fechamento.");
+                }
+                setConfirmDeleteFech(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal: Prévia do Fechamento */}
       <Dialog open={fechamentoOpen} onOpenChange={setFechamentoOpen}>
@@ -1662,7 +1842,7 @@ function ResumoPage() {
             const acompFim = snapFim.valorAcompanhamento || 0;
             const recCiclo = receitaCicloCliente(cli, planos, custos, movimentos, y, m);
             const venc = obterVencimentoDaCompetencia(cli, y, m, planos);
-            const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            const labelMes = formatCompetenciaLabel(y, m);
             const competenciaKeyDrawer = `${y}-${String(m + 1).padStart(2, "0")}`;
             const descsClienteDrawer = descontosAplicaveis(descontos, competenciaKeyDrawer, "cliente", cli.id);
             const resDescDrawer = calcularDesconto(recCiclo, descsClienteDrawer);

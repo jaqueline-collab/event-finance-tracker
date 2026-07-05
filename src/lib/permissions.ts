@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const MODULES = [
   { key: "dashboard", label: "Dashboard", url: "/" },
   { key: "clientes", label: "Clientes", url: "/clientes" },
-  { key: "resumo", label: "Resumo Mensal", url: "/resumo" },
+  { key: "resumo", label: "Fechamento Mensal", url: "/resumo" },
   { key: "financeiro", label: "Financeiro", url: "/financeiro" },
   { key: "orcamentos", label: "Funil", url: "/orcamentos" },
   { key: "planos", label: "Planos", url: "/planos" },
