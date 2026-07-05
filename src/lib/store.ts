@@ -509,6 +509,78 @@ export const useStore = create<State>()(
         });
       },
 
+      // Fechamentos persistidos
+      addFechamento: async (f, itens) => {
+        const id = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
+          ? (crypto as any).randomUUID()
+          : uid();
+        const novo: Fechamento = { ...f, id };
+        const novosItens: FechamentoItem[] = itens.map((it) => ({
+          ...it,
+          id: (typeof crypto !== "undefined" && (crypto as any).randomUUID)
+            ? (crypto as any).randomUUID()
+            : uid(),
+          fechamentoId: id,
+        }));
+        set({
+          fechamentos: [...get().fechamentos, novo],
+          fechamentoItens: [...get().fechamentoItens, ...novosItens],
+        });
+        const { error: errF } = await (supabase as any)
+          .from("elora_fechamentos")
+          .insert(mapFechamentoToDb(novo));
+        if (errF) {
+          console.error("Erro ao salvar fechamento:", errF);
+          set({
+            fechamentos: get().fechamentos.filter((x) => x.id !== id),
+            fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
+          });
+          throw errF;
+        }
+        if (novosItens.length > 0) {
+          const { error: errI } = await (supabase as any)
+            .from("elora_fechamento_itens")
+            .insert(novosItens.map(mapFechamentoItemToDb));
+          if (errI) {
+            console.error("Erro ao salvar itens do fechamento:", errI);
+          }
+        }
+        return id;
+      },
+      removeFechamento: async (id) => {
+        const itens = get().fechamentoItens.filter((x) => x.fechamentoId === id);
+        const lancamentosVinculados = itens
+          .map((it) => it.lancamentoFinanceiroId)
+          .filter((x): x is string => Boolean(x));
+        set({
+          fechamentos: get().fechamentos.filter((x) => x.id !== id),
+          fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
+          financeiro: get().financeiro.filter((l) => !lancamentosVinculados.includes(l.id)),
+        });
+        // Remove lançamentos financeiros gerados pelo fechamento
+        if (lancamentosVinculados.length > 0) {
+          const { error: errFin } = await (supabase as any)
+            .from("elora_financeiro")
+            .delete()
+            .in("id", lancamentosVinculados);
+          if (errFin) console.error("Erro ao remover lançamentos vinculados:", errFin);
+        }
+        // CASCADE remove itens; ainda assim, deleta explicitamente por segurança
+        const { error: errI } = await (supabase as any)
+          .from("elora_fechamento_itens")
+          .delete()
+          .eq("fechamento_id", id);
+        if (errI) console.error("Erro ao remover itens do fechamento:", errI);
+        const { error: errF } = await (supabase as any)
+          .from("elora_fechamentos")
+          .delete()
+          .eq("id", id);
+        if (errF) {
+          console.error("Erro ao remover fechamento:", errF);
+          throw errF;
+        }
+      },
+
       resetAll: () => {
         set({ custos: defaultCustos, planos: defaultPlanos, clientes: [], movimentos: [], parceiros: [] });
         // Limpar nuvem
