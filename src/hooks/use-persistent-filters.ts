@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FilterState } from "@/components/filter-bar";
 
 const PREFIX = "elora.filters.";
@@ -57,9 +57,9 @@ export function usePersistentFilters(
     }
   });
 
-  const setNormalizedState = (next: FilterState) => {
+  const setNormalizedState = useCallback((next: FilterState) => {
     setState(normalizeFilterState(next));
-  };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

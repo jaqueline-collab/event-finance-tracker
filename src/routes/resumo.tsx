@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -1017,9 +1017,8 @@ function ResumoPage() {
               {linhas.map((l) => {
                 const isExpanded = expandedMes === l.mesKey;
                 return (
-                  <>
+                  <Fragment key={l.mesKey}>
                     <TableRow
-                      key={l.mesKey}
                       className="cursor-pointer hover:bg-muted/30 transition-colors"
                       onClick={() => setExpandedMes(isExpanded ? null : l.mesKey)}
                     >
@@ -1113,7 +1112,7 @@ function ResumoPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
               {linhas.length === 0 && (
