@@ -1,6 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cliente, CustoBase, Desconto, LancamentoFinanceiro, Movimento, Parceiro, Plano } from "./types";
+import type {
+  Cliente,
+  CustoBase,
+  Desconto,
+  Fechamento,
+  FechamentoItem,
+  LancamentoFinanceiro,
+  Movimento,
+  Parceiro,
+  Plano,
+} from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   mapPlanoToDb,
@@ -14,6 +24,10 @@ import {
   mapDbToFinanceiro,
   mapDescontoToDb,
   mapDbToDesconto,
+  mapFechamentoToDb,
+  mapDbToFechamento,
+  mapFechamentoItemToDb,
+  mapDbToFechamentoItem,
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
 
@@ -64,6 +78,8 @@ interface State {
   parceiros: Parceiro[];
   financeiro: LancamentoFinanceiro[];
   descontos: Desconto[];
+  fechamentos: Fechamento[];
+  fechamentoItens: FechamentoItem[];
   // sync
   syncFromSupabase: () => Promise<void>;
   // custos
@@ -93,6 +109,12 @@ interface State {
   addDesconto: (d: Omit<Desconto, "id">) => string;
   updateDesconto: (id: string, d: Partial<Desconto>) => void;
   removeDesconto: (id: string) => void;
+  // fechamentos
+  addFechamento: (
+    f: Omit<Fechamento, "id">,
+    itens: Omit<FechamentoItem, "id" | "fechamentoId">[],
+  ) => Promise<string>;
+  removeFechamento: (id: string) => Promise<void>;
   // reset
   resetAll: () => void;
   seedDemo: () => void;
