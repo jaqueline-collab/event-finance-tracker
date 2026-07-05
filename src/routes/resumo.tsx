@@ -660,10 +660,6 @@ function ResumoPage() {
   const abrirNovoFechamento = (mesKey?: string) => {
     const competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
     setCompetenciaNovoFechamento(competencia);
-    setFiltros({
-      ...filtros,
-      competencia: { type: "single", value: competencia },
-    });
     setFechamentoOpen(true);
   };
   const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
@@ -701,15 +697,26 @@ function ResumoPage() {
     return out;
   }, [today, clientesFiltrados, planos]);
 
+  // Chaves estáveis das opções de fechamento — usadas para reagir a mudanças
+  // sem recomputar o efeito quando qualquer outro filtro muda.
+  const opcoesFechamentoKeys = useMemo(
+    () => opcoesFechamento.map((o) => o.key).join("|"),
+    [opcoesFechamento],
+  );
   useEffect(() => {
     if (!rawCompetenciaSel) return;
-    const selecionadaExiste = opcoesFechamento.some((opcao) => opcao.key === rawCompetenciaSel);
-    if (!isValidCompetenciaKey(rawCompetenciaSel) || (opcoesFechamento.length > 0 && !selecionadaExiste)) {
-      const next = { ...filtros };
-      delete next.competencia;
-      setFiltros(next);
+    const keys = opcoesFechamentoKeys ? opcoesFechamentoKeys.split("|") : [];
+    const invalida = !isValidCompetenciaKey(rawCompetenciaSel);
+    const foraDasOpcoes = keys.length > 0 && !keys.includes(rawCompetenciaSel);
+    if (invalida || foraDasOpcoes) {
+      setFiltros((prev) => {
+        if (!prev.competencia) return prev;
+        const next = { ...prev };
+        delete next.competencia;
+        return next;
+      });
     }
-  }, [rawCompetenciaSel, opcoesFechamento, filtros, setFiltros]);
+  }, [rawCompetenciaSel, opcoesFechamentoKeys, setFiltros]);
 
   const fmtDelta = (label: string, v: number | undefined | null) => {
     if (v === undefined || v === null || v === 0) return null;
