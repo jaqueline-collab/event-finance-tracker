@@ -347,7 +347,7 @@ function ResumoPage() {
     const planoSelecionado = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
 
     pdf.setFontSize(18);
-    pdf.text("Resumo Mensal", 40, 42);
+    pdf.text("Fechamento Mensal", 40, 42);
     pdf.setFontSize(10);
     pdf.text(`Plano: ${planoSelecionado}`, 40, 62);
     pdf.text(`Gerado em: ${generatedAt}`, 40, 78);
@@ -990,7 +990,13 @@ function ResumoPage() {
             type: "single",
             options: opcoesFechamento.length > 0
               ? opcoesFechamento.map((o) => ({ value: o.key, label: o.label }))
-              : [{ value: defaultCompetencia, label: new Date(`${defaultCompetencia}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) }],
+              : [{
+                  value: defaultCompetencia,
+                  label: formatCompetenciaLabel(
+                    Number(defaultCompetencia.slice(0, 4)),
+                    Number(defaultCompetencia.slice(5, 7)) - 1,
+                  ),
+                }],
           },
           {
             key: "tipo",
@@ -1681,7 +1687,7 @@ function ResumoPage() {
             const acompFim = snapFim.valorAcompanhamento || 0;
             const recCiclo = receitaCicloCliente(cli, planos, custos, movimentos, y, m);
             const venc = obterVencimentoDaCompetencia(cli, y, m, planos);
-            const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            const labelMes = formatCompetenciaLabel(y, m);
             const competenciaKeyDrawer = `${y}-${String(m + 1).padStart(2, "0")}`;
             const descsClienteDrawer = descontosAplicaveis(descontos, competenciaKeyDrawer, "cliente", cli.id);
             const resDescDrawer = calcularDesconto(recCiclo, descsClienteDrawer);
