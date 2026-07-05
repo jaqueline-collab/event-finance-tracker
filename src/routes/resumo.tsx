@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,24 @@ import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 
+function getMultiFilterValues(filtros: FilterState, key: string): string[] {
+  const value = filtros[key];
+  if (!value || value.type !== "multi" || !Array.isArray(value.values)) return [];
+  return value.values.filter((v): v is string => typeof v === "string");
+}
+
+function getSingleFilterValue(filtros: FilterState, key: string): string {
+  const value = filtros[key];
+  if (!value || value.type !== "single" || typeof value.value !== "string") return "";
+  return value.value;
+}
+
+function isValidCompetenciaKey(value: string): boolean {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false;
+  const [year, month] = value.split("-").map(Number);
+  return Number.isInteger(year) && Number.isInteger(month) && year >= 2000 && month >= 1 && month <= 12;
+}
+
 export const Route = createFileRoute("/resumo")({
   head: () => ({ meta: [{ title: "Resumo Mensal · Elora" }] }),
   component: ResumoPage,
@@ -37,11 +55,12 @@ export const Route = createFileRoute("/resumo")({
 function ResumoPage() {
   const { clientes, planos, custos, movimentos, parceiros, addLancamento, descontos, addDesconto, removeDesconto } = useStore();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
-  const planoSel = (filtros.plano?.type === "multi" ? filtros.plano.values : []) as string[];
-  const parceiroSel = (filtros.parceiro?.type === "multi" ? filtros.parceiro.values : []) as string[];
-  const vencSel = (filtros.vencimento?.type === "multi" ? filtros.vencimento.values : []) as string[];
-  const tipoSel = (filtros.tipo?.type === "multi" ? filtros.tipo.values : []) as string[];
-  const competenciaSel = filtros.competencia?.type === "single" ? filtros.competencia.value : "";
+  const planoSel = getMultiFilterValues(filtros, "plano");
+  const parceiroSel = getMultiFilterValues(filtros, "parceiro");
+  const vencSel = getMultiFilterValues(filtros, "vencimento");
+  const tipoSel = getMultiFilterValues(filtros, "tipo");
+  const rawCompetenciaSel = getSingleFilterValue(filtros, "competencia");
+  const competenciaSel = isValidCompetenciaKey(rawCompetenciaSel) ? rawCompetenciaSel : "";
   const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
     sel.length === 0 ? all : sel.map(nameOf).filter(Boolean).join(", ");
   const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
@@ -649,6 +668,16 @@ function ResumoPage() {
     return out;
   }, [today, clientesFiltrados, planos]);
 
+  useEffect(() => {
+    if (!rawCompetenciaSel) return;
+    const selecionadaExiste = opcoesFechamento.some((opcao) => opcao.key === rawCompetenciaSel);
+    if (!isValidCompetenciaKey(rawCompetenciaSel) || (opcoesFechamento.length > 0 && !selecionadaExiste)) {
+      const next = { ...filtros };
+      delete next.competencia;
+      setFiltros(next);
+    }
+  }, [rawCompetenciaSel, opcoesFechamento, filtros, setFiltros]);
+
   const fmtDelta = (label: string, v: number | undefined | null) => {
     if (v === undefined || v === null || v === 0) return null;
     const sign = v > 0 ? "+" : "";
@@ -988,9 +1017,8 @@ function ResumoPage() {
               {linhas.map((l) => {
                 const isExpanded = expandedMes === l.mesKey;
                 return (
-                  <>
+                  <Fragment key={l.mesKey}>
                     <TableRow
-                      key={l.mesKey}
                       className="cursor-pointer hover:bg-muted/30 transition-colors"
                       onClick={() => setExpandedMes(isExpanded ? null : l.mesKey)}
                     >
@@ -1084,7 +1112,7 @@ function ResumoPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
               {linhas.length === 0 && (
