@@ -244,11 +244,9 @@ function ResumoPage() {
     hoje: Date,
   ) => {
     if (!clienteAtivoNoCiclo(c, y, m)) return false;
-    // Elegível quando o vencimento da competência já passou (≤ hoje).
-    const venc = obterVencimentoDaCompetencia(c, y, m, planos);
-    if (!venc) return false;
-    const vd = new Date(`${venc}T12:00:00`);
-    return vd <= hoje;
+    // Elegível quando o último dia do ciclo já passou (ciclo.fim < hoje).
+    const ciclo = cicloDoCliente(c, y, m);
+    return ciclo.fim < hoje;
   };
 
   // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
@@ -327,7 +325,7 @@ function ResumoPage() {
       const receitaTotal = receita + setup + servicos;
       out.push({
         mesKey: competenciaKey,
-        mesLabel: cursor.toLocaleDateString("pt-BR", { month: "long", year: "2-digit" }),
+        mesLabel: formatCompetenciaLabel(y, m),
         ativos,
         novos,
         churns,
@@ -422,7 +420,7 @@ function ResumoPage() {
     const [yStr, mStr] = fechamentoMes.split("-");
     const y = Number(yStr);
     const m = Number(mStr) - 1;
-    const labelMes = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const labelMes = formatCompetenciaLabel(y, m);
 
     // A competência selecionada É o ciclo que está sendo fechado.
     // Ex.: competência Junho/2026 = ciclo 01/06 a 30/06, cobrado em ~05/07.
@@ -683,7 +681,7 @@ function ResumoPage() {
       }
       if (elegiveis === 0) continue;
       const key = `${y}-${String(m + 1).padStart(2, "0")}`;
-      const mesLabel = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const mesLabel = formatCompetenciaLabel(y, m);
       out.push({ key, label: mesLabel, elegiveis, aguardando });
     }
     return out;
