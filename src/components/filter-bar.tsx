@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,7 +97,6 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
     return Boolean(v && fields.some((f) => f.key === k));
   });
   const availableFields = fields.filter((f) => !activeKeys.includes(f.key));
-  const [autoOpenKey, setAutoOpenKey] = useState<string | null>(null);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   const setField = (key: string, v: FilterValue | null) => {
@@ -118,8 +117,6 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
             key={key}
             field={field}
             value={normalizedValue[key]}
-            autoOpen={autoOpenKey === key}
-            onAutoOpened={() => setAutoOpenKey(null)}
             onChange={(v) => setField(key, v)}
             onRemove={() => setField(key, null)}
             removable={removable}
@@ -154,7 +151,6 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
                         : { type: "dateRange" },
                   );
                   setAddMenuOpen(false);
-                  setAutoOpenKey(f.key);
                 }}
               >
                 {f.label}
@@ -182,29 +178,17 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
 function FilterChip({
   field,
   value,
-  autoOpen,
-  onAutoOpened,
   onChange,
   onRemove,
   removable = true,
 }: {
   field: FilterFieldDef;
   value: FilterValue;
-  autoOpen?: boolean;
-  onAutoOpened?: () => void;
   onChange: (v: FilterValue) => void;
   onRemove: () => void;
   removable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (autoOpen) {
-      setOpen(true);
-      onAutoOpened?.();
-      requestAnimationFrame(() => triggerRef.current?.focus());
-    }
-  }, [autoOpen, onAutoOpened]);
 
   const summary = (() => {
     if (field.type === "multi" && value.type === "multi") {
@@ -233,7 +217,6 @@ function FilterChip({
     <div className="relative inline-flex">
       <div className="inline-flex items-center h-8 rounded-md bg-background border border-border/60 text-xs hover:border-primary/50 focus-within:ring-1 focus-within:ring-ring">
         <button
-          ref={triggerRef}
           type="button"
           onClick={() => setOpen((current) => !current)}
           className="inline-flex items-center gap-1 h-full pl-2 pr-1 cursor-pointer focus-visible:outline-none"
