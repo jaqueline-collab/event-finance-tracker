@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, X, Filter as FilterIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -129,17 +128,19 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
         );
       })}
       {availableFields.length > 0 && (
-        <DropdownMenu modal={false} open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-          <DropdownMenuTrigger asChild>
+        <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+          <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1 border-dashed">
               <Plus className="h-3.5 w-3.5" /> Adicionar filtro
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-56 p-1">
             {availableFields.map((f) => (
-              <DropdownMenuItem
+              <button
+                type="button"
                 key={f.key}
-                onSelect={() => {
+                className="flex w-full cursor-pointer items-center rounded px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted"
+                onClick={() => {
                   setField(
                     f.key,
                     f.type === "multi"
@@ -153,10 +154,10 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
                 }}
               >
                 {f.label}
-              </DropdownMenuItem>
+              </button>
             ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </PopoverContent>
+        </Popover>
       )}
       <div className="ml-auto flex items-center gap-2">
         {activeKeys.length > 0 && (
