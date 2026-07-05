@@ -96,6 +96,8 @@ function ResumoPage() {
       .trim();
   };
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
+  const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
+  const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const today = new Date();
   // Default = competência mais recente já encerrada (mês anterior).
   const defaultCompetencia = (() => {
