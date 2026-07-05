@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X, Filter as FilterIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -323,7 +322,12 @@ function MultiPicker({
       <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
         {filtered.map((o) => (
           <label key={o.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
-            <Checkbox checked={selectedValues.includes(o.value)} onCheckedChange={() => toggle(o.value)} />
+            <input
+              type="checkbox"
+              checked={selectedValues.includes(o.value)}
+              onChange={() => toggle(o.value)}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
             <span className="flex-1">{optionLabel(o)}</span>
           </label>
         ))}
