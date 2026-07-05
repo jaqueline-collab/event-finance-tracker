@@ -25,7 +25,7 @@ export function custoMensalCliente(
 
   let total = licencaBase;
 
-  const canaisWhats = cliente.canaisWhats !== undefined ? cliente.canaisWhats : (cliente.canaisZapi || (cliente.zapi ? 1 : 0));
+  const canaisWhats = cliente.canaisWhats ?? 0;
   const canaisInsta = cliente.canaisInsta || 0;
   const canaisMessenger = cliente.canaisMessenger || 0;
 
