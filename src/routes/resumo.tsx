@@ -1338,9 +1338,27 @@ function ResumoPage() {
                         </p>
                       )}
                     </div>
-                    <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
-                      <Download className="h-4 w-4" /> Exportar PDF
-                    </Button>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        onClick={() => {
+                          setSelectedClienteIds(new Set());
+                          setDescricaoConsolidada("");
+                          setDescricaoConsolidadaTocada(false);
+                          setDescricoesPorCliente({});
+                          setDescricoesPorClienteTocadas({});
+                          setObservacaoPdf("");
+                          setEmailDestino("");
+                          toast.message("Seleção e campos limpos.");
+                        }}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Eraser className="h-4 w-4" /> Limpar tudo
+                      </Button>
+                      <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2">
+                        <Download className="h-4 w-4" /> Gerar relatório (PDF)
+                      </Button>
+                    </div>
                   </div>
                 </DialogHeader>
               </div>
