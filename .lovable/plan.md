@@ -1,32 +1,12 @@
-## Objetivo
+Vou corrigir o crash do filtro no Resumo Mensal sem mexer no fluxo de login, permissões ou landing.
 
-Manter o botão amarelo atual apontando para `app.eloracrm.com.br` (só renomear pra deixar claro que é "ir para"), e adicionar um acesso separado **"Área do parceiro"** que leva pra rota interna `/auth` deste app.
+Plano:
+1. Reproduzir o problema no `/resumo` aplicando filtros, para capturar o erro real do runtime.
+2. Ajustar `src/routes/resumo.tsx` para não quebrar quando o filtro reduz os clientes/competências para zero ou deixa uma competência antiga salva incompatível.
+3. Sanitizar o estado de filtros salvo no `localStorage`, removendo valores inválidos/antigos antes do cálculo renderizar.
+4. Fazer o filtro “Competência” se autoajustar para uma opção válida quando o filtro de Plano/Parceiro/Vencimento muda.
+5. Validar no navegador que adicionar filtro, selecionar opção e limpar filtros não levam mais para a tela “This page didn’t load”.
 
-## Mudanças em `src/routes/index.tsx`
-
-### 1. Navbar (linha ~83–121)
-
-- **Botão amarelo (linha 110–117)**: mantém `href="https://app.eloracrm.com.br/"`, `target="_blank"`. Troca o texto **"Entrar"** por **"Elora App"** com um ícone `ArrowUpRight` (lucide) do lado, deixando claro que é link externo.
-- **Menu de navegação (linha 96–109)**: adiciona um novo item `<Link to="/auth">Área do parceiro</Link>` como último link do menu, no mesmo estilo dos outros (`hover:text-landing-yellow`). Fica discreto, ao lado de "Contato".
-
-### 2. CTAs internos "Entrar" (linhas 189 e 492)
-
-Esses dois botões estão dentro da própria LP (hero/planos). Preciso confirmar contigo o comportamento deles — hoje ambos dizem "Entrar" e provavelmente vão pro mesmo link externo. Duas opções:
-
-- **(a)** deixo iguais ao botão da navbar: rótulo **"Elora App"** apontando pro `app.eloracrm.com.br` externo.
-- **(b)** transformo em **"Área do parceiro"** apontando pro `/auth` interno.
-
-Meu palpite é **(a)** pra manter consistência com a navbar, mas te confirmo antes de mexer.
-
-### 3. Footer (opcional)
-
-Adiciono um link textual pequeno **"Área do parceiro"** → `/auth` no footer, como segundo ponto de acesso.
-
-## O que NÃO muda
-
-- Nenhuma lógica de auth, rotas protegidas, permissões ou cálculo.
-- Landing continua pública, `/auth` continua sendo a porta de entrada do app interno.
-
-## Confirmação
-
-- Os dois "Entrar" internos (linhas 189, 492) seguem o **botão amarelo (Elora App externo)** ou viram **Área do parceiro (/auth interno)**?
+Arquivos esperados:
+- `src/routes/resumo.tsx`
+- possivelmente `src/hooks/use-persistent-filters.ts` ou `src/components/filter-bar.tsx` se o problema estiver no filtro genérico.
