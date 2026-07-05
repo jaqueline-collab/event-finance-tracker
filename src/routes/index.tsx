@@ -13,6 +13,7 @@ import {
   Phone,
   Globe,
   ArrowRight,
+  ArrowUpRight,
 } from "lucide-react";
 import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
 import { formatBRL } from "@/lib/calc/format";
@@ -106,14 +107,17 @@ function Navbar() {
           <a href="#contato" className="hover:text-landing-yellow transition">
             Contato
           </a>
+          <Link to="/auth" className="hover:text-landing-yellow transition">
+            Área do parceiro
+          </Link>
         </nav>
         <a
           href="https://app.eloracrm.com.br/"
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
+          className="inline-flex items-center gap-1.5 bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
         >
-          Entrar
+          Elora App <ArrowUpRight className="h-4 w-4" />
         </a>
       </div>
     </header>
@@ -184,9 +188,9 @@ function Hero() {
             href="https://app.eloracrm.com.br/"
             target="_blank"
             rel="noopener noreferrer"
-            className="border border-white/30 hover:border-white text-white font-semibold px-7 py-3.5 rounded-md text-base transition-colors"
+            className="inline-flex items-center gap-1.5 border border-white/30 hover:border-white text-white font-semibold px-7 py-3.5 rounded-md text-base transition-colors"
           >
-            Entrar
+            Elora App <ArrowUpRight className="h-4 w-4" />
           </a>
         </div>
       </div>
@@ -487,10 +491,15 @@ function Footer() {
                 href="https://app.eloracrm.com.br/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-white"
+                className="hover:text-white inline-flex items-center gap-1"
               >
-                Entrar
+                Elora App <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
+            </li>
+            <li>
+              <Link to="/auth" className="hover:text-white">
+                Área do parceiro
+              </Link>
             </li>
           </ul>
         </div>
