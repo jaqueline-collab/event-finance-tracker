@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Download, Eye, FileText, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown, Eraser } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,6 +76,8 @@ function ResumoPage() {
   } = useStore();
   const { isAdmin } = useCurrentUserAccess();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
+  const filtrosRef = useRef(filtros);
+  useEffect(() => { filtrosRef.current = filtros; }, [filtros]);
   const planoSel = getMultiFilterValues(filtros, "plano");
   const parceiroSel = getMultiFilterValues(filtros, "parceiro");
   const vencSel = getMultiFilterValues(filtros, "vencimento");
@@ -98,7 +100,9 @@ function ResumoPage() {
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
-  const today = new Date();
+  // Estabiliza a data-base: se recriada a cada render, causa loop infinito
+  // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
+  const today = useMemo(() => new Date(), []);
   // Default = competência mais recente já encerrada (mês anterior).
   const defaultCompetencia = (() => {
     const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -120,7 +124,6 @@ function ResumoPage() {
   }, []);
   const fechamentoMes = competenciaNovoFechamento || competenciaSel || defaultCompetencia;
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
   const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [observacaoPdf, setObservacaoPdf] = useState("");
@@ -659,10 +662,6 @@ function ResumoPage() {
   const abrirNovoFechamento = (mesKey?: string) => {
     const competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
     setCompetenciaNovoFechamento(competencia);
-    setFiltros({
-      ...filtros,
-      competencia: { type: "single", value: competencia },
-    });
     setFechamentoOpen(true);
   };
   const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
@@ -700,15 +699,23 @@ function ResumoPage() {
     return out;
   }, [today, clientesFiltrados, planos]);
 
+  // Chaves estáveis das opções de fechamento — usadas para reagir a mudanças
+  // sem recomputar o efeito quando qualquer outro filtro muda.
+  const opcoesFechamentoKeys = useMemo(
+    () => opcoesFechamento.map((o) => o.key).join("|"),
+    [opcoesFechamento],
+  );
   useEffect(() => {
     if (!rawCompetenciaSel) return;
-    const selecionadaExiste = opcoesFechamento.some((opcao) => opcao.key === rawCompetenciaSel);
-    if (!isValidCompetenciaKey(rawCompetenciaSel) || (opcoesFechamento.length > 0 && !selecionadaExiste)) {
-      const next = { ...filtros };
+    const keys = opcoesFechamentoKeys ? opcoesFechamentoKeys.split("|") : [];
+    const invalida = !isValidCompetenciaKey(rawCompetenciaSel);
+    const foraDasOpcoes = keys.length > 0 && !keys.includes(rawCompetenciaSel);
+    if (invalida || foraDasOpcoes) {
+      const next = { ...filtrosRef.current };
       delete next.competencia;
       setFiltros(next);
     }
-  }, [rawCompetenciaSel, opcoesFechamento, filtros, setFiltros]);
+  }, [rawCompetenciaSel, opcoesFechamentoKeys, setFiltros]);
 
   const fmtDelta = (label: string, v: number | undefined | null) => {
     if (v === undefined || v === null || v === 0) return null;
@@ -1055,14 +1062,6 @@ function ResumoPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Fechamento Mensal</h1>
           <p className="text-muted-foreground text-sm">Cada competência agrupa os fechamentos gerados. Clientes ficam disponíveis assim que o último dia do ciclo passa.</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setPreviewOpen(true)} disabled={linhas.length === 0} variant="outline" className="gap-2">
-            <Eye className="h-4 w-4" /> Visualizar Relatório
-          </Button>
-          <Button onClick={exportarPdf} disabled={linhas.length === 0} className="gap-2">
-            <Download className="h-4 w-4" /> Exportar PDF
-          </Button>
-        </div>
       </div>
 
       {/* Filtros */}
@@ -1339,9 +1338,27 @@ function ResumoPage() {
                         </p>
                       )}
                     </div>
-                    <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2 shrink-0">
-                      <Download className="h-4 w-4" /> Exportar PDF
-                    </Button>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        onClick={() => {
+                          setSelectedClienteIds(new Set());
+                          setDescricaoConsolidada("");
+                          setDescricaoConsolidadaTocada(false);
+                          setDescricoesPorCliente({});
+                          setDescricoesPorClienteTocadas({});
+                          setObservacaoPdf("");
+                          setEmailDestino("");
+                          toast.message("Seleção e campos limpos.");
+                        }}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Eraser className="h-4 w-4" /> Limpar tudo
+                      </Button>
+                      <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2">
+                        <Download className="h-4 w-4" /> Gerar relatório (PDF)
+                      </Button>
+                    </div>
                   </div>
                 </DialogHeader>
               </div>
@@ -1768,69 +1785,6 @@ function ResumoPage() {
               </div>
             </>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal: Prévia do Relatório (antes de exportar PDF) */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Prévia do Relatório</DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
-              {" · "}
-              {vencSel.length === 0 ? "Todos os vencimentos" : vencSel.map((d) => `Dia ${d}`).join(", ")}
-              {" · "}{linhas.length} mês(es)
-            </p>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mês</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead className="text-right">Novos</TableHead>
-                  <TableHead className="text-right">Churns</TableHead>
-                  <TableHead className="text-right">Receita</TableHead>
-                  <TableHead className="text-right">Custo Sist.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {linhas.map((l) => (
-                  <TableRow key={l.mesKey}>
-                    <TableCell className="capitalize font-medium">{l.mesLabel}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {(() => {
-                        const y = Number(l.mesKey.slice(0, 4));
-                        const m = Number(l.mesKey.slice(5, 7)) - 1;
-                        const vencs = Array.from(
-                          new Set(
-                            l.ativos
-                              .map((c) => obterVencimentoDaCompetencia(c, y, m, planos))
-                              .filter((v): v is string => Boolean(v)),
-                          ),
-                        ).sort();
-                        if (vencs.length === 0) return "—";
-                        if (vencs.length === 1)
-                          return new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR");
-                        return `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
-                      })()}
-                    </TableCell>
-                    <TableCell className="text-right text-accent">+{l.novos}</TableCell>
-                    <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
-                    <TableCell className="text-right">{formatBRL(l.receita)}</TableCell>
-                    <TableCell className="text-right text-yellow-400">{formatBRL(l.custoHelena)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
-              <Button variant="outline" onClick={() => setPreviewOpen(false)}>Fechar</Button>
-              <Button onClick={() => { exportarPdf(); setPreviewOpen(false); }} className="gap-2">
-                <Download className="h-4 w-4" /> Exportar PDF
-              </Button>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
 
