@@ -582,13 +582,17 @@ function ResumoPage() {
   }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, descontos]);
 
   // Sempre que a competência ou os clientes do fechamento mudarem, marca todos por padrão
+  const fechamentoAtivosIds = useMemo(
+    () => fechamentoData?.ativos.map((c) => c.id) ?? [],
+    [fechamentoData?.competenciaKey, fechamentoData?.ativos],
+  );
   const fechamentoKey = useMemo(() => {
     if (!fechamentoData) return "";
-    return `${fechamentoMes}|${fechamentoData.ativos.map((c) => c.id).join(",")}`;
-  }, [fechamentoData, fechamentoMes]);
+    return `${fechamentoMes}|${fechamentoAtivosIds.join(",")}`;
+  }, [fechamentoData?.competenciaKey, fechamentoAtivosIds, fechamentoMes]);
   useEffect(() => {
-    if (fechamentoKey && fechamentoKey !== selecaoInicializada && fechamentoData) {
-      const ids = fechamentoData.ativos.map((c) => c.id);
+    if (fechamentoKey && fechamentoKey !== selecaoInicializada) {
+      const ids = fechamentoAtivosIds;
       setSelectedClienteIds((prev) => {
         if (prev.size === ids.length && ids.every((id) => prev.has(id))) return prev;
         return new Set(ids);
@@ -598,14 +602,20 @@ function ResumoPage() {
       setDescricaoConsolidadaTocada(false);
       setDescricoesPorClienteTocadas({});
     }
-  }, [fechamentoKey, selecaoInicializada, fechamentoData]);
+  }, [fechamentoAtivosIds, fechamentoKey, selecaoInicializada]);
 
   // Defaults de descrição (recalculados quando muda a competência).
   const defaultDescricaoConsolidada = useMemo(() => {
     if (!fechamentoData) return "";
     return `Fechamento ${fechamentoData.labelMes} · ciclo ${fechamentoData.cicloLabel}`;
-  }, [fechamentoData]);
+  }, [fechamentoData?.labelMes, fechamentoData?.cicloLabel]);
 
+  const defaultDescricoesPorClienteKey = useMemo(
+    () => fechamentoData?.detalhesPorCliente
+      .map((d) => `${d.cliente.id}:${d.cliente.nomeFinanceiro || d.cliente.nome}`)
+      .join("|") ?? "",
+    [fechamentoData?.competenciaKey, fechamentoData?.detalhesPorCliente],
+  );
   const defaultDescricoesPorCliente = useMemo(() => {
     if (!fechamentoData) return {} as Record<string, string>;
     const map: Record<string, string> = {};
@@ -613,7 +623,8 @@ function ResumoPage() {
       map[d.cliente.id] = d.cliente.nomeFinanceiro || d.cliente.nome;
     }
     return map;
-  }, [fechamentoData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultDescricoesPorClienteKey]);
 
   // Aplica defaults para campos não tocados pelo usuário.
   useEffect(() => {
