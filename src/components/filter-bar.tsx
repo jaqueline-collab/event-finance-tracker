@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, X, Filter as FilterIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -128,13 +127,18 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
         );
       })}
       {availableFields.length > 0 && (
-        <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1 border-dashed">
-              <Plus className="h-3.5 w-3.5" /> Adicionar filtro
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 p-1">
+        <div className="relative">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1 border-dashed"
+            onClick={() => setAddMenuOpen((open) => !open)}
+          >
+            <Plus className="h-3.5 w-3.5" /> Adicionar filtro
+          </Button>
+          {addMenuOpen && (
+            <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
             {availableFields.map((f) => (
               <button
                 type="button"
@@ -156,8 +160,9 @@ export function FilterBar({ fields, value, onChange, className, action }: Filter
                 {f.label}
               </button>
             ))}
-          </PopoverContent>
-        </Popover>
+            </div>
+          )}
+        </div>
       )}
       <div className="ml-auto flex items-center gap-2">
         {activeKeys.length > 0 && (
@@ -225,18 +230,17 @@ function FilterChip({
   })();
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <div className="relative inline-flex">
       <div className="inline-flex items-center h-8 rounded-md bg-background border border-border/60 text-xs hover:border-primary/50 focus-within:ring-1 focus-within:ring-ring">
-        <PopoverTrigger asChild>
-          <button
-            ref={triggerRef}
-            type="button"
-            className="inline-flex items-center gap-1 h-full pl-2 pr-1 cursor-pointer focus-visible:outline-none"
-          >
-            <span className="text-muted-foreground">{field.label}:</span>
-            <span className="font-medium">{summary}</span>
-          </button>
-        </PopoverTrigger>
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className="inline-flex items-center gap-1 h-full pl-2 pr-1 cursor-pointer focus-visible:outline-none"
+        >
+          <span className="text-muted-foreground">{field.label}:</span>
+          <span className="font-medium">{summary}</span>
+        </button>
         {removable && <button
           type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
@@ -246,7 +250,8 @@ function FilterChip({
           <X className="h-3 w-3" />
         </button>}
       </div>
-      <PopoverContent className="w-72 p-3" align="start">
+      {open && (
+      <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-md border border-border bg-popover p-3 text-popover-foreground shadow-md">
         {field.type === "multi" && value.type === "multi" && (
           <MultiPicker field={field} value={value} onChange={onChange} />
         )}
@@ -256,8 +261,9 @@ function FilterChip({
         {field.type === "dateRange" && value.type === "dateRange" && (
           <DateRangePicker value={value} onChange={onChange} />
         )}
-      </PopoverContent>
-    </Popover>
+      </div>
+      )}
+    </div>
   );
 }
 
