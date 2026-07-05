@@ -1062,14 +1062,6 @@ function ResumoPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Fechamento Mensal</h1>
           <p className="text-muted-foreground text-sm">Cada competência agrupa os fechamentos gerados. Clientes ficam disponíveis assim que o último dia do ciclo passa.</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setPreviewOpen(true)} disabled={linhas.length === 0} variant="outline" className="gap-2">
-            <Eye className="h-4 w-4" /> Visualizar Relatório
-          </Button>
-          <Button onClick={exportarPdf} disabled={linhas.length === 0} className="gap-2">
-            <Download className="h-4 w-4" /> Exportar PDF
-          </Button>
-        </div>
       </div>
 
       {/* Filtros */}
