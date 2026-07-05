@@ -264,7 +264,6 @@ function SinglePicker({
     <div className="space-y-2">
       {field.options.length > 8 && (
         <Input
-          autoFocus
           placeholder={`Buscar ${field.label.toLowerCase()}…`}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -313,7 +312,6 @@ function MultiPicker({
   return (
     <div className="space-y-2">
       <Input
-        autoFocus
         placeholder={`Buscar ${field.label.toLowerCase()}…`}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
