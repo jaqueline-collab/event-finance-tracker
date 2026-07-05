@@ -234,14 +234,22 @@ function FilterChip({
       </div>
       {open && (
       <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-md border border-border bg-popover p-3 text-popover-foreground shadow-md">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline-none"
+          aria-label="Fechar"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
         {field.type === "multi" && value.type === "multi" && (
           <MultiPicker field={field} value={value} onChange={onChange} />
         )}
         {field.type === "single" && value.type === "single" && (
-          <SinglePicker field={field} value={value} onChange={onChange} />
+          <SinglePicker field={field} value={value} onChange={(v) => { onChange(v); setOpen(false); }} />
         )}
         {field.type === "dateRange" && value.type === "dateRange" && (
-          <DateRangePicker value={value} onChange={onChange} />
+          <DateRangePicker value={value} onChange={(v) => { onChange(v); if ((v as any).preset) setOpen(false); }} />
         )}
       </div>
       )}
