@@ -107,6 +107,7 @@ function ResumoPage() {
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
+  const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
   // Estabiliza a data-base: se recriada a cada render, causa loop infinito
   // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
   const today = useMemo(() => new Date(), []);
