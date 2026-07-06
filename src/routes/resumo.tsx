@@ -984,7 +984,8 @@ function ResumoPage() {
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
     // Quantidade de fechamentos já existentes nessa competência (para numerar o título)
     const jaExistentes = fechamentos.filter((f) => f.competencia === competenciaKey).length;
-    const tituloFechamento = (descricaoConsolidada || "").trim()
+    const tituloFechamento = (nomeFechamento || "").trim()
+      || (descricaoConsolidada || "").trim()
       || `${jaExistentes + 1}º fechamento · ${labelMes}`;
     // Snapshot dos itens para persistência
     const itensSnapshot = detalhesPorCliente.map((d) => ({
