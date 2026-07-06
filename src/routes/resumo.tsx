@@ -2241,48 +2241,104 @@ function ResumoPage() {
             const exportarAuditoriaPdf = () => {
               const pdf = new jsPDF({ unit: "pt", format: "a4" });
               const pageW = pdf.internal.pageSize.getWidth();
+              const pageH = pdf.internal.pageSize.getHeight();
+
+              // Capa
               pdf.setFillColor(15, 15, 15);
-              pdf.rect(0, 0, pageW, 60, "F");
+              pdf.rect(0, 0, pageW, 72, "F");
               pdf.setTextColor(255, 255, 255);
               pdf.setFont("helvetica", "bold");
-              pdf.setFontSize(16);
-              pdf.text("Auditoria de Fechamento", 40, 28);
+              pdf.setFontSize(18);
+              pdf.text("Auditoria de Fechamento", 40, 32);
               pdf.setFont("helvetica", "normal");
               pdf.setFontSize(10);
-              pdf.text(f.titulo, 40, 48);
-              pdf.setTextColor(30, 30, 30);
-              let cursorY = 84;
-              for (const { cli, it, nome } of clientesFech) {
-                if (!cli) continue;
-                const plano = planos.find((p) => p.id === cli.planoId);
-                const planoSetup = planos.find((p) => p.id === cli.planoId);
+              pdf.text(f.titulo, 40, 52);
+              pdf.text(
+                `${clientesFech.length} cliente(s) · Total ${formatBRL(f.totalLiquido)}`,
+                40,
+                66,
+              );
+
+              const validos = clientesFech.filter((x) => x.cli);
+              const total = validos.length;
+
+              validos.forEach(({ cli, it, nome }, idx) => {
+                if (!cli) return;
+                const planoAtual = planos.find((p) => p.id === cli.planoId);
                 const exp = explicarReceitaCliente(cli, planos);
                 const movs = movimentos
                   .filter((m) => m.clienteId === cli.id)
                   .filter((m) => !it.cicloFim || m.data <= it.cicloFim)
                   .sort((a, b) => a.data.localeCompare(b.data));
-                if (cursorY > 720) { pdf.addPage(); cursorY = 60; }
-                pdf.setFont("helvetica", "bold"); pdf.setFontSize(12);
-                pdf.text(nome, 40, cursorY); cursorY += 4;
-                pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+
+                // Cada cliente começa em página nova → separação inequívoca
+                pdf.addPage();
+
+                // Banner do cliente (faixa colorida)
+                const bannerY = 40;
+                const bannerH = 46;
+                pdf.setFillColor(28, 63, 170);
+                pdf.rect(0, bannerY, pageW, bannerH, "F");
+                // Faixa lateral de destaque
+                pdf.setFillColor(253, 224, 71);
+                pdf.rect(0, bannerY, 6, bannerH, "F");
+
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(14);
+                pdf.text(`${idx + 1}. ${nome}`, 20, bannerY + 20);
+
+                pdf.setFont("helvetica", "normal");
+                pdf.setFontSize(9);
+                const meta: string[] = [];
+                if (planoAtual?.nome) meta.push(`Plano: ${planoAtual.nome}`);
+                if (cli.dataChurn) meta.push(`Churn: ${fmtDate(cli.dataChurn)}`);
+                if (it.cicloInicio && it.cicloFim) {
+                  meta.push(`Ciclo: ${fmtDate(it.cicloInicio)} → ${fmtDate(it.cicloFim)}`);
+                }
+                pdf.text(meta.join("  ·  "), 20, bannerY + 36);
+
+                // Total do cliente à direita do banner
+                const totalTxt = `${formatBRL(exp.total)}/mês`;
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(13);
+                pdf.text(totalTxt, pageW - 40, bannerY + 28, { align: "right" });
+
+                let cursorY = bannerY + bannerH + 18;
+
+                const sectionTitle = (label: string, y: number) => {
+                  pdf.setTextColor(90, 90, 90);
+                  pdf.setFont("helvetica", "bold");
+                  pdf.setFontSize(9);
+                  pdf.text(label.toUpperCase(), 40, y);
+                  pdf.setDrawColor(220);
+                  pdf.setLineWidth(0.5);
+                  pdf.line(40, y + 3, pageW - 40, y + 3);
+                };
+
+                // Setup
+                sectionTitle("Setup", cursorY);
                 autoTable(pdf, {
                   startY: cursorY + 8,
-                  head: [["Setup", "Plano no setup", "Início", "Churn", "Valor setup"]],
+                  head: [["Início", "Plano no setup", "Churn", "Valor setup"]],
                   body: [[
                     fmtDate(cli.dataInicio),
-                    planoSetup?.nome ?? "—",
-                    fmtDate(cli.dataInicio),
+                    planoAtual?.nome ?? "—",
                     fmtDate(cli.dataChurn),
                     formatBRL(cli.valorSetupPago || 0),
                   ]],
-                  styles: { fontSize: 8, cellPadding: 4 },
-                  headStyles: { fillColor: [40, 40, 40] },
+                  styles: { fontSize: 9, cellPadding: 5 },
+                  headStyles: { fillColor: [40, 40, 40], textColor: 255 },
                   margin: { left: 40, right: 40 },
                 });
-                cursorY = (pdf as any).lastAutoTable.finalY + 8;
+                cursorY = (pdf as any).lastAutoTable.finalY + 16;
+
+                // Movimentos
                 if (movs.length > 0) {
+                  if (cursorY > pageH - 120) { pdf.addPage(); cursorY = 60; }
+                  sectionTitle("Linha do tempo · movimentos", cursorY);
                   autoTable(pdf, {
-                    startY: cursorY,
+                    startY: cursorY + 8,
                     head: [["Data", "Tipo", "Descrição", "Valor"]],
                     body: movs.map((mv) => {
                       const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaMovto(cli, mv) : 0;
@@ -2292,26 +2348,54 @@ function ResumoPage() {
                       return [fmtDate(mv.data), mv.tipo, descreverMov(mv), valor];
                     }),
                     styles: { fontSize: 8, cellPadding: 4 },
-                    headStyles: { fillColor: [40, 40, 40] },
+                    headStyles: { fillColor: [40, 40, 40], textColor: 255 },
                     margin: { left: 40, right: 40 },
+                    didParseCell: (data) => {
+                      if (data.section === "body" && data.column.index === 1) {
+                        const raw = String(data.cell.raw);
+                        if (raw === "upgrade") data.cell.styles.textColor = [21, 128, 61];
+                        else if (raw === "downgrade") data.cell.styles.textColor = [185, 28, 28];
+                      }
+                      if (data.section === "body" && data.column.index === 3) {
+                        const raw = String(data.cell.raw ?? "");
+                        if (raw.startsWith("+")) data.cell.styles.textColor = [21, 128, 61];
+                        else if (raw.startsWith("-")) data.cell.styles.textColor = [185, 28, 28];
+                      }
+                    },
                   });
-                  cursorY = (pdf as any).lastAutoTable.finalY + 8;
+                  cursorY = (pdf as any).lastAutoTable.finalY + 16;
                 }
+
+                // Composição
+                if (cursorY > pageH - 140) { pdf.addPage(); cursorY = 60; }
+                sectionTitle("Composição da mensalidade (hoje)", cursorY);
                 autoTable(pdf, {
-                  startY: cursorY,
-                  head: [["Item de cobrança (hoje)", "Qtd", "Unit.", "Total"]],
+                  startY: cursorY + 8,
+                  head: [["Item de cobrança", "Qtd", "Unit.", "Total"]],
                   body: [
                     ...exp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
-                    [{ content: "Sistema", styles: { fontStyle: "bold" } }, "", "", { content: formatBRL(exp.subtotalSistema), styles: { fontStyle: "bold" } }],
-                    ["Acompanhamento", "", "", formatBRL(exp.acompanhamento)],
-                    [{ content: "Custo mês (total)", styles: { fontStyle: "bold" } }, "", "", { content: formatBRL(exp.total), styles: { fontStyle: "bold" } }],
+                    [{ content: "Custo Sistema", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: formatBRL(exp.subtotalSistema), styles: { fontStyle: "bold", fillColor: [240, 240, 240], halign: "right" } }],
+                    ["Custo Acompanhamento", "", "", { content: formatBRL(exp.acompanhamento), styles: { halign: "right" } }],
+                    [{ content: "Custo Mês (total)", styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255 } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: formatBRL(exp.total), styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255, halign: "right" } }],
                   ] as any,
-                  styles: { fontSize: 8, cellPadding: 4 },
-                  headStyles: { fillColor: [40, 40, 40] },
+                  styles: { fontSize: 9, cellPadding: 5 },
+                  headStyles: { fillColor: [40, 40, 40], textColor: 255 },
+                  columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
                   margin: { left: 40, right: 40 },
                 });
-                cursorY = (pdf as any).lastAutoTable.finalY + 18;
+              });
+
+              // Rodapé com paginação e identificação do cliente
+              const totalPages = pdf.getNumberOfPages();
+              for (let p = 1; p <= totalPages; p++) {
+                pdf.setPage(p);
+                pdf.setFont("helvetica", "normal");
+                pdf.setFontSize(8);
+                pdf.setTextColor(140, 140, 140);
+                pdf.text(f.titulo, 40, pageH - 20);
+                pdf.text(`Página ${p} de ${totalPages}`, pageW - 40, pageH - 20, { align: "right" });
               }
+
               pdf.save(`auditoria-${f.titulo.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`);
             };
 
