@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function getMultiFilterValues(filtros: FilterState, key: string): string[] {
   const value = filtros[key];
