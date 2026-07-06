@@ -914,6 +914,49 @@ function ResumoPage() {
       });
     }
 
+    // Setups do ciclo (novos clientes que iniciaram na competência)
+    if (fechamentoData.setupsNoMes.length > 0) {
+      autoTable(pdf, {
+        startY: (pdf as any).lastAutoTable.finalY + 16,
+        head: [["Data de entrada", "Cliente", "Plano", "Valor do Setup"]],
+        body: fechamentoData.setupsNoMes
+          .slice()
+          .sort((a, b) => a.dataInicio.localeCompare(b.dataInicio))
+          .map((c) => {
+            const plano = planos.find((p) => p.id === c.planoId);
+            return [
+              c.dataInicio.split("-").reverse().join("/"),
+              c.nomeFinanceiro || c.nome,
+              abreviarPlano(plano?.nome),
+              c.valorSetupPago ? formatBRL(c.valorSetupPago) : "—",
+            ];
+          }),
+        styles: { fontSize: 9, cellPadding: 6 },
+        headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+      });
+    }
+
+    // Churns do ciclo (clientes que cancelaram na competência)
+    if (fechamentoData.churnsNoMes.length > 0) {
+      autoTable(pdf, {
+        startY: (pdf as any).lastAutoTable.finalY + 16,
+        head: [["Data do churn", "Cliente", "Plano"]],
+        body: fechamentoData.churnsNoMes
+          .slice()
+          .sort((a, b) => (a.dataChurn ?? "").localeCompare(b.dataChurn ?? ""))
+          .map((c) => {
+            const plano = planos.find((p) => p.id === c.planoId);
+            return [
+              c.dataChurn ? c.dataChurn.split("-").reverse().join("/") : "—",
+              c.nomeFinanceiro || c.nome,
+              abreviarPlano(plano?.nome),
+            ];
+          }),
+        styles: { fontSize: 9, cellPadding: 6 },
+        headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+      });
+    }
+
     // Gráfico de receita (opcional)
     if (incluirGraficos) {
       const serie = linhas.slice(0, 6).reverse();
