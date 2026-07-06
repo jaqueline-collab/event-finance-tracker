@@ -252,7 +252,30 @@ export const useStore = create<State>()(
           id,
           dataVencimento: normalizarDataVencimento(c.dataInicio, c.dataVencimento),
         };
-        set({ clientes: [...get().clientes, novoCliente] });
+        const setupMovimento: Movimento = {
+          id: uid(),
+          clienteId: id,
+          data: c.dataInicio,
+          tipo: "setup",
+          planoId: c.planoId,
+          canais: c.canais,
+          canaisWhats: c.canaisWhats,
+          canaisInsta: c.canaisInsta,
+          canaisMessenger: c.canaisMessenger,
+          canaisZapi: c.canaisZapi,
+          usuariosAtivos: c.usuariosAtivos,
+          contatosAtivos: c.contatosAtivos,
+          agentesIA: c.agentesIA,
+          asaas: c.asaas,
+          zapi: c.zapi,
+          transcricaoIA: c.transcricaoIA,
+          extras: c.extras,
+          observacao: "Setup inicial",
+        };
+        set({
+          clientes: [...get().clientes, novoCliente],
+          movimentos: [...get().movimentos, setupMovimento],
+        });
 
         // Salvar no Supabase
         supabase.from("elora_clientes").insert(mapClienteToDb(novoCliente)).then(({ error }) => {
@@ -262,24 +285,34 @@ export const useStore = create<State>()(
               clientes: get().clientes.filter((x) => x.id !== id),
               movimentos: get().movimentos.filter((m) => m.clienteId !== id),
             });
+            return;
           }
-        });
-
-        set({
-          movimentos: [
-            ...get().movimentos,
-            {
-              id: uid(),
-              clienteId: id,
-              data: c.dataInicio,
-              tipo: "setup",
-              planoId: c.planoId,
-              canais: c.canais,
-              usuariosAtivos: c.usuariosAtivos,
-              contatosAtivos: c.contatosAtivos,
-              extras: c.extras,
-            },
-          ],
+          const dbMov = {
+            id: setupMovimento.id,
+            cliente_id: setupMovimento.clienteId,
+            data: setupMovimento.data,
+            tipo: setupMovimento.tipo,
+            plano_id: setupMovimento.planoId || null,
+            apps: setupMovimento.apps || null,
+            mau: setupMovimento.mau || null,
+            canais: setupMovimento.canais || null,
+            canais_whats: setupMovimento.canaisWhats ?? null,
+            canais_insta: setupMovimento.canaisInsta ?? null,
+            canais_messenger: setupMovimento.canaisMessenger ?? null,
+            canais_zapi: setupMovimento.canaisZapi ?? null,
+            usuarios_ativos: setupMovimento.usuariosAtivos || null,
+            contatos_ativos: setupMovimento.contatosAtivos || null,
+            agentes_ia: setupMovimento.agentesIA || null,
+            asaas: setupMovimento.asaas || null,
+            zapi: setupMovimento.zapi || null,
+            transcricao_ia: setupMovimento.transcricaoIA || null,
+            extras: setupMovimento.extras || null,
+            valor_servico: setupMovimento.valorServico || null,
+            observacao: setupMovimento.observacao || null,
+          };
+          supabase.from("elora_movimentos").insert(dbMov).then(({ error: movError }) => {
+            if (movError) console.error("Erro ao salvar setup inicial no Supabase:", movError);
+          });
         });
         return id;
       },
@@ -560,29 +593,23 @@ export const useStore = create<State>()(
             .insert(novosItens.map(mapFechamentoItemToDb));
           if (errI) {
             console.error("Erro ao salvar itens do fechamento:", errI);
+            set({
+              fechamentos: get().fechamentos.filter((x) => x.id !== id),
+              fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
+            });
+            await (supabase as any).from("elora_fechamentos").delete().eq("id", id);
+            throw errI;
           }
         }
         return id;
       },
       removeFechamento: async (id) => {
-        const itens = get().fechamentoItens.filter((x) => x.fechamentoId === id);
-        const lancamentosVinculados = itens
-          .map((it) => it.lancamentoFinanceiroId)
-          .filter((x): x is string => Boolean(x));
         set({
           fechamentos: get().fechamentos.filter((x) => x.id !== id),
           fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
-          financeiro: get().financeiro.filter((l) => !lancamentosVinculados.includes(l.id)),
         });
-        // Remove lançamentos financeiros gerados pelo fechamento
-        if (lancamentosVinculados.length > 0) {
-          const { error: errFin } = await (supabase as any)
-            .from("elora_financeiro")
-            .delete()
-            .in("id", lancamentosVinculados);
-          if (errFin) console.error("Erro ao remover lançamentos vinculados:", errFin);
-        }
-        // CASCADE remove itens; ainda assim, deleta explicitamente por segurança
+        // Remove somente o registro persistido do fechamento e seus itens.
+        // Lançamentos financeiros vinculados são preservados para manter histórico.
         const { error: errI } = await (supabase as any)
           .from("elora_fechamento_itens")
           .delete()

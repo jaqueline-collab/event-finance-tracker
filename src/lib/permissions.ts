@@ -47,10 +47,6 @@ export function useCurrentUserAccess(): CurrentUserAccess {
       setLoading(false);
       return;
     }
-    // Bootstrap (no-op if já existe algum admin). Usa identidade do JWT no servidor.
-    await (supabase as any).rpc("bootstrap_admin_if_empty");
-    // Liga app_users.user_id ao auth.uid() do usuário recém-logado (no-op se já ligado).
-    await (supabase as any).rpc("link_app_user");
     const { data: userRow } = await (supabase as any)
       .from("app_users")
       .select("is_admin")

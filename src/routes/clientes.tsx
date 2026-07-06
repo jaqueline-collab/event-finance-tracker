@@ -288,6 +288,16 @@ function ClientesPage() {
     setEditMovId(null);
   };
 
+  const confirmarRemocaoCliente = (c: Cliente) => {
+    const texto = `Excluir o cliente ${c.nome}?\n\nEsta ação remove o cadastro e pode esconder lançamentos/histórico ligados a ele. Só confirme se isso foi solicitado explicitamente.`;
+    if (window.confirm(texto)) removeCliente(c.id);
+  };
+
+  const confirmarRemocaoMovimento = (mv: Movimento) => {
+    const texto = `Excluir esta movimentação de ${mv.data.split("-").reverse().join("/")}?\n\nSe for upgrade/downgrade, os valores atuais do cliente serão recalculados. Só confirme se isso foi solicitado explicitamente.`;
+    if (window.confirm(texto)) removeMovimento(mv.id);
+  };
+
   const openEditMovimento = (mv: Movimento) => {
     setAcaoClienteId(mv.clienteId);
     setEditMovId(mv.id);
@@ -927,7 +937,7 @@ function ClientesPage() {
                           <DropdownMenuItem onClick={() => openAcaoModal(c, "churn")} className="text-destructive focus:text-destructive">
                             <XCircle className="mr-2 h-4 w-4" /> Registrar Cancelamento
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => removeCliente(c.id)} className="text-muted-foreground focus:text-muted-foreground">
+                          <DropdownMenuItem onClick={() => confirmarRemocaoCliente(c)} className="text-muted-foreground focus:text-muted-foreground">
                             <Trash2 className="mr-2 h-4 w-4" /> Excluir Registro
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -1181,11 +1191,7 @@ function ClientesPage() {
                                       variant="ghost"
                                       size="sm"
                                       className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        if (confirm("Excluir este lançamento? O valor do cliente voltará ao estado anterior.")) {
-                                          removeMovimento(mv.id);
-                                        }
-                                      }}
+                                      onClick={() => confirmarRemocaoMovimento(mv)}
                                     >
                                       <Trash2 className="h-3 w-3" />
                                     </Button>
