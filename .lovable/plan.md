@@ -1,65 +1,66 @@
-## O que vou adicionar
+## Plano: corrigir Fischer e impedir perda de lançamentos manuais
 
-Um botão **"Detalhar"** (ícone `FileSearch`) na mesma linha do header do fechamento em `/resumo` — entre o nome (`Essencial Rabbit Agency · Junho/2026 · 13 conta(s)`) e o valor total. Ele abre um `Dialog` grande (max-w-6xl, scroll interno) com o dossiê de auditoria de **todos os clientes daquele fechamento**.
+### 1. Corrigir o Fischer para 9 usuários
 
-## Conteúdo do popup (por cliente, em ordem alfabética)
+Vou ajustar a conta **Instituto Murilo Fischer** para bater exatamente os 9 logins informados:
 
-Cada cliente aparece dentro de um `Accordion` expansível:
+- Total atual no banco: **4 usuários ativos**
+- Logins informados: **9 usuários totais**
+- Movimento novo necessário para reconciliar: **+5 usuários**
 
-### 1. Cabeçalho
-Nome, plano atual, ciclo do fechamento (05/06 → 04/07), vencimento, status (ativo / churn no ciclo), data de início, data de churn (se houver).
+Vou registrar um movimento de upgrade:
 
-### 2. Setup
-- Data de entrada (`dataInicio`).
-- Plano contratado no setup (nome + `valorMensal`).
-- Configuração inicial: canais WhatsApp/Insta/Messenger, usuários, contatos, IA, Asaas, Zapi, Transcrição.
-- Valor de setup pago (`valorSetupPago`).
+- Cliente: Instituto Murilo Fischer
+- Data: `2026-06-18`
+- Tipo: `upgrade`
+- Delta de usuários: `+5`
+- Observação: `Login extra - ajuste para 9 usuários totais conforme auditoria de logins`
 
-### 3. Linha do tempo de movimentos (todos, ordem asc)
-Tabela com uma linha por registro de `elora_movimentos` do cliente até o fim do ciclo:
-- Data
-- Tipo (upgrade / downgrade / servico / setup / churn) com badge
-- Descrição do delta (canais Whats +1, usuários +2, contatos −100, IA ativada, etc.) renderizada a partir dos campos numéricos — mesmo padrão já usado no PDF em `movsMes`
-- Valor: `valorServico` para movimentos avulsos; para upgrade/downgrade mostro o **impacto recorrente** = `receitaMensalCliente(depois) − receitaMensalCliente(antes)` usando `clienteSnapshotAt`
-- Observação (`obs`) se houver
+E atualizar o cadastro do Fischer para:
 
-### 4. Composição do plano HOJE (breakdown de cobrança)
-Para cada cliente, tabela linha-a-linha reaproveitando **exatamente** as regras que `receitaMensalCliente` já usa (multiplicação direta `qtd excedente × preço do plano` — sem escala Helena, que é só custo):
+- `usuarios_ativos = 9`
 
-- Licença base do plano (`plano.valorMensal`)
-- Canais WhatsApp excedentes: `max(0, canaisWhats − canaisWhatsInclusos) × valorCanalWhatsExc`
-- Canais Instagram excedentes: idem com `valorCanalInstaExc`
-- Canais Messenger excedentes: idem com `valorCanalMessengerExc`
-- Usuários excedentes: `max(0, usuariosAtivos − usuariosInclusos) × valorUsuariosExc`
-- Contatos excedentes: `max(0, contatosAtivos − contatosInclusos) × valorContatosExc`
-- IA / Asaas / Zapi / Transcrição (quando marcados e não inclusos no plano) com o valor unitário do plano
-- Acompanhamento (`valorAcompanhamento`)
+Com a regra já corrigida no relatório, esse movimento vai aparecer como:
 
-Somatório fecha com:
-- **Custo Sistema** = `receitaSistemaCliente` (tudo menos acompanhamento)
-- **Custo Acompanhamento** = `cliente.valorAcompanhamento`
-- **Custo Mês (total)** = `receitaMensalCliente`
+- `+R$ 149,95/mês` (`5 × R$ 29,99`)
 
-Para isso extraio uma função pura `explicarReceitaCliente(cliente, plano)` em `src/lib/calc/receita.ts` que devolve `{ itens: { label, qtd, unit, total }[], subtotalSistema, acompanhamento, total }`. `receitaMensalCliente` passa a somar `.itens.total + acompanhamento` — mesmos números que hoje, sem regressão.
+### 2. Não apagar o Dr. Lucas nem outros clientes manuais
 
-### 5. Ações
-Botão **"Exportar PDF de auditoria"** gerando o mesmo conteúdo com `jsPDF` + `autoTable` (já importados no arquivo).
+Confirmei que **Dr. Lucas não está mais na tabela de clientes** agora. Para impedir que isso volte a acontecer, vou remover/neutralizar o comportamento perigoso que pode apagar dados reais:
 
-## Onde muda
+- A função `resetAll` atualmente executa deletes amplos em:
+  - clientes
+  - planos
+  - parceiros
 
-- `src/routes/resumo.tsx`
-  - Estado `detalharFechamentoId` + `Dialog`.
-  - Botão `Detalhar` no header do fechamento.
-  - Componente interno `<FechamentoAuditoriaDialog>` com o layout descrito.
-  - Helper `descreverMovimento(m)` extraído do PDF.
-  - Geração do PDF de auditoria.
-- `src/lib/calc/receita.ts`
-  - Nova função `explicarReceitaCliente(cliente, plano)`. `receitaMensalCliente` fica como um `sum(explicarReceitaCliente(...).itens) + acompanhamento` — mesmo resultado.
+Vou alterar essa função para **não deletar mais dados da nuvem**. Ela poderá no máximo limpar o estado local/visual, mas não poderá apagar registros reais do banco.
 
-Sem mudanças de schema, sem novas tabelas. Dados já vêm de `elora_clientes`, `elora_movimentos`, `elora_planos`, `elora_fechamento_itens`.
+Isso protege clientes lançados manualmente, incluindo o Dr. Lucas, contra sumirem depois de uma atualização/ação de reset.
 
-## Validação
+### 3. Restaurar Dr. Lucas
 
-- `bunx tsgo --noEmit` limpo.
-- Abrir `/resumo` → junho/2026 → fechamento "Essencial Rabbit Agency" → clicar em **Detalhar** → conferir os 13 clientes com setup + linha do tempo + composição atual. Somar "Custo Mês" de cada cliente = total da linha do fechamento no Resumo (auditoria bate).
-- Exportar PDF e verificar que abre sem clipping.
+Como o Dr. Lucas não aparece mais no banco, eu preciso recriá-lo. Como você ainda não passou os dados completos dele nesta mensagem, vou deixar a restauração preparada de forma segura:
+
+- Se você me passar os dados do Dr. Lucas, eu insiro novamente com o plano, data de início, usuários/canais/contatos e valores corretos.
+- Enquanto isso, a prioridade da implementação será impedir novos apagamentos.
+
+Dados que preciso para recriar Dr. Lucas corretamente depois:
+
+- Nome exato / nome financeiro
+- Plano
+- Data de início/setup
+- Vencimento/ciclo
+- Quantidade de WhatsApp, Instagram, Messenger, Z-API
+- Usuários ativos
+- Contatos ativos
+- Valor setup pago
+- Valor acompanhamento, se houver
+
+### 4. Validação
+
+Depois da implementação, vou validar:
+
+- Fischer aparece com **9 usuários ativos**
+- Movimento de 18/06 aparece no histórico
+- Auditoria do fechamento cobra o movimento como **5 × R$ 29,99**
+- `resetAll` não possui mais deletes amplos em clientes/planos/parceiros
