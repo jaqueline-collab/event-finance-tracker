@@ -1439,6 +1439,8 @@ function ResumoPage() {
                           setDescricoesPorClienteTocadas({});
                           setObservacaoPdf("");
                           setEmailDestino("");
+                          setNomeFechamento("");
+                          setNomeFechamentoTocado(false);
                           toast.message("Seleção e campos limpos.");
                         }}
                         variant="outline"
