@@ -614,6 +614,20 @@ function ResumoPage() {
     return `Fechamento ${fechamentoData.labelMes} · ciclo ${fechamentoData.cicloLabel}`;
   }, [fechamentoData?.labelMes, fechamentoData?.cicloLabel]);
 
+  const defaultNomeFechamento = useMemo(() => {
+    if (!fechamentoData) return "";
+    const planoLabel = planoSel.length > 0
+      ? planoSel.map((id) => planos.find((p) => p.id === id)?.nome ?? id).join(" + ")
+      : "Fechamento";
+    return `${planoLabel} · ${fechamentoData.labelMes}`;
+  }, [fechamentoData?.labelMes, planoSelKey, planos]);
+
+  useEffect(() => {
+    if (!nomeFechamentoTocado && nomeFechamento !== defaultNomeFechamento) {
+      setNomeFechamento(defaultNomeFechamento);
+    }
+  }, [defaultNomeFechamento, nomeFechamento, nomeFechamentoTocado]);
+
   const defaultDescricoesPorClienteKey = useMemo(
     () => fechamentoData?.detalhesPorCliente
       .map((d) => `${d.cliente.id}:${d.cliente.nomeFinanceiro || d.cliente.nome}`)
