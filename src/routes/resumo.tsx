@@ -2189,6 +2189,288 @@ function ResumoPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Auditoria completa do fechamento */}
+      <Dialog open={!!detalharFechamentoId} onOpenChange={(o) => !o && setDetalharFechamentoId(null)}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          {(() => {
+            if (!detalharFechamentoId) return null;
+            const f = fechamentos.find((x) => x.id === detalharFechamentoId);
+            if (!f) return <p className="text-sm text-muted-foreground">Fechamento não encontrado.</p>;
+            const itens = fechamentoItens.filter((i) => i.fechamentoId === detalharFechamentoId);
+            const clientesFech = itens
+              .map((it) => {
+                const cli = clientes.find((c) => c.id === it.clienteId);
+                const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                return { it, cli, nome: cli?.nome ?? snap.clienteNome ?? "—" };
+              })
+              .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+            const deltaMovto = (cli: typeof clientes[number], mv: typeof movimentos[number]) => {
+              const after = clienteSnapshotAt(cli, movimentos, mv.data);
+              const before: typeof after = { ...after };
+              const rev = (cur: number | undefined, val: number | null | undefined) =>
+                val === undefined || val === null ? cur : Math.max(0, (cur ?? 0) - val);
+              before.canaisWhats = rev(after.canaisWhats, mv.canaisWhats);
+              before.canaisInsta = rev(after.canaisInsta, mv.canaisInsta);
+              before.canaisMessenger = rev(after.canaisMessenger, mv.canaisMessenger);
+              before.canaisZapi = rev(after.canaisZapi, mv.canaisZapi) ?? after.canaisZapi;
+              before.usuariosAtivos = rev(after.usuariosAtivos, mv.usuariosAtivos) ?? after.usuariosAtivos;
+              before.contatosAtivos = rev(after.contatosAtivos, mv.contatosAtivos) ?? after.contatosAtivos;
+              return receitaMensalCliente(after, planos, custos) - receitaMensalCliente(before, planos, custos);
+            };
+
+            const fmtDate = (iso?: string | null) =>
+              iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+
+            const exportarAuditoriaPdf = () => {
+              const pdf = new jsPDF({ unit: "pt", format: "a4" });
+              const pageW = pdf.internal.pageSize.getWidth();
+              pdf.setFillColor(15, 15, 15);
+              pdf.rect(0, 0, pageW, 60, "F");
+              pdf.setTextColor(255, 255, 255);
+              pdf.setFont("helvetica", "bold");
+              pdf.setFontSize(16);
+              pdf.text("Auditoria de Fechamento", 40, 28);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(10);
+              pdf.text(f.titulo, 40, 48);
+              pdf.setTextColor(30, 30, 30);
+              let cursorY = 84;
+              for (const { cli, it, nome } of clientesFech) {
+                if (!cli) continue;
+                const plano = planos.find((p) => p.id === cli.planoId);
+                const planoSetup = planos.find((p) => p.id === cli.planoId);
+                const exp = explicarReceitaCliente(cli, planos);
+                const movs = movimentos
+                  .filter((m) => m.clienteId === cli.id)
+                  .filter((m) => !it.cicloFim || m.data <= it.cicloFim)
+                  .sort((a, b) => a.data.localeCompare(b.data));
+                if (cursorY > 720) { pdf.addPage(); cursorY = 60; }
+                pdf.setFont("helvetica", "bold"); pdf.setFontSize(12);
+                pdf.text(nome, 40, cursorY); cursorY += 4;
+                pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+                autoTable(pdf, {
+                  startY: cursorY + 8,
+                  head: [["Setup", "Plano no setup", "Início", "Churn", "Valor setup"]],
+                  body: [[
+                    fmtDate(cli.dataInicio),
+                    planoSetup?.nome ?? "—",
+                    fmtDate(cli.dataInicio),
+                    fmtDate(cli.dataChurn),
+                    formatBRL(cli.valorSetupPago || 0),
+                  ]],
+                  styles: { fontSize: 8, cellPadding: 4 },
+                  headStyles: { fillColor: [40, 40, 40] },
+                  margin: { left: 40, right: 40 },
+                });
+                cursorY = (pdf as any).lastAutoTable.finalY + 8;
+                if (movs.length > 0) {
+                  autoTable(pdf, {
+                    startY: cursorY,
+                    head: [["Data", "Tipo", "Descrição", "Valor"]],
+                    body: movs.map((mv) => {
+                      const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaMovto(cli, mv) : 0;
+                      const valor = mv.tipo === "servico" && mv.valorServico
+                        ? formatBRL(mv.valorServico)
+                        : delta !== 0 ? `${delta > 0 ? "+" : ""}${formatBRL(delta)}/mês` : "—";
+                      return [fmtDate(mv.data), mv.tipo, descreverMov(mv), valor];
+                    }),
+                    styles: { fontSize: 8, cellPadding: 4 },
+                    headStyles: { fillColor: [40, 40, 40] },
+                    margin: { left: 40, right: 40 },
+                  });
+                  cursorY = (pdf as any).lastAutoTable.finalY + 8;
+                }
+                autoTable(pdf, {
+                  startY: cursorY,
+                  head: [["Item de cobrança (hoje)", "Qtd", "Unit.", "Total"]],
+                  body: [
+                    ...exp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
+                    [{ content: "Sistema", styles: { fontStyle: "bold" } }, "", "", { content: formatBRL(exp.subtotalSistema), styles: { fontStyle: "bold" } }],
+                    ["Acompanhamento", "", "", formatBRL(exp.acompanhamento)],
+                    [{ content: "Custo mês (total)", styles: { fontStyle: "bold" } }, "", "", { content: formatBRL(exp.total), styles: { fontStyle: "bold" } }],
+                  ] as any,
+                  styles: { fontSize: 8, cellPadding: 4 },
+                  headStyles: { fillColor: [40, 40, 40] },
+                  margin: { left: 40, right: 40 },
+                });
+                cursorY = (pdf as any).lastAutoTable.finalY + 18;
+              }
+              pdf.save(`auditoria-${f.titulo.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`);
+            };
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <FileSearch className="h-5 w-5" /> Auditoria · {f.titulo}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {clientesFech.length} cliente(s) · Total {formatBRL(f.totalLiquido)}
+                  </p>
+                </DialogHeader>
+
+                <div className="flex justify-end">
+                  <Button size="sm" variant="outline" onClick={exportarAuditoriaPdf} className="gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> Exportar PDF de auditoria
+                  </Button>
+                </div>
+
+                <div className="space-y-4 mt-2">
+                  {clientesFech.map(({ cli, it, nome }) => {
+                    if (!cli) return (
+                      <div key={it.id} className="rounded border border-border/40 p-3 text-sm text-muted-foreground">
+                        {nome} — cliente removido do cadastro.
+                      </div>
+                    );
+                    const planoAtual = planos.find((p) => p.id === cli.planoId);
+                    const exp = explicarReceitaCliente(cli, planos);
+                    const cicloFimIso = it.cicloFim ?? undefined;
+                    const movs = movimentos
+                      .filter((m) => m.clienteId === cli.id)
+                      .filter((m) => !cicloFimIso || m.data <= cicloFimIso)
+                      .sort((a, b) => a.data.localeCompare(b.data));
+                    return (
+                      <details key={it.id} className="rounded-lg border border-border/50 bg-background/40 group" open={clientesFech.length <= 3}>
+                        <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30 rounded-t-lg select-none">
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90" />
+                          <span className="font-medium text-sm">{nome}</span>
+                          <Badge variant="outline" className="text-[10px]">{abreviarPlano(planoAtual?.nome)}</Badge>
+                          {cli.dataChurn && (
+                            <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">churn {fmtDate(cli.dataChurn)}</Badge>
+                          )}
+                          <span className="ml-auto text-sm font-semibold text-primary">{formatBRL(exp.total)}/mês</span>
+                        </summary>
+
+                        <div className="border-t border-border/40 px-3 py-3 space-y-4">
+                          {/* Setup */}
+                          <div>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Setup</h5>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Data de entrada</div>
+                                <div className="font-medium">{fmtDate(cli.dataInicio)}</div>
+                              </div>
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Plano</div>
+                                <div className="font-medium">{planoAtual?.nome ?? "—"}</div>
+                              </div>
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Valor setup pago</div>
+                                <div className="font-medium">{formatBRL(cli.valorSetupPago || 0)}</div>
+                              </div>
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Ciclo do fechamento</div>
+                                <div className="font-medium">
+                                  {it.cicloInicio && it.cicloFim ? `${fmtDate(it.cicloInicio)} → ${fmtDate(it.cicloFim)}` : "—"}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Timeline */}
+                          <div>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Linha do tempo · todos os movimentos</h5>
+                            {movs.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic px-2 py-2 border border-dashed border-border/40 rounded">
+                                Sem movimentos registrados.
+                              </p>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-muted-foreground border-b border-border/40">
+                                      <th className="text-left pb-1 font-medium">Data</th>
+                                      <th className="text-left pb-1 font-medium">Tipo</th>
+                                      <th className="text-left pb-1 font-medium">Descrição</th>
+                                      <th className="text-right pb-1 font-medium">Valor</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {movs.map((mv) => {
+                                      const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaMovto(cli, mv) : 0;
+                                      const isUp = mv.tipo === "upgrade";
+                                      const isDown = mv.tipo === "downgrade";
+                                      return (
+                                        <tr key={mv.id} className="border-b border-border/20 last:border-0">
+                                          <td className="py-1.5">{fmtDate(mv.data)}</td>
+                                          <td className="py-1.5">
+                                            <Badge variant="outline" className={`text-[10px] ${isUp ? "border-accent/40 text-accent" : isDown ? "border-destructive/40 text-destructive" : ""}`}>
+                                              {mv.tipo}
+                                            </Badge>
+                                          </td>
+                                          <td className="py-1.5 text-muted-foreground">{descreverMov(mv)}</td>
+                                          <td className="py-1.5 text-right font-medium">
+                                            {mv.tipo === "servico" && mv.valorServico
+                                              ? formatBRL(mv.valorServico)
+                                              : delta !== 0
+                                                ? <span className={delta > 0 ? "text-accent" : "text-destructive"}>{delta > 0 ? "+" : ""}{formatBRL(delta)}/mês</span>
+                                                : <span className="text-muted-foreground">—</span>}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Composição atual */}
+                          <div>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Composição da mensalidade (hoje)</h5>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-muted-foreground border-b border-border/40">
+                                    <th className="text-left pb-1 font-medium">Item</th>
+                                    <th className="text-right pb-1 font-medium">Qtd</th>
+                                    <th className="text-right pb-1 font-medium">Unit.</th>
+                                    <th className="text-right pb-1 font-medium">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {exp.itens.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-border/20">
+                                      <td className="py-1.5">
+                                        {item.label}
+                                        {item.incluso && <span className="text-[10px] text-muted-foreground ml-2">({item.incluso})</span>}
+                                      </td>
+                                      <td className="py-1.5 text-right tabular-nums">{item.qtd}</td>
+                                      <td className="py-1.5 text-right tabular-nums">{formatBRL(item.unit)}</td>
+                                      <td className="py-1.5 text-right font-medium tabular-nums">{formatBRL(item.total)}</td>
+                                    </tr>
+                                  ))}
+                                  <tr className="border-b border-border/40 bg-muted/20">
+                                    <td className="py-1.5 font-semibold">Custo Sistema</td>
+                                    <td colSpan={2}></td>
+                                    <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(exp.subtotalSistema)}</td>
+                                  </tr>
+                                  <tr className="border-b border-border/20">
+                                    <td className="py-1.5">Custo Acompanhamento</td>
+                                    <td colSpan={2}></td>
+                                    <td className="py-1.5 text-right tabular-nums">{formatBRL(exp.acompanhamento)}</td>
+                                  </tr>
+                                  <tr className="bg-primary/5">
+                                    <td className="py-2 font-semibold">Custo Mês (total)</td>
+                                    <td colSpan={2}></td>
+                                    <td className="py-2 text-right font-bold text-primary tabular-nums">{formatBRL(exp.total)}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
