@@ -139,6 +139,9 @@ function ResumoPage() {
   const [descricaoConsolidadaTocada, setDescricaoConsolidadaTocada] = useState(false);
   const [descricoesPorCliente, setDescricoesPorCliente] = useState<Record<string, string>>({});
   const [descricoesPorClienteTocadas, setDescricoesPorClienteTocadas] = useState<Record<string, boolean>>({});
+  // Nome do fechamento (grava em elora_fechamentos.titulo)
+  const [nomeFechamento, setNomeFechamento] = useState<string>("");
+  const [nomeFechamentoTocado, setNomeFechamentoTocado] = useState(false);
   // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
   const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
   const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
