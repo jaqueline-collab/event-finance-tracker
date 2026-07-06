@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function getMultiFilterValues(filtros: FilterState, key: string): string[] {
   const value = filtros[key];
@@ -138,6 +139,9 @@ function ResumoPage() {
   const [descricaoConsolidadaTocada, setDescricaoConsolidadaTocada] = useState(false);
   const [descricoesPorCliente, setDescricoesPorCliente] = useState<Record<string, string>>({});
   const [descricoesPorClienteTocadas, setDescricoesPorClienteTocadas] = useState<Record<string, boolean>>({});
+  // Nome do fechamento (grava em elora_fechamentos.titulo)
+  const [nomeFechamento, setNomeFechamento] = useState<string>("");
+  const [nomeFechamentoTocado, setNomeFechamentoTocado] = useState(false);
   // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
   const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
   const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
@@ -610,6 +614,20 @@ function ResumoPage() {
     return `Fechamento ${fechamentoData.labelMes} · ciclo ${fechamentoData.cicloLabel}`;
   }, [fechamentoData?.labelMes, fechamentoData?.cicloLabel]);
 
+  const defaultNomeFechamento = useMemo(() => {
+    if (!fechamentoData) return "";
+    const planoLabel = planoSel.length > 0
+      ? planoSel.map((id) => planos.find((p) => p.id === id)?.nome ?? id).join(" + ")
+      : "Fechamento";
+    return `${planoLabel} · ${fechamentoData.labelMes}`;
+  }, [fechamentoData?.labelMes, planoSelKey, planos]);
+
+  useEffect(() => {
+    if (!nomeFechamentoTocado && nomeFechamento !== defaultNomeFechamento) {
+      setNomeFechamento(defaultNomeFechamento);
+    }
+  }, [defaultNomeFechamento, nomeFechamento, nomeFechamentoTocado]);
+
   const defaultDescricoesPorClienteKey = useMemo(
     () => fechamentoData?.detalhesPorCliente
       .map((d) => `${d.cliente.id}:${d.cliente.nomeFinanceiro || d.cliente.nome}`)
@@ -685,8 +703,19 @@ function ResumoPage() {
   };
 
   const abrirNovoFechamento = (mesKey?: string) => {
-    const competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
+    // Preferimos a competência clicada; se não for elegível (ciclo em aberto,
+    // sem clientes), caímos na competência elegível mais recente.
+    const elegiveis = opcoesFechamento.map((o) => o.key);
+    let competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
+    if (!elegiveis.includes(competencia) && elegiveis.length > 0) {
+      const aviso = mesKey
+        ? `Ciclo de ${formatCompetenciaLabel(Number(mesKey.slice(0, 4)), Number(mesKey.slice(5, 7)) - 1)} ainda em aberto — abrindo ${opcoesFechamento[0].label}.`
+        : null;
+      competencia = elegiveis[0];
+      if (aviso) toast.message(aviso);
+    }
     setCompetenciaNovoFechamento(competencia);
+    setNomeFechamentoTocado(false);
     setFechamentoOpen(true);
   };
   const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
@@ -955,7 +984,8 @@ function ResumoPage() {
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
     // Quantidade de fechamentos já existentes nessa competência (para numerar o título)
     const jaExistentes = fechamentos.filter((f) => f.competencia === competenciaKey).length;
-    const tituloFechamento = (descricaoConsolidada || "").trim()
+    const tituloFechamento = (nomeFechamento || "").trim()
+      || (descricaoConsolidada || "").trim()
       || `${jaExistentes + 1}º fechamento · ${labelMes}`;
     // Snapshot dos itens para persistência
     const itensSnapshot = detalhesPorCliente.map((d) => ({
@@ -1356,6 +1386,42 @@ function ResumoPage() {
                       <p className="text-[11px] opacity-90 mt-1">
                         Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
                       </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 max-w-xl">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider opacity-80">Competência</label>
+                          <Select
+                            value={fechamentoMes}
+                            onValueChange={(v) => {
+                              setCompetenciaNovoFechamento(v);
+                              setNomeFechamentoTocado(false);
+                              setDescricaoConsolidadaTocada(false);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1 h-9 bg-background/10 border-primary-foreground/30 text-primary-foreground">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(opcoesFechamento.length > 0
+                                ? opcoesFechamento
+                                : [{ key: fechamentoMes, label: fechamentoData.labelMes, elegiveis: fechamentoData.ativos.length, aguardando: 0 }]
+                              ).map((o) => (
+                                <SelectItem key={o.key} value={o.key}>
+                                  {o.label} · {o.elegiveis} elegível(is)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider opacity-80">Nome do fechamento</label>
+                          <Input
+                            value={nomeFechamento}
+                            onChange={(e) => { setNomeFechamento(e.target.value); setNomeFechamentoTocado(true); }}
+                            placeholder={defaultNomeFechamento}
+                            className="mt-1 h-9 bg-background/10 border-primary-foreground/30 text-primary-foreground placeholder:text-primary-foreground/60"
+                          />
+                        </div>
+                      </div>
                       {fechamentoData.aguardandoCicloFechar.length > 0 && (
                         <p className="text-[11px] opacity-90 mt-1">
                           ⏳ {fechamentoData.aguardandoCicloFechar.length} cliente(s) aguardando fim do ciclo (
@@ -1373,6 +1439,8 @@ function ResumoPage() {
                           setDescricoesPorClienteTocadas({});
                           setObservacaoPdf("");
                           setEmailDestino("");
+                          setNomeFechamento("");
+                          setNomeFechamentoTocado(false);
                           toast.message("Seleção e campos limpos.");
                         }}
                         variant="outline"
@@ -1421,7 +1489,7 @@ function ResumoPage() {
                       <p className="text-xs text-muted-foreground">Gera lançamentos a partir deste fechamento.</p>
                     </div>
                     <Button onClick={enviarParaFinanceiro} className="gap-2" size="sm">
-                      <Send className="h-3.5 w-3.5" /> Enviar
+                      <Send className="h-3.5 w-3.5" /> Gerar fechamento
                     </Button>
                   </div>
                   <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
