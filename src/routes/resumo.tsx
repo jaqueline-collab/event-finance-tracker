@@ -1025,6 +1025,16 @@ function ResumoPage() {
       return;
     }
     const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const exibirFechamentoGerado = (fechamentoId: string) => {
+      setFiltros({
+        ...filtrosRef.current,
+        competencia: { type: "single", value: competenciaKey },
+      });
+      setExpandedMes(competenciaKey);
+      setExpandedFechamento(fechamentoId);
+      setFechamentoOpen(false);
+      setCompetenciaNovoFechamento(null);
+    };
     // Quantidade de fechamentos já existentes nessa competência (para numerar o título)
     const jaExistentes = fechamentos.filter((f) => f.competencia === competenciaKey).length;
     const tituloFechamento = (nomeFechamento || "").trim()
@@ -1080,7 +1090,7 @@ function ResumoPage() {
       // Vincula todos os itens ao lançamento consolidado
       for (const it of itensSnapshot) it.lancamentoFinanceiroId = lancId;
       try {
-        await addFechamento(
+        const fechamentoId = await addFechamento(
           {
             competencia: competenciaKey,
             titulo: tituloFechamento,
@@ -1093,10 +1103,13 @@ function ResumoPage() {
           },
           itensSnapshot,
         );
+        exibirFechamentoGerado(fechamentoId);
+        toast.success("Fechamento gerado e exibido no Resumo.");
       } catch (e) {
         console.error(e);
+        toast.error("Não foi possível gerar o fechamento.");
+        return;
       }
-      toast.success("1 lançamento consolidado enviado ao Financeiro.");
     } else {
       let n = 0;
       for (const d of detalhesPorCliente) {
@@ -1120,7 +1133,7 @@ function ResumoPage() {
         n++;
       }
       try {
-        await addFechamento(
+        const fechamentoId = await addFechamento(
           {
             competencia: competenciaKey,
             titulo: tituloFechamento,
@@ -1133,12 +1146,14 @@ function ResumoPage() {
           },
           itensSnapshot,
         );
+        exibirFechamentoGerado(fechamentoId);
+        toast.success(`Fechamento gerado com ${n} lançamento(s) e exibido no Resumo.`);
       } catch (e) {
         console.error(e);
+        toast.error("Não foi possível gerar o fechamento.");
+        return;
       }
-      toast.success(`${n} lançamento(s) por cliente enviado(s) ao Financeiro.`);
     }
-    setFechamentoOpen(false);
   };
 
   // ====== Enviar por e-mail (placeholder até configurar domínio) ======
