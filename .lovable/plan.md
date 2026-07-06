@@ -1,66 +1,34 @@
-## Plano: corrigir Fischer e impedir perda de lançamentos manuais
+## Plano: distribuir os upgrades de login do Fischer nas datas corretas
 
-### 1. Corrigir o Fischer para 9 usuários
+### Resultado final esperado
 
-Vou ajustar a conta **Instituto Murilo Fischer** para bater exatamente os 9 logins informados:
+3 usuários inclusos no plano + 6 upgrades de login = **9 usuários**, cobrando 6 × R$ 29,99 = **R$ 179,94/mês**.
 
-- Total atual no banco: **4 usuários ativos**
-- Logins informados: **9 usuários totais**
-- Movimento novo necessário para reconciliar: **+5 usuários**
+### Operações no banco (tabela `elora_movimentos`, cliente Fischer)
 
-Vou registrar um movimento de upgrade:
+1. **Remover** movimento `fisup0408` (08/04/2026 · Login Extra - SDR) — não corresponde a nenhum login real.
+2. **Atualizar** `fisup0311` (11/03) — remover observação "Login Claudia", deixar apenas `Login extra - 11/03`.
+3. **Atualizar** `fisup0609` (09/06) — remover observação "Login Extra - SDR", deixar apenas `Login extra - 09/06`.
+4. **Atualizar** `fisup0618logins` (18/06) — mudar `usuarios_ativos` de `+5` para `+1`, observação `Login extra - 18/06`.
+5. **Inserir** `fisup0525a` (25/05/2026) · upgrade · +1 usuário · `Login extra - 25/05 (1º)`.
+6. **Inserir** `fisup0525b` (25/05/2026) · upgrade · +1 usuário · `Login extra - 25/05 (2º)`.
+7. **Inserir** `fisup0625` (25/06/2026) · upgrade · +1 usuário · `Login extra - 25/06`.
+8. **Manter** `elora_clientes.usuarios_ativos = 9` para o Fischer.
 
-- Cliente: Instituto Murilo Fischer
-- Data: `2026-06-18`
-- Tipo: `upgrade`
-- Delta de usuários: `+5`
-- Observação: `Login extra - ajuste para 9 usuários totais conforme auditoria de logins`
+### Timeline final dos usuários
 
-E atualizar o cadastro do Fischer para:
+| Data | Delta | Observação |
+|---|---|---|
+| 11/03/2026 | +1 | Login extra - 11/03 |
+| 25/05/2026 | +1 | Login extra - 25/05 (1º) |
+| 25/05/2026 | +1 | Login extra - 25/05 (2º) |
+| 09/06/2026 | +1 | Login extra - 09/06 |
+| 18/06/2026 | +1 | Login extra - 18/06 |
+| 25/06/2026 | +1 | Login extra - 25/06 |
 
-- `usuarios_ativos = 9`
+### Validação após aplicar
 
-Com a regra já corrigida no relatório, esse movimento vai aparecer como:
-
-- `+R$ 149,95/mês` (`5 × R$ 29,99`)
-
-### 2. Não apagar o Dr. Lucas nem outros clientes manuais
-
-Confirmei que **Dr. Lucas não está mais na tabela de clientes** agora. Para impedir que isso volte a acontecer, vou remover/neutralizar o comportamento perigoso que pode apagar dados reais:
-
-- A função `resetAll` atualmente executa deletes amplos em:
-  - clientes
-  - planos
-  - parceiros
-
-Vou alterar essa função para **não deletar mais dados da nuvem**. Ela poderá no máximo limpar o estado local/visual, mas não poderá apagar registros reais do banco.
-
-Isso protege clientes lançados manualmente, incluindo o Dr. Lucas, contra sumirem depois de uma atualização/ação de reset.
-
-### 3. Restaurar Dr. Lucas
-
-Como o Dr. Lucas não aparece mais no banco, eu preciso recriá-lo. Como você ainda não passou os dados completos dele nesta mensagem, vou deixar a restauração preparada de forma segura:
-
-- Se você me passar os dados do Dr. Lucas, eu insiro novamente com o plano, data de início, usuários/canais/contatos e valores corretos.
-- Enquanto isso, a prioridade da implementação será impedir novos apagamentos.
-
-Dados que preciso para recriar Dr. Lucas corretamente depois:
-
-- Nome exato / nome financeiro
-- Plano
-- Data de início/setup
-- Vencimento/ciclo
-- Quantidade de WhatsApp, Instagram, Messenger, Z-API
-- Usuários ativos
-- Contatos ativos
-- Valor setup pago
-- Valor acompanhamento, se houver
-
-### 4. Validação
-
-Depois da implementação, vou validar:
-
-- Fischer aparece com **9 usuários ativos**
-- Movimento de 18/06 aparece no histórico
-- Auditoria do fechamento cobra o movimento como **5 × R$ 29,99**
-- `resetAll` não possui mais deletes amplos em clientes/planos/parceiros
+- Fischer aparece com 9 usuários ativos.
+- Auditoria mostra 6 linhas de "Usuários excedentes" nas datas acima, cada uma +R$ 29,99/mês.
+- Movimento de 08/04 sumiu do histórico.
+- Nenhuma alteração de código — apenas operações de dados.
