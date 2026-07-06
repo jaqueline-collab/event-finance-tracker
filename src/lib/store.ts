@@ -60,6 +60,7 @@ export {
   receitaSistemaCliente,
   receitaSistemaTotal,
   faturamentoAcumuladoCliente,
+  explicarReceitaCliente,
 } from "./calc/receita";
 export { custoMensalCliente } from "./calc/custo";
 export {
