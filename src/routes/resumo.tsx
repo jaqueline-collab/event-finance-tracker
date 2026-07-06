@@ -1489,7 +1489,7 @@ function ResumoPage() {
                       <p className="text-xs text-muted-foreground">Gera lançamentos a partir deste fechamento.</p>
                     </div>
                     <Button onClick={enviarParaFinanceiro} className="gap-2" size="sm">
-                      <Send className="h-3.5 w-3.5" /> Enviar
+                      <Send className="h-3.5 w-3.5" /> Gerar fechamento
                     </Button>
                   </div>
                   <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
