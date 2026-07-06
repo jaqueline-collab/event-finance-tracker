@@ -1406,9 +1406,9 @@ function ResumoPage() {
       <AlertDialog open={!!confirmDeleteFech} onOpenChange={(o) => !o && setConfirmDeleteFech(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir fechamento?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir fechamento persistido?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação também remove os lançamentos financeiros gerados por este fechamento, se houver. Não pode ser desfeita.
+              Esta ação remove apenas o registro do fechamento e seus itens detalhados. Lançamentos financeiros vinculados serão preservados para manter o histórico. Só confirme se isso foi solicitado explicitamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1419,7 +1419,7 @@ function ResumoPage() {
                 if (!confirmDeleteFech) return;
                 try {
                   await removeFechamento(confirmDeleteFech);
-                  toast.success("Fechamento excluído.");
+                  toast.success("Fechamento removido; lançamentos financeiros preservados.");
                 } catch {
                   toast.error("Falha ao excluir fechamento.");
                 }
