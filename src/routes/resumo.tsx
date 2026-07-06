@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown, Eraser } from "lucide-react";
+import { FileSearch } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +33,7 @@ import {
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
 } from "@/lib/store";
+import { explicarReceitaCliente } from "@/lib/calc/receita";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
 import type { Desconto } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
