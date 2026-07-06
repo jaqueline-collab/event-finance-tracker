@@ -1304,6 +1304,15 @@ function ResumoPage() {
                                     <Badge variant="outline" className="text-[10px] ml-1">{itens.length} conta(s)</Badge>
                                     <span className="ml-auto flex items-center gap-3">
                                       <span className="text-xs text-muted-foreground">{criadoEmLabel}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 gap-1.5 text-xs"
+                                        title="Auditoria completa deste fechamento"
+                                        onClick={(e) => { e.stopPropagation(); setDetalharFechamentoId(f.id); }}
+                                      >
+                                        <FileSearch className="h-3.5 w-3.5" /> Detalhar
+                                      </Button>
                                       <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
                                       {isAdmin && (
                                         <Button
