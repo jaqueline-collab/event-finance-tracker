@@ -940,7 +940,7 @@ function ResumoPage() {
     if (fechamentoData.churnsNoMes.length > 0) {
       autoTable(pdf, {
         startY: (pdf as any).lastAutoTable.finalY + 16,
-        head: [["Data do churn", "Cliente", "Plano", "Motivo"]],
+        head: [["Data do churn", "Cliente", "Plano"]],
         body: fechamentoData.churnsNoMes
           .slice()
           .sort((a, b) => (a.dataChurn ?? "").localeCompare(b.dataChurn ?? ""))
@@ -950,7 +950,6 @@ function ResumoPage() {
               c.dataChurn ? c.dataChurn.split("-").reverse().join("/") : "—",
               c.nomeFinanceiro || c.nome,
               abreviarPlano(plano?.nome),
-              (c as any).motivoChurn || "—",
             ];
           }),
         styles: { fontSize: 9, cellPadding: 6 },
