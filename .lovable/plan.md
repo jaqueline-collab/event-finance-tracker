@@ -1,40 +1,65 @@
-## Diagnóstico
+## O que vou adicionar
 
-Hoje é 05/07/2026. Rabbit tem ciclo 5→4 (Jun/2026 = 05/06 → 04/07), então a competência elegível para gerar fechamento agora é **junho/2026**. Se você clicou em "Novo fechamento" na linha de **julho/2026**, o ciclo ainda vai até 04/08 → nenhum cliente aparece (correto pelas regras, mas confuso). Além disso o modal:
+Um botão **"Detalhar"** (ícone `FileSearch`) na mesma linha do header do fechamento em `/resumo` — entre o nome (`Essencial Rabbit Agency · Junho/2026 · 13 conta(s)`) e o valor total. Ele abre um `Dialog` grande (max-w-6xl, scroll interno) com o dossiê de auditoria de **todos os clientes daquele fechamento**.
 
-- Não tem seletor de competência dentro dele — fica preso na linha em que foi clicado.
-- Não tem campo para o **nome do fechamento** (ex.: "Rabbit Agency – Elora CRM").
-- Não usa esse nome na hora de gravar em `elora_fechamentos.titulo`.
+## Conteúdo do popup (por cliente, em ordem alfabética)
 
-## O que vou mudar em `src/routes/resumo.tsx`
+Cada cliente aparece dentro de um `Accordion` expansível:
 
-1. **Seletor de competência dentro do modal**
-   - Usar `opcoesFechamento` (competências que têm ≥1 cliente elegível) como opções de um Select no cabeçalho do modal.
-   - Se o usuário abrir pela linha de julho e não houver clientes elegíveis, cair automaticamente na competência elegível mais recente (junho/2026) e mostrar um aviso curto: "Julho ainda tem ciclo em aberto — abrindo a última competência disponível (junho/2026)".
-   - "Gerar Fechamento" no topo da página abre já na competência elegível mais recente.
+### 1. Cabeçalho
+Nome, plano atual, ciclo do fechamento (05/06 → 04/07), vencimento, status (ativo / churn no ciclo), data de início, data de churn (se houver).
 
-2. **Campo Nome do Fechamento**
-   - Novo `Input` obrigatório no topo do modal ("Nome do fechamento"), default = `defaultDescricaoConsolidada` (ex.: `Fechamento junho/2026 · ciclo 05/06 a 04/07`).
-   - Esse valor vira o `titulo` gravado em `elora_fechamentos` (hoje o código já grava mas usando a descrição consolidada — vou trocar para o nome do fechamento).
-   - Para o teste imediato do Rabbit, é só digitar **"Rabbit Agency - Elora CRM"** e gerar.
+### 2. Setup
+- Data de entrada (`dataInicio`).
+- Plano contratado no setup (nome + `valorMensal`).
+- Configuração inicial: canais WhatsApp/Insta/Messenger, usuários, contatos, IA, Asaas, Zapi, Transcrição.
+- Valor de setup pago (`valorSetupPago`).
 
-3. **Lista de contas elegíveis**
-   - Confirmar (e ajustar se necessário) que `fechamentoData.ativos` continua respeitando o filtro de plano (Rabbit) + ciclo já encerrado ou último dia = hoje.
-   - Todos os elegíveis já vêm marcados; permanece o "Limpar tudo" e checkboxes individuais.
+### 3. Linha do tempo de movimentos (todos, ordem asc)
+Tabela com uma linha por registro de `elora_movimentos` do cliente até o fim do ciclo:
+- Data
+- Tipo (upgrade / downgrade / servico / setup / churn) com badge
+- Descrição do delta (canais Whats +1, usuários +2, contatos −100, IA ativada, etc.) renderizada a partir dos campos numéricos — mesmo padrão já usado no PDF em `movsMes`
+- Valor: `valorServico` para movimentos avulsos; para upgrade/downgrade mostro o **impacto recorrente** = `receitaMensalCliente(depois) − receitaMensalCliente(antes)` usando `clienteSnapshotAt`
+- Observação (`obs`) se houver
 
-4. **Descontos**
-   - Manter os botões existentes: aplicar por cliente (ícone `Tag`) e desconto no fechamento inteiro (`Plus`), ambos abrindo o modal `DescontoModal` (já existente) que aceita valor fixo ou %.
+### 4. Composição do plano HOJE (breakdown de cobrança)
+Para cada cliente, tabela linha-a-linha reaproveitando **exatamente** as regras que `receitaMensalCliente` já usa (multiplicação direta `qtd excedente × preço do plano` — sem escala Helena, que é só custo):
 
-5. **Ações finais**
-   - Mantidos: **Limpar tudo**, **Gerar relatório (PDF)**, **Enviar para o Financeiro** (é o "Gerar fechamento" — persiste em `elora_fechamentos` + `elora_fechamento_itens` e cria lançamentos).
-   - Renomear o botão "Enviar" para **"Gerar fechamento"** para casar com o vocabulário pedido.
+- Licença base do plano (`plano.valorMensal`)
+- Canais WhatsApp excedentes: `max(0, canaisWhats − canaisWhatsInclusos) × valorCanalWhatsExc`
+- Canais Instagram excedentes: idem com `valorCanalInstaExc`
+- Canais Messenger excedentes: idem com `valorCanalMessengerExc`
+- Usuários excedentes: `max(0, usuariosAtivos − usuariosInclusos) × valorUsuariosExc`
+- Contatos excedentes: `max(0, contatosAtivos − contatosInclusos) × valorContatosExc`
+- IA / Asaas / Zapi / Transcrição (quando marcados e não inclusos no plano) com o valor unitário do plano
+- Acompanhamento (`valorAcompanhamento`)
 
-6. **Sem mudanças fora da UI**
-   - Regras de elegibilidade, cálculo de receita, descontos e persistência ficam iguais. Só ajusto o texto do `titulo` para vir do novo campo.
+Somatório fecha com:
+- **Custo Sistema** = `receitaSistemaCliente` (tudo menos acompanhamento)
+- **Custo Acompanhamento** = `cliente.valorAcompanhamento`
+- **Custo Mês (total)** = `receitaMensalCliente`
 
-## Passos de validação
+Para isso extraio uma função pura `explicarReceitaCliente(cliente, plano)` em `src/lib/calc/receita.ts` que devolve `{ itens: { label, qtd, unit, total }[], subtotalSistema, acompanhamento, total }`. `receitaMensalCliente` passa a somar `.itens.total + acompanhamento` — mesmos números que hoje, sem regressão.
+
+### 5. Ações
+Botão **"Exportar PDF de auditoria"** gerando o mesmo conteúdo com `jsPDF` + `autoTable` (já importados no arquivo).
+
+## Onde muda
+
+- `src/routes/resumo.tsx`
+  - Estado `detalharFechamentoId` + `Dialog`.
+  - Botão `Detalhar` no header do fechamento.
+  - Componente interno `<FechamentoAuditoriaDialog>` com o layout descrito.
+  - Helper `descreverMovimento(m)` extraído do PDF.
+  - Geração do PDF de auditoria.
+- `src/lib/calc/receita.ts`
+  - Nova função `explicarReceitaCliente(cliente, plano)`. `receitaMensalCliente` fica como um `sum(explicarReceitaCliente(...).itens) + acompanhamento` — mesmo resultado.
+
+Sem mudanças de schema, sem novas tabelas. Dados já vêm de `elora_clientes`, `elora_movimentos`, `elora_planos`, `elora_fechamento_itens`.
+
+## Validação
 
 - `bunx tsgo --noEmit` limpo.
-- Abrir `/resumo`, filtrar plano Rabbit, clicar em "Gerar Fechamento": modal abre em junho/2026 com os 13 clientes Rabbit ativos no ciclo (todos exceto os que churnaram antes de 05/06).
-- Digitar "Rabbit Agency - Elora CRM", clicar em **Gerar fechamento** → registro aparece na linha de junho com esse título.
-- Clicar em "Novo fechamento" na linha de julho: modal cai em junho/2026 com aviso de "ciclo de julho ainda em aberto".
+- Abrir `/resumo` → junho/2026 → fechamento "Essencial Rabbit Agency" → clicar em **Detalhar** → conferir os 13 clientes com setup + linha do tempo + composição atual. Somar "Custo Mês" de cada cliente = total da linha do fechamento no Resumo (auditoria bate).
+- Exportar PDF e verificar que abre sem clipping.
