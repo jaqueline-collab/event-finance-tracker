@@ -599,18 +599,8 @@ export const useStore = create<State>()(
       },
 
       resetAll: () => {
-        set({ custos: defaultCustos, planos: defaultPlanos, clientes: [], movimentos: [], parceiros: [] });
-        // Limpar nuvem
-        Promise.all([
-          supabase.from("elora_planos").delete().neq("id", ""),
-          supabase.from("elora_clientes").delete().neq("id", ""),
-          supabase.from("elora_parceiros").delete().neq("id", ""),
-        ]).then(() => {
-          // Re-salvar defaultPlanos
-          defaultPlanos.forEach(p => {
-            supabase.from("elora_planos").insert(mapPlanoToDb(p));
-          });
-        });
+        console.warn("Reset geral desativado para proteger clientes, planos e parceiros reais.");
+        void get().syncFromSupabase();
       },
       seedDemo: () => {
         const planos = get().planos;
