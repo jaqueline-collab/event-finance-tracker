@@ -689,8 +689,19 @@ function ResumoPage() {
   };
 
   const abrirNovoFechamento = (mesKey?: string) => {
-    const competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
+    // Preferimos a competência clicada; se não for elegível (ciclo em aberto,
+    // sem clientes), caímos na competência elegível mais recente.
+    const elegiveis = opcoesFechamento.map((o) => o.key);
+    let competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
+    if (!elegiveis.includes(competencia) && elegiveis.length > 0) {
+      const aviso = mesKey
+        ? `Ciclo de ${formatCompetenciaLabel(Number(mesKey.slice(0, 4)), Number(mesKey.slice(5, 7)) - 1)} ainda em aberto — abrindo ${opcoesFechamento[0].label}.`
+        : null;
+      competencia = elegiveis[0];
+      if (aviso) toast.message(aviso);
+    }
     setCompetenciaNovoFechamento(competencia);
+    setNomeFechamentoTocado(false);
     setFechamentoOpen(true);
   };
   const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
