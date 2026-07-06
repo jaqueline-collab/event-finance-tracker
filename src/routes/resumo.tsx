@@ -1386,6 +1386,42 @@ function ResumoPage() {
                       <p className="text-[11px] opacity-90 mt-1">
                         Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
                       </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 max-w-xl">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider opacity-80">Competência</label>
+                          <Select
+                            value={fechamentoMes}
+                            onValueChange={(v) => {
+                              setCompetenciaNovoFechamento(v);
+                              setNomeFechamentoTocado(false);
+                              setDescricaoConsolidadaTocada(false);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1 h-9 bg-background/10 border-primary-foreground/30 text-primary-foreground">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(opcoesFechamento.length > 0
+                                ? opcoesFechamento
+                                : [{ key: fechamentoMes, label: fechamentoData.labelMes, elegiveis: fechamentoData.ativos.length, aguardando: 0 }]
+                              ).map((o) => (
+                                <SelectItem key={o.key} value={o.key}>
+                                  {o.label} · {o.elegiveis} elegível(is)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider opacity-80">Nome do fechamento</label>
+                          <Input
+                            value={nomeFechamento}
+                            onChange={(e) => { setNomeFechamento(e.target.value); setNomeFechamentoTocado(true); }}
+                            placeholder={defaultNomeFechamento}
+                            className="mt-1 h-9 bg-background/10 border-primary-foreground/30 text-primary-foreground placeholder:text-primary-foreground/60"
+                          />
+                        </div>
+                      </div>
                       {fechamentoData.aguardandoCicloFechar.length > 0 && (
                         <p className="text-[11px] opacity-90 mt-1">
                           ⏳ {fechamentoData.aguardandoCicloFechar.length} cliente(s) aguardando fim do ciclo (
