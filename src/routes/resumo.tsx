@@ -2207,17 +2207,32 @@ function ResumoPage() {
               .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
             const deltaMovto = (cli: typeof clientes[number], mv: typeof movimentos[number]) => {
-              const after = clienteSnapshotAt(cli, movimentos, mv.data);
-              const before: typeof after = { ...after };
-              const rev = (cur: number | undefined, val: number | null | undefined) =>
-                val === undefined || val === null ? cur : Math.max(0, (cur ?? 0) - val);
-              before.canaisWhats = rev(after.canaisWhats, mv.canaisWhats);
-              before.canaisInsta = rev(after.canaisInsta, mv.canaisInsta);
-              before.canaisMessenger = rev(after.canaisMessenger, mv.canaisMessenger);
-              before.canaisZapi = rev(after.canaisZapi, mv.canaisZapi) ?? after.canaisZapi;
-              before.usuariosAtivos = rev(after.usuariosAtivos, mv.usuariosAtivos) ?? after.usuariosAtivos;
-              before.contatosAtivos = rev(after.contatosAtivos, mv.contatosAtivos) ?? after.contatosAtivos;
-              return receitaMensalCliente(after, planos, custos) - receitaMensalCliente(before, planos, custos);
+              // Impacto comercial por movimento: cada recurso alterado é cobrado/creditado
+              // pelo valor unitário do plano, independentemente dos "inclusos" já consumidos.
+              // Isso reflete o contrato ("cada login extra = R$ 29,99", "cada canal extra = R$ 29,99")
+              // e é o que o cliente vê como impacto de cada evento.
+              const plano = planos.find((p) => p.id === cli.planoId);
+              if (!plano) return 0;
+              const vWhats = plano.valorCanalWhatsExc ?? plano.valorCanaisExc ?? 59.90;
+              const vInsta = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.90;
+              const vMsg = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.90;
+              const vUsers = plano.valorUsuariosExc ?? 39.90;
+              const vCont = plano.valorContatosExc ?? 0.10;
+              const vZapi = plano.valorZapi ?? 149.00;
+              const vIA = plano.valorIA ?? 99.00;
+              const vAsaas = plano.valorAsaas ?? 89.00;
+              let d = 0;
+              d += (mv.canaisWhats ?? 0) * vWhats;
+              d += (mv.canaisInsta ?? 0) * vInsta;
+              d += (mv.canaisMessenger ?? 0) * vMsg;
+              d += (mv.canaisZapi ?? 0) * vZapi;
+              d += (mv.usuariosAtivos ?? 0) * vUsers;
+              d += (mv.contatosAtivos ?? 0) * vCont;
+              if (mv.agentesIA === true && !plano.incluiIA) d += vIA;
+              if (mv.agentesIA === false && !plano.incluiIA) d -= vIA;
+              if (mv.asaas === true && !plano.incluiAsaas) d += vAsaas;
+              if (mv.asaas === false && !plano.incluiAsaas) d -= vAsaas;
+              return d;
             };
 
             const fmtDate = (iso?: string | null) =>
