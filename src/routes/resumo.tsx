@@ -82,6 +82,84 @@ export const Route = createFileRoute("/resumo")({
 
 type FechamentoVisivel = Fechamento & { legacyFinanceiroId?: string };
 
+function MauFechamentoEditor({
+  itemId,
+  snapshot,
+  contatosInclusos,
+  valorContatosExc,
+  onSalvar,
+}: {
+  itemId: string;
+  snapshot: Record<string, unknown>;
+  contatosInclusos: number;
+  valorContatosExc: number;
+  onSalvar: (mauMes: number) => Promise<void> | void;
+}) {
+  const mauSalvo = Number(snapshot.mauMes ?? 0) || 0;
+  const valorSalvo = Number(snapshot.mauExcedenteValor ?? 0) || 0;
+  const [mau, setMau] = useState<string>(mauSalvo ? String(mauSalvo) : "");
+  const [saving, setSaving] = useState(false);
+  const mauNum = Math.max(0, Math.floor(Number(mau) || 0));
+  const excedente = Math.max(0, mauNum - contatosInclusos);
+  const acrescimo = excedente * valorContatosExc;
+  const alterado = mauNum !== mauSalvo;
+  void itemId;
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-3 space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-primary">MAU do mês</h5>
+          <p className="text-[11px] text-muted-foreground">
+            Inclusos no plano: <strong>{contatosInclusos.toLocaleString("pt-BR")}</strong> · Unit. excedente: <strong>{formatBRL(valorContatosExc)}</strong>
+          </p>
+        </div>
+        {valorSalvo > 0 && (
+          <Badge variant="outline" className="text-[10px]">
+            Salvo: +{formatBRL(valorSalvo)}
+          </Badge>
+        )}
+      </div>
+      <div className="flex items-end gap-2 flex-wrap">
+        <div className="flex-1 min-w-[180px]">
+          <Label className="text-[11px] text-muted-foreground">MAU registrados no mês</Label>
+          <Input
+            type="number"
+            min={0}
+            value={mau}
+            onChange={(e) => setMau(e.target.value)}
+            placeholder="Ex.: 1200"
+            className="mt-1 h-8 text-sm"
+          />
+        </div>
+        <div className="text-xs text-muted-foreground min-w-[200px]">
+          {excedente > 0 ? (
+            <>
+              <strong>{excedente.toLocaleString("pt-BR")}</strong> excedentes ×{" "}
+              {formatBRL(valorContatosExc)} ={" "}
+              <span className="text-primary font-semibold">+{formatBRL(acrescimo)}</span>
+            </>
+          ) : mau ? (
+            <span className="text-accent">Dentro do plano — sem acréscimo.</span>
+          ) : (
+            <span>Informe os MAU do mês para calcular o excedente.</span>
+          )}
+        </div>
+        <Button
+          size="sm"
+          disabled={saving || !alterado}
+          onClick={async () => {
+            setSaving(true);
+            try { await onSalvar(mauNum); } finally { setSaving(false); }
+          }}
+          className="h-8 gap-1.5"
+        >
+          {saving ? "Salvando…" : "Aplicar MAU"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros, financeiro,
