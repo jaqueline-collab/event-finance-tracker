@@ -2250,24 +2250,68 @@ function ResumoPage() {
               const pageW = pdf.internal.pageSize.getWidth();
               const pageH = pdf.internal.pageSize.getHeight();
 
-              // Capa
-              pdf.setFillColor(15, 15, 15);
-              pdf.rect(0, 0, pageW, 72, "F");
-              pdf.setTextColor(255, 255, 255);
-              pdf.setFont("helvetica", "bold");
-              pdf.setFontSize(18);
-              pdf.text("Auditoria de Fechamento", 40, 32);
-              pdf.setFont("helvetica", "normal");
-              pdf.setFontSize(10);
-              pdf.text(f.titulo, 40, 52);
-              pdf.text(
-                `${clientesFech.length} cliente(s) · Total ${formatBRL(f.totalLiquido)}`,
-                40,
-                66,
-              );
-
               const validos = clientesFech.filter((x) => x.cli);
               const total = validos.length;
+
+              // ===== PÁGINA 1: RESUMO DO FATURAMENTO =====
+              pdf.setFillColor(15, 15, 15);
+              pdf.rect(0, 0, pageW, 78, "F");
+              pdf.setTextColor(255, 255, 255);
+              pdf.setFont("helvetica", "bold");
+              pdf.setFontSize(20);
+              pdf.text("Resumo do Faturamento", 40, 36);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(11);
+              pdf.text(f.titulo, 40, 58);
+              pdf.setFontSize(9);
+              pdf.text(
+                `${total} cliente(s) faturado(s)   -   Gerado em ${new Date().toLocaleString("pt-BR")}`,
+                40,
+                72,
+              );
+
+              const resumoBody = validos.map(({ cli, it, nome }, idx) => {
+                const planoAtual = planos.find((p) => p.id === cli!.planoId);
+                return [
+                  String(idx + 1),
+                  nome,
+                  abreviarPlano(planoAtual?.nome),
+                  formatBRL(it.valorBruto || 0),
+                  it.valorDesconto > 0 ? `-${formatBRL(it.valorDesconto)}` : "—",
+                  formatBRL(it.valorLiquido || 0),
+                ];
+              });
+
+              autoTable(pdf, {
+                startY: 100,
+                head: [["#", "Cliente", "Plano", "Bruto", "Desconto", "Líquido"]],
+                body: resumoBody,
+                foot: [[
+                  { content: "TOTAIS", colSpan: 3, styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(f.totalBruto || 0), styles: { fontStyle: "bold", halign: "right" } },
+                  { content: f.totalDesconto > 0 ? `-${formatBRL(f.totalDesconto)}` : "—", styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(f.totalLiquido || 0), styles: { fontStyle: "bold", halign: "right" } },
+                ]] as any,
+                styles: { fontSize: 9, cellPadding: 6 },
+                headStyles: { fillColor: [15, 15, 15], textColor: 255 },
+                footStyles: { fillColor: [28, 63, 170], textColor: 255 },
+                columnStyles: {
+                  0: { cellWidth: 24, halign: "center" },
+                  1: { cellWidth: "auto" },
+                  2: { cellWidth: 120 },
+                  3: { cellWidth: 70, halign: "right" },
+                  4: { cellWidth: 70, halign: "right" },
+                  5: { cellWidth: 75, halign: "right" },
+                },
+                margin: { left: 40, right: 40 },
+              });
+
+              const ticketMedio = total > 0 ? (f.totalLiquido || 0) / total : 0;
+              const resumoY = (pdf as any).lastAutoTable.finalY + 18;
+              pdf.setTextColor(90, 90, 90);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(9);
+              pdf.text(`Ticket médio por cliente: ${formatBRL(ticketMedio)}`, 40, resumoY);
 
               validos.forEach(({ cli, it, nome }, idx) => {
                 if (!cli) return;
