@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -292,7 +292,7 @@ function ResumoPage() {
   const receitaCicloLocal = (c: typeof clientes[number], y: number, m: number): number =>
     receitaCicloCliente(c, planos, custos, movimentos, y, m);
 
-  const montarFechamentoLegado = (lanc: typeof financeiro[number]): { fechamento: FechamentoVisivel; itens: FechamentoItem[] } | null => {
+  const montarFechamentoLegado = useCallback((lanc: typeof financeiro[number]): { fechamento: FechamentoVisivel; itens: FechamentoItem[] } | null => {
     const competenciaKey = getCompetenciaBase(lanc.competencia);
     if (!competenciaKey) return null;
     const [yStr, mStr] = competenciaKey.split("-");
@@ -366,7 +366,7 @@ function ResumoPage() {
       },
       itens,
     };
-  };
+  }, [clientes, planos, movimentos, custos]);
 
   const fechamentoLegados = useMemo(() => {
     const lancamentosVinculados = new Set(
@@ -379,7 +379,7 @@ function ResumoPage() {
       .filter((l) => !lancamentosVinculados.has(l.id))
       .map(montarFechamentoLegado)
       .filter((x): x is { fechamento: FechamentoVisivel; itens: FechamentoItem[] } => Boolean(x));
-  }, [financeiro, fechamentoItens, clientes, planos, movimentos, custos]);
+  }, [financeiro, fechamentoItens, montarFechamentoLegado]);
 
   const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(
     () => [...fechamentos, ...fechamentoLegados.map((x) => x.fechamento)],
