@@ -1185,7 +1185,7 @@ function ResumoPage() {
       setCompetenciaNovoFechamento(null);
     };
     // Quantidade de fechamentos já existentes nessa competência (para numerar o título)
-    const jaExistentes = fechamentos.filter((f) => f.competencia === competenciaKey).length;
+    const jaExistentes = fechamentosVisiveis.filter((f) => f.competencia === competenciaKey).length;
     const tituloFechamento = (nomeFechamento || "").trim()
       || (descricaoConsolidada || "").trim()
       || `${jaExistentes + 1}º fechamento · ${labelMes}`;
@@ -1388,7 +1388,7 @@ function ResumoPage() {
             <TableBody>
               {linhas.map((l) => {
                 const isExpanded = expandedMes === l.mesKey;
-                const fechDaComp = fechamentos
+                const fechDaComp = fechamentosVisiveis
                   .filter((f) => f.competencia === l.mesKey)
                   .sort((a, b) => (b.criadoEm ?? "").localeCompare(a.criadoEm ?? ""));
                 const totalFechado = fechDaComp.reduce((s, f) => s + f.totalLiquido, 0);
@@ -1432,7 +1432,7 @@ function ResumoPage() {
                             )}
                             {fechDaComp.map((f) => {
                               const isFechExpanded = expandedFechamento === f.id;
-                              const itens = fechamentoItens.filter((i) => i.fechamentoId === f.id);
+                              const itens = fechamentoItensVisiveis.filter((i) => i.fechamentoId === f.id);
                               const criadoEmLabel = f.criadoEm
                                 ? new Date(f.criadoEm).toLocaleDateString("pt-BR")
                                 : "—";
@@ -1473,7 +1473,7 @@ function ResumoPage() {
                                         <Printer className="h-3.5 w-3.5" />
                                       </Button>
                                       <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
-                                      {isAdmin && (
+                                      {isAdmin && !f.legacyFinanceiroId && (
                                         <Button
                                           size="icon"
                                           variant="ghost"
@@ -2354,9 +2354,9 @@ function ResumoPage() {
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           {(() => {
             if (!detalharFechamentoId) return null;
-            const f = fechamentos.find((x) => x.id === detalharFechamentoId);
+            const f = fechamentosVisiveis.find((x) => x.id === detalharFechamentoId);
             if (!f) return <p className="text-sm text-muted-foreground">Fechamento não encontrado.</p>;
-            const itens = fechamentoItens.filter((i) => i.fechamentoId === detalharFechamentoId);
+            const itens = fechamentoItensVisiveis.filter((i) => i.fechamentoId === detalharFechamentoId);
             const clientesFech = itens
               .map((it) => {
                 const cli = clientes.find((c) => c.id === it.clienteId);
