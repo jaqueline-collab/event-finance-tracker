@@ -2593,6 +2593,23 @@ function ResumoPage() {
                         </summary>
 
                         <div className="border-t border-border/40 px-3 py-3 space-y-4">
+                          {/* MAU do mês */}
+                          <MauFechamentoEditor
+                            key={`mau-${it.id}`}
+                            itemId={it.id}
+                            snapshot={(it.payloadSnapshot ?? {}) as Record<string, unknown>}
+                            contatosInclusos={planoAtual?.contatosInclusos ?? 500}
+                            valorContatosExc={planoAtual?.valorContatosExc ?? planoAtual?.valorCanaisExc ?? 0.10}
+                            onSalvar={async (mauMes) => {
+                              try {
+                                await atualizarMauFechamentoItem?.(it.id, mauMes);
+                                toast.success("MAU do mês atualizado.");
+                              } catch {
+                                toast.error("Falha ao atualizar MAU do mês.");
+                              }
+                            }}
+                          />
+
                           {/* Setup */}
                           <div>
                             <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Setup</h5>
