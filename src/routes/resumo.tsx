@@ -86,7 +86,7 @@ function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros, financeiro,
     addLancamento, descontos, addDesconto, removeDesconto,
-    fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento,
+    fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento, updateFechamento,
   } = useStore();
   const { isAdmin } = useCurrentUserAccess();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
