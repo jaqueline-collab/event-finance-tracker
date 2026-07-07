@@ -643,6 +643,105 @@ export const useStore = create<State>()(
         }
       },
 
+      atualizarMauFechamentoItem: async (itemId, mauMes) => {
+        const state = get();
+        const item = state.fechamentoItens.find((x) => x.id === itemId);
+        if (!item) throw new Error("Item de fechamento não encontrado");
+        const cliente = state.clientes.find((c) => c.id === item.clienteId);
+        const plano = state.planos.find((p) => p.id === (item.planoId ?? cliente?.planoId));
+        const contatosInclusos = plano?.contatosInclusos ?? 500;
+        const valorContatosExc = plano?.valorContatosExc ?? plano?.valorCanaisExc ?? 0.10;
+
+        const mauSan = Math.max(0, Math.floor(mauMes || 0));
+        const excedente = Math.max(0, mauSan - contatosInclusos);
+        const novoMauValor = excedente * valorContatosExc;
+
+        const snapAntigo = (item.payloadSnapshot ?? {}) as Record<string, unknown>;
+        const mauValorAntigo = Number(snapAntigo.mauExcedenteValor ?? 0) || 0;
+
+        const novoBruto = Number(item.valorBruto || 0) - mauValorAntigo + novoMauValor;
+        const novoLiquido = Number(item.valorLiquido || 0) - mauValorAntigo + novoMauValor;
+
+        const novoSnapshot: Record<string, unknown> = {
+          ...snapAntigo,
+          mauMes: mauSan,
+          mauExcedenteQtd: excedente,
+          mauExcedenteValor: novoMauValor,
+          mauUnit: valorContatosExc,
+          mauInclusos: contatosInclusos,
+          mauAtualizadoEm: new Date().toISOString(),
+        };
+
+        const itemAtualizado: FechamentoItem = {
+          ...item,
+          valorBruto: novoBruto,
+          valorLiquido: novoLiquido,
+          payloadSnapshot: novoSnapshot,
+        };
+
+        // Recalcula totais do fechamento
+        const itensFech = state.fechamentoItens.map((x) => (x.id === itemId ? itemAtualizado : x))
+          .filter((x) => x.fechamentoId === item.fechamentoId);
+        const totalBruto = itensFech.reduce((s, x) => s + Number(x.valorBruto || 0), 0);
+        const totalDesconto = itensFech.reduce((s, x) => s + Number(x.valorDesconto || 0), 0);
+        const totalLiquido = itensFech.reduce((s, x) => s + Number(x.valorLiquido || 0), 0);
+
+        const fechamentoAtualizado = state.fechamentos.find((f) => f.id === item.fechamentoId);
+        if (!fechamentoAtualizado) throw new Error("Fechamento não encontrado");
+        const novoFech: Fechamento = {
+          ...fechamentoAtualizado,
+          totalBruto,
+          totalDesconto,
+          totalLiquido,
+        };
+
+        // Atualiza lançamento financeiro (se houver)
+        let novoFinanceiro = state.financeiro;
+        if (item.lancamentoFinanceiroId) {
+          novoFinanceiro = state.financeiro.map((l) => {
+            if (l.id !== item.lancamentoFinanceiroId) return l;
+            const delta = novoMauValor - mauValorAntigo;
+            return { ...l, valor: Number(l.valor || 0) + delta };
+          });
+        }
+
+        // Otimista
+        set({
+          fechamentoItens: state.fechamentoItens.map((x) => (x.id === itemId ? itemAtualizado : x)),
+          fechamentos: state.fechamentos.map((f) => (f.id === novoFech.id ? novoFech : f)),
+          financeiro: novoFinanceiro,
+        });
+
+        // Persistência
+        const { error: errI } = await (supabase as any)
+          .from("elora_fechamento_itens")
+          .update(mapFechamentoItemToDb(itemAtualizado))
+          .eq("id", itemId);
+        if (errI) {
+          console.error("Erro ao atualizar item do fechamento:", errI);
+          set({ fechamentoItens: state.fechamentoItens, fechamentos: state.fechamentos, financeiro: state.financeiro });
+          throw errI;
+        }
+        const { error: errF } = await (supabase as any)
+          .from("elora_fechamentos")
+          .update({ total_bruto: totalBruto, total_desconto: totalDesconto, total_liquido: totalLiquido })
+          .eq("id", novoFech.id);
+        if (errF) console.error("Erro ao atualizar totais do fechamento:", errF);
+
+        if (item.lancamentoFinanceiroId) {
+          const lanc = novoFinanceiro.find((l) => l.id === item.lancamentoFinanceiroId);
+          if (lanc) {
+            (supabase as any)
+              .from("elora_financeiro")
+              .update(mapFinanceiroToDb(lanc))
+              .eq("id", lanc.id)
+              .then(({ error }: any) => {
+                if (error) console.error("Erro ao atualizar lançamento financeiro (MAU):", error);
+              });
+          }
+        }
+      },
+
       resetAll: () => {
         console.warn("Reset geral desativado para proteger clientes, planos e parceiros reais.");
         void get().syncFromSupabase();
