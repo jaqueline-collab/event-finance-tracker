@@ -2322,6 +2322,31 @@ function ResumoPage() {
                   .filter((m) => !it.cicloFim || m.data <= it.cicloFim)
                   .sort((a, b) => a.data.localeCompare(b.data));
 
+                // Consolidar movimentos: mesma data + mesmo tipo + mesmo plano
+                // vira uma linha só com deltas somados e observações concatenadas.
+                type MvAgg = typeof movs[number] & { _obs: string[] };
+                const grupos = new Map<string, MvAgg>();
+                for (const mv of movs) {
+                  const key = `${mv.data}|${mv.tipo}|${mv.planoId ?? ""}`;
+                  const existing = grupos.get(key);
+                  if (!existing) {
+                    grupos.set(key, { ...mv, _obs: mv.observacao ? [mv.observacao] : [] });
+                  } else {
+                    existing.canaisWhats = (existing.canaisWhats ?? 0) + (mv.canaisWhats ?? 0);
+                    existing.canaisInsta = (existing.canaisInsta ?? 0) + (mv.canaisInsta ?? 0);
+                    existing.canaisMessenger = (existing.canaisMessenger ?? 0) + (mv.canaisMessenger ?? 0);
+                    existing.canaisZapi = (existing.canaisZapi ?? 0) + (mv.canaisZapi ?? 0);
+                    existing.usuariosAtivos = (existing.usuariosAtivos ?? 0) + (mv.usuariosAtivos ?? 0);
+                    existing.contatosAtivos = (existing.contatosAtivos ?? 0) + (mv.contatosAtivos ?? 0);
+                    if (mv.valorServico) existing.valorServico = (existing.valorServico ?? 0) + mv.valorServico;
+                    if (mv.observacao) existing._obs.push(mv.observacao);
+                  }
+                }
+                const movsAgrupados = Array.from(grupos.values()).map((g) => ({
+                  ...g,
+                  observacao: g._obs.join(", "),
+                }));
+
                 // Cada cliente começa em página nova → separação inequívoca
                 pdf.addPage();
 
