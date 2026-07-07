@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import { usePersistentFilters } from "@/hooks/use-persistent-filters";
@@ -42,6 +44,7 @@ function ClientesPage() {
   const [acaoClienteId, setAcaoClienteId] = useState<string | null>(null);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
+  const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
   
   const [form, setForm] = useState({
     nome: "",
