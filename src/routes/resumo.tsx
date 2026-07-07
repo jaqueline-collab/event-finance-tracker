@@ -2535,7 +2535,7 @@ function ResumoPage() {
                 </DialogHeader>
 
                 <div className="flex justify-end">
-                  <Button size="sm" variant="outline" onClick={exportarAuditoriaPdf} className="gap-1.5">
+                  <Button ref={exportarPdfBtnRef} size="sm" variant="outline" onClick={exportarAuditoriaPdf} className="gap-1.5">
                     <Download className="h-3.5 w-3.5" /> Exportar PDF de auditoria
                   </Button>
                 </div>
