@@ -1349,6 +1349,19 @@ function ResumoPage() {
                                       >
                                         <FileSearch className="h-3.5 w-3.5" /> Detalhar
                                       </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 w-7 p-0"
+                                        title="Baixar PDF de auditoria"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDetalharFechamentoId(f.id);
+                                          setAutoPrintFechamentoId(f.id);
+                                        }}
+                                      >
+                                        <Printer className="h-3.5 w-3.5" />
+                                      </Button>
                                       <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
                                       {isAdmin && (
                                         <Button
