@@ -1057,6 +1057,21 @@ function ResumoPage() {
     pdf.save(`fechamento-${fechamentoMes}-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
   };
 
+  // Auto-print: quando o usuário clica no ícone de impressora numa linha de fechamento,
+  // abrimos o modal para a competência dele e disparamos o PDF assim que os dados estiverem prontos.
+  useEffect(() => {
+    if (!autoPrintCompetencia) return;
+    if (!fechamentoData || fechamentoData.competenciaKey !== autoPrintCompetencia) return;
+    if (!fechamentoSelecionado || fechamentoSelecionado.count === 0) return;
+    const t = setTimeout(() => {
+      try { exportarFechamentoPdf(); } catch (e) { console.error(e); }
+      setFechamentoOpen(false);
+      setCompetenciaNovoFechamento(null);
+      setAutoPrintCompetencia(null);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [autoPrintCompetencia, fechamentoData, fechamentoSelecionado]);
+
   // ====== Enviar para o módulo Financeiro ======
   const enviarParaFinanceiro = async () => {
     if (!fechamentoData || !fechamentoSelecionado) return;
