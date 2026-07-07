@@ -119,17 +119,7 @@ function ResumoPage() {
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
-  const [autoPrintFechamentoId, setAutoPrintFechamentoId] = useState<string | null>(null);
-  const exportarPdfBtnRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!autoPrintFechamentoId || detalharFechamentoId !== autoPrintFechamentoId) return;
-    const t = setTimeout(() => {
-      exportarPdfBtnRef.current?.click();
-      setDetalharFechamentoId(null);
-      setAutoPrintFechamentoId(null);
-    }, 150);
-    return () => clearTimeout(t);
-  }, [autoPrintFechamentoId, detalharFechamentoId]);
+  const [autoPrintCompetencia, setAutoPrintCompetencia] = useState<string | null>(null);
   // Estabiliza a data-base: se recriada a cada render, causa loop infinito
   // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
   const today = useMemo(() => new Date(), []);
@@ -1067,6 +1057,21 @@ function ResumoPage() {
     pdf.save(`fechamento-${fechamentoMes}-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
   };
 
+  // Auto-print: quando o usuário clica no ícone de impressora numa linha de fechamento,
+  // abrimos o modal para a competência dele e disparamos o PDF assim que os dados estiverem prontos.
+  useEffect(() => {
+    if (!autoPrintCompetencia) return;
+    if (!fechamentoData || fechamentoData.competenciaKey !== autoPrintCompetencia) return;
+    if (!fechamentoSelecionado || fechamentoSelecionado.count === 0) return;
+    const t = setTimeout(() => {
+      try { exportarFechamentoPdf(); } catch (e) { console.error(e); }
+      setFechamentoOpen(false);
+      setCompetenciaNovoFechamento(null);
+      setAutoPrintCompetencia(null);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [autoPrintCompetencia, fechamentoData, fechamentoSelecionado]);
+
   // ====== Enviar para o módulo Financeiro ======
   const enviarParaFinanceiro = async () => {
     if (!fechamentoData || !fechamentoSelecionado) return;
@@ -1367,11 +1372,12 @@ function ResumoPage() {
                                         size="sm"
                                         variant="outline"
                                         className="h-7 w-7 p-0"
-                                        title="Baixar PDF de auditoria"
+                                        title="Baixar relatório do fechamento (PDF)"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setDetalharFechamentoId(f.id);
-                                          setAutoPrintFechamentoId(f.id);
+                                          setCompetenciaNovoFechamento(f.competencia);
+                                          setFechamentoOpen(true);
+                                          setAutoPrintCompetencia(f.competencia);
                                         }}
                                       >
                                         <Printer className="h-3.5 w-3.5" />
@@ -2565,7 +2571,7 @@ function ResumoPage() {
                 </DialogHeader>
 
                 <div className="flex justify-end">
-                  <Button ref={exportarPdfBtnRef} size="sm" variant="outline" onClick={exportarAuditoriaPdf} className="gap-1.5">
+                  <Button size="sm" variant="outline" onClick={exportarAuditoriaPdf} className="gap-1.5">
                     <Download className="h-3.5 w-3.5" /> Exportar PDF de auditoria
                   </Button>
                 </div>
