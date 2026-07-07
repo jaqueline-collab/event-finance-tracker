@@ -781,6 +781,13 @@ function ResumoPage() {
   };
 
   const descreverMov = (mv: typeof movimentos[number]): string => {
+    // Em movimentos do tipo "setup" os campos guardam o estado inicial
+    // absoluto (usuariosAtivos=3, contatosAtivos=500, etc.), não deltas.
+    // Nesses casos, só mostramos a observação para não poluir o PDF com
+    // "Contatos +500" ou "Usuários +3" sem sentido comercial.
+    if (mv.tipo === "setup") {
+      return mv.observacao || "Setup do cliente";
+    }
     const partes: string[] = [];
     const a = fmtDelta("WhatsApp", mv.canaisWhats); if (a) partes.push(a);
     const b = fmtDelta("Instagram", mv.canaisInsta); if (b) partes.push(b);
@@ -790,10 +797,10 @@ function ResumoPage() {
     const ct = fmtDelta("Contatos", mv.contatosAtivos); if (ct) partes.push(ct);
     if (mv.planoId) {
       const np = planos.find((p) => p.id === mv.planoId);
-      partes.push(`Plano → ${np?.nome ?? mv.planoId}`);
+      partes.push(`Plano: ${np?.nome ?? mv.planoId}`);
     }
     if (mv.observacao) partes.push(`(${mv.observacao})`);
-    return partes.join(" · ") || "Atualização de configuração";
+    return partes.join(" - ") || "Atualização de configuração";
   };
 
   const exportarFechamentoPdf = () => {
@@ -2243,24 +2250,68 @@ function ResumoPage() {
               const pageW = pdf.internal.pageSize.getWidth();
               const pageH = pdf.internal.pageSize.getHeight();
 
-              // Capa
-              pdf.setFillColor(15, 15, 15);
-              pdf.rect(0, 0, pageW, 72, "F");
-              pdf.setTextColor(255, 255, 255);
-              pdf.setFont("helvetica", "bold");
-              pdf.setFontSize(18);
-              pdf.text("Auditoria de Fechamento", 40, 32);
-              pdf.setFont("helvetica", "normal");
-              pdf.setFontSize(10);
-              pdf.text(f.titulo, 40, 52);
-              pdf.text(
-                `${clientesFech.length} cliente(s) · Total ${formatBRL(f.totalLiquido)}`,
-                40,
-                66,
-              );
-
               const validos = clientesFech.filter((x) => x.cli);
               const total = validos.length;
+
+              // ===== PÁGINA 1: RESUMO DO FATURAMENTO =====
+              pdf.setFillColor(15, 15, 15);
+              pdf.rect(0, 0, pageW, 78, "F");
+              pdf.setTextColor(255, 255, 255);
+              pdf.setFont("helvetica", "bold");
+              pdf.setFontSize(20);
+              pdf.text("Resumo do Faturamento", 40, 36);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(11);
+              pdf.text(f.titulo, 40, 58);
+              pdf.setFontSize(9);
+              pdf.text(
+                `${total} cliente(s) faturado(s)   -   Gerado em ${new Date().toLocaleString("pt-BR")}`,
+                40,
+                72,
+              );
+
+              const resumoBody = validos.map(({ cli, it, nome }, idx) => {
+                const planoAtual = planos.find((p) => p.id === cli!.planoId);
+                return [
+                  String(idx + 1),
+                  nome,
+                  abreviarPlano(planoAtual?.nome),
+                  formatBRL(it.valorBruto || 0),
+                  it.valorDesconto > 0 ? `-${formatBRL(it.valorDesconto)}` : "—",
+                  formatBRL(it.valorLiquido || 0),
+                ];
+              });
+
+              autoTable(pdf, {
+                startY: 100,
+                head: [["#", "Cliente", "Plano", "Bruto", "Desconto", "Líquido"]],
+                body: resumoBody,
+                foot: [[
+                  { content: "TOTAIS", colSpan: 3, styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(f.totalBruto || 0), styles: { fontStyle: "bold", halign: "right" } },
+                  { content: f.totalDesconto > 0 ? `-${formatBRL(f.totalDesconto)}` : "—", styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(f.totalLiquido || 0), styles: { fontStyle: "bold", halign: "right" } },
+                ]] as any,
+                styles: { fontSize: 9, cellPadding: 6 },
+                headStyles: { fillColor: [15, 15, 15], textColor: 255 },
+                footStyles: { fillColor: [28, 63, 170], textColor: 255 },
+                columnStyles: {
+                  0: { cellWidth: 24, halign: "center" },
+                  1: { cellWidth: "auto" },
+                  2: { cellWidth: 120 },
+                  3: { cellWidth: 70, halign: "right" },
+                  4: { cellWidth: 70, halign: "right" },
+                  5: { cellWidth: 75, halign: "right" },
+                },
+                margin: { left: 40, right: 40 },
+              });
+
+              const ticketMedio = total > 0 ? (f.totalLiquido || 0) / total : 0;
+              const resumoY = (pdf as any).lastAutoTable.finalY + 18;
+              pdf.setTextColor(90, 90, 90);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(9);
+              pdf.text(`Ticket médio por cliente: ${formatBRL(ticketMedio)}`, 40, resumoY);
 
               validos.forEach(({ cli, it, nome }, idx) => {
                 if (!cli) return;
@@ -2270,6 +2321,31 @@ function ResumoPage() {
                   .filter((m) => m.clienteId === cli.id)
                   .filter((m) => !it.cicloFim || m.data <= it.cicloFim)
                   .sort((a, b) => a.data.localeCompare(b.data));
+
+                // Consolidar movimentos: mesma data + mesmo tipo + mesmo plano
+                // vira uma linha só com deltas somados e observações concatenadas.
+                type MvAgg = typeof movs[number] & { _obs: string[] };
+                const grupos = new Map<string, MvAgg>();
+                for (const mv of movs) {
+                  const key = `${mv.data}|${mv.tipo}|${mv.planoId ?? ""}`;
+                  const existing = grupos.get(key);
+                  if (!existing) {
+                    grupos.set(key, { ...mv, _obs: mv.observacao ? [mv.observacao] : [] });
+                  } else {
+                    existing.canaisWhats = (existing.canaisWhats ?? 0) + (mv.canaisWhats ?? 0);
+                    existing.canaisInsta = (existing.canaisInsta ?? 0) + (mv.canaisInsta ?? 0);
+                    existing.canaisMessenger = (existing.canaisMessenger ?? 0) + (mv.canaisMessenger ?? 0);
+                    existing.canaisZapi = (existing.canaisZapi ?? 0) + (mv.canaisZapi ?? 0);
+                    existing.usuariosAtivos = (existing.usuariosAtivos ?? 0) + (mv.usuariosAtivos ?? 0);
+                    existing.contatosAtivos = (existing.contatosAtivos ?? 0) + (mv.contatosAtivos ?? 0);
+                    if (mv.valorServico) existing.valorServico = (existing.valorServico ?? 0) + mv.valorServico;
+                    if (mv.observacao) existing._obs.push(mv.observacao);
+                  }
+                }
+                const movsAgrupados = Array.from(grupos.values()).map((g) => ({
+                  ...g,
+                  observacao: g._obs.join(", "),
+                }));
 
                 // Cada cliente começa em página nova → separação inequívoca
                 pdf.addPage();
@@ -2293,10 +2369,7 @@ function ResumoPage() {
                 const meta: string[] = [];
                 if (planoAtual?.nome) meta.push(`Plano: ${planoAtual.nome}`);
                 if (cli.dataChurn) meta.push(`Churn: ${fmtDate(cli.dataChurn)}`);
-                if (it.cicloInicio && it.cicloFim) {
-                  meta.push(`Ciclo: ${fmtDate(it.cicloInicio)} → ${fmtDate(it.cicloFim)}`);
-                }
-                pdf.text(meta.join("  ·  "), 20, bannerY + 36);
+                pdf.text(meta.join("     "), 20, bannerY + 36);
 
                 // Total do cliente à direita do banner
                 const totalTxt = `${formatBRL(exp.total)}/mês`;
@@ -2334,22 +2407,28 @@ function ResumoPage() {
                 cursorY = (pdf as any).lastAutoTable.finalY + 16;
 
                 // Movimentos
-                if (movs.length > 0) {
+                if (movsAgrupados.length > 0) {
                   if (cursorY > pageH - 120) { pdf.addPage(); cursorY = 60; }
                   sectionTitle("Linha do tempo · movimentos", cursorY);
                   autoTable(pdf, {
                     startY: cursorY + 8,
                     head: [["Data", "Tipo", "Descrição", "Valor"]],
-                    body: movs.map((mv) => {
+                    body: movsAgrupados.map((mv) => {
                       const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaMovto(cli, mv) : 0;
                       const valor = mv.tipo === "servico" && mv.valorServico
                         ? formatBRL(mv.valorServico)
                         : delta !== 0 ? `${delta > 0 ? "+" : ""}${formatBRL(delta)}/mês` : "—";
                       return [fmtDate(mv.data), mv.tipo, descreverMov(mv), valor];
                     }),
-                    styles: { fontSize: 8, cellPadding: 4 },
+                    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
                     headStyles: { fillColor: [40, 40, 40], textColor: 255 },
                     margin: { left: 40, right: 40 },
+                    columnStyles: {
+                      0: { cellWidth: 55 },
+                      1: { cellWidth: 55 },
+                      2: { cellWidth: "auto", overflow: "linebreak" },
+                      3: { cellWidth: 75, halign: "right" },
+                    },
                     didParseCell: (data) => {
                       if (data.section === "body" && data.column.index === 1) {
                         const raw = String(data.cell.raw);
