@@ -409,6 +409,9 @@ function ClientesPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente..." className="pl-8 h-9" />
           </div>
+          <Button variant="outline" onClick={() => setDetalhamentoHojeOpen(true)}>
+            <FileSearch className="mr-2 h-4 w-4" /> Detalhamento de hoje
+          </Button>
           <Button onClick={() => setOpen((v) => !v)}>
             <Plus className="mr-2 h-4 w-4" /> Novo cliente
           </Button>
