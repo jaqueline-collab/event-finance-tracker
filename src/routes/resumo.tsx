@@ -1291,7 +1291,6 @@ function ResumoPage() {
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
                 <TableHead className="text-right">Total faturado</TableHead>
-                <TableHead className="text-right w-[180px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
