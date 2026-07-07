@@ -1377,17 +1377,33 @@ function ResumoPage() {
                                         <Printer className="h-3.5 w-3.5" />
                                       </Button>
                                       <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
-                                      {isAdmin && !f.legacyFinanceiroId && (
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-7 w-7"
-                                          title="Excluir fechamento"
-                                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                        </Button>
-                                      )}
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        title="Renomear fechamento"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const novo = window.prompt("Novo título do fechamento:", f.titulo ?? "");
+                                          if (novo === null) return;
+                                          const t = novo.trim();
+                                          if (!t || t === f.titulo) return;
+                                          updateFechamento?.(f.id, { titulo: t })
+                                            .then(() => toast.success("Título atualizado."))
+                                            .catch(() => toast.error("Falha ao atualizar título."));
+                                        }}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        title="Excluir fechamento"
+                                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                      </Button>
                                     </span>
                                   </div>
                                   {isFechExpanded && (
