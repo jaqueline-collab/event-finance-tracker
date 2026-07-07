@@ -2369,10 +2369,7 @@ function ResumoPage() {
                 const meta: string[] = [];
                 if (planoAtual?.nome) meta.push(`Plano: ${planoAtual.nome}`);
                 if (cli.dataChurn) meta.push(`Churn: ${fmtDate(cli.dataChurn)}`);
-                if (it.cicloInicio && it.cicloFim) {
-                  meta.push(`Ciclo: ${fmtDate(it.cicloInicio)} → ${fmtDate(it.cicloFim)}`);
-                }
-                pdf.text(meta.join("  ·  "), 20, bannerY + 36);
+                pdf.text(meta.join("     "), 20, bannerY + 36);
 
                 // Total do cliente à direita do banner
                 const totalTxt = `${formatBRL(exp.total)}/mês`;
