@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown, Eraser } from "lucide-react";
-import { FileSearch } from "lucide-react";
+import { FileSearch, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -108,6 +108,17 @@ function ResumoPage() {
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
+  const [autoPrintFechamentoId, setAutoPrintFechamentoId] = useState<string | null>(null);
+  const exportarPdfBtnRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!autoPrintFechamentoId || detalharFechamentoId !== autoPrintFechamentoId) return;
+    const t = setTimeout(() => {
+      exportarPdfBtnRef.current?.click();
+      setDetalharFechamentoId(null);
+      setAutoPrintFechamentoId(null);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [autoPrintFechamentoId, detalharFechamentoId]);
   // Estabiliza a data-base: se recriada a cada render, causa loop infinito
   // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
   const today = useMemo(() => new Date(), []);
