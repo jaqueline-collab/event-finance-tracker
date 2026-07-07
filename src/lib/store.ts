@@ -116,6 +116,7 @@ interface State {
     itens: Omit<FechamentoItem, "id" | "fechamentoId">[],
   ) => Promise<string>;
   removeFechamento: (id: string) => Promise<void>;
+  updateFechamento: (id: string, patch: Partial<Pick<Fechamento, "titulo" | "descricao" | "observacao" | "status">>) => Promise<void>;
   // reset
   resetAll: () => void;
   seedDemo: () => void;
@@ -622,6 +623,22 @@ export const useStore = create<State>()(
         if (errF) {
           console.error("Erro ao remover fechamento:", errF);
           throw errF;
+        }
+      },
+      updateFechamento: async (id, patch) => {
+        const prev = get().fechamentos;
+        set({ fechamentos: prev.map((x) => x.id === id ? { ...x, ...patch } : x) });
+        const dbPatch: Record<string, unknown> = {};
+        if (patch.titulo !== undefined) dbPatch.titulo = patch.titulo;
+        if (patch.descricao !== undefined) dbPatch.descricao = patch.descricao;
+        if (patch.observacao !== undefined) dbPatch.observacao = patch.observacao;
+        if (patch.status !== undefined) dbPatch.status = patch.status;
+        if (Object.keys(dbPatch).length === 0) return;
+        const { error } = await (supabase as any).from("elora_fechamentos").update(dbPatch).eq("id", id);
+        if (error) {
+          console.error("Erro ao atualizar fechamento:", error);
+          set({ fechamentos: prev });
+          throw error;
         }
       },
 

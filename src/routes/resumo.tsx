@@ -38,7 +38,7 @@ import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/
 import type { Desconto, Fechamento, FechamentoItem } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus, Pencil } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -86,7 +86,7 @@ function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros, financeiro,
     addLancamento, descontos, addDesconto, removeDesconto,
-    fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento,
+    fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento, updateFechamento,
   } = useStore();
   const { isAdmin } = useCurrentUserAccess();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
@@ -292,104 +292,8 @@ function ResumoPage() {
   const receitaCicloLocal = (c: typeof clientes[number], y: number, m: number): number =>
     receitaCicloCliente(c, planos, custos, movimentos, y, m);
 
-  const montarFechamentoLegado = useCallback((lanc: typeof financeiro[number]): { fechamento: FechamentoVisivel; itens: FechamentoItem[] } | null => {
-    const competenciaKey = getCompetenciaBase(lanc.competencia);
-    if (!competenciaKey) return null;
-    const [yStr, mStr] = competenciaKey.split("-");
-    const y = Number(yStr);
-    const m = Number(mStr) - 1;
-    const ativos = clientes.filter((c) => clienteAtivoNoCiclo(c, y, m));
-    if (ativos.length === 0) return null;
-
-    const itensBase = ativos.map((c) => {
-      const plano = planos.find((p) => p.id === c.planoId);
-      const ciclo = cicloDoCliente(c, y, m);
-      const vencimento = obterVencimentoDaCompetencia(c, y, m, planos);
-      const refSnap = vencimento ?? isoLocal(ciclo.fim);
-      const snap = clienteSnapshotAt(c, movimentos, refSnap);
-      const valor = receitaCicloLocal(c, y, m);
-      return {
-        cliente: c,
-        plano,
-        ciclo,
-        vencimento,
-        snap,
-        valor,
-      };
-    }).filter((it) => it.valor > 0);
-    if (itensBase.length === 0) return null;
-
-    const totalCalculado = itensBase.reduce((s, it) => s + it.valor, 0);
-    const fator = totalCalculado > 0 && lanc.valor > 0 ? lanc.valor / totalCalculado : 1;
-    let acumulado = 0;
-    const itens: FechamentoItem[] = itensBase.map((it, idx) => {
-      const valorLiquido = idx === itensBase.length - 1
-        ? Number((lanc.valor - acumulado).toFixed(2))
-        : Number((it.valor * fator).toFixed(2));
-      acumulado += valorLiquido;
-      const sistema = Math.max(0, it.valor - (it.snap.valorAcompanhamento || 0));
-      return {
-        id: `legacy-${lanc.id}-${it.cliente.id}`,
-        fechamentoId: `legacy-${lanc.id}`,
-        clienteId: it.cliente.id,
-        planoId: it.plano?.id ?? null,
-        cicloInicio: isoLocal(it.ciclo.inicio),
-        cicloFim: isoLocal(it.ciclo.fim),
-        vencimento: it.vencimento,
-        valorBruto: valorLiquido,
-        valorDesconto: 0,
-        valorLiquido,
-        lancamentoFinanceiroId: lanc.id,
-        payloadSnapshot: {
-          clienteNome: it.cliente.nome,
-          planoNome: it.plano?.nome ?? null,
-          sistema,
-          acompanhamento: it.snap.valorAcompanhamento || 0,
-          legadoFinanceiro: true,
-        },
-      };
-    });
-
-    return {
-      fechamento: {
-        id: `legacy-${lanc.id}`,
-        competencia: competenciaKey,
-        titulo: lanc.descricao || `Fechamento ${formatCompetenciaLabel(y, m)}`,
-        descricao: lanc.observacao ?? null,
-        status: lanc.status === "cancelado" ? "cancelado" : "emitido",
-        totalBruto: Number(lanc.valor.toFixed(2)),
-        totalDesconto: 0,
-        totalLiquido: Number(lanc.valor.toFixed(2)),
-        observacao: lanc.observacao ?? null,
-        criadoEm: lanc.criadoEm,
-        legacyFinanceiroId: lanc.id,
-      },
-      itens,
-    };
-  }, [clientes, planos, movimentos, custos]);
-
-  const fechamentoLegados = useMemo(() => {
-    const lancamentosVinculados = new Set(
-      fechamentoItens
-        .map((it) => it.lancamentoFinanceiroId)
-        .filter((id): id is string => Boolean(id)),
-    );
-    return financeiro
-      .filter((l) => l.tipo === "fechamento" && l.status !== "cancelado")
-      .filter((l) => !lancamentosVinculados.has(l.id))
-      .map(montarFechamentoLegado)
-      .filter((x): x is { fechamento: FechamentoVisivel; itens: FechamentoItem[] } => Boolean(x));
-  }, [financeiro, fechamentoItens, montarFechamentoLegado]);
-
-  const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(
-    () => [...fechamentos, ...fechamentoLegados.map((x) => x.fechamento)],
-    [fechamentos, fechamentoLegados],
-  );
-
-  const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(
-    () => [...fechamentoItens, ...fechamentoLegados.flatMap((x) => x.itens)],
-    [fechamentoItens, fechamentoLegados],
-  );
+  const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(() => fechamentos, [fechamentos]);
+  const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(() => fechamentoItens, [fechamentoItens]);
 
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
@@ -1473,17 +1377,33 @@ function ResumoPage() {
                                         <Printer className="h-3.5 w-3.5" />
                                       </Button>
                                       <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
-                                      {isAdmin && !f.legacyFinanceiroId && (
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-7 w-7"
-                                          title="Excluir fechamento"
-                                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                        </Button>
-                                      )}
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        title="Renomear fechamento"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const novo = window.prompt("Novo título do fechamento:", f.titulo ?? "");
+                                          if (novo === null) return;
+                                          const t = novo.trim();
+                                          if (!t || t === f.titulo) return;
+                                          updateFechamento?.(f.id, { titulo: t })
+                                            .then(() => toast.success("Título atualizado."))
+                                            .catch(() => toast.error("Falha ao atualizar título."));
+                                        }}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        title="Excluir fechamento"
+                                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                      </Button>
                                     </span>
                                   </div>
                                   {isFechExpanded && (
