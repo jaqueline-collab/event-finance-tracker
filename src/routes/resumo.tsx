@@ -1357,11 +1357,12 @@ function ResumoPage() {
                                         size="sm"
                                         variant="outline"
                                         className="h-7 w-7 p-0"
-                                        title="Baixar PDF de auditoria"
+                                        title="Baixar relatório do fechamento (PDF)"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setDetalharFechamentoId(f.id);
-                                          setAutoPrintFechamentoId(f.id);
+                                          setCompetenciaNovoFechamento(f.competencia);
+                                          setFechamentoOpen(true);
+                                          setAutoPrintCompetencia(f.competencia);
                                         }}
                                       >
                                         <Printer className="h-3.5 w-3.5" />
