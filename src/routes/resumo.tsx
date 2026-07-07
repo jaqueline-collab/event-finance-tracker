@@ -35,7 +35,7 @@ import {
 } from "@/lib/store";
 import { explicarReceitaCliente } from "@/lib/calc/receita";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
-import type { Desconto } from "@/lib/types";
+import type { Desconto, Fechamento, FechamentoItem } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
 import { Mail, Send, Tag, Trash2, Plus } from "lucide-react";
@@ -61,6 +61,15 @@ function isValidCompetenciaKey(value: string): boolean {
   return Number.isInteger(year) && Number.isInteger(month) && year >= 2000 && month >= 1 && month <= 12;
 }
 
+function getCompetenciaBase(value?: string | null): string | null {
+  const match = value?.match(/^(\d{4}-(0[1-9]|1[0-2]))/);
+  return match && isValidCompetenciaKey(match[1]) ? match[1] : null;
+}
+
+function isoLocal(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function formatCompetenciaLabel(y: number, m: number): string {
   const mesNome = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long" });
   return `${mesNome.charAt(0).toUpperCase()}${mesNome.slice(1)}/${y}`;
@@ -71,9 +80,11 @@ export const Route = createFileRoute("/resumo")({
   component: ResumoPage,
 });
 
+type FechamentoVisivel = Fechamento & { legacyFinanceiroId?: string };
+
 function ResumoPage() {
   const {
-    clientes, planos, custos, movimentos, parceiros,
+    clientes, planos, custos, movimentos, parceiros, financeiro,
     addLancamento, descontos, addDesconto, removeDesconto,
     fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento,
   } = useStore();
