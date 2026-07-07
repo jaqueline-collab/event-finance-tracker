@@ -116,6 +116,7 @@ interface State {
     itens: Omit<FechamentoItem, "id" | "fechamentoId">[],
   ) => Promise<string>;
   removeFechamento: (id: string) => Promise<void>;
+  updateFechamento: (id: string, patch: Partial<Pick<Fechamento, "titulo" | "descricao" | "observacao" | "status">>) => Promise<void>;
   // reset
   resetAll: () => void;
   seedDemo: () => void;
