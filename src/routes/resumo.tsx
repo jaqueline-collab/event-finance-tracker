@@ -2407,22 +2407,28 @@ function ResumoPage() {
                 cursorY = (pdf as any).lastAutoTable.finalY + 16;
 
                 // Movimentos
-                if (movs.length > 0) {
+                if (movsAgrupados.length > 0) {
                   if (cursorY > pageH - 120) { pdf.addPage(); cursorY = 60; }
                   sectionTitle("Linha do tempo · movimentos", cursorY);
                   autoTable(pdf, {
                     startY: cursorY + 8,
                     head: [["Data", "Tipo", "Descrição", "Valor"]],
-                    body: movs.map((mv) => {
+                    body: movsAgrupados.map((mv) => {
                       const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaMovto(cli, mv) : 0;
                       const valor = mv.tipo === "servico" && mv.valorServico
                         ? formatBRL(mv.valorServico)
                         : delta !== 0 ? `${delta > 0 ? "+" : ""}${formatBRL(delta)}/mês` : "—";
                       return [fmtDate(mv.data), mv.tipo, descreverMov(mv), valor];
                     }),
-                    styles: { fontSize: 8, cellPadding: 4 },
+                    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
                     headStyles: { fillColor: [40, 40, 40], textColor: 255 },
                     margin: { left: 40, right: 40 },
+                    columnStyles: {
+                      0: { cellWidth: 55 },
+                      1: { cellWidth: 55 },
+                      2: { cellWidth: "auto", overflow: "linebreak" },
+                      3: { cellWidth: 75, halign: "right" },
+                    },
                     didParseCell: (data) => {
                       if (data.section === "body" && data.column.index === 1) {
                         const raw = String(data.cell.raw);
