@@ -119,17 +119,7 @@ function ResumoPage() {
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
-  const [autoPrintFechamentoId, setAutoPrintFechamentoId] = useState<string | null>(null);
-  const exportarPdfBtnRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!autoPrintFechamentoId || detalharFechamentoId !== autoPrintFechamentoId) return;
-    const t = setTimeout(() => {
-      exportarPdfBtnRef.current?.click();
-      setDetalharFechamentoId(null);
-      setAutoPrintFechamentoId(null);
-    }, 150);
-    return () => clearTimeout(t);
-  }, [autoPrintFechamentoId, detalharFechamentoId]);
+  const [autoPrintCompetencia, setAutoPrintCompetencia] = useState<string | null>(null);
   // Estabiliza a data-base: se recriada a cada render, causa loop infinito
   // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
   const today = useMemo(() => new Date(), []);
