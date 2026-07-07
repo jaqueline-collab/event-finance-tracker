@@ -781,6 +781,13 @@ function ResumoPage() {
   };
 
   const descreverMov = (mv: typeof movimentos[number]): string => {
+    // Em movimentos do tipo "setup" os campos guardam o estado inicial
+    // absoluto (usuariosAtivos=3, contatosAtivos=500, etc.), não deltas.
+    // Nesses casos, só mostramos a observação para não poluir o PDF com
+    // "Contatos +500" ou "Usuários +3" sem sentido comercial.
+    if (mv.tipo === "setup") {
+      return mv.observacao || "Setup do cliente";
+    }
     const partes: string[] = [];
     const a = fmtDelta("WhatsApp", mv.canaisWhats); if (a) partes.push(a);
     const b = fmtDelta("Instagram", mv.canaisInsta); if (b) partes.push(b);
@@ -790,10 +797,10 @@ function ResumoPage() {
     const ct = fmtDelta("Contatos", mv.contatosAtivos); if (ct) partes.push(ct);
     if (mv.planoId) {
       const np = planos.find((p) => p.id === mv.planoId);
-      partes.push(`Plano → ${np?.nome ?? mv.planoId}`);
+      partes.push(`Plano: ${np?.nome ?? mv.planoId}`);
     }
     if (mv.observacao) partes.push(`(${mv.observacao})`);
-    return partes.join(" · ") || "Atualização de configuração";
+    return partes.join(" - ") || "Atualização de configuração";
   };
 
   const exportarFechamentoPdf = () => {
