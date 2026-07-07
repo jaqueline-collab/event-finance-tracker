@@ -82,11 +82,90 @@ export const Route = createFileRoute("/resumo")({
 
 type FechamentoVisivel = Fechamento & { legacyFinanceiroId?: string };
 
+function MauFechamentoEditor({
+  itemId,
+  snapshot,
+  contatosInclusos,
+  valorContatosExc,
+  onSalvar,
+}: {
+  itemId: string;
+  snapshot: Record<string, unknown>;
+  contatosInclusos: number;
+  valorContatosExc: number;
+  onSalvar: (mauMes: number) => Promise<void> | void;
+}) {
+  const mauSalvo = Number(snapshot.mauMes ?? 0) || 0;
+  const valorSalvo = Number(snapshot.mauExcedenteValor ?? 0) || 0;
+  const [mau, setMau] = useState<string>(mauSalvo ? String(mauSalvo) : "");
+  const [saving, setSaving] = useState(false);
+  const mauNum = Math.max(0, Math.floor(Number(mau) || 0));
+  const excedente = Math.max(0, mauNum - contatosInclusos);
+  const acrescimo = excedente * valorContatosExc;
+  const alterado = mauNum !== mauSalvo;
+  void itemId;
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-3 space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-primary">MAU do mês</h5>
+          <p className="text-[11px] text-muted-foreground">
+            Inclusos no plano: <strong>{contatosInclusos.toLocaleString("pt-BR")}</strong> · Unit. excedente: <strong>{formatBRL(valorContatosExc)}</strong>
+          </p>
+        </div>
+        {valorSalvo > 0 && (
+          <Badge variant="outline" className="text-[10px]">
+            Salvo: +{formatBRL(valorSalvo)}
+          </Badge>
+        )}
+      </div>
+      <div className="flex items-end gap-2 flex-wrap">
+        <div className="flex-1 min-w-[180px]">
+          <Label className="text-[11px] text-muted-foreground">MAU registrados no mês</Label>
+          <Input
+            type="number"
+            min={0}
+            value={mau}
+            onChange={(e) => setMau(e.target.value)}
+            placeholder="Ex.: 1200"
+            className="mt-1 h-8 text-sm"
+          />
+        </div>
+        <div className="text-xs text-muted-foreground min-w-[200px]">
+          {excedente > 0 ? (
+            <>
+              <strong>{excedente.toLocaleString("pt-BR")}</strong> excedentes ×{" "}
+              {formatBRL(valorContatosExc)} ={" "}
+              <span className="text-primary font-semibold">+{formatBRL(acrescimo)}</span>
+            </>
+          ) : mau ? (
+            <span className="text-accent">Dentro do plano — sem acréscimo.</span>
+          ) : (
+            <span>Informe os MAU do mês para calcular o excedente.</span>
+          )}
+        </div>
+        <Button
+          size="sm"
+          disabled={saving || !alterado}
+          onClick={async () => {
+            setSaving(true);
+            try { await onSalvar(mauNum); } finally { setSaving(false); }
+          }}
+          className="h-8 gap-1.5"
+        >
+          {saving ? "Salvando…" : "Aplicar MAU"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros, financeiro,
     addLancamento, descontos, addDesconto, removeDesconto,
     fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento, updateFechamento,
+    atualizarMauFechamentoItem,
   } = useStore();
   const { isAdmin } = useCurrentUserAccess();
   const [filtros, setFiltros] = usePersistentFilters("resumo");
@@ -1291,7 +1370,6 @@ function ResumoPage() {
                 <TableHead className="text-right">Novos</TableHead>
                 <TableHead className="text-right">Churns</TableHead>
                 <TableHead className="text-right">Total faturado</TableHead>
-                <TableHead className="text-right w-[180px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1318,21 +1396,11 @@ function ResumoPage() {
                       <TableCell className="text-right text-accent">+{l.novos}</TableCell>
                       <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                       <TableCell className="text-right font-medium">{formatBRL(totalFechado)}</TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 gap-1.5"
-                          onClick={() => abrirNovoFechamento(l.mesKey)}
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Novo fechamento
-                        </Button>
-                      </TableCell>
                     </TableRow>
 
                     {isExpanded && (
                       <TableRow key={`${l.mesKey}-detail`} className="bg-muted/10 hover:bg-muted/10">
-                        <TableCell colSpan={7} className="py-0">
+                        <TableCell colSpan={6} className="py-0">
                           <div className="py-3 pl-6 pr-2 space-y-2">
                             {fechDaComp.length === 0 && (
                               <div className="text-xs text-muted-foreground py-2">
@@ -1480,7 +1548,7 @@ function ResumoPage() {
                 );
               })}
               {linhas.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cadastre clientes para começar a gerar fechamentos.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Cadastre clientes para começar a gerar fechamentos.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -2603,6 +2671,23 @@ function ResumoPage() {
                         </summary>
 
                         <div className="border-t border-border/40 px-3 py-3 space-y-4">
+                          {/* MAU do mês */}
+                          <MauFechamentoEditor
+                            key={`mau-${it.id}`}
+                            itemId={it.id}
+                            snapshot={(it.payloadSnapshot ?? {}) as Record<string, unknown>}
+                            contatosInclusos={planoAtual?.contatosInclusos ?? 500}
+                            valorContatosExc={planoAtual?.valorContatosExc ?? planoAtual?.valorCanaisExc ?? 0.10}
+                            onSalvar={async (mauMes) => {
+                              try {
+                                await atualizarMauFechamentoItem?.(it.id, mauMes);
+                                toast.success("MAU do mês atualizado.");
+                              } catch {
+                                toast.error("Falha ao atualizar MAU do mês.");
+                              }
+                            }}
+                          />
+
                           {/* Setup */}
                           <div>
                             <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Setup</h5>

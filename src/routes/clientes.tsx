@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import { usePersistentFilters } from "@/hooks/use-persistent-filters";
@@ -42,6 +44,7 @@ function ClientesPage() {
   const [acaoClienteId, setAcaoClienteId] = useState<string | null>(null);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
+  const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
   
   const [form, setForm] = useState({
     nome: "",
@@ -406,6 +409,9 @@ function ClientesPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente..." className="pl-8 h-9" />
           </div>
+          <Button variant="outline" onClick={() => setDetalhamentoHojeOpen(true)}>
+            <FileSearch className="mr-2 h-4 w-4" /> Detalhamento de hoje
+          </Button>
           <Button onClick={() => setOpen((v) => !v)}>
             <Plus className="mr-2 h-4 w-4" /> Novo cliente
           </Button>
@@ -1303,6 +1309,170 @@ function ClientesPage() {
             <Button variant="outline" onClick={() => { setAcaoClienteId(null); setEditMovId(null); }}>Cancelar</Button>
             <Button onClick={handleSaveMovimento}>{editMovId ? "Salvar Alteração" : "Registrar Ação"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Detalhamento de todos os clientes ativos (data de hoje) */}
+      <Dialog open={detalhamentoHojeOpen} onOpenChange={setDetalhamentoHojeOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          {(() => {
+            const hojeIso = new Date().toISOString().slice(0, 10);
+            const ativos = clientes
+              .filter((c) => c.dataInicio <= hojeIso && (!c.dataChurn || c.dataChurn > hojeIso))
+              .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+            const totalMrr = ativos.reduce((s, c) => s + receitaMensalCliente(c, planos, custos), 0);
+            const totalSistema = ativos.reduce((s, c) => s + receitaSistemaCliente(c, planos, custos), 0);
+            const totalConsultoria = ativos.reduce((s, c) => s + (c.valorAcompanhamento || 0), 0);
+
+            const hojeLabel = new Date().toLocaleDateString("pt-BR");
+
+            const exportarPdf = () => {
+              const pdf = new jsPDF({ unit: "pt", format: "a4" });
+              const pageW = pdf.internal.pageSize.getWidth();
+              pdf.setFillColor(15, 15, 15);
+              pdf.rect(0, 0, pageW, 70, "F");
+              pdf.setTextColor(255, 255, 255);
+              pdf.setFont("helvetica", "bold");
+              pdf.setFontSize(18);
+              pdf.text("Detalhamento de clientes ativos", 40, 34);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(10);
+              pdf.text(`Data: ${hojeLabel} · ${ativos.length} cliente(s) ativo(s)`, 40, 54);
+
+              autoTable(pdf, {
+                startY: 90,
+                head: [["Cliente", "Plano", "Início", "MRR", "MRR Sistema", "Consultoria", "Acumulado"]],
+                body: ativos.map((c) => {
+                  const plano = planos.find((p) => p.id === c.planoId);
+                  return [
+                    c.nome,
+                    plano?.nome ?? "—",
+                    c.dataInicio.split("-").reverse().join("/"),
+                    formatBRL(receitaMensalCliente(c, planos, custos)),
+                    formatBRL(receitaSistemaCliente(c, planos, custos)),
+                    formatBRL(c.valorAcompanhamento || 0),
+                    formatBRL(faturamentoAcumuladoCliente(c, planos, custos, movimentos)),
+                  ];
+                }),
+                foot: [[
+                  { content: "TOTAIS", colSpan: 3, styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(totalMrr), styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(totalSistema), styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(totalConsultoria), styles: { fontStyle: "bold", halign: "right" } },
+                  { content: "—", styles: { halign: "right" } },
+                ]] as any,
+                styles: { fontSize: 9, cellPadding: 5 },
+                headStyles: { fillColor: [15, 15, 15], textColor: 255 },
+                footStyles: { fillColor: [28, 63, 170], textColor: 255 },
+                columnStyles: {
+                  3: { halign: "right" },
+                  4: { halign: "right" },
+                  5: { halign: "right" },
+                  6: { halign: "right" },
+                },
+                margin: { left: 30, right: 30 },
+              });
+              pdf.save(`detalhamento-clientes-${hojeIso}.pdf`);
+            };
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <FileSearch className="h-5 w-5" /> Detalhamento de clientes · {hojeLabel}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {ativos.length} cliente(s) ativo(s) na data de hoje.
+                  </p>
+                </DialogHeader>
+
+                <div className="flex items-center justify-between gap-3 flex-wrap py-3 border-b border-border/40">
+                  <div className="flex gap-4 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">MRR Total</div>
+                      <div className="font-semibold text-primary">{formatBRL(totalMrr)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">MRR Sistema</div>
+                      <div className="font-semibold">{formatBRL(totalSistema)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Consultoria</div>
+                      <div className="font-semibold">{formatBRL(totalConsultoria)}</div>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={exportarPdf} className="gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> Exportar PDF
+                  </Button>
+                </div>
+
+                <div className="space-y-3 py-3">
+                  {ativos.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      Nenhum cliente ativo na data de hoje.
+                    </p>
+                  )}
+                  {ativos.map((c) => {
+                    const plano = planos.find((p) => p.id === c.planoId);
+                    const parceiro = parceiros.find((p) => p.id === c.parceiroId);
+                    const mrr = receitaMensalCliente(c, planos, custos);
+                    const mrrSist = receitaSistemaCliente(c, planos, custos);
+                    const consultoria = c.valorAcompanhamento || 0;
+                    const acumulado = faturamentoAcumuladoCliente(c, planos, custos, movimentos);
+                    const inicio = new Date(c.dataInicio);
+                    const diasAtivos = Math.ceil(Math.abs(new Date().getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <details key={c.id} className="rounded-lg border border-border/50 bg-background/40 group">
+                        <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30 rounded-t-lg select-none">
+                          <span className="font-medium text-sm">{c.nome}</span>
+                          <Badge variant="outline" className="text-[10px]">{plano?.nome ?? "—"}</Badge>
+                          {parceiro && <Badge variant="outline" className="text-[10px]">{parceiro.nome}</Badge>}
+                          <span className="ml-auto text-sm font-semibold text-primary">{formatBRL(mrr)}/mês</span>
+                        </summary>
+                        <div className="border-t border-border/40 px-3 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                          <div>
+                            <div className="text-muted-foreground">Início</div>
+                            <div className="font-medium">{c.dataInicio.split("-").reverse().join("/")} ({diasAtivos}d)</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">MRR Sistema</div>
+                            <div className="font-medium">{formatBRL(mrrSist)}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Consultoria</div>
+                            <div className="font-medium">{formatBRL(consultoria)}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Acumulado</div>
+                            <div className="font-medium text-accent">{formatBRL(acumulado)}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Canais Whats/Insta/Msg</div>
+                            <div className="font-medium">{c.canaisWhats ?? 0} / {c.canaisInsta ?? 0} / {c.canaisMessenger ?? 0}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Usuários</div>
+                            <div className="font-medium">{c.usuariosAtivos ?? 0}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Contatos / MAU</div>
+                            <div className="font-medium">{(c.contatosAtivos ?? 0).toLocaleString("pt-BR")}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Módulos extras</div>
+                            <div className="font-medium">
+                              {[c.agentesIA && "IA", c.asaas && "ASAAS", (c.canaisZapi ?? 0) > 0 && "Z-API", c.transcricaoIA && "Transcrição"].filter(Boolean).join(", ") || "—"}
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
