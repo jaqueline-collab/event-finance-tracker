@@ -2371,10 +2371,13 @@ function ResumoPage() {
                 // Banner do cliente (faixa colorida)
                 const bannerY = 40;
                 const bannerH = 46;
-                pdf.setFillColor(28, 63, 170);
+                const churned = Boolean(cli.dataChurn);
+                if (churned) pdf.setFillColor(190, 30, 45);
+                else pdf.setFillColor(28, 63, 170);
                 pdf.rect(0, bannerY, pageW, bannerH, "F");
                 // Faixa lateral de destaque
-                pdf.setFillColor(253, 224, 71);
+                if (churned) pdf.setFillColor(220, 220, 220);
+                else pdf.setFillColor(253, 224, 71);
                 pdf.rect(0, bannerY, 6, bannerH, "F");
 
                 pdf.setTextColor(255, 255, 255);
