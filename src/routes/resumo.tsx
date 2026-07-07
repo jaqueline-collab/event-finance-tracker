@@ -1317,21 +1317,11 @@ function ResumoPage() {
                       <TableCell className="text-right text-accent">+{l.novos}</TableCell>
                       <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                       <TableCell className="text-right font-medium">{formatBRL(totalFechado)}</TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 gap-1.5"
-                          onClick={() => abrirNovoFechamento(l.mesKey)}
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Novo fechamento
-                        </Button>
-                      </TableCell>
                     </TableRow>
 
                     {isExpanded && (
                       <TableRow key={`${l.mesKey}-detail`} className="bg-muted/10 hover:bg-muted/10">
-                        <TableCell colSpan={7} className="py-0">
+                        <TableCell colSpan={6} className="py-0">
                           <div className="py-3 pl-6 pr-2 space-y-2">
                             {fechDaComp.length === 0 && (
                               <div className="text-xs text-muted-foreground py-2">
