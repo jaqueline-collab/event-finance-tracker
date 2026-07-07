@@ -292,6 +292,105 @@ function ResumoPage() {
   const receitaCicloLocal = (c: typeof clientes[number], y: number, m: number): number =>
     receitaCicloCliente(c, planos, custos, movimentos, y, m);
 
+  const montarFechamentoLegado = (lanc: typeof financeiro[number]): { fechamento: FechamentoVisivel; itens: FechamentoItem[] } | null => {
+    const competenciaKey = getCompetenciaBase(lanc.competencia);
+    if (!competenciaKey) return null;
+    const [yStr, mStr] = competenciaKey.split("-");
+    const y = Number(yStr);
+    const m = Number(mStr) - 1;
+    const ativos = clientes.filter((c) => clienteAtivoNoCiclo(c, y, m));
+    if (ativos.length === 0) return null;
+
+    const itensBase = ativos.map((c) => {
+      const plano = planos.find((p) => p.id === c.planoId);
+      const ciclo = cicloDoCliente(c, y, m);
+      const vencimento = obterVencimentoDaCompetencia(c, y, m, planos);
+      const refSnap = vencimento ?? isoLocal(ciclo.fim);
+      const snap = clienteSnapshotAt(c, movimentos, refSnap);
+      const valor = receitaCicloLocal(c, y, m);
+      return {
+        cliente: c,
+        plano,
+        ciclo,
+        vencimento,
+        snap,
+        valor,
+      };
+    }).filter((it) => it.valor > 0);
+    if (itensBase.length === 0) return null;
+
+    const totalCalculado = itensBase.reduce((s, it) => s + it.valor, 0);
+    const fator = totalCalculado > 0 && lanc.valor > 0 ? lanc.valor / totalCalculado : 1;
+    let acumulado = 0;
+    const itens: FechamentoItem[] = itensBase.map((it, idx) => {
+      const valorLiquido = idx === itensBase.length - 1
+        ? Number((lanc.valor - acumulado).toFixed(2))
+        : Number((it.valor * fator).toFixed(2));
+      acumulado += valorLiquido;
+      const sistema = Math.max(0, it.valor - (it.snap.valorAcompanhamento || 0));
+      return {
+        id: `legacy-${lanc.id}-${it.cliente.id}`,
+        fechamentoId: `legacy-${lanc.id}`,
+        clienteId: it.cliente.id,
+        planoId: it.plano?.id ?? null,
+        cicloInicio: isoLocal(it.ciclo.inicio),
+        cicloFim: isoLocal(it.ciclo.fim),
+        vencimento: it.vencimento,
+        valorBruto: valorLiquido,
+        valorDesconto: 0,
+        valorLiquido,
+        lancamentoFinanceiroId: lanc.id,
+        payloadSnapshot: {
+          clienteNome: it.cliente.nome,
+          planoNome: it.plano?.nome ?? null,
+          sistema,
+          acompanhamento: it.snap.valorAcompanhamento || 0,
+          legadoFinanceiro: true,
+        },
+      };
+    });
+
+    return {
+      fechamento: {
+        id: `legacy-${lanc.id}`,
+        competencia: competenciaKey,
+        titulo: lanc.descricao || `Fechamento ${formatCompetenciaLabel(y, m)}`,
+        descricao: lanc.observacao ?? null,
+        status: lanc.status === "cancelado" ? "cancelado" : "emitido",
+        totalBruto: Number(lanc.valor.toFixed(2)),
+        totalDesconto: 0,
+        totalLiquido: Number(lanc.valor.toFixed(2)),
+        observacao: lanc.observacao ?? null,
+        criadoEm: lanc.criadoEm,
+        legacyFinanceiroId: lanc.id,
+      },
+      itens,
+    };
+  };
+
+  const fechamentoLegados = useMemo(() => {
+    const lancamentosVinculados = new Set(
+      fechamentoItens
+        .map((it) => it.lancamentoFinanceiroId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    return financeiro
+      .filter((l) => l.tipo === "fechamento" && l.status !== "cancelado")
+      .filter((l) => !lancamentosVinculados.has(l.id))
+      .map(montarFechamentoLegado)
+      .filter((x): x is { fechamento: FechamentoVisivel; itens: FechamentoItem[] } => Boolean(x));
+  }, [financeiro, fechamentoItens, clientes, planos, movimentos, custos]);
+
+  const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(
+    () => [...fechamentos, ...fechamentoLegados.map((x) => x.fechamento)],
+    [fechamentos, fechamentoLegados],
+  );
+
+  const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(
+    () => [...fechamentoItens, ...fechamentoLegados.flatMap((x) => x.itens)],
+    [fechamentoItens, fechamentoLegados],
+  );
+
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
     const datas = clientesFiltrados.map((c) => new Date(c.dataInicio));
