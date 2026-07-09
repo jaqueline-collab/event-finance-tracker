@@ -198,10 +198,22 @@ export const useStore = create<State>()(
             set({ descontos: descRes.data.map(mapDbToDesconto) });
           }
           if (fechRes?.data) {
-            set({ fechamentos: fechRes.data.map(mapDbToFechamento) });
+            const fechamentosDb = fechRes.data.map(mapDbToFechamento);
+            const fechamentosLocais = get().fechamentos;
+            if (fechamentosDb.length > 0 || fechamentosLocais.length === 0) {
+              set({ fechamentos: fechamentosDb });
+            } else {
+              console.warn("Sincronização ignorou fechamentos vazios do banco para não apagar lançamentos locais.");
+            }
           }
           if (fechItRes?.data) {
-            set({ fechamentoItens: fechItRes.data.map(mapDbToFechamentoItem) });
+            const itensDb = fechItRes.data.map(mapDbToFechamentoItem);
+            const itensLocais = get().fechamentoItens;
+            if (itensDb.length > 0 || itensLocais.length === 0) {
+              set({ fechamentoItens: itensDb });
+            } else {
+              console.warn("Sincronização ignorou itens de fechamento vazios do banco para não apagar lançamentos locais.");
+            }
           }
         } catch (e) {
           console.error("Erro ao carregar dados do Supabase:", e);
