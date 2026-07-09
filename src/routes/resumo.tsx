@@ -361,8 +361,89 @@ function ResumoPage() {
   const receitaCicloLocal = (c: typeof clientes[number], y: number, m: number): number =>
     receitaCicloCliente(c, planos, custos, movimentos, y, m);
 
-  const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(() => fechamentos, [fechamentos]);
-  const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(() => fechamentoItens, [fechamentoItens]);
+  const fechamentosLegadosFinanceiro = useMemo<FechamentoVisivel[]>(() => {
+    const lancamentosVinculados = new Set(
+      fechamentoItens
+        .map((i) => i.lancamentoFinanceiroId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    return financeiro
+      .filter((l) => l.tipo === "fechamento")
+      .filter((l) => !lancamentosVinculados.has(l.id))
+      .map((l): FechamentoVisivel | null => {
+        const competencia = getCompetenciaBase(l.competencia);
+        if (!competencia) return null;
+        return {
+          id: `legacy-${l.id}`,
+          legacyFinanceiroId: l.id,
+          competencia,
+          titulo: l.descricao || `Fechamento ${competencia}`,
+          descricao: l.observacao ?? l.descricao ?? null,
+          status: l.status === "cancelado" ? "cancelado" : "emitido",
+          criadoPor: null,
+          totalBruto: Number(l.valor || 0),
+          totalDesconto: 0,
+          totalLiquido: Number(l.valor || 0),
+          observacao: l.observacao ?? null,
+          criadoEm: l.criadoEm,
+        };
+      })
+      .filter((f): f is FechamentoVisivel => Boolean(f));
+  }, [financeiro, fechamentoItens]);
+
+  const itensLegadosFinanceiro = useMemo<FechamentoItem[]>(() => {
+    const itens: FechamentoItem[] = [];
+    for (const f of fechamentosLegadosFinanceiro) {
+      if (!f.legacyFinanceiroId) continue;
+      const [yStr, mStr] = f.competencia.split("-");
+      const y = Number(yStr);
+      const m = Number(mStr) - 1;
+      if (!Number.isFinite(y) || !Number.isFinite(m)) continue;
+      const ativos = clientes.filter((c) => clienteAtivoNoCiclo(c, y, m));
+      const calculados = ativos.map((c) => {
+        const plano = planos.find((p) => p.id === c.planoId);
+        const ciclo = cicloDoCliente(c, y, m);
+        const valorCalculado = receitaCicloLocal(c, y, m);
+        return { c, plano, ciclo, valorCalculado };
+      });
+      const totalCalculado = calculados.reduce((s, x) => s + Math.max(0, x.valorCalculado), 0);
+      const totalLancamento = Number(f.totalLiquido || 0);
+      const fator = totalCalculado > 0 ? totalLancamento / totalCalculado : 1;
+      calculados.forEach(({ c, plano, ciclo, valorCalculado }, idx) => {
+        const valor = totalCalculado > 0
+          ? Number((Math.max(0, valorCalculado) * fator).toFixed(2))
+          : Number((totalLancamento / Math.max(1, calculados.length)).toFixed(2));
+        itens.push({
+          id: `${f.id}-item-${c.id}-${idx}`,
+          fechamentoId: f.id,
+          clienteId: c.id,
+          planoId: c.planoId,
+          cicloInicio: ciclo.inicio.toISOString().slice(0, 10),
+          cicloFim: ciclo.fim.toISOString().slice(0, 10),
+          vencimento: obterVencimentoDaCompetencia(c, y, m, planos),
+          valorBruto: valor,
+          valorDesconto: 0,
+          valorLiquido: valor,
+          lancamentoFinanceiroId: f.legacyFinanceiroId,
+          payloadSnapshot: {
+            clienteNome: c.nome,
+            planoNome: plano?.nome ?? null,
+            recuperadoDoFinanceiro: true,
+          },
+        });
+      });
+    }
+    return itens;
+  }, [fechamentosLegadosFinanceiro, clientes, planos, custos, movimentos]);
+
+  const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(
+    () => [...fechamentos, ...fechamentosLegadosFinanceiro],
+    [fechamentos, fechamentosLegadosFinanceiro],
+  );
+  const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(
+    () => [...fechamentoItens, ...itensLegadosFinanceiro],
+    [fechamentoItens, itensLegadosFinanceiro],
+  );
 
   const linhas = useMemo(() => {
     if (clientesFiltrados.length === 0) return [];
@@ -1451,33 +1532,41 @@ function ResumoPage() {
                                         <Printer className="h-3.5 w-3.5" />
                                       </Button>
                                       <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        title="Renomear fechamento"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const novo = window.prompt("Novo título do fechamento:", f.titulo ?? "");
-                                          if (novo === null) return;
-                                          const t = novo.trim();
-                                          if (!t || t === f.titulo) return;
-                                          updateFechamento?.(f.id, { titulo: t })
-                                            .then(() => toast.success("Título atualizado."))
-                                            .catch(() => toast.error("Falha ao atualizar título."));
-                                        }}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        title="Excluir fechamento"
-                                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                      </Button>
+                                      {f.legacyFinanceiroId ? (
+                                        <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-600">
+                                          recuperado do Financeiro
+                                        </Badge>
+                                      ) : (
+                                        <>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7"
+                                            title="Renomear fechamento"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const novo = window.prompt("Novo título do fechamento:", f.titulo ?? "");
+                                              if (novo === null) return;
+                                              const t = novo.trim();
+                                              if (!t || t === f.titulo) return;
+                                              updateFechamento?.(f.id, { titulo: t })
+                                                .then(() => toast.success("Título atualizado."))
+                                                .catch(() => toast.error("Falha ao atualizar título."));
+                                            }}
+                                          >
+                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                          </Button>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7"
+                                            title="Excluir fechamento"
+                                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                          </Button>
+                                        </>
+                                      )}
                                     </span>
                                   </div>
                                   {isFechExpanded && (
