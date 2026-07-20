@@ -17,20 +17,27 @@ import { Mail, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Entrar · Elora" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : undefined,
+  }),
   component: AuthPage,
 });
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [step, setStep] = useState<"email" | "enviado">("email");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
+      if (data.session) {
+        if (next) window.location.href = next;
+        else navigate({ to: "/dashboard" });
+      }
     });
-  }, [navigate]);
+  }, [navigate, next]);
 
   const enviarCodigo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +52,7 @@ function AuthPage() {
         email: emailLimpo,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
         },
       });
       if (error) throw error;
