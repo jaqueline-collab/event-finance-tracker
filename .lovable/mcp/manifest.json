@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://qakfynfazfhpcjbghncy.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "elora-mcp",
+      "version": "0.1.0",
+      "title": "Elora CRM"
+    },
+    "tools": [
+      {
+        "name": "list_clientes",
+        "title": "Listar clientes",
+        "description": "Lista os clientes do usuário autenticado no Elora, com plano, ciclo, status de churn e valores de acompanhamento.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Máximo de clientes a retornar (padrão 100).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "incluirChurn": {
+              "description": "Se true, inclui clientes que já sofreram churn.",
+              "type": "boolean"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_planos",
+        "title": "Listar planos",
+        "description": "Lista os planos cadastrados pelo usuário autenticado no Elora (nome, categoria, cobrança, valores e franquias).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_fechamentos",
+        "title": "Listar fechamentos mensais",
+        "description": "Lista os fechamentos mensais do usuário autenticado, com competência, título, status e totais (bruto, desconto, líquido).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "competencia": {
+              "description": "Filtra por competência no formato AAAA-MM (opcional).",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_cliente_detalhado",
+        "title": "Detalhar cliente",
+        "description": "Retorna o cadastro completo de um cliente do Elora junto com todos os seus movimentos (setup, upgrades, downgrades, churn).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "clienteId": {
+              "type": "string",
+              "description": "ID do cliente no Elora."
+            }
+          },
+          "required": [
+            "clienteId"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

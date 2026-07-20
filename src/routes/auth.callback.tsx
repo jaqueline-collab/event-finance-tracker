@@ -6,11 +6,15 @@ import { traduzirErroAuth } from "@/lib/auth-errors";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({ meta: [{ title: "Entrando... · Elora" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : undefined,
+  }),
   component: AuthCallback,
 });
 
 function AuthCallback() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [mensagem, setMensagem] = useState("Confirmando seu acesso...");
 
   useEffect(() => {
@@ -45,10 +49,14 @@ function AuthCallback() {
         }
 
         if (cancelled) return;
-        // Limpa a URL pra não vazar tokens no histórico
-        window.history.replaceState({}, "", "/dashboard");
         toast.success("Bem-vindo!");
-        navigate({ to: "/dashboard", replace: true });
+        if (next) {
+          window.history.replaceState({}, "", next);
+          window.location.href = next;
+        } else {
+          window.history.replaceState({}, "", "/dashboard");
+          navigate({ to: "/dashboard", replace: true });
+        }
       } catch (err) {
         if (cancelled) return;
         toast.error(traduzirErroAuth(err));
