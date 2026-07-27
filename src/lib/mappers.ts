@@ -298,6 +298,7 @@ export const mapDbToFechamento = (r: any): Fechamento => ({
   criadoEm: r.criado_em ?? undefined,
 });
 
+
 export const mapFechamentoItemToDb = (i: FechamentoItem) => ({
   id: i.id,
   fechamento_id: i.fechamentoId,
