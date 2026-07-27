@@ -263,12 +263,12 @@ function Funcionalidades() {
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {FEATURES.map((f) => (
+          {FEATURES.map((f, i) => (
+            <Reveal key={f.title} delay={i * 80} className="h-full">
             <Link
-              key={f.title}
               to="/funcionalidades/$slug"
               params={{ slug: f.slug }}
-              className="group rounded-2xl bg-white border border-landing-border p-7 hover:shadow-lg hover:-translate-y-0.5 hover:border-landing-blue transition-all block focus:outline-none focus:ring-2 focus:ring-landing-blue"
+              className="group rounded-2xl bg-white border border-landing-border p-7 h-full hover:shadow-lg hover:-translate-y-0.5 hover:border-landing-blue transition-all block focus:outline-none focus:ring-2 focus:ring-landing-blue"
             >
               <div className="h-11 w-11 rounded-xl bg-landing-blue/10 text-landing-blue flex items-center justify-center mb-4">
                 <f.icon className="h-5 w-5" />
@@ -291,6 +291,7 @@ function Funcionalidades() {
                 Saiba mais <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -318,12 +319,12 @@ function Planos() {
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {PLANOS_VITRINE.map((p) => {
+          {PLANOS_VITRINE.map((p, i) => {
             const destaque = p.destaque;
             return (
+              <Reveal key={p.key} delay={i * 100} className="h-full">
               <div
-                key={p.key}
-                className={`rounded-2xl p-7 border-2 transition-all flex flex-col ${
+                className={`rounded-2xl p-7 border-2 transition-all flex flex-col h-full ${
                   destaque
                     ? "bg-landing-dark text-white border-landing-yellow shadow-xl md:-translate-y-3"
                     : "bg-white text-landing-fg border-landing-border"
@@ -374,6 +375,7 @@ function Planos() {
                   Simular este plano
                 </Link>
               </div>
+              </Reveal>
             );
           })}
         </div>
