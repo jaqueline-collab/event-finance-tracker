@@ -23,6 +23,7 @@ import { VideoIntro } from "@/components/landing/VideoIntro";
 import { LiveDashboard } from "@/components/landing/LiveDashboard";
 import { Depoimentos } from "@/components/landing/Depoimentos";
 import { Parceiros } from "@/components/landing/Parceiros";
+import { SistemaTour } from "@/components/landing/SistemaTour";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Reveal, Typewriter } from "@/components/landing/motion";
 import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
@@ -81,6 +82,7 @@ function LandingPage() {
       <VideoIntro />
       <LiveDashboard />
       <Funcionalidades />
+      <SistemaTour />
       <Depoimentos />
       <Parceiros />
       <Planos />
