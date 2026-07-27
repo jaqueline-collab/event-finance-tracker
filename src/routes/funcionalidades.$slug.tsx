@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import { PawLogo } from "@/components/landing/PawLogo";
+import { EloraMark } from "@/components/landing/EloraMark";
 
 const TITULOS: Record<string, { titulo: string; resumo: string }> = {
   "central-de-atendimento": {
@@ -61,7 +61,7 @@ function FuncionalidadePage() {
       <header className="bg-landing-dark border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 leading-none">
-            <PawLogo className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
+            <EloraMark className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
             <span
               className="text-white font-bold tracking-tight text-lg"
               style={{ fontFamily: "var(--font-display)" }}

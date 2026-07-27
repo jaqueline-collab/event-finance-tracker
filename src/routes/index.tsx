@@ -14,11 +14,18 @@ import {
   Globe,
   ArrowRight,
   ArrowUpRight,
+  LogIn,
 } from "lucide-react";
 import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
 import { formatBRL } from "@/lib/calc/format";
-import { PawLogo } from "@/components/landing/PawLogo";
+import { EloraMark } from "@/components/landing/EloraMark";
 import { VideoIntro } from "@/components/landing/VideoIntro";
+import { LiveDashboard } from "@/components/landing/LiveDashboard";
+import { Depoimentos } from "@/components/landing/Depoimentos";
+import { Parceiros } from "@/components/landing/Parceiros";
+import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
+import { Reveal, Typewriter } from "@/components/landing/motion";
+import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -72,10 +79,14 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
+      <LiveDashboard />
       <Funcionalidades />
+      <Depoimentos />
+      <Parceiros />
       <Planos />
       <FAQ />
       <Footer />
+      <WhatsAppFloat />
     </div>
   );
 }
@@ -86,7 +97,7 @@ function Navbar() {
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#top" className="flex items-center gap-2 leading-none">
-          <PawLogo className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
+          <EloraMark className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
           <span
             className="text-white font-bold tracking-tight text-lg"
             style={{ fontFamily: "var(--font-display)" }}
@@ -104,21 +115,29 @@ function Navbar() {
           <Link to="/simulador" className="hover:text-landing-yellow transition">
             Simulador
           </Link>
+          <a href="#parceiros" className="hover:text-landing-yellow transition">
+            Parceiros
+          </a>
           <a href="#contato" className="hover:text-landing-yellow transition">
             Contato
           </a>
-          <Link to="/auth" className="hover:text-landing-yellow transition">
-            Área do parceiro
-          </Link>
         </nav>
-        <a
-          href="https://app.eloracrm.com.br/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
-        >
-          Elora App <ArrowUpRight className="h-4 w-4" />
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://app.eloracrm.com.br/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
+          >
+            Elora App <ArrowUpRight className="h-4 w-4" />
+          </a>
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-1.5 border border-white/30 hover:border-landing-yellow hover:text-landing-yellow text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors"
+          >
+            <LogIn className="h-4 w-4" /> Logar
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -139,29 +158,6 @@ function Hero() {
             "radial-gradient(900px circle at 80% 10%, var(--color-landing-blue) 0%, transparent 55%), radial-gradient(700px circle at 10% 90%, #ffffff 0%, transparent 65%)",
         }}
       />
-      {/* Patinha "agarrada" no topo, com riscos de garra descendo */}
-      <div
-        aria-hidden
-        className="absolute -top-6 right-8 md:right-16 pointer-events-none select-none rotate-12"
-      >
-        <PawLogo className="h-28 w-28 md:h-36 md:w-36 text-landing-yellow/25" />
-        <svg
-          viewBox="0 0 200 240"
-          className="absolute left-1/2 top-[78%] -translate-x-1/2 w-24 md:w-32 h-40 md:h-52 opacity-40"
-        >
-          <g
-            stroke="var(--color-landing-yellow)"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            fill="none"
-          >
-            <path d="M40 0 C 50 80, 55 140, 60 230" />
-            <path d="M85 0 C 90 80, 92 140, 95 230" />
-            <path d="M130 0 C 130 80, 132 140, 135 230" />
-            <path d="M170 0 C 165 80, 162 140, 160 230" />
-          </g>
-        </svg>
-      </div>
       <div className="relative max-w-6xl mx-auto text-center">
         <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-landing-yellow border border-landing-yellow/30 rounded-full px-4 py-1.5">
           <Sparkles className="h-3.5 w-3.5" /> Atendimento + Vendas + IA
@@ -170,8 +166,16 @@ function Hero() {
           className="mt-6 text-5xl md:text-7xl font-bold leading-[1.05] tracking-tight"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Para as conversas e o<br />
-          negócio <span className="text-landing-yellow">andarem juntos.</span>
+          Para as conversas e o negócio
+          <br />
+          <Typewriter
+            className="text-landing-yellow"
+            frases={[
+              "andarem juntos.",
+              "venderem mais.",
+              "responderem na hora.",
+            ]}
+          />
         </h1>
         <p className="mt-6 text-lg md:text-xl text-white/70 max-w-2xl mx-auto">
           Centralize WhatsApp, Instagram e Messenger em uma plataforma com CRM,
@@ -259,12 +263,12 @@ function Funcionalidades() {
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {FEATURES.map((f) => (
+          {FEATURES.map((f, i) => (
+            <Reveal key={f.title} delay={i * 80} className="h-full">
             <Link
-              key={f.title}
               to="/funcionalidades/$slug"
               params={{ slug: f.slug }}
-              className="group rounded-2xl bg-white border border-landing-border p-7 hover:shadow-lg hover:-translate-y-0.5 hover:border-landing-blue transition-all block focus:outline-none focus:ring-2 focus:ring-landing-blue"
+              className="group rounded-2xl bg-white border border-landing-border p-7 h-full hover:shadow-lg hover:-translate-y-0.5 hover:border-landing-blue transition-all block focus:outline-none focus:ring-2 focus:ring-landing-blue"
             >
               <div className="h-11 w-11 rounded-xl bg-landing-blue/10 text-landing-blue flex items-center justify-center mb-4">
                 <f.icon className="h-5 w-5" />
@@ -287,6 +291,7 @@ function Funcionalidades() {
                 Saiba mais <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -314,12 +319,12 @@ function Planos() {
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {PLANOS_VITRINE.map((p) => {
+          {PLANOS_VITRINE.map((p, i) => {
             const destaque = p.destaque;
             return (
+              <Reveal key={p.key} delay={i * 100} className="h-full">
               <div
-                key={p.key}
-                className={`rounded-2xl p-7 border-2 transition-all flex flex-col ${
+                className={`rounded-2xl p-7 border-2 transition-all flex flex-col h-full ${
                   destaque
                     ? "bg-landing-dark text-white border-landing-yellow shadow-xl md:-translate-y-3"
                     : "bg-white text-landing-fg border-landing-border"
@@ -370,6 +375,7 @@ function Planos() {
                   Simular este plano
                 </Link>
               </div>
+              </Reveal>
             );
           })}
         </div>
@@ -466,7 +472,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
           <div className="flex items-center gap-2 leading-none">
-            <PawLogo className="h-7 w-7 text-landing-yellow shrink-0" />
+            <EloraMark className="h-7 w-7 text-landing-yellow shrink-0" />
             <span
               className="text-white font-bold tracking-tight text-3xl"
               style={{ fontFamily: "var(--font-display)" }}
@@ -486,6 +492,7 @@ function Footer() {
             <li><a href="#funcionalidades" className="hover:text-white">Funcionalidades</a></li>
             <li><a href="#planos" className="hover:text-white">Planos</a></li>
             <li><Link to="/simulador" className="hover:text-white">Simulador</Link></li>
+            <li><a href="#parceiros" className="hover:text-white">Parceiros</a></li>
             <li>
               <a
                 href="https://app.eloracrm.com.br/"
@@ -508,8 +515,17 @@ function Footer() {
             Contato
           </div>
           <ul className="mt-3 space-y-2 text-sm">
-            <li className="flex items-center gap-2"><Mail className="h-4 w-4" /> contato@eloracrm.com</li>
-            <li className="flex items-center gap-2"><Phone className="h-4 w-4" /> (21) 99550-1331</li>
+            <li className="flex items-center gap-2"><Mail className="h-4 w-4" /> {EMAIL_CONTATO}</li>
+            <li>
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-white"
+              >
+                <Phone className="h-4 w-4" /> {WHATSAPP_NUMERO}
+              </a>
+            </li>
             <li className="flex items-center gap-2"><Globe className="h-4 w-4" /> app.eloracrm.com.br</li>
           </ul>
         </div>
