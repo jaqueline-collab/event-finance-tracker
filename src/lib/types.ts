@@ -197,6 +197,7 @@ export interface Fechamento {
   totalLiquido: number;
   observacao?: string | null;
   criadoEm?: string;
+  deletadoEm?: string | null;
 }
 
 export interface FechamentoItem {

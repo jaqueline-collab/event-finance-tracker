@@ -296,6 +296,7 @@ export const mapDbToFechamento = (r: any): Fechamento => ({
   totalLiquido: Number(r.total_liquido ?? 0),
   observacao: r.observacao ?? null,
   criadoEm: r.criado_em ?? undefined,
+  deletadoEm: r.deletado_em ?? null,
 });
 
 export const mapFechamentoItemToDb = (i: FechamentoItem) => ({

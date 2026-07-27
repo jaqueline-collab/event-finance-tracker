@@ -165,6 +165,7 @@ function ResumoPage() {
     clientes, planos, custos, movimentos, parceiros, financeiro,
     addLancamento, descontos, addDesconto, removeDesconto,
     fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento, updateFechamento,
+    restaurarFechamento, excluirFechamentoDefinitivo,
     atualizarMauFechamentoItem,
   } = useStore();
   const { isAdmin } = useCurrentUserAccess();
@@ -197,6 +198,7 @@ function ResumoPage() {
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
+  const [confirmPurgeFech, setConfirmPurgeFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
   const [autoPrintCompetencia, setAutoPrintCompetencia] = useState<string | null>(null);
   // Estabiliza a data-base: se recriada a cada render, causa loop infinito
@@ -437,12 +439,20 @@ function ResumoPage() {
   }, [fechamentosLegadosFinanceiro, clientes, planos, custos, movimentos]);
 
   const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(
-    () => [...fechamentos, ...fechamentosLegadosFinanceiro],
+    () => [...fechamentos.filter((f) => !f.deletadoEm), ...fechamentosLegadosFinanceiro],
     [fechamentos, fechamentosLegadosFinanceiro],
   );
+  const fechamentosNaLixeira = useMemo(
+    () => fechamentos.filter((f) => !!f.deletadoEm)
+      .sort((a, b) => (b.deletadoEm ?? "").localeCompare(a.deletadoEm ?? "")),
+    [fechamentos],
+  );
   const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(
-    () => [...fechamentoItens, ...itensLegadosFinanceiro],
-    [fechamentoItens, itensLegadosFinanceiro],
+    () => {
+      const idsLixeira = new Set(fechamentos.filter((f) => f.deletadoEm).map((f) => f.id));
+      return [...fechamentoItens.filter((i) => !idsLixeira.has(i.fechamentoId)), ...itensLegadosFinanceiro];
+    },
+    [fechamentoItens, itensLegadosFinanceiro, fechamentos],
   );
 
   const linhas = useMemo(() => {
@@ -1648,9 +1658,9 @@ function ResumoPage() {
       <AlertDialog open={!!confirmDeleteFech} onOpenChange={(o) => !o && setConfirmDeleteFech(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir fechamento persistido?</AlertDialogTitle>
+            <AlertDialogTitle>Mover fechamento para a lixeira?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove apenas o registro do fechamento e seus itens detalhados. Lançamentos financeiros vinculados serão preservados para manter o histórico. Só confirme se isso foi solicitado explicitamente.
+              O fechamento sai da lista e de todos os cálculos, mas continua guardado na Lixeira e pode ser restaurado a qualquer momento. Nada é apagado de verdade agora.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1661,14 +1671,99 @@ function ResumoPage() {
                 if (!confirmDeleteFech) return;
                 try {
                   await removeFechamento(confirmDeleteFech);
-                  toast.success("Fechamento removido; lançamentos financeiros preservados.");
+                  toast.success("Fechamento movido para a lixeira.");
                 } catch {
-                  toast.error("Falha ao excluir fechamento.");
+                  toast.error("Falha ao mover fechamento para a lixeira.");
                 }
                 setConfirmDeleteFech(null);
               }}
             >
-              Excluir
+              Mover para a lixeira
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Lixeira de fechamentos */}
+      <Card className="border-border/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Trash2 className="h-4 w-4 text-muted-foreground" /> Lixeira
+          </CardTitle>
+          <CardDescription>
+            Fechamentos excluídos ficam aqui e não entram em nenhuma lista ou soma. Itens aqui há mais de 30 dias podem ser apagados definitivamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {fechamentosNaLixeira.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">A lixeira está vazia.</p>
+          ) : (
+            <div className="space-y-2">
+              {fechamentosNaLixeira.map((f) => (
+                <div key={f.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/50 p-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{f.titulo}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Competência {f.competencia} · {formatBRL(f.totalLiquido)} · excluído em{" "}
+                      {f.deletadoEm ? new Date(f.deletadoEm).toLocaleString("pt-BR") : "—"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={async () => {
+                        try {
+                          await restaurarFechamento?.(f.id);
+                          toast.success("Fechamento restaurado.");
+                        } catch {
+                          toast.error("Falha ao restaurar fechamento.");
+                        }
+                      }}
+                    >
+                      Restaurar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-destructive"
+                      onClick={() => setConfirmPurgeFech(f.id)}
+                    >
+                      Excluir definitivamente
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={!!confirmPurgeFech} onOpenChange={(o) => !o && setConfirmPurgeFech(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar definitivamente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O fechamento e todos os seus itens detalhados serão apagados para sempre. Não há como recuperar depois. Lançamentos financeiros vinculados são preservados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmPurgeFech) return;
+                try {
+                  await excluirFechamentoDefinitivo?.(confirmPurgeFech);
+                  toast.success("Fechamento apagado definitivamente.");
+                } catch {
+                  toast.error("Falha ao apagar fechamento.");
+                }
+                setConfirmPurgeFech(null);
+              }}
+            >
+              Apagar para sempre
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
