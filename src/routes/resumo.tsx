@@ -502,7 +502,7 @@ function ResumoPage() {
         const ref = venc ?? new Date(y, m + 1, 0).toISOString().slice(0, 10);
         return clienteSnapshotAt(c, movimentos, ref);
       });
-      const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot);
+      const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot, planos, custos);
       const setup = clientesFiltrados
         .filter((c) => {
           const vencimento = obterVencimentoDaCompetencia(c, y, m, planos);

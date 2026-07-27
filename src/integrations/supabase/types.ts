@@ -203,6 +203,45 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_custos_wts: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          faixa_max: number | null
+          faixa_min: number
+          id: string
+          item_key: string
+          preco_unit: number
+          unidade: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao: string
+          faixa_max?: number | null
+          faixa_min?: number
+          id?: string
+          item_key: string
+          preco_unit?: number
+          unidade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          faixa_max?: number | null
+          faixa_min?: number
+          id?: string
+          item_key?: string
+          preco_unit?: number
+          unidade?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       elora_descontos: {
         Row: {
           atualizado_em: string

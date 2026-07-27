@@ -45,7 +45,7 @@ function Index() {
   const ativos = clientes.filter((c) => !c.dataChurn);
   const mrr = receitaMensalTotal(ativos, planos, custos);
   const receitaSistema = receitaSistemaTotal(ativos, planos, custos);
-  const custoOperacional = calcularCustoLiquidoHelena(ativos);
+  const custoOperacional = calcularCustoLiquidoHelena(ativos, planos, custos);
 
   const lucroSistema = receitaSistema - custoOperacional;
   const lucroTotal = mrr - custoOperacional;
@@ -61,7 +61,7 @@ function Index() {
       
       const r = receitaMensalTotal(ativosMes, planos, custos);
       const rSistema = receitaSistemaTotal(ativosMes, planos, custos);
-      const c = calcularCustoLiquidoHelena(ativosMes);
+      const c = calcularCustoLiquidoHelena(ativosMes, planos, custos);
 
       out.push({
         mes: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),

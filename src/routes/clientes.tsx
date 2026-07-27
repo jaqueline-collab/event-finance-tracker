@@ -137,10 +137,10 @@ function ClientesPage() {
       excMessenger * precoCanalMessengerExc;
 
     const usersExcQtd = Math.max(0, form.usuariosAtivos - (selectedPlano.usuariosInclusos ?? 3));
-    const extraUsers = calcularCustoExtraUsuariosHelena(usersExcQtd, precoUsuariosExc);
+    const extraUsers = calcularCustoExtraUsuariosHelena(usersExcQtd);
 
     const contatosExcQtd = Math.max(0, form.contatosAtivos - (selectedPlano.contatosInclusos ?? 500));
-    const extraContatos = calcularCustoExtraContatosHelena(contatosExcQtd, precoContatosExc);
+    const extraContatos = calcularCustoExtraContatosHelena(contatosExcQtd, selectedPlano.contatosInclusos ?? 0);
 
     // Z-API (cobrado por canal configurado como Z-API excedente aos inclusos no plano)
     const zapiInclusos = typeof selectedPlano.incluiZapi === "number" ? selectedPlano.incluiZapi : (selectedPlano.incluiZapi ? 1 : 0);
