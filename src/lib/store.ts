@@ -12,6 +12,7 @@ import type {
   Plano,
 } from "./types";
 import { supabase } from "@/integrations/supabase/client";
+import { setTabelaCustosWts } from "./calc/custos-wts";
 import {
   mapPlanoToDb,
   mapDbToPlano,
