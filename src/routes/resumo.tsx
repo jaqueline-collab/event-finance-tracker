@@ -451,7 +451,7 @@ function ResumoPage() {
       const idsLixeira = new Set(fechamentos.filter((f) => f.deletadoEm).map((f) => f.id));
       return [...fechamentoItens.filter((i) => !idsLixeira.has(i.fechamentoId)), ...itensLegadosFinanceiro];
     },
-    [fechamentoItens, itensLegadosFinanceiro],
+    [fechamentoItens, itensLegadosFinanceiro, fechamentos],
   );
 
   const linhas = useMemo(() => {
