@@ -165,6 +165,7 @@ function ResumoPage() {
     clientes, planos, custos, movimentos, parceiros, financeiro,
     addLancamento, descontos, addDesconto, removeDesconto,
     fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento, updateFechamento,
+    restaurarFechamento, excluirFechamentoDefinitivo,
     atualizarMauFechamentoItem,
   } = useStore();
   const { isAdmin } = useCurrentUserAccess();
@@ -437,11 +438,19 @@ function ResumoPage() {
   }, [fechamentosLegadosFinanceiro, clientes, planos, custos, movimentos]);
 
   const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(
-    () => [...fechamentos, ...fechamentosLegadosFinanceiro],
+    () => [...fechamentos.filter((f) => !f.deletadoEm), ...fechamentosLegadosFinanceiro],
     [fechamentos, fechamentosLegadosFinanceiro],
   );
+  const fechamentosNaLixeira = useMemo(
+    () => fechamentos.filter((f) => !!f.deletadoEm)
+      .sort((a, b) => (b.deletadoEm ?? "").localeCompare(a.deletadoEm ?? "")),
+    [fechamentos],
+  );
   const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(
-    () => [...fechamentoItens, ...itensLegadosFinanceiro],
+    () => {
+      const idsLixeira = new Set(fechamentos.filter((f) => f.deletadoEm).map((f) => f.id));
+      return [...fechamentoItens.filter((i) => !idsLixeira.has(i.fechamentoId)), ...itensLegadosFinanceiro];
+    },
     [fechamentoItens, itensLegadosFinanceiro],
   );
 
