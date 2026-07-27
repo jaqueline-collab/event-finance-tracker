@@ -124,6 +124,8 @@ interface State {
     itens: Omit<FechamentoItem, "id" | "fechamentoId">[],
   ) => Promise<string>;
   removeFechamento: (id: string) => Promise<void>;
+  restaurarFechamento: (id: string) => Promise<void>;
+  excluirFechamentoDefinitivo: (id: string) => Promise<void>;
   updateFechamento: (id: string, patch: Partial<Pick<Fechamento, "titulo" | "descricao" | "observacao" | "status">>) => Promise<void>;
   atualizarMauFechamentoItem: (itemId: string, mauMes: number) => Promise<void>;
   // reset
@@ -647,11 +649,39 @@ export const useStore = create<State>()(
         return id;
       },
       removeFechamento: async (id) => {
+        // Soft-delete: move para a lixeira, preservando fechamento e itens.
+        const prev = get().fechamentos;
+        const deletadoEm = new Date().toISOString();
+        set({ fechamentos: prev.map((x) => (x.id === id ? { ...x, deletadoEm } : x)) });
+        const { error } = await (supabase as any)
+          .from("elora_fechamentos")
+          .update({ deletado_em: deletadoEm })
+          .eq("id", id);
+        if (error) {
+          console.error("Erro ao mover fechamento para a lixeira:", error);
+          set({ fechamentos: prev });
+          throw error;
+        }
+      },
+      restaurarFechamento: async (id) => {
+        const prev = get().fechamentos;
+        set({ fechamentos: prev.map((x) => (x.id === id ? { ...x, deletadoEm: null } : x)) });
+        const { error } = await (supabase as any)
+          .from("elora_fechamentos")
+          .update({ deletado_em: null })
+          .eq("id", id);
+        if (error) {
+          console.error("Erro ao restaurar fechamento:", error);
+          set({ fechamentos: prev });
+          throw error;
+        }
+      },
+      excluirFechamentoDefinitivo: async (id) => {
         set({
           fechamentos: get().fechamentos.filter((x) => x.id !== id),
           fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
         });
-        // Remove somente o registro persistido do fechamento e seus itens.
+        // Remove definitivamente o registro persistido do fechamento e seus itens.
         // Lançamentos financeiros vinculados são preservados para manter histórico.
         const { error: errI } = await (supabase as any)
           .from("elora_fechamento_itens")
