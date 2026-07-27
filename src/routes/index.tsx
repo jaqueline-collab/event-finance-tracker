@@ -470,7 +470,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         <div>
           <div className="flex items-center gap-2 leading-none">
-            <PawLogo className="h-7 w-7 text-landing-yellow shrink-0" />
+            <EloraMark className="h-7 w-7 text-landing-yellow shrink-0" />
             <span
               className="text-white font-bold tracking-tight text-3xl"
               style={{ fontFamily: "var(--font-display)" }}
@@ -490,6 +490,7 @@ function Footer() {
             <li><a href="#funcionalidades" className="hover:text-white">Funcionalidades</a></li>
             <li><a href="#planos" className="hover:text-white">Planos</a></li>
             <li><Link to="/simulador" className="hover:text-white">Simulador</Link></li>
+            <li><a href="#parceiros" className="hover:text-white">Parceiros</a></li>
             <li>
               <a
                 href="https://app.eloracrm.com.br/"
@@ -512,8 +513,17 @@ function Footer() {
             Contato
           </div>
           <ul className="mt-3 space-y-2 text-sm">
-            <li className="flex items-center gap-2"><Mail className="h-4 w-4" /> contato@eloracrm.com</li>
-            <li className="flex items-center gap-2"><Phone className="h-4 w-4" /> (21) 99550-1331</li>
+            <li className="flex items-center gap-2"><Mail className="h-4 w-4" /> {EMAIL_CONTATO}</li>
+            <li>
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-white"
+              >
+                <Phone className="h-4 w-4" /> {WHATSAPP_NUMERO}
+              </a>
+            </li>
             <li className="flex items-center gap-2"><Globe className="h-4 w-4" /> app.eloracrm.com.br</li>
           </ul>
         </div>
