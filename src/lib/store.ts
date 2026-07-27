@@ -179,6 +179,27 @@ export const useStore = create<State>()(
             (supabase as any).from("elora_fechamento_itens").select("*"),
           ]);
 
+          try {
+            const custosWtsRes = await (supabase as any)
+              .from("elora_custos_wts")
+              .select("*");
+            if (Array.isArray(custosWtsRes?.data) && custosWtsRes.data.length > 0) {
+              setTabelaCustosWts(
+                custosWtsRes.data.map((r: any) => ({
+                  itemKey: r.item_key,
+                  descricao: r.descricao,
+                  faixaMin: Number(r.faixa_min ?? 0),
+                  faixaMax: r.faixa_max === null || r.faixa_max === undefined ? null : Number(r.faixa_max),
+                  precoUnit: Number(r.preco_unit ?? 0),
+                  unidade: r.unidade ?? null,
+                  ativo: r.ativo !== false,
+                })),
+              );
+            }
+          } catch (e) {
+            console.warn("Não foi possível carregar elora_custos_wts; usando tabela padrão.", e);
+          }
+
           if (planosRes.data && planosRes.data.length > 0) {
             set({ planos: planosRes.data.map(mapDbToPlano) });
           }
