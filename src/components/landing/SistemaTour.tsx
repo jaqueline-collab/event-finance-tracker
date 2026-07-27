@@ -1,20 +1,50 @@
 import { useState } from "react";
+import { Lock } from "lucide-react";
+import { Reveal } from "@/components/landing/motion";
 import t1 from "@/assets/tela-2026-05-30-14.18.48.png.asset.json";
-import t2 from "@/assets/tela-2026-06-01-12.22.57.png.asset.json";
-import t3 from "@/assets/tela-2026-06-01-21.31.34.png.asset.json";
-import t4 from "@/assets/tela-2026-06-01-21.32.43.png.asset.json";
-import t5 from "@/assets/tela-2026-06-01-22.38.01.png.asset.json";
 import t6 from "@/assets/tela-2026-06-02-10.57.53.png.asset.json";
-import t7 from "@/assets/tela-2026-06-02-20.16.10.png.asset.json";
+import funil from "@/assets/funil_vendas.jpg.asset.json";
+import sequencias from "@/assets/Sequencias_Edicao.jpg.asset.json";
+import agendadas from "@/assets/Mensagens_agendadas.jpg.asset.json";
+import classificacao from "@/assets/Grafico_ClassificacaoAtendimento.png.asset.json";
 
 const TELAS = [
-  { url: t1.url, label: "Central de Atendimento", desc: "Todas as conversas em uma única caixa de entrada." },
-  { url: t2.url, label: "CRM e Funil", desc: "Pipeline visual com etiquetas e estágios personalizáveis." },
-  { url: t3.url, label: "Construtor de Chatbot", desc: "Crie fluxos sem código — qualifica e atende sozinho." },
-  { url: t4.url, label: "Automação Visual", desc: "Conecte gatilhos, condições e ações com poucos cliques." },
-  { url: t5.url, label: "Disparo de Campanhas", desc: "Marketing por WhatsApp com segmentação fina." },
-  { url: t6.url, label: "Painel de Resultados", desc: "Indicadores em tempo real do seu atendimento." },
-  { url: t7.url, label: "Agentes de IA", desc: "Assistentes treinados com sua base de conhecimento." },
+  {
+    url: t1.url,
+    label: "Central de Atendimento",
+    desc: "Todas as conversas de WhatsApp, Instagram e Messenger em uma única caixa de entrada.",
+    path: "atendimentos",
+  },
+  {
+    url: funil.url,
+    label: "CRM e Funil de Vendas",
+    desc: "Pipeline visual com etapas, valores e etiquetas — do primeiro contato ao fechamento.",
+    path: "crm/funil-comercial",
+  },
+  {
+    url: sequencias.url,
+    label: "Sequências e Follow-up",
+    desc: "Cadências automáticas de mensagens com horários, métricas e chatbot integrado.",
+    path: "apps/sequencias",
+  },
+  {
+    url: agendadas.url,
+    label: "Mensagens Agendadas",
+    desc: "Programe envios por canal e por equipe, com status de entrega e leitura.",
+    path: "apps/mensagens-agendadas",
+  },
+  {
+    url: classificacao.url,
+    label: "Relatórios",
+    desc: "Classificação de atendimentos, motivos de perda e oportunidades geradas.",
+    path: "relatorios/classificacao",
+  },
+  {
+    url: t6.url,
+    label: "Painel de Resultados",
+    desc: "Indicadores em tempo real do seu atendimento e da sua operação.",
+    path: "relatorios/painel",
+  },
 ];
 
 export function SistemaTour() {
@@ -22,62 +52,84 @@ export function SistemaTour() {
   const tela = TELAS[ativo];
 
   return (
-    <section className="py-24 px-6 bg-white border-t border-landing-border">
+    <section id="produto" className="py-24 px-6 bg-white border-t border-landing-border">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Por dentro do sistema
-          </span>
-          <h2
-            className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Veja como o Elora funciona
-          </h2>
-          <p className="text-landing-muted mt-3 max-w-2xl mx-auto">
-            Telas reais — clique nas abas para conhecer cada parte da plataforma.
-          </p>
-        </div>
+        <Reveal>
+          <div className="text-center mb-12">
+            <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
+              Produto em ação
+            </span>
+            <h2
+              className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Veja o Elora funcionando
+            </h2>
+            <p className="text-landing-muted mt-3 max-w-2xl mx-auto">
+              Telas reais da plataforma. Clique nas abas para conhecer cada parte do sistema.
+            </p>
+          </div>
+        </Reveal>
 
-        <div className="grid lg:grid-cols-[260px_1fr] gap-6">
-          <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
-            {TELAS.map((t, i) => {
-              const sel = i === ativo;
-              return (
-                <button
-                  key={i}
-                  onClick={() => setAtivo(i)}
-                  className={`text-left rounded-lg px-4 py-3 border transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink ${
-                    sel
-                      ? "border-landing-fg bg-landing-fg text-white"
-                      : "border-landing-border bg-white text-landing-fg hover:border-landing-fg/40"
-                  }`}
-                >
-                  <div className="text-sm font-semibold">{t.label}</div>
-                  <div
-                    className={`text-xs mt-0.5 hidden lg:block ${sel ? "text-white/60" : "text-landing-muted"}`}
+        <div className="grid lg:grid-cols-[280px_1fr] gap-6 items-start">
+          <Reveal>
+            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+              {TELAS.map((t, i) => {
+                const sel = i === ativo;
+                return (
+                  <button
+                    key={t.label}
+                    onClick={() => setAtivo(i)}
+                    aria-pressed={sel}
+                    className={`text-left rounded-lg px-4 py-3 border transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink ${
+                      sel
+                        ? "border-landing-fg bg-landing-fg text-white"
+                        : "border-landing-border bg-white text-landing-fg hover:border-landing-fg/40"
+                    }`}
                   >
-                    {t.desc}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    <div className="text-sm font-semibold">{t.label}</div>
+                    <div
+                      className={`text-xs mt-0.5 hidden lg:block leading-relaxed ${
+                        sel ? "text-white/60" : "text-landing-muted"
+                      }`}
+                    >
+                      {t.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </Reveal>
 
-          <div className="rounded-2xl border border-landing-border bg-landing-surface p-3 md:p-4 shadow-lg">
-            <div className="rounded-lg overflow-hidden bg-white border border-landing-border">
-              <img
-                src={tela.url}
-                alt={tela.label}
-                className="w-full h-auto block"
-                loading="lazy"
-              />
+          <Reveal delay={120}>
+            {/* Mockup de navegador */}
+            <div className="rounded-2xl border border-landing-border bg-landing-surface shadow-2xl overflow-hidden">
+              <div className="flex items-center gap-3 px-4 h-11 bg-landing-dark">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="h-3 w-3 rounded-full bg-red-400/80" />
+                  <span className="h-3 w-3 rounded-full bg-yellow-400/80" />
+                  <span className="h-3 w-3 rounded-full bg-green-400/80" />
+                </div>
+                <div className="flex-1 flex items-center gap-2 rounded-md bg-white/10 px-3 py-1 text-xs text-white/70 truncate">
+                  <Lock className="h-3 w-3 text-landing-yellow shrink-0" />
+                  <span className="truncate">app.eloracrm.com.br/{tela.path}</span>
+                </div>
+              </div>
+              <div className="bg-white">
+                <img
+                  key={tela.url}
+                  src={tela.url}
+                  alt={`Tela do Elora: ${tela.label}`}
+                  className="w-full h-auto block animate-fade-in"
+                  loading="lazy"
+                />
+              </div>
             </div>
-            <div className="px-2 pt-3 pb-1 lg:hidden">
+            <div className="px-1 pt-4 lg:hidden">
               <div className="text-sm font-semibold text-landing-fg">{tela.label}</div>
-              <div className="text-xs text-landing-muted">{tela.desc}</div>
+              <div className="text-xs text-landing-muted mt-0.5">{tela.desc}</div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
