@@ -52,6 +52,13 @@ export {
   calcularCustoLiquidoHelena,
 } from "./calc/helena";
 export {
+  setTabelaCustosWts,
+  getTabelaCustosWts,
+  precoUnitario,
+  calcularDescontoEscala,
+} from "./calc/custos-wts";
+export { explicarCustoCliente } from "./calc/custo";
+export {
   receitaMensalCliente,
   receitaMensalClienteEm,
   receitaCicloCliente,
