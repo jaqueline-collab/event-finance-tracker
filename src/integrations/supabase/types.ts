@@ -357,6 +357,7 @@ export type Database = {
           competencia: string
           criado_em: string
           criado_por: string | null
+          deletado_em: string | null
           descricao: string | null
           id: string
           observacao: string | null
@@ -371,6 +372,7 @@ export type Database = {
           competencia: string
           criado_em?: string
           criado_por?: string | null
+          deletado_em?: string | null
           descricao?: string | null
           id?: string
           observacao?: string | null
@@ -385,6 +387,7 @@ export type Database = {
           competencia?: string
           criado_em?: string
           criado_por?: string | null
+          deletado_em?: string | null
           descricao?: string | null
           id?: string
           observacao?: string | null
