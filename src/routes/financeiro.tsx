@@ -21,6 +21,7 @@ import {
 } from "@/lib/store";
 import type { LancamentoFinanceiro, StatusFinanceiro, TipoFinanceiro } from "@/lib/types";
 import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/financeiro")({
   head: () => ({ meta: [{ title: "Financeiro · Elora" }] }),
