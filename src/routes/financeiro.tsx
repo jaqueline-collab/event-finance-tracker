@@ -17,9 +17,11 @@ import {
   receitaCicloCliente,
   clienteFaturaEm,
   obterVencimentoDaCompetencia,
+  mensagemErroPersistencia,
 } from "@/lib/store";
 import type { LancamentoFinanceiro, StatusFinanceiro, TipoFinanceiro } from "@/lib/types";
 import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/financeiro")({
   head: () => ({ meta: [{ title: "Financeiro · Elora" }] }),
@@ -71,7 +73,7 @@ function FinanceiroPage() {
   };
 
   // Auto-importar fechamentos das competências passadas que ainda não foram importadas
-  const importarFechamentosAuto = () => {
+  const importarFechamentosAuto = async () => {
     if (clientes.length === 0) return;
     const datas = clientes.map((c) => new Date(c.dataInicio));
     const minD = new Date(Math.min(...datas.map((d) => d.getTime())));
@@ -114,17 +116,23 @@ function FinanceiroPage() {
           const diaSeguro = Math.min(dia, ultimoDia);
           const venc = new Date(y, m, diaSeguro).toISOString().slice(0, 10);
           const labelMes = cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-          addLancamento({
-            descricao: `Fechamento ${labelMes} · vence dia ${diaSeguro} · ciclo ${cicloLabel}`,
-            tipo: "fechamento",
-            categoria: "Receita",
-            valor: Number(total.toFixed(2)),
-            vencimento: venc,
-            competencia: competenciaDia,
-            status: "pendente",
-            nfEmitida: false,
-          });
-          criados++;
+          try {
+            await addLancamento({
+              descricao: `Fechamento ${labelMes} · vence dia ${diaSeguro} · ciclo ${cicloLabel}`,
+              tipo: "fechamento",
+              categoria: "Receita",
+              valor: Number(total.toFixed(2)),
+              vencimento: venc,
+              competencia: competenciaDia,
+              status: "pendente",
+              nfEmitida: false,
+            });
+            criados++;
+          } catch (e) {
+            console.error(e);
+            toast.error(mensagemErroPersistencia(e, "Não foi possível importar o fechamento"));
+            return;
+          }
         }
       }
       cursor.setMonth(cursor.getMonth() + 1);
@@ -168,12 +176,18 @@ function FinanceiroPage() {
     };
   }, [financeiro]);
 
-  const save = () => {
+  const save = async () => {
     if (!form.descricao || !form.valor) return;
     if (editId) {
       updateLancamento(editId, form);
     } else {
-      addLancamento(form);
+      try {
+        await addLancamento(form);
+      } catch (e) {
+        console.error(e);
+        toast.error(mensagemErroPersistencia(e, "Não foi possível salvar o lançamento"));
+        return;
+      }
     }
     setOpen(false);
     setEditId(null);

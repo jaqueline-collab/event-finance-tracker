@@ -33,6 +33,45 @@ import {
   mapDbToFechamentoItem,
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
+import { toast } from "sonner";
+
+// ===== Helpers de persistência segura =====
+
+/** Retorna o uid da sessão atual, ou null se não houver sessão válida. */
+async function getAuthUid(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Converte erros do Supabase em mensagens claras para o usuário. */
+export function mensagemErroPersistencia(err: unknown, contexto: string): string {
+  const e = err as { message?: string; code?: string; details?: string } | null;
+  const raw = `${e?.message ?? ""} ${e?.details ?? ""}`.toLowerCase();
+  const code = e?.code ?? "";
+  if (
+    raw.includes("sessao-expirada") ||
+    raw.includes("sessão expirada") ||
+    raw.includes("jwt") ||
+    raw.includes("not authenticated") ||
+    code === "401"
+  ) {
+    return "Sessão expirada — faça login novamente e repita a operação.";
+  }
+  if (code === "42501" || raw.includes("row-level security") || raw.includes("permission denied")) {
+    return "Sem permissão para gravar (sessão expirada ou usuário sem acesso). Faça login novamente.";
+  }
+  if (code === "23505" || raw.includes("duplicate key")) {
+    return `${contexto}: registro duplicado já existe no banco.`;
+  }
+  if (raw.includes("failed to fetch") || raw.includes("network")) {
+    return "Falha de conexão com o banco. Verifique sua internet e tente novamente.";
+  }
+  return `${contexto}${e?.message ? `: ${e.message}` : "."}`;
+}
 
 // Re-exports para retro-compatibilidade dos consumidores que importam de @/lib/store.
 export { formatBRL } from "./calc/format";
@@ -113,7 +152,7 @@ interface State {
   updateParceiro: (id: string, p: Partial<Parceiro>) => void;
   removeParceiro: (id: string) => void;
   // financeiro
-  addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => string;
+  addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => Promise<string>;
   updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => void;
   removeLancamento: (id: string) => void;
   // descontos
@@ -555,13 +594,22 @@ export const useStore = create<State>()(
       },
 
       // Financeiro
-      addLancamento: (l) => {
+      addLancamento: async (l) => {
         const id = uid();
         const novo: LancamentoFinanceiro = { ...l, id };
+        const userId = await getAuthUid();
+        if (!userId) {
+          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
+        }
+        // Grava PRIMEIRO no banco; só reflete na tela após confirmação.
+        const { error } = await (supabase as any)
+          .from("elora_financeiro")
+          .insert({ ...mapFinanceiroToDb(novo), user_id: userId });
+        if (error) {
+          console.error("Erro ao salvar lançamento financeiro:", error);
+          throw error;
+        }
         set({ financeiro: [...get().financeiro, novo] });
-        (supabase as any).from("elora_financeiro").insert(mapFinanceiroToDb(novo)).then(({ error }: any) => {
-          if (error) console.error("Erro ao salvar lançamento financeiro:", error);
-        });
         return id;
       },
       updateLancamento: (id, l) => {
@@ -626,35 +674,44 @@ export const useStore = create<State>()(
             : uid(),
           fechamentoId: id,
         }));
-        set({
-          fechamentos: [...get().fechamentos, novo],
-          fechamentoItens: [...get().fechamentoItens, ...novosItens],
-        });
+        const userId = await getAuthUid();
+        if (!userId) {
+          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
+        }
+        // 1) Grava o fechamento (pai) — nada é refletido na tela antes disso.
         const { error: errF } = await (supabase as any)
           .from("elora_fechamentos")
-          .insert(mapFechamentoToDb(novo));
+          .insert({ ...mapFechamentoToDb(novo), criado_por: userId });
         if (errF) {
           console.error("Erro ao salvar fechamento:", errF);
-          set({
-            fechamentos: get().fechamentos.filter((x) => x.id !== id),
-            fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
-          });
           throw errF;
         }
+        // 2) Grava os itens; se falhar, faz rollback do pai e VERIFICA o rollback.
         if (novosItens.length > 0) {
           const { error: errI } = await (supabase as any)
             .from("elora_fechamento_itens")
             .insert(novosItens.map(mapFechamentoItemToDb));
           if (errI) {
             console.error("Erro ao salvar itens do fechamento:", errI);
-            set({
-              fechamentos: get().fechamentos.filter((x) => x.id !== id),
-              fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
-            });
-            await (supabase as any).from("elora_fechamentos").delete().eq("id", id);
+            const { error: errRollback } = await (supabase as any)
+              .from("elora_fechamentos")
+              .delete()
+              .eq("id", id);
+            if (errRollback) {
+              console.error("Falha no rollback do fechamento:", errRollback);
+              toast.error(
+                "Fechamento pode ter ficado incompleto no banco, verifique manualmente.",
+                { description: `ID ${id} — ${errRollback.message ?? "erro ao desfazer"}` },
+              );
+            }
             throw errI;
           }
         }
+        // 3) Só agora reflete na tela.
+        set({
+          fechamentos: [...get().fechamentos, novo],
+          fechamentoItens: [...get().fechamentoItens, ...novosItens],
+        });
         return id;
       },
       removeFechamento: async (id) => {

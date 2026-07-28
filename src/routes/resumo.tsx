@@ -32,6 +32,7 @@ import {
   obterVencimentoDaCompetencia,
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
+  mensagemErroPersistencia,
 } from "@/lib/store";
 import { explicarReceitaCliente } from "@/lib/calc/receita";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
@@ -1305,19 +1306,19 @@ function ResumoPage() {
       const ultimoDia = new Date(y, m + 1, 0).getDate();
       const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
       const descricao = (descricaoConsolidada || "").trim() || `Fechamento ${labelMes} · ciclo ${cicloLabel}`;
-      const lancId = addLancamento({
-        descricao,
-        tipo: "fechamento",
-        categoria: "Receita",
-        valor: Number(totalReceita.toFixed(2)),
-        vencimento: venc,
-        competencia: `${competenciaKey}-consolidado-${Date.now()}`,
-        status: "pendente",
-        nfEmitida: false,
-      });
-      // Vincula todos os itens ao lançamento consolidado
-      for (const it of itensSnapshot) it.lancamentoFinanceiroId = lancId;
       try {
+        const lancId = await addLancamento({
+          descricao,
+          tipo: "fechamento",
+          categoria: "Receita",
+          valor: Number(totalReceita.toFixed(2)),
+          vencimento: venc,
+          competencia: `${competenciaKey}-consolidado-${Date.now()}`,
+          status: "pendente",
+          nfEmitida: false,
+        });
+        // Vincula todos os itens ao lançamento consolidado
+        for (const it of itensSnapshot) it.lancamentoFinanceiroId = lancId;
         const fechamentoId = await addFechamento(
           {
             competencia: competenciaKey,
@@ -1335,32 +1336,32 @@ function ResumoPage() {
         toast.success("Fechamento gerado e exibido no Resumo.");
       } catch (e) {
         console.error(e);
-        toast.error("Não foi possível gerar o fechamento.");
+        toast.error(mensagemErroPersistencia(e, "Não foi possível gerar o fechamento"));
         return;
       }
     } else {
       let n = 0;
-      for (const d of detalhesPorCliente) {
-        const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
-        const ultimoDia = new Date(y, m + 1, 0).getDate();
-        const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
-        const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
-          || d.cliente.nomeFinanceiro || d.cliente.nome;
-        const lancId = addLancamento({
-          descricao: descricaoCli,
-          tipo: "fechamento",
-          categoria: "Receita",
-          valor: Number(d.receita.toFixed(2)),
-          vencimento: venc,
-          competencia: `${competenciaKey}-${d.cliente.id}-${Date.now()}`,
-          status: "pendente",
-          nfEmitida: false,
-        });
-        const item = itensSnapshot.find((x) => x.clienteId === d.cliente.id);
-        if (item) item.lancamentoFinanceiroId = lancId;
-        n++;
-      }
       try {
+        for (const d of detalhesPorCliente) {
+          const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
+          const ultimoDia = new Date(y, m + 1, 0).getDate();
+          const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+          const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
+            || d.cliente.nomeFinanceiro || d.cliente.nome;
+          const lancId = await addLancamento({
+            descricao: descricaoCli,
+            tipo: "fechamento",
+            categoria: "Receita",
+            valor: Number(d.receita.toFixed(2)),
+            vencimento: venc,
+            competencia: `${competenciaKey}-${d.cliente.id}-${Date.now()}`,
+            status: "pendente",
+            nfEmitida: false,
+          });
+          const item = itensSnapshot.find((x) => x.clienteId === d.cliente.id);
+          if (item) item.lancamentoFinanceiroId = lancId;
+          n++;
+        }
         const fechamentoId = await addFechamento(
           {
             competencia: competenciaKey,
@@ -1378,7 +1379,7 @@ function ResumoPage() {
         toast.success(`Fechamento gerado com ${n} lançamento(s) e exibido no Resumo.`);
       } catch (e) {
         console.error(e);
-        toast.error("Não foi possível gerar o fechamento.");
+        toast.error(mensagemErroPersistencia(e, "Não foi possível gerar o fechamento"));
         return;
       }
     }
