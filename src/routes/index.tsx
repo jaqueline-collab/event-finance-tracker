@@ -1,13 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  MessageCircle,
-  Bot,
-  Send,
-  Users,
-  Sparkles,
-  BarChart3,
-  Check,
   ChevronDown,
   Mail,
   Phone,
@@ -16,8 +9,6 @@ import {
   ArrowUpRight,
   LogIn,
 } from "lucide-react";
-import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
-import { formatBRL } from "@/lib/calc/format";
 import { EloraMark } from "@/components/landing/EloraMark";
 import { VideoIntro } from "@/components/landing/VideoIntro";
 import { Depoimentos } from "@/components/landing/Depoimentos";
@@ -57,12 +48,6 @@ export const Route = createFileRoute("/")({
           name: "EloraCRM",
           applicationCategory: "BusinessApplication",
           operatingSystem: "Web",
-          offers: PLANOS_VITRINE.map((p) => ({
-            "@type": "Offer",
-            name: p.nome,
-            price: p.mensal,
-            priceCurrency: "BRL",
-          })),
         }),
       },
     ],
@@ -79,11 +64,9 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
-      <Funcionalidades />
       <SistemaTour />
       <Depoimentos />
       <Parceiros />
-      <Planos />
       <FAQ />
       <Footer />
       <WhatsAppFloat />
@@ -106,11 +89,8 @@ function Navbar() {
           </span>
         </a>
         <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
-          <a href="#funcionalidades" className="hover:text-landing-yellow transition">
-            Funcionalidades
-          </a>
-          <a href="#planos" className="hover:text-landing-yellow transition">
-            Planos
+          <a href="#produto" className="hover:text-landing-yellow transition">
+            Produto
           </a>
           <Link to="/simulador" className="hover:text-landing-yellow transition">
             Simulador
@@ -489,8 +469,7 @@ function Footer() {
             Navegação
           </div>
           <ul className="mt-3 space-y-2 text-sm">
-            <li><a href="#funcionalidades" className="hover:text-white">Funcionalidades</a></li>
-            <li><a href="#planos" className="hover:text-white">Planos</a></li>
+            <li><a href="#produto" className="hover:text-white">Produto</a></li>
             <li><Link to="/simulador" className="hover:text-white">Simulador</Link></li>
             <li><a href="#parceiros" className="hover:text-white">Parceiros</a></li>
             <li>
