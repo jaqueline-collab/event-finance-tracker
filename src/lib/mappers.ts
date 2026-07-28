@@ -164,6 +164,63 @@ export const mapClienteToDb = (c: Cliente) => ({
   observacao: c.observacao,
 });
 
+// Mapeia APENAS os campos presentes no patch para colunas do banco.
+// Evita sobrescrever o registro inteiro (perda silenciosa de data_churn,
+// observacao, etc.) em updates disparados por movimentos/recálculos.
+const CLIENTE_FIELD_MAP: Record<string, string> = {
+  nome: "nome",
+  nomeFinanceiro: "nome_financeiro",
+  planoId: "plano_id",
+  parceiroId: "parceiro_id",
+  dataInicio: "data_inicio",
+  dataVencimento: "data_vencimento",
+  dataChurn: "data_churn",
+  cicloPersonalizado: "ciclo_personalizado",
+  cicloDiaInicial: "ciclo_dia_inicial",
+  cicloDiaFinal: "ciclo_dia_final",
+  apps: "apps",
+  mau: "mau",
+  canais: "canais",
+  canaisZapi: "canais_zapi",
+  canaisWhats: "canais_whats",
+  canaisInsta: "canais_insta",
+  canaisMessenger: "canais_messenger",
+  usuariosAtivos: "usuarios_ativos",
+  contatosAtivos: "contatos_ativos",
+  agentesIA: "agentes_ia",
+  asaas: "asaas",
+  zapi: "zapi",
+  transcricaoIA: "transcricao_ia",
+  valorSetupPago: "valor_setup_pago",
+  valorAcompanhamento: "valor_acompanhamento",
+  extras: "extras",
+  observacao: "observacao",
+};
+
+export const mapClientePatchToDb = (patch: Partial<Cliente>): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  for (const [key, col] of Object.entries(CLIENTE_FIELD_MAP)) {
+    if (Object.prototype.hasOwnProperty.call(patch, key)) {
+      const v = (patch as any)[key];
+      out[col] = v === undefined ? null : v;
+    }
+  }
+  return out;
+};
+
+// Diff entre estado anterior e novo: retorna só as colunas que mudaram.
+export const diffClienteToDb = (prev: Cliente, next: Cliente): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  for (const [key, col] of Object.entries(CLIENTE_FIELD_MAP)) {
+    const a = (prev as any)[key];
+    const b = (next as any)[key];
+    const changed =
+      key === "extras" ? JSON.stringify(a ?? {}) !== JSON.stringify(b ?? {}) : a !== b;
+    if (changed) out[col] = b === undefined ? null : b;
+  }
+  return out;
+};
+
 export const mapDbToCliente = (r: any): Cliente => ({
   id: r.id,
   nome: r.nome,
