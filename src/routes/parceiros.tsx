@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, LogIn } from "lucide-react";
+import { ArrowUpRight, LogIn, Mail, Phone, Globe } from "lucide-react";
 import { EloraMark } from "@/components/landing/EloraMark";
 import { Parceiros } from "@/components/landing/Parceiros";
+import { EMAIL_CONTATO, WHATSAPP_LINK, WHATSAPP_NUMERO } from "@/lib/landing/contato";
 
 export const Route = createFileRoute("/parceiros")({
   head: () => ({
@@ -146,22 +147,17 @@ function ParceirosPage() {
               Contato
             </div>
             <ul className="mt-3 space-y-2 text-sm">
-              <li>
-                <a
-                  href="mailto:contato@eloracrm.com.br"
-                  className="flex items-center gap-2 hover:text-white"
-                >
-                  <Mail className="h-4 w-4" /> contato@eloracrm.com.br
-                </a>
+              <li className="flex items-center gap-2">
+                <Mail className="h-4 w-4" /> {EMAIL_CONTATO}
               </li>
               <li>
                 <a
-                  href="https://wa.me/554137900313"
+                  href={WHATSAPP_LINK}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 hover:text-white"
                 >
-                  <Phone className="h-4 w-4" /> (41) 3790-0313
+                  <Phone className="h-4 w-4" /> {WHATSAPP_NUMERO}
                 </a>
               </li>
               <li className="flex items-center gap-2">
