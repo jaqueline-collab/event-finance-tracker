@@ -1,297 +1,175 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useStore } from "@/lib/store";
-import type { Parceiro } from "@/lib/types";
-import { Plus, Trash2, Users, Mail, Phone, Package, Pencil, Calendar } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowUpRight, LogIn, Mail, Phone, Globe } from "lucide-react";
+import { EloraMark } from "@/components/landing/EloraMark";
+import { Parceiros } from "@/components/landing/Parceiros";
+import { EMAIL_CONTATO, WHATSAPP_LINK, WHATSAPP_NUMERO } from "@/lib/landing/contato";
 
 export const Route = createFileRoute("/parceiros")({
-  head: () => ({ meta: [{ title: "Parceiros · Elora" }] }),
+  head: () => ({
+    meta: [
+      { title: "Parceiros · EloraCRM + Rabbit Agency" },
+      {
+        name: "description",
+        content:
+          "Parceria oficial entre EloraCRM e Rabbit Agency: atendimento, CRM e SDR para clínicas, consultórios e negócios de saúde.",
+      },
+      {
+        property: "og:title",
+        content: "Parceiros · EloraCRM + Rabbit Agency",
+      },
+      {
+        property: "og:description",
+        content:
+          "Parceria oficial entre EloraCRM e Rabbit Agency: atendimento, CRM e SDR para clínicas, consultórios e negócios de saúde.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://eloracrm.lovable.app/parceiros" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://eloracrm.lovable.app/parceiros" },
+    ],
+  }),
   component: ParceirosPage,
 });
 
-type ParceiroForm = Omit<Parceiro, "id" | "criadoEm"> & { observacao?: string };
-
-const emptyForm: ParceiroForm = {
-  nome: "",
-  email: "",
-  celular: "",
-  planosVinculados: [],
-  observacao: "",
-};
-
 function ParceirosPage() {
-  const { parceiros, planos, addParceiro, removeParceiro, updateParceiro } = useStore();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<ParceiroForm>(emptyForm);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [detalheId, setDetalheId] = useState<string | null>(null);
-  const [excluirId, setExcluirId] = useState<string | null>(null);
-
-  const parceiroDetalhe = parceiros.find((p) => p.id === detalheId);
-  const parceiroExcluir = parceiros.find((p) => p.id === excluirId);
-
-  const togglePlano = (planoId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      planosVinculados: prev.planosVinculados.includes(planoId)
-        ? prev.planosVinculados.filter((id) => id !== planoId)
-        : [...prev.planosVinculados, planoId],
-    }));
-  };
-
-  const handleSave = () => {
-    if (editId) {
-      updateParceiro(editId, form);
-    } else {
-      addParceiro(form);
-    }
-    setForm(emptyForm);
-    setEditId(null);
-    setOpen(false);
-  };
-
-  const startEdit = (p: Parceiro) => {
-    setEditId(p.id);
-    setForm({
-      nome: p.nome,
-      email: p.email,
-      celular: p.celular,
-      planosVinculados: p.planosVinculados ?? [],
-      observacao: p.observacao ?? "",
-    });
-    setDetalheId(null);
-    setOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (excluirId) {
-      removeParceiro(excluirId);
-      setExcluirId(null);
-      setDetalheId(null);
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Parceiros</h1>
-          <p className="text-muted-foreground text-sm">Agências e revendedores credenciados no seu White Label</p>
-        </div>
-        <Button onClick={() => { setOpen((v) => !v); setForm(emptyForm); setEditId(null); }}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Parceiro
-        </Button>
-      </div>
-
-      {open && (
-        <Card className="border-border/60 bg-muted/20">
-          <CardHeader>
-            <CardTitle>{editId ? "Editar Parceiro" : "Cadastrar Agência Parceira"}</CardTitle>
-            <CardDescription>Vincule planos específicos que essa agência pode comercializar.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label className="mb-1 block">Nome da Agência / Parceiro</Label>
-                <Input placeholder="Ex: Agência XYZ..." value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-              </div>
-              <div>
-                <Label className="mb-1 block">E-mail</Label>
-                <Input type="email" placeholder="contato@agencia.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              </div>
-              <div>
-                <Label className="mb-1 block">Celular / WhatsApp</Label>
-                <Input placeholder="(11) 99999-9999" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
-              </div>
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Planos que este parceiro pode revender</Label>
-              <div className="flex flex-wrap gap-3">
-                {planos.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${form.planosVinculados.includes(p.id) ? "border-primary bg-primary/10" : "border-border/60"}`}
-                    onClick={() => togglePlano(p.id)}
-                  >
-                    <Checkbox
-                      id={`chk-${p.id}`}
-                      checked={form.planosVinculados.includes(p.id)}
-                      onCheckedChange={() => togglePlano(p.id)}
-                    />
-                    <Label htmlFor={`chk-${p.id}`} className="cursor-pointer">{p.nome}</Label>
-                  </div>
-                ))}
-                {planos.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhum plano cadastrado ainda. Crie planos primeiro.</p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <Label className="mb-1 block">Observação</Label>
-              <Textarea placeholder="Anotações internas sobre este parceiro..." value={form.observacao ?? ""} onChange={(e) => setForm({ ...form, observacao: e.target.value })} rows={3} />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>Cancelar</Button>
-              <Button disabled={!form.nome} onClick={handleSave}>
-                {editId ? <><Pencil className="mr-2 h-4 w-4" /> Salvar Alterações</> : <><Plus className="mr-2 h-4 w-4" /> Cadastrar Parceiro</>}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {parceiros.map((p) => {
-          const planosDoP = planos.filter((pl) => p.planosVinculados.includes(pl.id));
-          return (
-            <Card
-              key={p.id}
-              className="border-border/60 hover:border-primary/40 transition-colors cursor-pointer"
-              onClick={() => setDetalheId(p.id)}
+    <div
+      className="min-h-screen bg-landing-bg text-landing-fg"
+      style={{ fontFamily: "var(--font-body)" }}
+    >
+      <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 leading-none">
+            <EloraMark className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
+            <span
+              className="text-white font-bold tracking-tight text-lg"
+              style={{ fontFamily: "var(--font-display)" }}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-sm font-bold text-white">
-                      {p.nome.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{p.nome}</CardTitle>
-                      <p className="text-xs text-muted-foreground">Desde {p.criadoEm}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-                  <a href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 hover:text-foreground transition-colors">
-                    <Mail className="h-3.5 w-3.5" /> {p.email || "—"}
-                  </a>
-                  <a href={`tel:${p.celular}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 hover:text-foreground transition-colors">
-                    <Phone className="h-3.5 w-3.5" /> {p.celular || "—"}
-                  </a>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">
-                    <Package className="h-3.5 w-3.5" /> Planos vinculados:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {planosDoP.length > 0
-                      ? planosDoP.map((pl) => <Badge key={pl.id} variant="secondary" className="text-xs">{pl.nome}</Badge>)
-                      : <span className="text-xs text-muted-foreground">Nenhum plano vinculado</span>
-                    }
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-        {parceiros.length === 0 && (
-          <div className="col-span-3 text-center py-12 border border-dashed border-border rounded-lg">
-            <Users className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">Nenhum parceiro cadastrado ainda.</p>
-            <p className="text-sm text-muted-foreground mt-1">Clique em "Novo Parceiro" para adicionar uma agência.</p>
+              EloraCRM
+            </span>
+          </Link>
+          <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
+            <Link to="/" className="hover:text-landing-yellow transition">
+              Início
+            </Link>
+            <Link to="/" hash="produto" className="hover:text-landing-yellow transition">
+              Produto
+            </Link>
+            <Link to="/simulador" className="hover:text-landing-yellow transition">
+              Simulador
+            </Link>
+            <Link to="/parceiros" className="text-landing-yellow transition">
+              Parceiros
+            </Link>
+            <Link to="/" hash="contato" className="hover:text-landing-yellow transition">
+              Contato
+            </Link>
+          </nav>
+          <div className="flex items-center gap-2">
+            <a
+              href="https://app.eloracrm.com.br/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
+            >
+              Elora App <ArrowUpRight className="h-4 w-4" />
+            </a>
+            <Link
+              to="/auth"
+              className="inline-flex items-center gap-1.5 border border-white/30 hover:border-landing-yellow hover:text-landing-yellow text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors"
+            >
+              <LogIn className="h-4 w-4" /> Logar
+            </Link>
           </div>
-        )}
-      </div>
+        </div>
+      </header>
 
-      {/* Dialog de Detalhes do Parceiro */}
-      <Dialog open={!!detalheId} onOpenChange={(o) => !o && setDetalheId(null)}>
-        <DialogContent className="max-w-lg">
-          {parceiroDetalhe && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-base font-bold text-white">
-                    {parceiroDetalhe.nome.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <DialogTitle>{parceiroDetalhe.nome}</DialogTitle>
-                    <DialogDescription className="flex items-center gap-1.5 text-xs">
-                      <Calendar className="h-3 w-3" /> Cadastrado em {parceiroDetalhe.criadoEm}
-                    </DialogDescription>
-                  </div>
-                </div>
-              </DialogHeader>
+      <main className="pt-16">
+        <Parceiros />
+      </main>
 
-              <div className="space-y-4 py-2">
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a href={`mailto:${parceiroDetalhe.email}`} className="hover:text-primary">{parceiroDetalhe.email || "—"}</a>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a href={`tel:${parceiroDetalhe.celular}`} className="hover:text-primary">{parceiroDetalhe.celular || "—"}</a>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <Package className="h-3.5 w-3.5" /> Planos vinculados
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {planos.filter((pl) => parceiroDetalhe.planosVinculados.includes(pl.id)).length > 0
-                      ? planos
-                          .filter((pl) => parceiroDetalhe.planosVinculados.includes(pl.id))
-                          .map((pl) => <Badge key={pl.id} variant="secondary">{pl.nome}</Badge>)
-                      : <span className="text-xs text-muted-foreground">Nenhum plano vinculado</span>
-                    }
-                  </div>
-                </div>
-
-                {parceiroDetalhe.observacao && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Observação</p>
-                    <p className="text-sm whitespace-pre-wrap text-muted-foreground">{parceiroDetalhe.observacao}</p>
-                  </div>
-                )}
-              </div>
-
-              <DialogFooter className="gap-2">
-                <Button variant="destructive" onClick={() => setExcluirId(parceiroDetalhe.id)}>
-                  <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                </Button>
-                <Button onClick={() => startEdit(parceiroDetalhe)}>
-                  <Pencil className="mr-2 h-4 w-4" /> Editar
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Alerta de Exclusão */}
-      <AlertDialog open={!!excluirId} onOpenChange={(o) => !o && setExcluirId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir parceiro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O parceiro <strong>{parceiroExcluir?.nome}</strong> será removido permanentemente.
-              Clientes vinculados a ele permanecerão cadastrados, mas sem parceiro associado.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <footer className="bg-landing-dark-2 text-white/80 py-14 px-6 border-t border-white/10">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
+          <div>
+            <div className="flex items-center gap-2 leading-none">
+              <EloraMark className="h-7 w-7 text-landing-yellow shrink-0" />
+              <span
+                className="text-white font-bold tracking-tight text-3xl"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                EloraCRM
+              </span>
+            </div>
+            <p className="text-sm text-white/60 mt-3 max-w-xs">
+              Para as conversas e o negócio andarem juntos.
+            </p>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-landing-yellow">
+              Navegação
+            </div>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <Link to="/" className="hover:text-white">
+                  Início
+                </Link>
+              </li>
+              <li>
+                <Link to="/" hash="produto" className="hover:text-white">
+                  Produto
+                </Link>
+              </li>
+              <li>
+                <Link to="/simulador" className="hover:text-white">
+                  Simulador
+                </Link>
+              </li>
+              <li>
+                <Link to="/parceiros" className="hover:text-white">
+                  Parceiros
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="https://app.eloracrm.com.br/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white inline-flex items-center gap-1"
+                >
+                  Elora App <ArrowUpRight className="h-3.5 w-3.5" />
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-landing-yellow">
+              Contato
+            </div>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li className="flex items-center gap-2">
+                <Mail className="h-4 w-4" /> {EMAIL_CONTATO}
+              </li>
+              <li>
+                <a
+                  href={WHATSAPP_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-white"
+                >
+                  <Phone className="h-4 w-4" /> {WHATSAPP_NUMERO}
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Globe className="h-4 w-4" /> app.eloracrm.com.br
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-white/10 text-xs text-white/40 text-center">
+          © {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.
+        </div>
+      </footer>
     </div>
   );
 }
