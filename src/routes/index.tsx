@@ -20,7 +20,6 @@ import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
 import { formatBRL } from "@/lib/calc/format";
 import { EloraMark } from "@/components/landing/EloraMark";
 import { VideoIntro } from "@/components/landing/VideoIntro";
-import { LiveDashboard } from "@/components/landing/LiveDashboard";
 import { Depoimentos } from "@/components/landing/Depoimentos";
 import { Parceiros } from "@/components/landing/Parceiros";
 import { SistemaTour } from "@/components/landing/SistemaTour";
@@ -80,7 +79,6 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
-      <LiveDashboard />
       <Funcionalidades />
       <SistemaTour />
       <Depoimentos />
