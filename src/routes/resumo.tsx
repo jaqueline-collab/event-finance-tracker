@@ -32,6 +32,7 @@ import {
   obterVencimentoDaCompetencia,
   clienteSnapshotAt,
   getDiaVencimentoEfetivo,
+  mensagemErroPersistencia,
 } from "@/lib/store";
 import { explicarReceitaCliente } from "@/lib/calc/receita";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
