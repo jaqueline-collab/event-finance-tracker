@@ -1,13 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  MessageCircle,
-  Bot,
-  Send,
-  Users,
   Sparkles,
-  BarChart3,
-  Check,
   ChevronDown,
   Mail,
   Phone,
@@ -16,8 +10,6 @@ import {
   ArrowUpRight,
   LogIn,
 } from "lucide-react";
-import { PLANOS_VITRINE } from "@/lib/landing/precos-vitrine";
-import { formatBRL } from "@/lib/calc/format";
 import { EloraMark } from "@/components/landing/EloraMark";
 import { VideoIntro } from "@/components/landing/VideoIntro";
 import { Depoimentos } from "@/components/landing/Depoimentos";
@@ -57,12 +49,6 @@ export const Route = createFileRoute("/")({
           name: "EloraCRM",
           applicationCategory: "BusinessApplication",
           operatingSystem: "Web",
-          offers: PLANOS_VITRINE.map((p) => ({
-            "@type": "Offer",
-            name: p.nome,
-            price: p.mensal,
-            priceCurrency: "BRL",
-          })),
         }),
       },
     ],
@@ -79,11 +65,9 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
-      <Funcionalidades />
       <SistemaTour />
       <Depoimentos />
       <Parceiros />
-      <Planos />
       <FAQ />
       <Footer />
       <WhatsAppFloat />
@@ -106,11 +90,8 @@ function Navbar() {
           </span>
         </a>
         <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
-          <a href="#funcionalidades" className="hover:text-landing-yellow transition">
-            Funcionalidades
-          </a>
-          <a href="#planos" className="hover:text-landing-yellow transition">
-            Planos
+          <a href="#produto" className="hover:text-landing-yellow transition">
+            Produto
           </a>
           <Link to="/simulador" className="hover:text-landing-yellow transition">
             Simulador
@@ -197,191 +178,6 @@ function Hero() {
             Elora App <ArrowUpRight className="h-4 w-4" />
           </a>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ============================== STATS ============================== */
-/* ============================== FUNCIONALIDADES ============================== */
-const FEATURES = [
-  {
-    slug: "central-de-atendimento",
-    icon: MessageCircle,
-    title: "Central de Atendimento",
-    desc: "WhatsApp, Instagram e Messenger integrados. Etiquetas, distribuição automática e CRM dentro da conversa.",
-  },
-  {
-    slug: "chatbot",
-    icon: Bot,
-    title: "Chatbot",
-    desc: "Crie fluxos para diferentes cenários. Qualifica leads, agenda horários e responde perguntas frequentes.",
-  },
-  {
-    slug: "disparo-de-mensagens",
-    icon: Send,
-    title: "Disparo de Mensagens",
-    desc: "Campanhas de marketing por WhatsApp com alta taxa de leitura. Promoções, lançamentos e carrinho abandonado.",
-  },
-  {
-    slug: "crm",
-    icon: Users,
-    title: "CRM",
-    desc: "Gerencie clientes com segmentação inteligente e jornada mapeada. Tudo baseado em conversas reais.",
-  },
-  {
-    slug: "agentes-inteligentes",
-    icon: Sparkles,
-    title: "Agentes Inteligentes",
-    desc: "Assistentes virtuais com IA que entendem, interagem e resolvem solicitações com tom humanizado.",
-    badge: "BETA",
-  },
-  {
-    slug: "rastreabilidade",
-    icon: BarChart3,
-    title: "Rastreabilidade",
-    desc: "Atribua a origem de cada lead, acompanhe a navegação e meça a conversão de cada campanha.",
-  },
-];
-
-function Funcionalidades() {
-  return (
-    <section id="funcionalidades" className="py-20 px-6 bg-landing-surface">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Funcionalidades
-          </span>
-          <h2
-            className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Uma plataforma completa
-          </h2>
-          <p className="text-landing-muted mt-3 max-w-2xl mx-auto">
-            Atendimento, vendas e automação em um só lugar.
-          </p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={i * 80} className="h-full">
-            <Link
-              to="/funcionalidades/$slug"
-              params={{ slug: f.slug }}
-              className="group rounded-2xl bg-white border border-landing-border p-7 h-full hover:shadow-lg hover:-translate-y-0.5 hover:border-landing-blue transition-all block focus:outline-none focus:ring-2 focus:ring-landing-blue"
-            >
-              <div className="h-11 w-11 rounded-xl bg-landing-blue/10 text-landing-blue flex items-center justify-center mb-4">
-                <f.icon className="h-5 w-5" />
-              </div>
-              <div className="flex items-center gap-2">
-                <h3
-                  className="text-xl font-bold text-landing-fg"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {f.title}
-                </h3>
-                {f.badge && (
-                  <span className="text-[10px] font-bold bg-landing-blue text-white px-1.5 py-0.5 rounded">
-                    {f.badge}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-landing-muted mt-2 leading-relaxed">{f.desc}</p>
-              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-landing-blue opacity-0 group-hover:opacity-100 transition-opacity">
-                Saiba mais <ArrowRight className="h-3.5 w-3.5" />
-              </span>
-            </Link>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ============================== PLANOS ============================== */
-function Planos() {
-  return (
-    <section id="planos" className="py-20 px-6 bg-landing-surface">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Planos
-          </span>
-          <h2
-            className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Escolha o ideal para você
-          </h2>
-          <p className="text-landing-muted mt-3">
-            Comece pelo essencial. Escale quando quiser.
-          </p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {PLANOS_VITRINE.map((p, i) => {
-            const destaque = p.destaque;
-            return (
-              <Reveal key={p.key} delay={i * 100} className="h-full">
-              <div
-                className={`rounded-2xl p-7 border-2 transition-all flex flex-col h-full ${
-                  destaque
-                    ? "bg-landing-dark text-white border-landing-yellow shadow-xl md:-translate-y-3"
-                    : "bg-white text-landing-fg border-landing-border"
-                }`}
-              >
-                {destaque && (
-                  <div className="inline-block self-start bg-landing-yellow text-landing-fg text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded mb-3">
-                    Mais escolhido
-                  </div>
-                )}
-                <h3
-                  className="text-2xl font-bold"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {p.nome}
-                </h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span
-                    className={`text-4xl font-bold ${destaque ? "text-landing-yellow" : "text-landing-blue"}`}
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {formatBRL(p.mensal)}
-                  </span>
-                  <span className={destaque ? "text-white/60 text-sm" : "text-landing-muted text-sm"}>
-                    /mês
-                  </span>
-                </div>
-                <ul className="mt-6 space-y-2.5 flex-1">
-                  {p.recursos.map((r) => (
-                    <li key={r} className="flex items-start gap-2 text-sm">
-                      <Check
-                        className={`h-4 w-4 mt-0.5 shrink-0 ${
-                          destaque ? "text-landing-yellow" : "text-landing-blue"
-                        }`}
-                      />
-                      <span className={destaque ? "text-white/90" : "text-landing-fg"}>{r}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  to="/simulador"
-                  className={`mt-7 block text-center font-semibold rounded-md py-3 transition-colors ${
-                    destaque
-                      ? "bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg"
-                      : "bg-landing-fg hover:bg-landing-dark-2 text-white"
-                  }`}
-                >
-                  Simular este plano
-                </Link>
-              </div>
-              </Reveal>
-            );
-          })}
-        </div>
-        <p className="text-xs text-landing-muted text-center mt-6">
-          Taxa de implantação sob consulta. Adicionais cobrados à parte.
-        </p>
       </div>
     </section>
   );
@@ -489,8 +285,7 @@ function Footer() {
             Navegação
           </div>
           <ul className="mt-3 space-y-2 text-sm">
-            <li><a href="#funcionalidades" className="hover:text-white">Funcionalidades</a></li>
-            <li><a href="#planos" className="hover:text-white">Planos</a></li>
+            <li><a href="#produto" className="hover:text-white">Produto</a></li>
             <li><Link to="/simulador" className="hover:text-white">Simulador</Link></li>
             <li><a href="#parceiros" className="hover:text-white">Parceiros</a></li>
             <li>

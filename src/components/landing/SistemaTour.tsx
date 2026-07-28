@@ -1,20 +1,12 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
 import { Reveal } from "@/components/landing/motion";
-import t1 from "@/assets/tela-2026-05-30-14.18.48.png.asset.json";
-import t6 from "@/assets/tela-2026-06-02-10.57.53.png.asset.json";
 import funil from "@/assets/funil_vendas.jpg.asset.json";
 import sequencias from "@/assets/Sequencias_Edicao.jpg.asset.json";
 import agendadas from "@/assets/Mensagens_agendadas.jpg.asset.json";
 import classificacao from "@/assets/Grafico_ClassificacaoAtendimento.png.asset.json";
 
 const TELAS = [
-  {
-    url: t1.url,
-    label: "Central de Atendimento",
-    desc: "Todas as conversas de WhatsApp, Instagram e Messenger em uma única caixa de entrada.",
-    path: "atendimentos",
-  },
   {
     url: funil.url,
     label: "CRM e Funil de Vendas",
@@ -38,12 +30,6 @@ const TELAS = [
     label: "Relatórios",
     desc: "Classificação de atendimentos, motivos de perda e oportunidades geradas.",
     path: "relatorios/classificacao",
-  },
-  {
-    url: t6.url,
-    label: "Painel de Resultados",
-    desc: "Indicadores em tempo real do seu atendimento e da sua operação.",
-    path: "relatorios/painel",
   },
 ];
 

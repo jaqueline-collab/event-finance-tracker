@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Quote } from "lucide-react";
-import { CountUp, Reveal } from "./motion";
+import { Reveal } from "./motion";
 
 const DEPOIMENTOS = [
   {
@@ -31,13 +31,6 @@ const DEPOIMENTOS = [
 
 const LOGOS = ["Fischer", "Majestic", "Zayn", "Distribox", "INTEP", "The First"];
 
-const PROVAS = [
-  { to: 1200000, label: "Mensagens trocadas/mês", prefix: "+", compact: true },
-  { to: 320, label: "Operações ativas", prefix: "+" },
-  { to: 98, label: "Satisfação no suporte", suffix: "%" },
-  { to: 42, label: "Redução no tempo de resposta", suffix: "%" },
-];
-
 export function Depoimentos() {
   const [ativo, setAtivo] = useState(0);
   const [pausado, setPausado] = useState(false);
@@ -62,30 +55,6 @@ export function Depoimentos() {
             Quem usa, recomenda
           </h2>
         </Reveal>
-
-        {/* Números com contador */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-14">
-          {PROVAS.map((p, i) => (
-            <Reveal key={p.label} delay={i * 90}>
-              <div className="rounded-2xl border border-landing-border bg-landing-surface p-6 text-center h-full">
-                <div
-                  className="text-3xl md:text-4xl font-bold text-landing-blue"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {p.compact ? (
-                    <>
-                      {p.prefix}
-                      <CountUp to={p.to / 1000000} decimals={1} suffix="M" />
-                    </>
-                  ) : (
-                    <CountUp to={p.to} prefix={p.prefix ?? ""} suffix={p.suffix ?? ""} />
-                  )}
-                </div>
-                <div className="text-xs text-landing-muted mt-2">{p.label}</div>
-              </div>
-            </Reveal>
-          ))}
-        </div>
 
         {/* Carrossel de depoimentos */}
         <Reveal>

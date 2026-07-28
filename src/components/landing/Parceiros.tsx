@@ -1,23 +1,21 @@
-import { Link } from "@tanstack/react-router";
-import { Handshake, Percent, LifeBuoy, ArrowRight, Instagram, Globe, type LucideIcon } from "lucide-react";
+import { Stethoscope, MessagesSquare, Target, ArrowRight, Instagram, Globe, type LucideIcon } from "lucide-react";
 import { Reveal } from "./motion";
-import { WHATSAPP_LINK } from "@/lib/landing/contato";
 
 const BENEFICIOS = [
   {
-    icon: Percent,
-    title: "Comissão recorrente",
-    desc: "Você indica, implanta e recebe todo mês enquanto o cliente estiver ativo.",
+    icon: MessagesSquare,
+    title: "Atendimento e CRM",
+    desc: "A Elora entra com a plataforma de atendimento omnichannel e o CRM que organiza cada paciente do primeiro contato ao retorno.",
   },
   {
-    icon: LifeBuoy,
-    title: "Suporte de bastidor",
-    desc: "Time técnico da Elora junto com você na implantação e nas dúvidas do cliente.",
+    icon: Target,
+    title: "SDR e qualificação",
+    desc: "Fluxos de SDR e cadências de follow-up que qualificam leads vindos das campanhas da Rabbit antes de chegarem na recepção.",
   },
   {
-    icon: Handshake,
-    title: "Painel do parceiro",
-    desc: "Acompanhe clientes, fechamentos e repasses direto na sua área exclusiva.",
+    icon: Stethoscope,
+    title: "Foco em saúde",
+    desc: "Operação desenhada para clínicas, consultórios e médicos: agenda cheia, menos no-show e histórico completo do paciente.",
   },
 ];
 
@@ -78,14 +76,13 @@ function PartnerCard({ nome, descricao, siteUrl, socialUrl, socialIcon: SocialIc
   );
 }
 
-const PARCEIROS_OFICIAIS: PartnerCardProps[] = [
-  {
-    nome: "Rabbit Agency",
-    descricao: "Agência de marketing digital e estratégias de vendas, especializada em geração de leads qualificados e tráfego pago, sediada em Curitiba.",
-    siteUrl: "https://rabbitagency.com.br/",
-    socialUrl: "https://www.instagram.com/rabbit4.0/",
-  },
-];
+const RABBIT: PartnerCardProps = {
+  nome: "Rabbit Agency",
+  descricao:
+    "Agência de marketing digital e estratégias de vendas de Curitiba, especializada em geração de leads qualificados e tráfego pago para clínicas, consultórios e profissionais da saúde.",
+  siteUrl: "https://rabbitagency.com.br/",
+  socialUrl: "https://www.instagram.com/rabbit4.0/",
+};
 
 export function Parceiros() {
   return (
@@ -93,19 +90,25 @@ export function Parceiros() {
       <div className="max-w-6xl mx-auto">
         <Reveal className="text-center mb-12">
           <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-            Parceiros
+            Parceria oficial
           </span>
           <h2
             className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Cresça junto com a Elora
+            Elora + Rabbit Agency
           </h2>
           <p className="text-landing-muted mt-3 max-w-2xl mx-auto">
-            Agências, consultorias e integradores que revendem o EloraCRM têm receita
-            recorrente e suporte dedicado.
+            A Rabbit atrai e qualifica a demanda. A Elora sustenta o atendimento, o CRM e o
+            SDR. Juntas, formam a máquina de vendas de clínicas, médicos e negócios de saúde.
           </p>
         </Reveal>
+
+        <div className="max-w-xl mx-auto mb-12">
+          <Reveal>
+            <PartnerCard {...RABBIT} />
+          </Reveal>
+        </div>
 
         <div className="grid md:grid-cols-3 gap-5">
           {BENEFICIOS.map((b, i) => (
@@ -129,41 +132,18 @@ export function Parceiros() {
         <Reveal className="mt-16" delay={100}>
           <div className="text-center mb-10">
             <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
-              Parceiros Oficiais
+              Como funciona
             </span>
             <h3
               className="text-2xl md:text-3xl font-bold text-landing-fg mt-2"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Quem já acredita no EloraCRM
+              Uma máquina de vendas ponta a ponta
             </h3>
-          </div>
-        </Reveal>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {PARCEIROS_OFICIAIS.map((p, i) => (
-            <Reveal key={p.nome} delay={i * 100}>
-              <PartnerCard {...p} />
-            </Reveal>
-          ))}
-        </div>
-
-        <Reveal delay={150}>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <a
-              href={WHATSAPP_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-7 py-3.5 rounded-md transition-colors inline-flex items-center gap-2"
-            >
-              Quero ser parceiro <ArrowRight className="h-4 w-4" />
-            </a>
-            <Link
-              to="/auth"
-              className="border border-landing-fg/20 hover:border-landing-fg text-landing-fg font-semibold px-7 py-3.5 rounded-md transition-colors"
-            >
-              Já sou parceiro
-            </Link>
+            <p className="text-landing-muted mt-3 max-w-2xl mx-auto">
+              Campanha da Rabbit gera o lead → o lead cai na central da Elora → o SDR qualifica
+              com cadências automáticas → o CRM acompanha até a consulta agendada e o retorno.
+            </p>
           </div>
         </Reveal>
       </div>
