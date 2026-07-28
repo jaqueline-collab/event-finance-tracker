@@ -594,13 +594,22 @@ export const useStore = create<State>()(
       },
 
       // Financeiro
-      addLancamento: (l) => {
+      addLancamento: async (l) => {
         const id = uid();
         const novo: LancamentoFinanceiro = { ...l, id };
+        const userId = await getAuthUid();
+        if (!userId) {
+          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
+        }
+        // Grava PRIMEIRO no banco; só reflete na tela após confirmação.
+        const { error } = await (supabase as any)
+          .from("elora_financeiro")
+          .insert({ ...mapFinanceiroToDb(novo), user_id: userId });
+        if (error) {
+          console.error("Erro ao salvar lançamento financeiro:", error);
+          throw error;
+        }
         set({ financeiro: [...get().financeiro, novo] });
-        (supabase as any).from("elora_financeiro").insert(mapFinanceiroToDb(novo)).then(({ error }: any) => {
-          if (error) console.error("Erro ao salvar lançamento financeiro:", error);
-        });
         return id;
       },
       updateLancamento: (id, l) => {
