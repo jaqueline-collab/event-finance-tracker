@@ -12,8 +12,6 @@ import {
 } from "lucide-react";
 import { EloraMark } from "@/components/landing/EloraMark";
 import { VideoIntro } from "@/components/landing/VideoIntro";
-import { Depoimentos } from "@/components/landing/Depoimentos";
-import { Parceiros } from "@/components/landing/Parceiros";
 import { SistemaTour } from "@/components/landing/SistemaTour";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Reveal, Typewriter } from "@/components/landing/motion";
@@ -66,8 +64,6 @@ function LandingPage() {
       <Hero />
       <VideoIntro />
       <SistemaTour />
-      <Depoimentos />
-      <Parceiros />
       <FAQ />
       <Footer />
       <WhatsAppFloat />
@@ -96,9 +92,9 @@ function Navbar() {
           <Link to="/simulador" className="hover:text-landing-yellow transition">
             Simulador
           </Link>
-          <a href="#parceiros" className="hover:text-landing-yellow transition">
+          <Link to="/parceiros" className="hover:text-landing-yellow transition">
             Parceiros
-          </a>
+          </Link>
           <a href="#contato" className="hover:text-landing-yellow transition">
             Contato
           </a>
@@ -287,7 +283,7 @@ function Footer() {
           <ul className="mt-3 space-y-2 text-sm">
             <li><a href="#produto" className="hover:text-white">Produto</a></li>
             <li><Link to="/simulador" className="hover:text-white">Simulador</Link></li>
-            <li><a href="#parceiros" className="hover:text-white">Parceiros</a></li>
+            <li><Link to="/parceiros" className="hover:text-white">Parceiros</Link></li>
             <li>
               <a
                 href="https://app.eloracrm.com.br/"
