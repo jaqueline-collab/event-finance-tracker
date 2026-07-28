@@ -33,6 +33,45 @@ import {
   mapDbToFechamentoItem,
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
+import { toast } from "sonner";
+
+// ===== Helpers de persistência segura =====
+
+/** Retorna o uid da sessão atual, ou null se não houver sessão válida. */
+async function getAuthUid(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Converte erros do Supabase em mensagens claras para o usuário. */
+export function mensagemErroPersistencia(err: unknown, contexto: string): string {
+  const e = err as { message?: string; code?: string; details?: string } | null;
+  const raw = `${e?.message ?? ""} ${e?.details ?? ""}`.toLowerCase();
+  const code = e?.code ?? "";
+  if (
+    raw.includes("sessao-expirada") ||
+    raw.includes("sessão expirada") ||
+    raw.includes("jwt") ||
+    raw.includes("not authenticated") ||
+    code === "401"
+  ) {
+    return "Sessão expirada — faça login novamente e repita a operação.";
+  }
+  if (code === "42501" || raw.includes("row-level security") || raw.includes("permission denied")) {
+    return "Sem permissão para gravar (sessão expirada ou usuário sem acesso). Faça login novamente.";
+  }
+  if (code === "23505" || raw.includes("duplicate key")) {
+    return `${contexto}: registro duplicado já existe no banco.`;
+  }
+  if (raw.includes("failed to fetch") || raw.includes("network")) {
+    return "Falha de conexão com o banco. Verifique sua internet e tente novamente.";
+  }
+  return `${contexto}${e?.message ? `: ${e.message}` : "."}`;
+}
 
 // Re-exports para retro-compatibilidade dos consumidores que importam de @/lib/store.
 export { formatBRL } from "./calc/format";
