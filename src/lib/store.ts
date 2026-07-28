@@ -19,6 +19,8 @@ import {
   mapParceiroToDb,
   mapDbToParceiro,
   mapClienteToDb,
+  mapClientePatchToDb,
+  diffClienteToDb,
   mapDbToCliente,
   mapDbToMovimento,
   mapFinanceiroToDb,
@@ -362,6 +364,7 @@ export const useStore = create<State>()(
         return id;
       },
       updateCliente: (id, c) => {
+        const anterior = get().clientes.find((x) => x.id === id);
         const clientes = get().clientes.map((x) => {
           if (x.id !== id) return x;
           const merged = { ...x, ...c };
@@ -372,10 +375,14 @@ export const useStore = create<State>()(
         });
         set({ clientes });
         const updated = clientes.find((x) => x.id === id);
-        if (updated) {
-          supabase.from("elora_clientes").update(mapClienteToDb(updated)).eq("id", id).then(({ error }) => {
-            if (error) console.error("Erro ao atualizar cliente no Supabase:", error);
-          });
+        if (updated && anterior) {
+          // Envia SOMENTE os campos que realmente mudaram.
+          const patch = diffClienteToDb(anterior, updated);
+          if (Object.keys(patch).length) {
+            supabase.from("elora_clientes").update(patch).eq("id", id).then(({ error }) => {
+              if (error) console.error("Erro ao atualizar cliente no Supabase:", error);
+            });
+          }
         }
       },
       removeCliente: (id) => {
@@ -468,7 +475,8 @@ export const useStore = create<State>()(
               ),
             });
             // Sincronizar atualização de cliente pós-movimento no Supabase
-            supabase.from("elora_clientes").update(mapClienteToDb(updatedCliente)).eq("id", m.clienteId).then(({ error }) => {
+            // Apenas os campos alvo do movimento — nunca o registro inteiro.
+            supabase.from("elora_clientes").update(mapClientePatchToDb(patch)).eq("id", m.clienteId).then(({ error }) => {
               if (error) console.error("Erro ao sincronizar cliente pós-movimento:", error);
             });
           }
@@ -506,7 +514,8 @@ export const useStore = create<State>()(
             if (Object.keys(patch).length) {
               const updated = { ...cliente, ...patch } as Cliente;
               set({ clientes: get().clientes.map((c) => (c.id === cliente.id ? updated : c)) });
-              supabase.from("elora_clientes").update(mapClienteToDb(updated)).eq("id", cliente.id).then(({ error }) => {
+              // Apenas os campos revertidos — nunca o registro inteiro.
+              supabase.from("elora_clientes").update(mapClientePatchToDb(patch)).eq("id", cliente.id).then(({ error }) => {
                 if (error) console.error("Erro ao reverter cliente após remover movimento:", error);
               });
             }
