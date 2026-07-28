@@ -169,10 +169,10 @@ function RootComponent() {
     };
   }, []);
 
-  // Rotas públicas: landing e fluxo de auth
-  const isPublicRoute = pathname === "/" || pathname.startsWith("/auth");
-  // Rota da landing: não renderiza shell do app
-  const isLanding = pathname === "/";
+  // Rotas públicas: landing, parceiros e fluxo de auth
+  const isPublicRoute = pathname === "/" || pathname === "/parceiros" || pathname.startsWith("/auth");
+  // Rota da landing / parceiros: não renderiza shell do app
+  const isLanding = pathname === "/" || pathname === "/parceiros";
 
   // Landing pública: renderiza imediatamente sem esperar checagem de sessão
   if (isLanding) {
