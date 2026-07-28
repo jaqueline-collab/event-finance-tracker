@@ -152,7 +152,7 @@ interface State {
   updateParceiro: (id: string, p: Partial<Parceiro>) => void;
   removeParceiro: (id: string) => void;
   // financeiro
-  addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => string;
+  addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => Promise<string>;
   updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => void;
   removeLancamento: (id: string) => void;
   // descontos
