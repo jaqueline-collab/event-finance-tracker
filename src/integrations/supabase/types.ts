@@ -98,6 +98,7 @@ export type Database = {
           parceiro_id: string | null
           plano_id: string | null
           transcricao_ia: boolean | null
+          updated_at: string
           user_id: string
           usuarios_ativos: number | null
           valor_acompanhamento: number | null
@@ -130,6 +131,7 @@ export type Database = {
           parceiro_id?: string | null
           plano_id?: string | null
           transcricao_ia?: boolean | null
+          updated_at?: string
           user_id?: string
           usuarios_ativos?: number | null
           valor_acompanhamento?: number | null
@@ -162,6 +164,7 @@ export type Database = {
           parceiro_id?: string | null
           plano_id?: string | null
           transcricao_ia?: boolean | null
+          updated_at?: string
           user_id?: string
           usuarios_ativos?: number | null
           valor_acompanhamento?: number | null
