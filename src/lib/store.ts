@@ -674,35 +674,44 @@ export const useStore = create<State>()(
             : uid(),
           fechamentoId: id,
         }));
-        set({
-          fechamentos: [...get().fechamentos, novo],
-          fechamentoItens: [...get().fechamentoItens, ...novosItens],
-        });
+        const userId = await getAuthUid();
+        if (!userId) {
+          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
+        }
+        // 1) Grava o fechamento (pai) — nada é refletido na tela antes disso.
         const { error: errF } = await (supabase as any)
           .from("elora_fechamentos")
-          .insert(mapFechamentoToDb(novo));
+          .insert({ ...mapFechamentoToDb(novo), criado_por: userId });
         if (errF) {
           console.error("Erro ao salvar fechamento:", errF);
-          set({
-            fechamentos: get().fechamentos.filter((x) => x.id !== id),
-            fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
-          });
           throw errF;
         }
+        // 2) Grava os itens; se falhar, faz rollback do pai e VERIFICA o rollback.
         if (novosItens.length > 0) {
           const { error: errI } = await (supabase as any)
             .from("elora_fechamento_itens")
             .insert(novosItens.map(mapFechamentoItemToDb));
           if (errI) {
             console.error("Erro ao salvar itens do fechamento:", errI);
-            set({
-              fechamentos: get().fechamentos.filter((x) => x.id !== id),
-              fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
-            });
-            await (supabase as any).from("elora_fechamentos").delete().eq("id", id);
+            const { error: errRollback } = await (supabase as any)
+              .from("elora_fechamentos")
+              .delete()
+              .eq("id", id);
+            if (errRollback) {
+              console.error("Falha no rollback do fechamento:", errRollback);
+              toast.error(
+                "Fechamento pode ter ficado incompleto no banco, verifique manualmente.",
+                { description: `ID ${id} — ${errRollback.message ?? "erro ao desfazer"}` },
+              );
+            }
             throw errI;
           }
         }
+        // 3) Só agora reflete na tela.
+        set({
+          fechamentos: [...get().fechamentos, novo],
+          fechamentoItens: [...get().fechamentoItens, ...novosItens],
+        });
         return id;
       },
       removeFechamento: async (id) => {
