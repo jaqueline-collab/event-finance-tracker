@@ -10,6 +10,9 @@ import type {
   Plano,
   TipoMovimento,
 } from "./types";
+import type { TablesUpdate } from "@/integrations/supabase/types";
+
+type ClienteUpdate = TablesUpdate<"elora_clientes">;
 
 export const mapPlanoToDb = (p: Plano) => ({
   id: p.id,
@@ -197,7 +200,7 @@ const CLIENTE_FIELD_MAP: Record<string, string> = {
   observacao: "observacao",
 };
 
-export const mapClientePatchToDb = (patch: Partial<Cliente>): Record<string, unknown> => {
+export const mapClientePatchToDb = (patch: Partial<Cliente>): ClienteUpdate => {
   const out: Record<string, unknown> = {};
   for (const [key, col] of Object.entries(CLIENTE_FIELD_MAP)) {
     if (Object.prototype.hasOwnProperty.call(patch, key)) {
@@ -205,11 +208,11 @@ export const mapClientePatchToDb = (patch: Partial<Cliente>): Record<string, unk
       out[col] = v === undefined ? null : v;
     }
   }
-  return out;
+  return out as ClienteUpdate;
 };
 
 // Diff entre estado anterior e novo: retorna só as colunas que mudaram.
-export const diffClienteToDb = (prev: Cliente, next: Cliente): Record<string, unknown> => {
+export const diffClienteToDb = (prev: Cliente, next: Cliente): ClienteUpdate => {
   const out: Record<string, unknown> = {};
   for (const [key, col] of Object.entries(CLIENTE_FIELD_MAP)) {
     const a = (prev as any)[key];
@@ -218,7 +221,7 @@ export const diffClienteToDb = (prev: Cliente, next: Cliente): Record<string, un
       key === "extras" ? JSON.stringify(a ?? {}) !== JSON.stringify(b ?? {}) : a !== b;
     if (changed) out[col] = b === undefined ? null : b;
   }
-  return out;
+  return out as ClienteUpdate;
 };
 
 export const mapDbToCliente = (r: any): Cliente => ({
