@@ -1,0 +1,65 @@
+import { z } from "zod";
+
+const movimentoRowSchema = z.object({
+  id: z.string().min(1).max(100),
+  cliente_id: z.string().min(1).max(100),
+  data: z.string().min(1),
+  tipo: z.string().min(1).max(50),
+  plano_id: z.string().max(100).nullable().optional(),
+  apps: z.number().nullable().optional(),
+  mau: z.number().nullable().optional(),
+  canais: z.number().nullable().optional(),
+  canais_whats: z.number().nullable().optional(),
+  canais_insta: z.number().nullable().optional(),
+  canais_messenger: z.number().nullable().optional(),
+  canais_zapi: z.number().nullable().optional(),
+  usuarios_ativos: z.number().nullable().optional(),
+  contatos_ativos: z.number().nullable().optional(),
+  agentes_ia: z.boolean().nullable().optional(),
+  asaas: z.boolean().nullable().optional(),
+  zapi: z.boolean().nullable().optional(),
+  transcricao_ia: z.boolean().nullable().optional(),
+  extras: z.unknown().optional(),
+  valor_servico: z.number().nullable().optional(),
+  observacao: z.string().nullable().optional(),
+});
+
+/** Patch parcial aplicado em elora_clientes após o movimento. */
+export const clientePatchSchema = z
+  .object({
+    nome: z.string().max(300).optional(),
+    nome_financeiro: z.string().max(300).nullable().optional(),
+    plano_id: z.string().max(100).nullable().optional(),
+    parceiro_id: z.string().max(100).nullable().optional(),
+    data_inicio: z.string().nullable().optional(),
+    data_vencimento: z.string().nullable().optional(),
+    data_churn: z.string().nullable().optional(),
+    status_comercial: z.string().max(20).nullable().optional(),
+    ciclo_personalizado: z.boolean().optional(),
+    ciclo_dia_inicial: z.number().int().min(1).max(31).nullable().optional(),
+    ciclo_dia_final: z.number().int().min(1).max(31).nullable().optional(),
+    apps: z.number().nullable().optional(),
+    mau: z.number().nullable().optional(),
+    canais: z.number().nullable().optional(),
+    canais_zapi: z.number().nullable().optional(),
+    canais_whats: z.number().nullable().optional(),
+    canais_insta: z.number().nullable().optional(),
+    canais_messenger: z.number().nullable().optional(),
+    usuarios_ativos: z.number().nullable().optional(),
+    contatos_ativos: z.number().nullable().optional(),
+    agentes_ia: z.boolean().nullable().optional(),
+    asaas: z.boolean().nullable().optional(),
+    zapi: z.boolean().nullable().optional(),
+    transcricao_ia: z.boolean().nullable().optional(),
+    valor_setup_pago: z.number().nullable().optional(),
+    valor_acompanhamento: z.number().nullable().optional(),
+    extras: z.unknown().optional(),
+    observacao: z.string().nullable().optional(),
+  })
+  .strip();
+
+export const registrarMovimentoInputSchema = z.object({
+  movimento: movimentoRowSchema.nullable().optional(),
+  clienteId: z.string().min(1).max(100),
+  clientePatch: clientePatchSchema.nullable().optional(),
+});

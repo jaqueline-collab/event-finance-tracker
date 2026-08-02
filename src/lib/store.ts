@@ -36,6 +36,7 @@ import {
 import { normalizarDataVencimento } from "./calc/datas";
 import { toast } from "sonner";
 import { cadastrarClienteComSetup } from "./clientes.functions";
+import { registrarMovimento } from "./movimentos.functions";
 
 // ===== Helpers de persistência segura =====
 
@@ -492,9 +493,19 @@ export const useStore = create<State>()(
         // Envia SOMENTE os campos que realmente mudaram.
         const patch = diffClienteToDb(anterior, updated);
         if (Object.keys(patch).length) {
-          await requireAuthUid("Atualização de cliente");
-          const { error } = await supabase.from("elora_clientes").update(patch).eq("id", id);
-          if (error) falharPersistencia(error, "Atualização de cliente");
+          const result = await gravarComPrazo(
+            registrarMovimento({
+              data: { movimento: null, clienteId: id, clientePatch: patch },
+            }),
+            "atualização do cliente",
+            20000,
+          );
+          if (!result.clienteAtualizado) {
+            falharPersistencia(
+              new Error(result.clienteErro ?? "Falha desconhecida"),
+              "Atualização de cliente",
+            );
+          }
         }
         set({ clientes: get().clientes.map((x) => (x.id === id ? updated : x)) });
       },
@@ -511,23 +522,10 @@ export const useStore = create<State>()(
       // Movimentos (Locais)
       addMovimento: async (m) => {
         const mov = { ...m, id: uid() };
-        // Grava PRIMEIRO no banco; só reflete na tela após confirmação.
-        const userId = await getAuthUid();
-        if (!userId) {
-          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
-        }
-        const { error } = await supabase
-          .from("elora_movimentos")
-          .insert({ ...movimentoToDb(mov), user_id: userId } as never);
-        if (error) {
-          console.error("Erro ao inserir movimento no Supabase:", error);
-          throw error;
-        }
-        set({ movimentos: [...get().movimentos, mov] });
-
         const cliente = get().clientes.find((c) => c.id === m.clienteId);
+        let updatedCliente: Cliente | undefined;
+        const patch: Partial<Cliente> = {};
         if (cliente) {
-          const patch: Partial<Cliente> = {};
           if (m.tipo === "churn") patch.dataChurn = m.data;
           if (m.planoId !== undefined && m.planoId !== null) patch.planoId = m.planoId;
 
@@ -565,22 +563,50 @@ export const useStore = create<State>()(
           if (m.transcricaoIA !== undefined) patch.transcricaoIA = m.transcricaoIA;
           if (m.extras !== undefined) patch.extras = m.extras;
           if (Object.keys(patch).length) {
-            const updatedCliente = { ...cliente, ...patch };
-            // Apenas os campos alvo do movimento — nunca o registro inteiro.
-            const { error: cliErr } = await supabase
-              .from("elora_clientes")
-              .update(mapClientePatchToDb(patch))
-              .eq("id", m.clienteId);
-            if (cliErr) {
-              console.error("Erro ao sincronizar cliente pós-movimento:", cliErr);
-              throw cliErr;
-            }
-            set({
-              clientes: get().clientes.map((c) =>
-                c.id === m.clienteId ? updatedCliente : c,
-              ),
-            });
+            updatedCliente = { ...cliente, ...patch };
           }
+        }
+
+        // Grava PRIMEIRO no banco (função de servidor autenticada, com prazo);
+        // só reflete na tela após confirmação.
+        const result = await gravarComPrazo(
+          registrarMovimento({
+            data: {
+              movimento: movimentoToDb(mov),
+              clienteId: m.clienteId,
+              clientePatch: updatedCliente ? mapClientePatchToDb(patch) : null,
+            },
+          }),
+          "registro do movimento",
+          20000,
+        );
+
+        if (!result.movimentoSalvo) {
+          falharPersistencia(
+            new Error(result.movimentoErro ?? "Falha desconhecida"),
+            "Registro de movimento",
+          );
+        }
+
+        set({ movimentos: [...get().movimentos, mov] });
+
+        if (updatedCliente) {
+          if (!result.clienteAtualizado) {
+            // Movimento gravado: nunca desfaz. Só avisa a pendência.
+            console.error("Erro ao sincronizar cliente pós-movimento:", result.clienteErro);
+            toast.error(
+              mensagemErroPersistencia(
+                new Error(result.clienteErro ?? "Falha desconhecida"),
+                "Atualização do cliente após o movimento",
+              ),
+            );
+            return;
+          }
+          set({
+            clientes: get().clientes.map((c) =>
+              c.id === m.clienteId ? (updatedCliente as Cliente) : c,
+            ),
+          });
         }
       },
       removeMovimento: async (id) => {
