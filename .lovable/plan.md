@@ -31,8 +31,14 @@
 
 4. **Eliminar o cliente de autenticação duplicado**
    - Remover `attachSupabaseAuth` da lista de middlewares e manter apenas `attachConfiguredAuth`, que usa o token já armazenado em memória e não chama `getSession()` durante a gravação.
+   - Depois da remoção, buscar em **todo** o código-fonte por `attachSupabaseAuth`, por `auth-attacher` e por qualquer import de `integrations/supabase/client` (o cliente gerado, distinto de `client-configured`), e apresentar o resultado da busca confirmando zero ocorrências antes de dar a tarefa como concluída.
+   - Identificar o processo que recria esses arquivos: `src/integrations/supabase/client.ts` e `auth-attacher.ts` são gerados automaticamente pela integração do backend e podem reaparecer quando a integração é reconectada ou regenerada. O arquivo em si pode voltar; o que não pode voltar é o **uso** dele. A proteção é manter o registro do middleware apenas com `attachConfiguredAuth` em `src/start.ts`, manter todos os imports do app apontando para `client-configured`, e reexecutar a busca sempre que a integração for reconectada.
 
-5. **Validar sem afetar dados reais**
+5. **Verificação obrigatória antes de concluir**
+   - Mostrar a saída da busca por `attachSupabaseAuth` e pelo cliente gerado.
+   - Confirmar explicitamente zero ocorrências em uso.
+
+6. **Validar sem afetar dados reais**
    - Testar com um fechamento descartável identificável.
    - Confirmar no banco a correspondência exata: lançamento(s), um fechamento e todos os itens vinculados.
    - Recarregar a página para confirmar persistência.
