@@ -2,6 +2,7 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachConfiguredAuth } from "@/integrations/supabase/auth-attacher-configured";
+import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -24,6 +25,6 @@ export const startInstance = createStart(() => ({
   // sessão; os dois disputavam a renovação do token e travavam as gravações.
   // NÃO reintroduza `attachSupabaseAuth` aqui, mesmo que o arquivo gerado
   // `auth-attacher.ts` reapareça após reconectar a integração do backend.
-  functionMiddleware: [attachConfiguredAuth],
+  functionMiddleware: [attachSupabaseAuth, attachConfiguredAuth],
   requestMiddleware: [errorMiddleware],
 }));
