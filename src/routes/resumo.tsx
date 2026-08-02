@@ -1262,7 +1262,15 @@ function ResumoPage() {
 
   // ====== Enviar para o módulo Financeiro ======
   const enviarParaFinanceiro = async () => {
-    if (!fechamentoData || !fechamentoSelecionado) return;
+    if (gerandoFechamento) return;
+    if (!fechamentoData) {
+      toast.error("Selecione uma competência válida para gerar o fechamento.");
+      return;
+    }
+    if (!fechamentoSelecionado || fechamentoSelecionado.count === 0) {
+      toast.error("Selecione ao menos um cliente para gerar o fechamento.");
+      return;
+    }
     const { y, m, labelMes, cicloLabel } = fechamentoData;
     const detalhesPorCliente = fechamentoSelecionado.detalhes;
     const totalReceita = fechamentoSelecionado.totalReceita;
@@ -1304,6 +1312,11 @@ function ResumoPage() {
         acompanhamento: d.acomp,
         ltvDias: d.ltvDias,
         descontosCliente: d.descontosCliente,
+        mauMes: d.mauMes,
+        mauInclusos: d.mauInclusos,
+        mauUnit: d.mauUnit,
+        mauExcedenteQtd: d.mauExcedenteQtd,
+        mauExcedenteValor: Number(d.mauExcedenteValor.toFixed(2)),
       } as Record<string, unknown>,
     }));
     // Preenche ciclo por item
