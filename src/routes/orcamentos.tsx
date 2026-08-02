@@ -18,9 +18,11 @@ import {
   User,
   Briefcase,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/orcamentos")({
   head: () => ({ meta: [{ title: "Funil de Vendas · Elora" }] }),
@@ -73,6 +75,7 @@ function FunilPage() {
   const [cards, setCards] = useState<KanbanCard[]>([]);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState<Omit<KanbanCard, "id" | "dataCriacao">>({
     titulo: "",
@@ -118,9 +121,13 @@ function FunilPage() {
     setOpen(true);
   };
 
-  const handleSave = () => {
-    if (!form.titulo || !form.cliente) return;
-
+  const handleSave = async () => {
+    if (!form.titulo || !form.cliente) {
+      toast.error("Preencha o título e o nome do cliente antes de salvar.");
+      return;
+    }
+    setSaving(true);
+    try {
     if (editId) {
       const updatedCard: KanbanCard = {
         id: editId,
@@ -132,9 +139,12 @@ function FunilPage() {
         observacao: form.observacao
       };
       setCards(cards.map(c => c.id === editId ? updatedCard : c));
-      supabase.from("elora_kanban_cards").update(mapCardToDb(updatedCard)).eq("id", editId).then(({ error }) => {
-        if (error) console.error("Erro ao atualizar oportunidade:", error);
-      });
+      const { error } = await supabase.from("elora_kanban_cards").update(mapCardToDb(updatedCard)).eq("id", editId);
+      if (error) {
+        console.error("Erro ao atualizar oportunidade:", error);
+        toast.error("Não foi possível atualizar a oportunidade.");
+        return;
+      }
     } else {
       const newCard: KanbanCard = {
         id: Math.random().toString(36).substring(2, 9),
@@ -146,11 +156,17 @@ function FunilPage() {
         observacao: form.observacao
       };
       setCards([...cards, newCard]);
-      supabase.from("elora_kanban_cards").insert(mapCardToDb(newCard)).then(({ error }) => {
-        if (error) console.error("Erro ao salvar oportunidade:", error);
-      });
+      const { error } = await supabase.from("elora_kanban_cards").insert(mapCardToDb(newCard));
+      if (error) {
+        console.error("Erro ao salvar oportunidade:", error);
+        toast.error("Não foi possível salvar a oportunidade.");
+        return;
+      }
     }
     setOpen(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -374,7 +390,9 @@ function FunilPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!form.titulo || !form.cliente}>Salvar Oportunidade</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : "Salvar Oportunidade"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

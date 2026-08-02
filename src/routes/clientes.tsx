@@ -17,7 +17,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente, mensagemErroPersistencia } from "@/lib/store";
 import { toast } from "sonner";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
@@ -46,6 +46,8 @@ function ClientesPage() {
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
   const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
+  const [savingCliente, setSavingCliente] = useState(false);
+  const [savingMovimento, setSavingMovimento] = useState(false);
   
   const [form, setForm] = useState({
     nome: "",
@@ -265,9 +267,17 @@ function ClientesPage() {
   };
 
   const handleSaveMovimento = async () => {
-    if (!acaoClienteId) return;
+    if (!acaoClienteId) {
+      toast.error("Selecione um cliente antes de salvar a movimentação.");
+      return;
+    }
+    if (!movForm.data) {
+      toast.error("Informe a data da movimentação antes de salvar.");
+      return;
+    }
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
     // Editing: remove old (revertendo deltas) e recria com novos valores
+    setSavingMovimento(true);
     try {
       if (editMovId) {
         await removeMovimento(editMovId);
@@ -293,6 +303,8 @@ function ClientesPage() {
     } catch (err) {
       toast.error(mensagemErroPersistencia(err, "Movimentação"));
       return;
+    } finally {
+      setSavingMovimento(false);
     }
     setAcaoClienteId(null);
     setEditMovId(null);
@@ -799,8 +811,13 @@ function ClientesPage() {
 
                   <Button
                     className="w-full h-11"
-                    disabled={!form.nome || !form.planoId}
+                    disabled={savingCliente}
                     onClick={async () => {
+                      if (!form.nome || !form.planoId) {
+                        toast.error("Preencha o nome e selecione um plano antes de salvar.");
+                        return;
+                      }
+                      setSavingCliente(true);
                       try {
                       await addCliente({
                         nome: form.nome,
@@ -834,6 +851,8 @@ function ClientesPage() {
                       } catch (err) {
                         toast.error(mensagemErroPersistencia(err, "Cadastro do cliente"));
                         return;
+                      } finally {
+                        setSavingCliente(false);
                       }
                       setForm({
                         nome: "",
@@ -862,7 +881,7 @@ function ClientesPage() {
                       setOpen(false);
                     }}
                   >
-                    Salvar Cliente
+                    {savingCliente ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : "Salvar Cliente"}
                   </Button>
                 </div>
               </div>
@@ -1324,7 +1343,9 @@ function ClientesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setAcaoClienteId(null); setEditMovId(null); }}>Cancelar</Button>
-            <Button onClick={handleSaveMovimento}>{editMovId ? "Salvar Alteração" : "Registrar Ação"}</Button>
+            <Button onClick={handleSaveMovimento} disabled={savingMovimento}>
+              {savingMovimento ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : (editMovId ? "Salvar Alteração" : "Registrar Ação")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

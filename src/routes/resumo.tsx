@@ -39,7 +39,7 @@ import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/
 import type { Desconto, Fechamento, FechamentoItem } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send, Tag, Trash2, Plus, Pencil } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -253,6 +253,7 @@ function ResumoPage() {
   const [descValor, setDescValor] = useState<string>("");
   const [descRecorrente, setDescRecorrente] = useState<boolean>(false);
   const [descMotivo, setDescMotivo] = useState<string>("");
+  const [savingDesconto, setSavingDesconto] = useState(false);
 
   const resetDescontoForm = () => {
     setDescTipo("valor");
@@ -262,7 +263,10 @@ function ResumoPage() {
   };
 
   const salvarDesconto = async () => {
-    if (!descontoModal || !fechamentoData) return;
+    if (!descontoModal || !fechamentoData) {
+      toast.error("Abra um fechamento válido antes de aplicar o desconto.");
+      return;
+    }
     const valorNum = descTipo === "isencao_total" ? null : Number(descValor.replace(",", "."));
     if (descTipo !== "isencao_total" && (!Number.isFinite(valorNum!) || valorNum! <= 0)) {
       toast.error("Informe um valor válido.");
@@ -272,6 +276,7 @@ function ResumoPage() {
       toast.error("Percentual não pode passar de 100%.");
       return;
     }
+    setSavingDesconto(true);
     try {
       await addDesconto({
         clienteId: descontoModal.clienteId,
@@ -285,6 +290,8 @@ function ResumoPage() {
       });
     } catch {
       return; // erro já reportado via toast pela store
+    } finally {
+      setSavingDesconto(false);
     }
     toast.success("Desconto aplicado.");
     setDescontoModal(null);
@@ -2527,7 +2534,9 @@ function ResumoPage() {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { setDescontoModal(null); resetDescontoForm(); }}>Cancelar</Button>
-            <Button onClick={salvarDesconto}>Aplicar desconto</Button>
+            <Button onClick={salvarDesconto} disabled={savingDesconto}>
+              {savingDesconto ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Aplicando...</>) : "Aplicar desconto"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

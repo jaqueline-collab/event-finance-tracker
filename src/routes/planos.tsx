@@ -10,7 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStore, formatBRL } from "@/lib/store";
 import type { Plano } from "@/lib/types";
-import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers } from "lucide-react";
+import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/planos")({
   head: () => ({ meta: [{ title: "Planos · Elora" }] }),
@@ -108,6 +109,7 @@ function PlanosPage() {
   const [form, setForm] = useState<PlanoForm>(defaultForm());
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const toggleParceiro = (parceiroId: string) => {
     setForm((prev) => ({
@@ -119,6 +121,10 @@ function PlanosPage() {
   };
 
   const handleSave = async () => {
+    if (!form.nome.trim()) {
+      toast.error("Preencha o nome do plano antes de salvar.");
+      return;
+    }
     const whatsInc = Number(form.canaisWhatsInclusos) || 0;
     const instaInc = Number(form.canaisInstaInclusos) || 0;
     const msgInc = Number(form.canaisMessengerInclusos) || 0;
@@ -168,6 +174,7 @@ function PlanosPage() {
       parceiroIds: form.parceiroIds,
     };
 
+    setSaving(true);
     try {
       if (editId) {
         await updatePlano(editId, planoData);
@@ -177,6 +184,8 @@ function PlanosPage() {
       }
     } catch {
       return; // erro já reportado via toast pela store
+    } finally {
+      setSaving(false);
     }
     setForm(defaultForm());
     setOpen(false);
@@ -474,8 +483,10 @@ function PlanosPage() {
 
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>Cancelar</Button>
-              <Button disabled={!form.nome} onClick={handleSave}>
-                {editId ? "Salvar Alterações" : <><Plus className="mr-2 h-4 w-4" />Criar Plano</>}
+              <Button disabled={saving} onClick={handleSave}>
+                {saving
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
+                  : editId ? "Salvar Alterações" : <><Plus className="mr-2 h-4 w-4" />Criar Plano</>}
               </Button>
             </div>
           </CardContent>
