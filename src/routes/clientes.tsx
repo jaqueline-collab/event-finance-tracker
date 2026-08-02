@@ -789,8 +789,9 @@ function ClientesPage() {
                   <Button
                     className="w-full h-11"
                     disabled={!form.nome || !form.planoId}
-                    onClick={() => {
-                      addCliente({
+                    onClick={async () => {
+                      try {
+                      await addCliente({
                         nome: form.nome,
                         nomeFinanceiro: form.nomeFinanceiro.trim() || null,
                         planoId: form.planoId,
@@ -818,6 +819,11 @@ function ClientesPage() {
                         apps: 1,
                         mau: form.contatosAtivos
                       });
+                      toast.success("Cliente salvo com sucesso.");
+                      } catch (err) {
+                        toast.error(mensagemErroPersistencia(err, "Cadastro do cliente"));
+                        return;
+                      }
                       setForm({
                         nome: "",
                         nomeFinanceiro: "",
