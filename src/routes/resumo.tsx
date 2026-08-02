@@ -227,8 +227,10 @@ function ResumoPage() {
   const fechamentoMes = competenciaNovoFechamento || competenciaSel || defaultCompetencia;
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
-  const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [observacaoPdf, setObservacaoPdf] = useState("");
+  const [gerandoFechamento, setGerandoFechamento] = useState(false);
+  // MAU informado por cliente diretamente no fluxo de Gerar Fechamento
+  const [mauPorCliente, setMauPorCliente] = useState<Record<string, string>>({});
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
   const [emailDestino, setEmailDestino] = useState("");
   // Nome do boleto / descrição que será gravada no Financeiro.
@@ -864,10 +866,52 @@ function ResumoPage() {
     });
   }, [defaultDescricoesPorCliente, descricoesPorClienteTocadas]);
 
+  // Limpa os MAU informados quando muda a competência do fechamento
+  useEffect(() => {
+    setMauPorCliente({});
+  }, [fechamentoMes]);
+
+  // Detalhes por cliente já com o excedente de MAU informado na tela.
+  // Mesma fórmula do MauFechamentoEditor: excedente = max(0, MAU - inclusos);
+  // acréscimo = excedente × unitário.
+  const detalhesComMau = useMemo(() => {
+    if (!fechamentoData) return [];
+    return fechamentoData.detalhesPorCliente.map((d) => {
+      const mauInclusos = d.plano?.contatosInclusos ?? 500;
+      const mauUnit = d.plano?.valorContatosExc ?? d.plano?.valorCanaisExc ?? 0.10;
+      const raw = mauPorCliente[d.cliente.id];
+      const mauMes = Math.max(0, Math.floor(Number(raw) || 0));
+      const mauExcedenteQtd = Math.max(0, mauMes - mauInclusos);
+      const mauExcedenteValor = mauExcedenteQtd * mauUnit;
+      const subtotal = d.subtotal + mauExcedenteValor;
+      const res = calcularDesconto(subtotal, d.descontosCliente);
+      return {
+        ...d,
+        subtotalBase: d.subtotal,
+        subtotal,
+        descontoCliente: res.descontoTotal,
+        receita: res.total,
+        mauMes,
+        mauInclusos,
+        mauUnit,
+        mauExcedenteQtd,
+        mauExcedenteValor,
+        mauInformado: raw !== undefined && raw !== "",
+      };
+    });
+  }, [fechamentoData, mauPorCliente]);
+
+  const totalMauExcedente = useMemo(
+    () => detalhesComMau
+      .filter((d) => selectedClienteIds.has(d.cliente.id))
+      .reduce((s, d) => s + d.mauExcedenteValor, 0),
+    [detalhesComMau, selectedClienteIds],
+  );
+
   const fechamentoSelecionado = useMemo(() => {
     if (!fechamentoData) return null;
     const sel = selectedClienteIds;
-    const detalhes = fechamentoData.detalhesPorCliente.filter((d) => sel.has(d.cliente.id));
+    const detalhes = detalhesComMau.filter((d) => sel.has(d.cliente.id));
     const totalSistema = detalhes.reduce((s, d) => s + d.sistema, 0);
     const totalAcompanhamento = detalhes.reduce((s, d) => s + d.acomp, 0);
     const subtotalBruto = detalhes.reduce((s, d) => s + d.subtotal, 0);
@@ -892,7 +936,7 @@ function ResumoPage() {
       totalReceita,
       ticketMedio, ltvMedioDias, count: detalhes.length,
     };
-  }, [fechamentoData, selectedClienteIds, descontos]);
+  }, [fechamentoData, detalhesComMau, selectedClienteIds, descontos]);
 
   const toggleCliente = (id: string) => {
     setSelectedClienteIds((prev) => {
@@ -1182,44 +1226,6 @@ function ResumoPage() {
       });
     }
 
-    // Gráfico de receita (opcional)
-    if (incluirGraficos) {
-      const serie = linhas.slice(0, 6).reverse();
-      if (serie.length >= 2) {
-        let y = (pdf as any).lastAutoTable.finalY + 24;
-        if (y > pageH - 200) { pdf.addPage(); y = 60; }
-        pdf.setFontSize(11);
-        pdf.setTextColor(60, 60, 60);
-        pdf.text(`Receita — últimos ${serie.length} meses`, 40, y);
-        const x0 = 40, y0 = y + 12, w = pageW - 80, h = 140;
-        pdf.setDrawColor(220);
-        pdf.rect(x0, y0, w, h);
-        const maxV = Math.max(...serie.map((s) => s.receita), 1);
-        const step = w / (serie.length - 1);
-        // Área
-        pdf.setFillColor(28, 63, 170);
-        const pts: { x: number; y: number }[] = serie.map((s, i) => ({
-          x: x0 + i * step,
-          y: y0 + h - (s.receita / maxV) * (h - 16) - 8,
-        }));
-        // Linha
-        pdf.setDrawColor(28, 63, 170);
-        pdf.setLineWidth(1.5);
-        for (let i = 1; i < pts.length; i++) {
-          pdf.line(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
-        }
-        // Pontos + labels
-        pdf.setFontSize(8);
-        pdf.setTextColor(110, 110, 110);
-        pts.forEach((p, i) => {
-          pdf.setFillColor(28, 63, 170);
-          pdf.circle(p.x, p.y, 2.5, "F");
-          const label = serie[i].mesLabel;
-          pdf.text(label, p.x, y0 + h + 12, { align: "center" });
-        });
-      }
-    }
-
     // Observação livre
     if (observacaoPdf.trim()) {
       let y = ((pdf as any).lastAutoTable?.finalY ?? 200) + 30;
@@ -1256,7 +1262,15 @@ function ResumoPage() {
 
   // ====== Enviar para o módulo Financeiro ======
   const enviarParaFinanceiro = async () => {
-    if (!fechamentoData || !fechamentoSelecionado) return;
+    if (gerandoFechamento) return;
+    if (!fechamentoData) {
+      toast.error("Selecione uma competência válida para gerar o fechamento.");
+      return;
+    }
+    if (!fechamentoSelecionado || fechamentoSelecionado.count === 0) {
+      toast.error("Selecione ao menos um cliente para gerar o fechamento.");
+      return;
+    }
     const { y, m, labelMes, cicloLabel } = fechamentoData;
     const detalhesPorCliente = fechamentoSelecionado.detalhes;
     const totalReceita = fechamentoSelecionado.totalReceita;
@@ -1298,6 +1312,11 @@ function ResumoPage() {
         acompanhamento: d.acomp,
         ltvDias: d.ltvDias,
         descontosCliente: d.descontosCliente,
+        mauMes: d.mauMes,
+        mauInclusos: d.mauInclusos,
+        mauUnit: d.mauUnit,
+        mauExcedenteQtd: d.mauExcedenteQtd,
+        mauExcedenteValor: Number(d.mauExcedenteValor.toFixed(2)),
       } as Record<string, unknown>,
     }));
     // Preenche ciclo por item
@@ -1308,6 +1327,8 @@ function ResumoPage() {
       itensSnapshot[i].cicloFim = cic.fim.toISOString().slice(0, 10);
     }
 
+    setGerandoFechamento(true);
+    try {
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
@@ -1393,6 +1414,9 @@ function ResumoPage() {
         toast.error(mensagemErroPersistencia(e, "Não foi possível gerar o fechamento"));
         return;
       }
+    }
+    } finally {
+      setGerandoFechamento(false);
     }
   };
 
@@ -1857,6 +1881,7 @@ function ResumoPage() {
                           setDescricoesPorCliente({});
                           setDescricoesPorClienteTocadas({});
                           setObservacaoPdf("");
+                          setMauPorCliente({});
                           setEmailDestino("");
                           setNomeFechamento("");
                           setNomeFechamentoTocado(false);
@@ -1876,40 +1901,249 @@ function ResumoPage() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Opções de exportação */}
-                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="incluir-graficos"
-                      checked={incluirGraficos}
-                      onCheckedChange={(v) => setIncluirGraficos(Boolean(v))}
-                    />
-                    <Label htmlFor="incluir-graficos" className="text-sm cursor-pointer">
-                      Incluir gráficos no PDF
-                    </Label>
+                {/* KPIs */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes selecionados</div>
+                    <div className="text-2xl font-semibold mt-1">
+                      {fechamentoSelecionado?.count ?? 0}
+                      <span className="text-sm font-normal text-muted-foreground ml-1">/ {fechamentoData.ativos.length}</span>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="obs-pdf" className="text-xs text-muted-foreground">Observação (impressa no final do PDF)</Label>
-                    <Textarea
-                      id="obs-pdf"
-                      value={observacaoPdf}
-                      onChange={(e) => setObservacaoPdf(e.target.value)}
-                      placeholder="Notas, contexto do mês, recomendações…"
-                      className="mt-1 min-h-[72px] text-sm"
-                    />
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Setups no mês</div>
+                    <div className="text-2xl font-semibold mt-1 text-accent">+{fechamentoData.setupsNoMes.length}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{formatBRL(fechamentoData.totalSetups)}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Churns</div>
+                    <div className="text-2xl font-semibold mt-1 text-destructive">{fechamentoData.churnsNoMes.length > 0 ? `-${fechamentoData.churnsNoMes.length}` : "0"}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Fechamento Mensal</div>
+                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</div>
                   </div>
                 </div>
 
+                {/* Métricas secundárias: LTV médio, ticket médio, sistema vs acompanhamento (discretos) */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">LTV médio</div>
+                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoSelecionado?.ltvMedioDias ?? 0)} dias</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ticket médio / cliente</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.ticketMedio ?? 0)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Sistema</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalSistema ?? 0)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Acompanhamento</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalAcompanhamento ?? 0)}</div>
+                  </div>
+                </div>
+
+                {/* Detalhamento por cliente */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Detalhamento por cliente</h3>
+                    <span className="text-[10px] text-muted-foreground">
+                      Marque os clientes que entram neste fechamento. Os totais, o PDF e o envio ao Financeiro respeitam a seleção.
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border/60 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30">
+                        <tr className="text-xs text-muted-foreground">
+                          <th className="p-2 w-8">
+                            <Checkbox
+                              checked={todosSelecionados}
+                              onCheckedChange={toggleTodos}
+                              aria-label="Selecionar todos"
+                            />
+                          </th>
+                          <th className="text-left p-2 font-medium">Cliente</th>
+                          <th className="text-left p-2 font-medium">Plano</th>
+                          <th className="text-left p-2 font-medium">Vencimento</th>
+                          <th className="text-right p-2 font-medium">LTV</th>
+                          <th className="text-right p-2 font-medium w-28">MAU do mês</th>
+                          <th className="text-right p-2 font-medium">Excedente</th>
+                          <th className="text-right p-2 font-medium">Sistema</th>
+                          <th className="text-right p-2 font-medium">Acomp.</th>
+                          <th className="text-right p-2 font-medium">Total</th>
+                          <th className="text-right p-2 font-medium w-12"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detalhesComMau.map((d) => (
+                          <tr
+                            key={d.cliente.id}
+                            className={`border-t border-border/30 cursor-pointer hover:bg-muted/20 ${selectedClienteIds.has(d.cliente.id) ? "" : "opacity-50"}`}
+                            onClick={() => toggleCliente(d.cliente.id)}
+                          >
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedClienteIds.has(d.cliente.id)}
+                                onCheckedChange={() => toggleCliente(d.cliente.id)}
+                                aria-label={`Selecionar ${d.cliente.nome}`}
+                              />
+                            </td>
+                            <td className="p-2 font-medium">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{d.cliente.nome}</span>
+                                {d.descontosCliente.map((dc) => (
+                                  <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-yellow-500/40 text-yellow-600 bg-yellow-500/10">
+                                    <Tag className="h-2.5 w-2.5" />
+                                    {descreverDesconto(dc)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-2 text-muted-foreground">{abreviarPlano(d.plano?.nome)}</td>
+                            <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
+                            <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
+                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={mauPorCliente[d.cliente.id] ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setMauPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
+                                }}
+                                placeholder={String(d.mauInclusos)}
+                                className="h-8 text-sm text-right"
+                              />
+                            </td>
+                            <td className="p-2 text-right text-xs">
+                              {d.mauExcedenteQtd > 0 ? (
+                                <span className="text-primary font-semibold">
+                                  {d.mauExcedenteQtd.toLocaleString("pt-BR")} × {formatBRL(d.mauUnit)} = +{formatBRL(d.mauExcedenteValor)}
+                                </span>
+                              ) : d.mauInformado ? (
+                                <span className="text-accent">dentro do plano</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
+                            <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
+                            <td className="p-2 text-right font-semibold text-primary">
+                              {d.descontoCliente > 0 ? (
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span className="line-through text-[11px] text-muted-foreground font-normal">{formatBRL(d.subtotal)}</span>
+                                  <span>{formatBRL(d.receita)}</span>
+                                </div>
+                              ) : (
+                                formatBRL(d.receita)
+                              )}
+                            </td>
+                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                title="Aplicar desconto a este cliente"
+                                onClick={() => setDescontoModal({ escopo: "cliente", clienteId: d.cliente.id, clienteNome: d.cliente.nome })}
+                              >
+                                <Tag className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                        {detalhesComMau.length === 0 && (
+                          <tr><td colSpan={11} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Resumo Subtotal/Descontos/Total e ações */}
+                  <div className="mt-3 rounded-lg border border-border/60 p-3 bg-muted/10">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        Aplique descontos por cliente (botão <Tag className="inline h-3 w-3 align-middle" />) ou no fechamento inteiro.
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => setDescontoModal({ escopo: "fechamento_inteiro", clienteId: null })}
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Desconto no fechamento
+                      </Button>
+                    </div>
+
+                    {(fechamentoSelecionado?.descontosGerais.length ?? 0) > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoSelecionado!.descontosGerais.map((dg) => (
+                          <div key={dg.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                              <span className="font-medium">Fechamento inteiro · {descreverDesconto(dg)}</span>
+                              {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
+                              {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                            </div>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dg.id).catch(() => {}); }}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Descontos por cliente listados para gestão (remover) */}
+                    {fechamentoData.detalhesPorCliente.some((d) => d.descontosCliente.length > 0) && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoData.detalhesPorCliente.flatMap((d) =>
+                          d.descontosCliente.map((dc) => (
+                            <div key={dc.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                                <span className="font-medium truncate">{d.cliente.nome} · {descreverDesconto(dc)}</span>
+                                {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
+                                {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                              </div>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dc.id).catch(() => {}); }}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          )),
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-3 border-t border-border/40 pt-2 space-y-1 text-sm">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>{formatBRL(fechamentoSelecionado?.subtotalBruto ?? 0)}</span>
+                      </div>
+                      {totalMauExcedente > 0 && (
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Inclui excedente de MAU</span>
+                          <span className="text-primary">+{formatBRL(totalMauExcedente)}</span>
+                        </div>
+                      )}
+                      {(fechamentoSelecionado?.descontoTotal ?? 0) > 0 && (
+                        <div className="flex justify-between text-yellow-600 dark:text-yellow-500">
+                          <span>Descontos</span>
+                          <span>-{formatBRL(fechamentoSelecionado!.descontoTotal)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold text-primary text-base">
+                        <span>Total do fechamento</span>
+                        <span>{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 {/* Enviar para Financeiro */}
                 <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <h4 className="text-sm font-semibold">Enviar para o Financeiro</h4>
-                      <p className="text-xs text-muted-foreground">Gera lançamentos a partir deste fechamento.</p>
-                    </div>
-                    <Button onClick={enviarParaFinanceiro} className="gap-2" size="sm">
-                      <Send className="h-3.5 w-3.5" /> Gerar fechamento
-                    </Button>
+                  <div>
+                    <h4 className="text-sm font-semibold">Modo de envio ao Financeiro</h4>
+                    <p className="text-xs text-muted-foreground">Define como os lançamentos serão criados.</p>
                   </div>
                   <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -2010,252 +2244,30 @@ function ResumoPage() {
                   </div>
                 </div>
 
-                {/* KPIs */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes selecionados</div>
-                    <div className="text-2xl font-semibold mt-1">
-                      {fechamentoSelecionado?.count ?? 0}
-                      <span className="text-sm font-normal text-muted-foreground ml-1">/ {fechamentoData.ativos.length}</span>
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Setups no mês</div>
-                    <div className="text-2xl font-semibold mt-1 text-accent">+{fechamentoData.setupsNoMes.length}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{formatBRL(fechamentoData.totalSetups)}</div>
-                  </div>
-                  <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Churns</div>
-                    <div className="text-2xl font-semibold mt-1 text-destructive">{fechamentoData.churnsNoMes.length > 0 ? `-${fechamentoData.churnsNoMes.length}` : "0"}</div>
-                  </div>
-                  <div className="rounded-lg border border-border/60 p-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Fechamento Mensal</div>
-                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</div>
-                  </div>
+                {/* Observação */}
+                <div className="rounded-lg border border-border/60 p-4 bg-muted/10">
+                  <Label htmlFor="obs-pdf" className="text-xs text-muted-foreground">Observação (impressa no final do PDF)</Label>
+                  <Textarea
+                    id="obs-pdf"
+                    value={observacaoPdf}
+                    onChange={(e) => setObservacaoPdf(e.target.value)}
+                    placeholder="Notas, contexto do mês, recomendações…"
+                    className="mt-1 min-h-[72px] text-sm"
+                  />
                 </div>
 
-                {/* Métricas secundárias: LTV médio, ticket médio, sistema vs acompanhamento (discretos) */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                  <div className="rounded-md border border-border/40 px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">LTV médio</div>
-                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoSelecionado?.ltvMedioDias ?? 0)} dias</div>
-                  </div>
-                  <div className="rounded-md border border-border/40 px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ticket médio / cliente</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.ticketMedio ?? 0)}</div>
-                  </div>
-                  <div className="rounded-md border border-border/40 px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Sistema</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalSistema ?? 0)}</div>
-                  </div>
-                  <div className="rounded-md border border-border/40 px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Acompanhamento</div>
-                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalAcompanhamento ?? 0)}</div>
-                  </div>
+                {/* Rodapé: gerar fechamento */}
+                <div className="flex items-center justify-end gap-3 border-t border-border/60 pt-4">
+                  <span className="text-xs text-muted-foreground">
+                    Gera os lançamentos no Financeiro a partir da seleção acima.
+                  </span>
+                  <Button onClick={enviarParaFinanceiro} className="gap-2" disabled={gerandoFechamento}>
+                    {gerandoFechamento
+                      ? (<><Loader2 className="h-4 w-4 animate-spin" /> Gerando…</>)
+                      : (<><Send className="h-4 w-4" /> Gerar Fechamento</>)}
+                  </Button>
                 </div>
 
-                {/* Gráfico de área: receita mensal recente */}
-                {(() => {
-                  const serie = linhas.slice(0, 6).reverse(); // mais antigo -> mais recente
-                  if (serie.length < 2) return null;
-                  const w = 720, h = 140, pad = 24;
-                  const maxV = Math.max(...serie.map((s) => s.receita), 1);
-                  const stepX = (w - pad * 2) / (serie.length - 1);
-                  const points = serie.map((s, i) => {
-                    const x = pad + i * stepX;
-                    const y = h - pad - (s.receita / maxV) * (h - pad * 2);
-                    return { x, y, label: s.mesLabel, v: s.receita };
-                  });
-                  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-                  const area = `${path} L ${points[points.length - 1].x.toFixed(1)} ${(h - pad).toFixed(1)} L ${points[0].x.toFixed(1)} ${(h - pad).toFixed(1)} Z`;
-                  return (
-                    <div className="rounded-lg border border-border/60 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receita — últimos {serie.length} meses</h3>
-                        <span className="text-[10px] text-muted-foreground">pico: {formatBRL(maxV)}</span>
-                      </div>
-                      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto">
-                        <defs>
-                          <linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.45" />
-                            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
-                          </linearGradient>
-                        </defs>
-                        <path d={area} fill="url(#areaFill)" />
-                        <path d={path} fill="none" stroke="var(--primary)" strokeWidth="2" />
-                        {points.map((p, i) => (
-                          <g key={i}>
-                            <circle cx={p.x} cy={p.y} r={3} fill="var(--primary)" />
-                            <text x={p.x} y={h - 6} textAnchor="middle" className="fill-muted-foreground" fontSize="9" style={{ textTransform: "capitalize" }}>{p.label}</text>
-                          </g>
-                        ))}
-                      </svg>
-                    </div>
-                  );
-                })()}
-
-                {/* Detalhamento por cliente */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Detalhamento por cliente</h3>
-                    <span className="text-[10px] text-muted-foreground">
-                      Marque os clientes que entram neste fechamento. Os totais, o PDF e o envio ao Financeiro respeitam a seleção.
-                    </span>
-                  </div>
-                  <div className="rounded-lg border border-border/60 overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/30">
-                        <tr className="text-xs text-muted-foreground">
-                          <th className="p-2 w-8">
-                            <Checkbox
-                              checked={todosSelecionados}
-                              onCheckedChange={toggleTodos}
-                              aria-label="Selecionar todos"
-                            />
-                          </th>
-                          <th className="text-left p-2 font-medium">Cliente</th>
-                          <th className="text-left p-2 font-medium">Plano</th>
-                          <th className="text-left p-2 font-medium">Vencimento</th>
-                          <th className="text-right p-2 font-medium">LTV</th>
-                          <th className="text-right p-2 font-medium">Sistema</th>
-                          <th className="text-right p-2 font-medium">Acomp.</th>
-                          <th className="text-right p-2 font-medium">Total</th>
-                          <th className="text-right p-2 font-medium w-12"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fechamentoData.detalhesPorCliente.map((d) => (
-                          <tr
-                            key={d.cliente.id}
-                            className={`border-t border-border/30 cursor-pointer hover:bg-muted/20 ${selectedClienteIds.has(d.cliente.id) ? "" : "opacity-50"}`}
-                            onClick={() => toggleCliente(d.cliente.id)}
-                          >
-                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                              <Checkbox
-                                checked={selectedClienteIds.has(d.cliente.id)}
-                                onCheckedChange={() => toggleCliente(d.cliente.id)}
-                                aria-label={`Selecionar ${d.cliente.nome}`}
-                              />
-                            </td>
-                            <td className="p-2 font-medium">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span>{d.cliente.nome}</span>
-                                {d.descontosCliente.map((dc) => (
-                                  <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-yellow-500/40 text-yellow-600 bg-yellow-500/10">
-                                    <Tag className="h-2.5 w-2.5" />
-                                    {descreverDesconto(dc)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="p-2 text-muted-foreground">{abreviarPlano(d.plano?.nome)}</td>
-                            <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
-                            <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
-                            <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
-                            <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
-                            <td className="p-2 text-right font-semibold text-primary">
-                              {d.descontoCliente > 0 ? (
-                                <div className="flex flex-col items-end leading-tight">
-                                  <span className="line-through text-[11px] text-muted-foreground font-normal">{formatBRL(d.subtotal)}</span>
-                                  <span>{formatBRL(d.receita)}</span>
-                                </div>
-                              ) : (
-                                formatBRL(d.receita)
-                              )}
-                            </td>
-                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7"
-                                title="Aplicar desconto a este cliente"
-                                onClick={() => setDescontoModal({ escopo: "cliente", clienteId: d.cliente.id, clienteNome: d.cliente.nome })}
-                              >
-                                <Tag className="h-3.5 w-3.5" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                        {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={9} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Resumo Subtotal/Descontos/Total e ações */}
-                  <div className="mt-3 rounded-lg border border-border/60 p-3 bg-muted/10">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="text-xs text-muted-foreground">
-                        Aplique descontos por cliente (botão <Tag className="inline h-3 w-3 align-middle" />) ou no fechamento inteiro.
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        onClick={() => setDescontoModal({ escopo: "fechamento_inteiro", clienteId: null })}
-                      >
-                        <Plus className="h-3.5 w-3.5" /> Desconto no fechamento
-                      </Button>
-                    </div>
-
-                    {(fechamentoSelecionado?.descontosGerais.length ?? 0) > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {fechamentoSelecionado!.descontosGerais.map((dg) => (
-                          <div key={dg.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
-                              <span className="font-medium">Fechamento inteiro · {descreverDesconto(dg)}</span>
-                              {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
-                              {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
-                            </div>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dg.id).catch(() => {}); }}>
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Descontos por cliente listados para gestão (remover) */}
-                    {fechamentoData.detalhesPorCliente.some((d) => d.descontosCliente.length > 0) && (
-                      <div className="mt-2 space-y-1">
-                        {fechamentoData.detalhesPorCliente.flatMap((d) =>
-                          d.descontosCliente.map((dc) => (
-                            <div key={dc.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
-                                <span className="font-medium truncate">{d.cliente.nome} · {descreverDesconto(dc)}</span>
-                                {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
-                                {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
-                              </div>
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dc.id).catch(() => {}); }}>
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
-                            </div>
-                          )),
-                        )}
-                      </div>
-                    )}
-
-                    <div className="mt-3 border-t border-border/40 pt-2 space-y-1 text-sm">
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Subtotal</span>
-                        <span>{formatBRL(fechamentoSelecionado?.subtotalBruto ?? 0)}</span>
-                      </div>
-                      {(fechamentoSelecionado?.descontoTotal ?? 0) > 0 && (
-                        <div className="flex justify-between text-yellow-600 dark:text-yellow-500">
-                          <span>Descontos</span>
-                          <span>-{formatBRL(fechamentoSelecionado!.descontoTotal)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between font-semibold text-primary text-base">
-                        <span>Total do fechamento</span>
-                        <span>{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Upgrades e Downgrades */}
                 {fechamentoData.movsMes.length > 0 && (
