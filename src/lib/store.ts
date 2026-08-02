@@ -74,6 +74,26 @@ function movimentoToDb(mov: Movimento) {
   };
 }
 
+/**
+ * Garante que existe sessão válida e devolve o uid.
+ * Lança erro (com toast) quando não há sessão — nunca falha em silêncio.
+ */
+async function requireAuthUid(contexto: string): Promise<string> {
+  const userId = await getAuthUid();
+  if (!userId) {
+    toast.error("Sessão expirada — faça login novamente e repita a operação.");
+    throw new Error(`sessao-expirada: ${contexto}`);
+  }
+  return userId;
+}
+
+/** Reporta falha de persistência (log + toast específico) e propaga o erro real. */
+function falharPersistencia(err: unknown, contexto: string): never {
+  console.error(`[persistência] ${contexto}:`, err);
+  toast.error(mensagemErroPersistencia(err, contexto));
+  throw err;
+}
+
 /** Converte erros do Supabase em mensagens claras para o usuário. */
 export function mensagemErroPersistencia(err: unknown, contexto: string): string {
   const e = err as { message?: string; code?: string; details?: string } | null;
