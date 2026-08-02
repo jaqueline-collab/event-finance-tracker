@@ -1,0 +1,1 @@
+UPDATE public.elora_fechamentos SET criado_por = '60e75758-f8e9-443d-bdb1-0e41df1cd783' WHERE criado_por IS NULL;
