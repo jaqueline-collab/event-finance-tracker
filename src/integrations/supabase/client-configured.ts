@@ -89,11 +89,21 @@ async function boundedTabLock<Result>(
 /** fetch com AbortController para nenhuma chamada ficar pendurada sem prazo. */
 async function fetchComPrazo(input: RequestInfo | URL, init?: RequestInit) {
   const controller = new AbortController();
+  const upstreamSignal = init?.signal;
+  const abortFromUpstream = () => controller.abort(upstreamSignal?.reason);
+
+  if (upstreamSignal?.aborted) {
+    abortFromUpstream();
+  } else {
+    upstreamSignal?.addEventListener("abort", abortFromUpstream, { once: true });
+  }
+
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    return await fetch(input, { ...init, signal: init?.signal ?? controller.signal });
+    return await fetch(input, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+    upstreamSignal?.removeEventListener("abort", abortFromUpstream);
   }
 }
 
