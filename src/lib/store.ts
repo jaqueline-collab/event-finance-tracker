@@ -537,9 +537,13 @@ export const useStore = create<State>()(
           }
         }
       },
-      removeMovimento: (id) => {
+      removeMovimento: async (id) => {
         const old = get().movimentos.find((m) => m.id === id);
         if (!old) return;
+        await requireAuthUid("Exclusão de movimento");
+        // 1) Remove no banco primeiro — nada muda na tela antes da confirmação.
+        const { error: delErr } = await supabase.from("elora_movimentos").delete().eq("id", id);
+        if (delErr) falharPersistencia(delErr, "Exclusão de movimento");
         // Reverte deltas no cliente quando o movimento for upgrade/downgrade
         if (old.tipo === "upgrade" || old.tipo === "downgrade") {
           const cliente = get().clientes.find((c) => c.id === old.clienteId);
@@ -568,45 +572,49 @@ export const useStore = create<State>()(
             if (nCanais !== undefined && nCanais !== cliente.canais) patch.canais = nCanais;
             if (Object.keys(patch).length) {
               const updated = { ...cliente, ...patch } as Cliente;
-              set({ clientes: get().clientes.map((c) => (c.id === cliente.id ? updated : c)) });
               // Apenas os campos revertidos — nunca o registro inteiro.
-              supabase.from("elora_clientes").update(mapClientePatchToDb(patch)).eq("id", cliente.id).then(({ error }) => {
-                if (error) console.error("Erro ao reverter cliente após remover movimento:", error);
-              });
+              const { error: cliErr } = await supabase
+                .from("elora_clientes")
+                .update(mapClientePatchToDb(patch))
+                .eq("id", cliente.id);
+              if (cliErr) falharPersistencia(cliErr, "Reversão do cliente após excluir movimento");
+              set({ clientes: get().clientes.map((c) => (c.id === cliente.id ? updated : c)) });
             }
           }
         }
         set({ movimentos: get().movimentos.filter((m) => m.id !== id) });
-        supabase.from("elora_movimentos").delete().eq("id", id).then(({ error }) => {
-          if (error) console.error("Erro ao remover movimento no Supabase:", error);
-        });
       },
 
       // Parceiros
-      addParceiro: (p) => {
+      addParceiro: async (p) => {
         const id = uid();
         const criadoEm = new Date().toISOString().slice(0, 10);
         const novoParceiro = { ...p, id, criadoEm };
+        const userId = await requireAuthUid("Cadastro de parceiro");
+        const { error } = await supabase
+          .from("elora_parceiros")
+          .insert({ ...mapParceiroToDb(novoParceiro), user_id: userId } as never);
+        if (error) falharPersistencia(error, "Cadastro de parceiro");
         set({ parceiros: [...get().parceiros, novoParceiro] });
-        supabase.from("elora_parceiros").insert(mapParceiroToDb(novoParceiro)).then(({ error }) => {
-          if (error) console.error("Erro ao salvar parceiro no Supabase:", error);
-        });
+        return id;
       },
-      updateParceiro: (id, p) => {
-        const parceiros = get().parceiros.map((x) => (x.id === id ? { ...x, ...p } : x));
-        set({ parceiros });
-        const updated = parceiros.find((x) => x.id === id);
-        if (updated) {
-          supabase.from("elora_parceiros").update(mapParceiroToDb(updated)).eq("id", id).then(({ error }) => {
-            if (error) console.error("Erro ao atualizar parceiro no Supabase:", error);
-          });
-        }
+      updateParceiro: async (id, p) => {
+        const atual = get().parceiros.find((x) => x.id === id);
+        if (!atual) return;
+        const updated = { ...atual, ...p };
+        await requireAuthUid("Atualização de parceiro");
+        const { error } = await supabase
+          .from("elora_parceiros")
+          .update(mapParceiroToDb(updated))
+          .eq("id", id);
+        if (error) falharPersistencia(error, "Atualização de parceiro");
+        set({ parceiros: get().parceiros.map((x) => (x.id === id ? updated : x)) });
       },
-      removeParceiro: (id) => {
+      removeParceiro: async (id) => {
+        await requireAuthUid("Exclusão de parceiro");
+        const { error } = await supabase.from("elora_parceiros").delete().eq("id", id);
+        if (error) falharPersistencia(error, "Exclusão de parceiro");
         set({ parceiros: get().parceiros.filter((x) => x.id !== id) });
-        supabase.from("elora_parceiros").delete().eq("id", id).then(({ error }) => {
-          if (error) console.error("Erro ao remover parceiro no Supabase:", error);
-        });
       },
 
       // Financeiro
@@ -628,53 +636,59 @@ export const useStore = create<State>()(
         set({ financeiro: [...get().financeiro, novo] });
         return id;
       },
-      updateLancamento: (id, l) => {
-        const financeiro = get().financeiro.map((x) => (x.id === id ? { ...x, ...l } : x));
-        set({ financeiro });
-        const updated = financeiro.find((x) => x.id === id);
-        if (updated) {
-          (supabase as any).from("elora_financeiro").update(mapFinanceiroToDb(updated)).eq("id", id).then(({ error }: any) => {
-            if (error) console.error("Erro ao atualizar lançamento financeiro:", error);
-          });
-        }
+      updateLancamento: async (id, l) => {
+        const atual = get().financeiro.find((x) => x.id === id);
+        if (!atual) return;
+        const updated = { ...atual, ...l };
+        await requireAuthUid("Atualização de lançamento financeiro");
+        const { error } = await (supabase as any)
+          .from("elora_financeiro")
+          .update(mapFinanceiroToDb(updated))
+          .eq("id", id);
+        if (error) falharPersistencia(error, "Atualização de lançamento financeiro");
+        set({ financeiro: get().financeiro.map((x) => (x.id === id ? updated : x)) });
       },
-      removeLancamento: (id) => {
+      removeLancamento: async (id) => {
+        await requireAuthUid("Exclusão de lançamento financeiro");
+        const { error } = await (supabase as any)
+          .from("elora_financeiro")
+          .delete()
+          .eq("id", id);
+        if (error) falharPersistencia(error, "Exclusão de lançamento financeiro");
         set({ financeiro: get().financeiro.filter((x) => x.id !== id) });
-        (supabase as any).from("elora_financeiro").delete().eq("id", id).then(({ error }: any) => {
-          if (error) console.error("Erro ao remover lançamento financeiro:", error);
-        });
       },
 
       // Descontos
-      addDesconto: (d) => {
+      addDesconto: async (d) => {
         const id = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
           ? (crypto as any).randomUUID()
           : uid();
         const novo: Desconto = { ...d, id };
+        const userId = await requireAuthUid("Cadastro de desconto");
+        const { error } = await (supabase as any)
+          .from("elora_descontos")
+          .insert({ ...mapDescontoToDb(novo), user_id: userId });
+        if (error) falharPersistencia(error, "Cadastro de desconto");
         set({ descontos: [...get().descontos, novo] });
-        (supabase as any).from("elora_descontos").insert(mapDescontoToDb(novo)).then(({ error }: any) => {
-          if (error) {
-            console.error("Erro ao salvar desconto:", error);
-            set({ descontos: get().descontos.filter((x) => x.id !== id) });
-          }
-        });
         return id;
       },
-      updateDesconto: (id, d) => {
-        const descontos = get().descontos.map((x) => (x.id === id ? { ...x, ...d } : x));
-        set({ descontos });
-        const updated = descontos.find((x) => x.id === id);
-        if (updated) {
-          (supabase as any).from("elora_descontos").update(mapDescontoToDb(updated)).eq("id", id).then(({ error }: any) => {
-            if (error) console.error("Erro ao atualizar desconto:", error);
-          });
-        }
+      updateDesconto: async (id, d) => {
+        const atual = get().descontos.find((x) => x.id === id);
+        if (!atual) return;
+        const updated = { ...atual, ...d };
+        await requireAuthUid("Atualização de desconto");
+        const { error } = await (supabase as any)
+          .from("elora_descontos")
+          .update(mapDescontoToDb(updated))
+          .eq("id", id);
+        if (error) falharPersistencia(error, "Atualização de desconto");
+        set({ descontos: get().descontos.map((x) => (x.id === id ? updated : x)) });
       },
-      removeDesconto: (id) => {
+      removeDesconto: async (id) => {
+        await requireAuthUid("Exclusão de desconto");
+        const { error } = await (supabase as any).from("elora_descontos").delete().eq("id", id);
+        if (error) falharPersistencia(error, "Exclusão de desconto");
         set({ descontos: get().descontos.filter((x) => x.id !== id) });
-        (supabase as any).from("elora_descontos").delete().eq("id", id).then(({ error }: any) => {
-          if (error) console.error("Erro ao remover desconto:", error);
-        });
       },
 
       // Fechamentos persistidos
