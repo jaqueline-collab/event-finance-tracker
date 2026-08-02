@@ -265,9 +265,17 @@ function ClientesPage() {
   };
 
   const handleSaveMovimento = async () => {
-    if (!acaoClienteId) return;
+    if (!acaoClienteId) {
+      toast.error("Selecione um cliente antes de salvar a movimentação.");
+      return;
+    }
+    if (!movForm.data) {
+      toast.error("Informe a data da movimentação antes de salvar.");
+      return;
+    }
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
     // Editing: remove old (revertendo deltas) e recria com novos valores
+    setSavingMovimento(true);
     try {
       if (editMovId) {
         await removeMovimento(editMovId);
@@ -293,6 +301,8 @@ function ClientesPage() {
     } catch (err) {
       toast.error(mensagemErroPersistencia(err, "Movimentação"));
       return;
+    } finally {
+      setSavingMovimento(false);
     }
     setAcaoClienteId(null);
     setEditMovId(null);
