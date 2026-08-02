@@ -97,6 +97,8 @@ export interface Cliente {
   dataInicio: string;
   dataVencimento: string | null;
   dataChurn: string | null;
+  // Status comercial definido manualmente (não é calculado por dias de setup)
+  statusComercial: "ativo" | "trial";
   // Ciclo de faturamento personalizado (sobrescreve o do plano quando ciclo_personalizado = true)
   cicloPersonalizado?: boolean;
   cicloDiaInicial?: number | null;
