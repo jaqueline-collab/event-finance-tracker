@@ -1,51 +1,53 @@
-## Objetivo
+# Diagnóstico "sessao-travada" e plano de correção
 
-Unificar o cálculo de custo em uma única função `custoMensalCliente(cliente, plano, custos)`, usada em Dashboard, fechamento, resumo e ranking. `helena.ts` deixa de ter regra própria de franquia (hoje fixa 1 canal / 3 usuários / 500 contatos) e passa a ser apenas um agregador que soma o custo por cliente.
+## O que confirmei lendo o código (fatos, não hipóteses)
 
-## Decisões que preciso confirmar antes de codar
+1. **Existem DOIS clientes de autenticação vivos no mesmo navegador.**
+   - `src/integrations/supabase/client-configured.ts` (o novo, com trava por aba de 4s)
+   - `src/integrations/supabase/client.ts` (o gerado), usado por `src/integrations/supabase/auth-attacher.ts`
+   - `src/start.ts` registra os **dois**: `functionMiddleware: [attachSupabaseAuth, attachConfiguredAuth]`.
 
-1. **Desconto de escala WTS (10/15/20/25% em faixas de R$10k / 25k / 50k / 100k)** — hoje só existe no agregado. Duas opções:
-   - **(a)** Continua como desconto agregado da operação (aplicado só no total do Dashboard / "custo operacional"), e **não** entra no `custoMensalCliente` de um cliente individual. É o mais fiel ao contrato WTS.
-   - **(b)** Rateado proporcionalmente por cliente (custo_cliente × %desconto_da_faixa_agregada), para que o "lucro por cliente" nos rankings/clientes já reflita o desconto.
-   
-   Qual você quer?
+   Os dois usam a **mesma chave do localStorage**, mas a trava nova (`boundedTabLock`) é uma fila em memória **por módulo**. Cada cliente tem a sua própria fila, então eles **não se serializam entre si**: podem renovar o token ao mesmo tempo. O refresh token é de uso único, então um deles falha e o auth-js entra em espera/retentativa. A correção nº 2 não cobre esse caso por construção.
 
-2. **Fonte dos custos unitários** — hoje `elora_custos_wts` ainda não existe (só levantamento). Confirmar: crio a tabela agora nesta mesma tarefa (schema com faixas de volume — `item_key`, `faixa_min`, `faixa_max`, `preco_unit`, `moeda`) e uso ela como fonte única, certo?
+2. **A trava nova limita a ESPERA pela vez, mas não limita a OPERAÇÃO.**
+   Em `client-configured.ts` o timeout de 4s vale só para "esperar a vez na fila". Assim que a vez chega, `operation()` roda **sem limite de tempo**. Um refresh pendurado na rede segura a fila e tudo o que vem depois espera — até o timeout de 8s do `getAuthUid()` disparar. É exatamente o sintoma relatado: não trava mais "pra sempre", mas dá "sessao-travada" **sempre**.
 
-3. **3 clientes para validação antes/depois** — sugestão: **Majestic**, **Fischer** e **Zayn** (têm complexidade: excedentes de canais, Z-API e usuários). Confirma ou prefere outros?
+3. **O app dispara refresh de sessão com muita frequência.**
+   `src/routes/__root.tsx` chama `supabase.auth.refreshSession()` a cada `focus`, a cada `visibilitychange` e a cada 30 min. Cada volta para a aba (é o que a usuária faz antes de clicar em "Salvar") inicia um refresh que ocupa a trava.
 
-## Escopo da mudança
+4. **`getSession()` é a porta de entrada de tudo**: `store.ts` (todos os saves), `permissions.ts`, `__root.tsx`, `auth.tsx`, `auth.callback.tsx` e os dois attachers. Basta a trava ocupada por um refresh lento para **todos** os botões falharem juntos.
 
-### `src/lib/calc/helena.ts`
-- Remover `calcularCustoBrutoHelena` (versão com franquia fixa 1/3/500).
-- Manter apenas as funções de faixa de volume: `calcularCustoExtraUsuariosHelena`, `calcularCustoExtraContatosHelena`, `calcularCustoExtraCanaisHelena` — se decidirmos manter tabela WTS como fonte de custo unitário, essas funções passam a receber os preços vindos de `elora_custos_wts` ao invés de hardcoded.
-- `calcularDescontoEscalaHelena` — mantida (faixas hardcoded ok por ora, a menos que você queira mover para tabela também).
-- `calcularCustoLiquidoHelena(clientesAtivos, planos, custos)` reescrita: `sum(custoMensalCliente(c, planos, custos)) − calcularDescontoEscalaHelena(sum)`.
+## Por que os dois consertos anteriores não resolveram
 
-### `src/lib/calc/custo.ts`
-- Vira a fonte única de custo por cliente.
-- Continua respeitando franquia real do plano (`canaisWhatsInclusos`, `usuariosInclusos`, `contatosInclusos`, `incluiIA`, `incluiAsaas`, `incluiZapi`, `incluiTranscricao`).
-- Custos unitários passam a ser lidos de `elora_custos_wts` (via parâmetro `custos: CustoBase[]`) — fim dos defaults hardcoded `?? 149.90`, `?? 29.90`, etc. Se um item não estiver na tabela, erro visível (não silencioso).
-- Aplica faixas de volume via as funções `calcularCustoExtra*Helena` (agora parametrizadas por preço da tabela).
+- **Timeout de 8s no `getAuthUid`**: é alarme, não conserto. Troca "trava eterna" por "erro em 8s"; a causa continua intacta.
+- **Trava por aba de 4s**: resolve o cenário de *Web Lock órfã de outra aba*, que **não é** o cenário real. O teste travou uma Web Lock de propósito; o problema real acontece **dentro da mesma aba**, com dois clientes concorrendo e um refresh de rede sem prazo. Cenário de teste diferente do real — por isso "passou" no teste e falha no uso.
 
-### `src/routes/dashboard.tsx`, `src/routes/clientes.tsx`, `src/routes/resumo.tsx`
-- Continuam chamando `custoMensalCliente` e `calcularCustoLiquidoHelena`; assinaturas mudam pouco (helena passa a receber `planos` e `custos`), então ajuste dos call sites.
+## Ambiente de teste x navegador da usuária
 
-### `elora_planos`
-- **Nenhuma mudança de dados.** Só leitura das colunas de franquia que já existem.
+- No teste: `localhost`, rede rápida, sessão recém-criada — refresh quase nunca é necessário e nunca demora.
+- No uso real: token perto de expirar, rede instável, aba em segundo plano (o navegador congela timers e requisições de abas ocultas), várias abas do preview e do site publicado abertas, e possíveis extensões de bloqueio atrasando a chamada de rede.
 
-### `elora_custos_wts` (opcional item 2 acima)
-- Se aprovado, migração cria tabela com colunas: `item_key text`, `faixa_min int`, `faixa_max int null`, `preco_unit numeric`, `ativo bool`, timestamps. Populo com os valores WTS já levantados (licença 149,90; canal 29,90 nas 4 primeiras / 19,90 acima; usuário 19,90 até 17 / 14,90 18-97 / 12,90 98+; contato faixa 5k-20k / 20k-100k / 100k+; IA 50; Asaas 49,50; Z-API 69; transcrição 3,99/usuário).
-- GRANT + RLS (SELECT autenticado, admin escreve).
+## Passo 1 — Instrumentação (o que preciso que você me mande)
 
-## Ordem de execução
+Adiciono logs temporários com carimbo de tempo, prefixo `[auth-debug]`, em:
+- entrada/saída de `getAuthUid()` (início, retorno, timeout);
+- `boundedTabLock`: pedido de trava, trava obtida, trava liberada, timeout de espera, duração da operação;
+- `refreshSession()` do `__root.tsx` (início/fim/erro);
+- aviso quando mais de um cliente de autenticação for criado na mesma página.
 
-1. Você responde as 3 perguntas acima.
-2. Migração `elora_custos_wts` (se item 2 = sim) — só schema + seed, sem tocar em nenhuma outra tabela.
-3. Refactor de `helena.ts` e `custo.ts`.
-4. Ajuste dos call sites.
-5. Executo o cálculo para os 3 clientes escolhidos e te apresento a tabela **antes × depois** (receita, custo, lucro) para você validar antes de considerar concluído.
+**Como reproduzir:** abrir o app em **uma única aba**, abrir o Console (F12), deixar a aba em segundo plano por ~1 minuto, voltar e clicar em "Salvar Cliente" até o erro aparecer. Copiar **todas** as linhas `[auth-debug]` e me enviar — elas mostram, com tempos reais, quem segurava a trava e por quanto tempo.
 
-## Fora de escopo (não vou tocar)
+## Passo 2 — Correção (aplico após confirmar pelos logs)
 
-`elora_clientes`, `elora_movimentos`, `elora_financeiro`, `elora_parceiros`, `elora_descontos`, lógica de receita (`receita.ts`), fechamentos já gerados.
+1. **Um único cliente de autenticação**: remover `attachSupabaseAuth` de `src/start.ts`, deixando só `attachConfiguredAuth`.
+2. **Prazo também para a operação dentro da trava** (não só para a espera): passou de ~5s, abandona e libera a fila.
+3. **Timeout de rede no cliente Supabase**: `fetch` próprio com `AbortController` (~10s), para refresh pendurado falhar rápido.
+4. **Salvar sem depender de `getSession()`**: guardar o `user_id` em memória via `onAuthStateChange` (já roda no `__root.tsx`) e usá-lo nos saves. Se o token estiver expirado, quem avisa é o banco, com erro claro.
+5. **Reduzir o refresh agressivo**: sair do refresh a cada `focus`/`visibilitychange`, mantendo o refresh automático do próprio Supabase.
+6. **Remover os logs temporários** após a confirmação.
+
+Nenhum dado existente é alterado — a mudança é só de autenticação/UX.
+
+## Em português simples
+
+Dois "porteiros" diferentes mexiam na mesma chave de sessão ao mesmo tempo, e a fila que criamos só organizava a entrada — não havia limite de quanto tempo alguém podia ficar lá dentro. Quando a renovação da sessão travava na rede (aba em segundo plano, internet oscilando), ela segurava a porta e todo clique em "Salvar" esperava até estourar o tempo. A correção tira o porteiro duplicado, coloca prazo para quem entra, dá prazo para a chamada de rede e faz o salvar usar a identidade já conhecida em vez de pedir a chave de novo a cada clique.
