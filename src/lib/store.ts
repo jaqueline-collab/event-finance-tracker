@@ -493,9 +493,19 @@ export const useStore = create<State>()(
         // Envia SOMENTE os campos que realmente mudaram.
         const patch = diffClienteToDb(anterior, updated);
         if (Object.keys(patch).length) {
-          await requireAuthUid("Atualização de cliente");
-          const { error } = await supabase.from("elora_clientes").update(patch).eq("id", id);
-          if (error) falharPersistencia(error, "Atualização de cliente");
+          const result = await gravarComPrazo(
+            registrarMovimento({
+              data: { movimento: null, clienteId: id, clientePatch: patch },
+            }),
+            "atualização do cliente",
+            20000,
+          );
+          if (!result.clienteAtualizado) {
+            falharPersistencia(
+              new Error(result.clienteErro ?? "Falha desconhecida"),
+              "Atualização de cliente",
+            );
+          }
         }
         set({ clientes: get().clientes.map((x) => (x.id === id ? updated : x)) });
       },
