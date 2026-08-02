@@ -811,8 +811,13 @@ function ClientesPage() {
 
                   <Button
                     className="w-full h-11"
-                    disabled={!form.nome || !form.planoId}
+                    disabled={savingCliente}
                     onClick={async () => {
+                      if (!form.nome || !form.planoId) {
+                        toast.error("Preencha o nome e selecione um plano antes de salvar.");
+                        return;
+                      }
+                      setSavingCliente(true);
                       try {
                       await addCliente({
                         nome: form.nome,
@@ -846,6 +851,8 @@ function ClientesPage() {
                       } catch (err) {
                         toast.error(mensagemErroPersistencia(err, "Cadastro do cliente"));
                         return;
+                      } finally {
+                        setSavingCliente(false);
                       }
                       setForm({
                         nome: "",
@@ -874,7 +881,7 @@ function ClientesPage() {
                       setOpen(false);
                     }}
                   >
-                    Salvar Cliente
+                    {savingCliente ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : "Salvar Cliente"}
                   </Button>
                 </div>
               </div>
