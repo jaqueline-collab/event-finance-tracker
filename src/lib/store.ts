@@ -970,6 +970,7 @@ export const useStore = create<State>()(
           id,
           nome: "Clínica Demo",
           planoId: p.id,
+          statusComercial: "ativo",
           dataInicio: sixMonthsAgo.toISOString().slice(0, 10),
           dataVencimento: null,
           dataChurn: null,

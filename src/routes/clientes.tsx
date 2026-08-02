@@ -56,6 +56,7 @@ function ClientesPage() {
     parceiroId: planos[0]?.parceiroIds?.[0] ?? "",
     dataInicio: new Date().toISOString().slice(0, 10),
     dataVencimento: "",
+    statusComercial: "ativo" as "ativo" | "trial",
     cicloPersonalizado: false,
     cicloDiaInicial: "",
     cicloDiaFinal: "",
