@@ -866,10 +866,52 @@ function ResumoPage() {
     });
   }, [defaultDescricoesPorCliente, descricoesPorClienteTocadas]);
 
+  // Limpa os MAU informados quando muda a competência do fechamento
+  useEffect(() => {
+    setMauPorCliente({});
+  }, [fechamentoMes]);
+
+  // Detalhes por cliente já com o excedente de MAU informado na tela.
+  // Mesma fórmula do MauFechamentoEditor: excedente = max(0, MAU - inclusos);
+  // acréscimo = excedente × unitário.
+  const detalhesComMau = useMemo(() => {
+    if (!fechamentoData) return [];
+    return fechamentoData.detalhesPorCliente.map((d) => {
+      const mauInclusos = d.plano?.contatosInclusos ?? 500;
+      const mauUnit = d.plano?.valorContatosExc ?? d.plano?.valorCanaisExc ?? 0.10;
+      const raw = mauPorCliente[d.cliente.id];
+      const mauMes = Math.max(0, Math.floor(Number(raw) || 0));
+      const mauExcedenteQtd = Math.max(0, mauMes - mauInclusos);
+      const mauExcedenteValor = mauExcedenteQtd * mauUnit;
+      const subtotal = d.subtotal + mauExcedenteValor;
+      const res = calcularDesconto(subtotal, d.descontosCliente);
+      return {
+        ...d,
+        subtotalBase: d.subtotal,
+        subtotal,
+        descontoCliente: res.descontoTotal,
+        receita: res.total,
+        mauMes,
+        mauInclusos,
+        mauUnit,
+        mauExcedenteQtd,
+        mauExcedenteValor,
+        mauInformado: raw !== undefined && raw !== "",
+      };
+    });
+  }, [fechamentoData, mauPorCliente]);
+
+  const totalMauExcedente = useMemo(
+    () => detalhesComMau
+      .filter((d) => selectedClienteIds.has(d.cliente.id))
+      .reduce((s, d) => s + d.mauExcedenteValor, 0),
+    [detalhesComMau, selectedClienteIds],
+  );
+
   const fechamentoSelecionado = useMemo(() => {
     if (!fechamentoData) return null;
     const sel = selectedClienteIds;
-    const detalhes = fechamentoData.detalhesPorCliente.filter((d) => sel.has(d.cliente.id));
+    const detalhes = detalhesComMau.filter((d) => sel.has(d.cliente.id));
     const totalSistema = detalhes.reduce((s, d) => s + d.sistema, 0);
     const totalAcompanhamento = detalhes.reduce((s, d) => s + d.acomp, 0);
     const subtotalBruto = detalhes.reduce((s, d) => s + d.subtotal, 0);
@@ -894,7 +936,7 @@ function ResumoPage() {
       totalReceita,
       ticketMedio, ltvMedioDias, count: detalhes.length,
     };
-  }, [fechamentoData, selectedClienteIds, descontos]);
+  }, [fechamentoData, detalhesComMau, selectedClienteIds, descontos]);
 
   const toggleCliente = (id: string) => {
     setSelectedClienteIds((prev) => {
