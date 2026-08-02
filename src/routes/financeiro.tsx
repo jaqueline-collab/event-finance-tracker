@@ -20,7 +20,7 @@ import {
   mensagemErroPersistencia,
 } from "@/lib/store";
 import type { LancamentoFinanceiro, StatusFinanceiro, TipoFinanceiro } from "@/lib/types";
-import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2 } from "lucide-react";
+import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/financeiro")({
@@ -177,12 +177,18 @@ function FinanceiroPage() {
   }, [financeiro]);
 
   const save = async () => {
-    if (!form.descricao || !form.valor) return;
+    if (!form.descricao || !form.valor) {
+      toast.error("Preencha a descrição e o valor antes de salvar.");
+      return;
+    }
+    setSaving(true);
     if (editId) {
       try {
         await updateLancamento(editId, form);
       } catch {
         return; // erro já reportado via toast
+      } finally {
+        setSaving(false);
       }
     } else {
       try {
@@ -191,6 +197,8 @@ function FinanceiroPage() {
         console.error(e);
         toast.error(mensagemErroPersistencia(e, "Não foi possível salvar o lançamento"));
         return;
+      } finally {
+        setSaving(false);
       }
     }
     setOpen(false);
@@ -386,7 +394,9 @@ function FinanceiroPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={save}>Salvar</Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : "Salvar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
