@@ -172,7 +172,7 @@ export function mensagemErroPersistencia(err: unknown, contexto: string): string
 }
 
 // Re-exports para retro-compatibilidade dos consumidores que importam de @/lib/store.
-export { formatBRL } from "./calc/format";
+export { formatBRL, formatBRLPreciso } from "./calc/format";
 export {
   parseDiaVencimento,
   formatDiaVencimento,

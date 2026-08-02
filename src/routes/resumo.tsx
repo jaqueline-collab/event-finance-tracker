@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  useStore, formatBRL, receitaCicloCliente, receitaMensalCliente,
+  useStore, formatBRL, formatBRLPreciso, receitaCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
@@ -111,7 +111,7 @@ function MauFechamentoEditor({
         <div>
           <h5 className="text-xs font-semibold uppercase tracking-wider text-primary">MAU do mês</h5>
           <p className="text-[11px] text-muted-foreground">
-            Inclusos no plano: <strong>{contatosInclusos.toLocaleString("pt-BR")}</strong> · Unit. excedente: <strong>{formatBRL(valorContatosExc)}</strong>
+            Inclusos no plano: <strong>{contatosInclusos.toLocaleString("pt-BR")}</strong> · Unit. excedente: <strong>{formatBRLPreciso(valorContatosExc)}</strong>
           </p>
         </div>
         {valorSalvo > 0 && (
@@ -136,7 +136,7 @@ function MauFechamentoEditor({
           {excedente > 0 ? (
             <>
               <strong>{excedente.toLocaleString("pt-BR")}</strong> excedentes ×{" "}
-              {formatBRL(valorContatosExc)} ={" "}
+              {formatBRLPreciso(valorContatosExc)} ={" "}
               <span className="text-primary font-semibold">+{formatBRL(acrescimo)}</span>
             </>
           ) : mau ? (
@@ -878,7 +878,7 @@ function ResumoPage() {
     if (!fechamentoData) return [];
     return fechamentoData.detalhesPorCliente.map((d) => {
       const mauInclusos = d.plano?.contatosInclusos ?? 500;
-      const mauUnit = d.plano?.valorContatosExc ?? d.plano?.valorCanaisExc ?? 0.10;
+      const mauUnit = d.plano?.valorContatosExc ?? d.plano?.valorCanaisExc ?? 0.095;
       const raw = mauPorCliente[d.cliente.id];
       const mauMes = Math.max(0, Math.floor(Number(raw) || 0));
       const mauExcedenteQtd = Math.max(0, mauMes - mauInclusos);
@@ -2020,7 +2020,7 @@ function ResumoPage() {
                             <td className="p-2 text-right text-xs">
                               {d.mauExcedenteQtd > 0 ? (
                                 <span className="text-primary font-semibold">
-                                  {d.mauExcedenteQtd.toLocaleString("pt-BR")} × {formatBRL(d.mauUnit)} = +{formatBRL(d.mauExcedenteValor)}
+                                  {d.mauExcedenteQtd.toLocaleString("pt-BR")} × {formatBRLPreciso(d.mauUnit)} = +{formatBRL(d.mauExcedenteValor)}
                                 </span>
                               ) : d.mauInformado ? (
                                 <span className="text-accent">dentro do plano</span>
@@ -2580,7 +2580,7 @@ function ResumoPage() {
               const vInsta = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.90;
               const vMsg = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.90;
               const vUsers = plano.valorUsuariosExc ?? 39.90;
-              const vCont = plano.valorContatosExc ?? 0.10;
+              const vCont = plano.valorContatosExc ?? 0.095;
               const vZapi = plano.valorZapi ?? 149.00;
               const vIA = plano.valorIA ?? 99.00;
               const vAsaas = plano.valorAsaas ?? 89.00;
@@ -2887,7 +2887,7 @@ function ResumoPage() {
                             itemId={it.id}
                             snapshot={(it.payloadSnapshot ?? {}) as Record<string, unknown>}
                             contatosInclusos={planoAtual?.contatosInclusos ?? 500}
-                            valorContatosExc={planoAtual?.valorContatosExc ?? planoAtual?.valorCanaisExc ?? 0.10}
+                            valorContatosExc={planoAtual?.valorContatosExc ?? planoAtual?.valorCanaisExc ?? 0.095}
                             onSalvar={async (mauMes) => {
                               try {
                                 await atualizarMauFechamentoItem?.(it.id, mauMes);
