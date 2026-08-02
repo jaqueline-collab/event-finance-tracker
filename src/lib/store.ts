@@ -35,6 +35,7 @@ import {
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
 import { toast } from "sonner";
+import { cadastrarClienteComSetup } from "./clientes.functions";
 
 // ===== Helpers de persistência segura =====
 
@@ -461,26 +462,20 @@ export const useStore = create<State>()(
         if (!userId) {
           throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
         }
-        const { error } = await gravarComPrazo(
-          supabase
-            .from("elora_clientes")
-            .insert({ ...mapClienteToDb(novoCliente), user_id: userId } as never),
+        const result = await gravarComPrazo(
+          cadastrarClienteComSetup({
+            data: {
+              cliente: mapClienteToDb(novoCliente),
+              movimento: movimentoToDb(setupMovimento),
+            },
+          }),
           "cadastro do cliente",
+          20000,
         );
-        if (error) {
-          console.error("Erro ao salvar cliente no Supabase:", error);
-          throw error;
-        }
-        const { error: movError } = await gravarComPrazo(
-          supabase
-            .from("elora_movimentos")
-            .insert({ ...movimentoToDb(setupMovimento), user_id: userId } as never),
-          "setup inicial do cliente",
-        );
-        if (movError) {
+        if (!result.setupSalvo) {
           // Cliente já gravado; avisa mas não desfaz o cadastro do usuário.
-          console.error("Erro ao salvar setup inicial no Supabase:", movError);
-          toast.error(mensagemErroPersistencia(movError, "Setup inicial do cliente"));
+          console.error("Erro ao salvar setup inicial:", result.setupErro);
+          toast.error(mensagemErroPersistencia(new Error(result.setupErro ?? "Falha desconhecida"), "Setup inicial do cliente"));
           set({ clientes: [...get().clientes, novoCliente] });
           return id;
         }

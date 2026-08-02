@@ -3,6 +3,7 @@
 // que disputa a trava de auth com a renovação de token.
 
 let cachedUserId: string | null = null;
+let cachedAccessToken: string | null = null;
 
 export function setCachedUserId(id: string | null) {
   cachedUserId = id;
@@ -10,4 +11,12 @@ export function setCachedUserId(id: string | null) {
 
 export function getCachedUserId(): string | null {
   return cachedUserId;
+}
+
+export function setCachedAccessToken(token: string | null) {
+  cachedAccessToken = token;
+}
+
+export function getCachedAccessToken(): string | null {
+  return cachedAccessToken;
 }
