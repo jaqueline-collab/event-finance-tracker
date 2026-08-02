@@ -97,6 +97,7 @@ export type Database = {
           observacao: string | null
           parceiro_id: string | null
           plano_id: string | null
+          status_comercial: string
           transcricao_ia: boolean | null
           updated_at: string
           user_id: string
@@ -130,6 +131,7 @@ export type Database = {
           observacao?: string | null
           parceiro_id?: string | null
           plano_id?: string | null
+          status_comercial?: string
           transcricao_ia?: boolean | null
           updated_at?: string
           user_id?: string
@@ -163,6 +165,7 @@ export type Database = {
           observacao?: string | null
           parceiro_id?: string | null
           plano_id?: string | null
+          status_comercial?: string
           transcricao_ia?: boolean | null
           updated_at?: string
           user_id?: string
