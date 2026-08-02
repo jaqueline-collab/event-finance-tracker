@@ -360,15 +360,21 @@ function ResumoPage() {
     return churn <= ciclo.fim;
   };
 
-  // Cliente é elegível ao fechamento de uma competência quando o ciclo já
-  // encerrou ou quando hoje é o último dia do ciclo.
+  // Antecipação liberada: basta o cliente estar ativo em algum dia do ciclo
+  // da competência. O ciclo pode estar em aberto (fechamento antecipado).
   const clienteElegivelParaFechamento = (
+    c: typeof clientes[number],
+    y: number,
+    m: number,
+  ) => clienteAtivoNoCiclo(c, y, m);
+
+  // Apenas informativo: o ciclo da competência já terminou?
+  const cicloJaEncerrado = (
     c: typeof clientes[number],
     y: number,
     m: number,
     hoje: Date,
   ) => {
-    if (!clienteAtivoNoCiclo(c, y, m)) return false;
     const ciclo = cicloDoCliente(c, y, m);
     const fim = new Date(ciclo.fim.getFullYear(), ciclo.fim.getMonth(), ciclo.fim.getDate());
     return fim <= hoje;
