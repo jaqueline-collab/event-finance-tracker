@@ -435,35 +435,30 @@ export const useStore = create<State>()(
         });
         return id;
       },
-      updateCliente: (id, c) => {
+      updateCliente: async (id, c) => {
         const anterior = get().clientes.find((x) => x.id === id);
-        const clientes = get().clientes.map((x) => {
-          if (x.id !== id) return x;
-          const merged = { ...x, ...c };
-          return {
-            ...merged,
-            dataVencimento: normalizarDataVencimento(merged.dataInicio, merged.dataVencimento),
-          };
-        });
-        set({ clientes });
-        const updated = clientes.find((x) => x.id === id);
-        if (updated && anterior) {
-          // Envia SOMENTE os campos que realmente mudaram.
-          const patch = diffClienteToDb(anterior, updated);
-          if (Object.keys(patch).length) {
-            supabase.from("elora_clientes").update(patch).eq("id", id).then(({ error }) => {
-              if (error) console.error("Erro ao atualizar cliente no Supabase:", error);
-            });
-          }
+        if (!anterior) return;
+        const merged = { ...anterior, ...c };
+        const updated = {
+          ...merged,
+          dataVencimento: normalizarDataVencimento(merged.dataInicio, merged.dataVencimento),
+        };
+        // Envia SOMENTE os campos que realmente mudaram.
+        const patch = diffClienteToDb(anterior, updated);
+        if (Object.keys(patch).length) {
+          await requireAuthUid("Atualização de cliente");
+          const { error } = await supabase.from("elora_clientes").update(patch).eq("id", id);
+          if (error) falharPersistencia(error, "Atualização de cliente");
         }
+        set({ clientes: get().clientes.map((x) => (x.id === id ? updated : x)) });
       },
-      removeCliente: (id) => {
+      removeCliente: async (id) => {
+        await requireAuthUid("Exclusão de cliente");
+        const { error } = await supabase.from("elora_clientes").delete().eq("id", id);
+        if (error) falharPersistencia(error, "Exclusão de cliente");
         set({
           clientes: get().clientes.filter((x) => x.id !== id),
           movimentos: get().movimentos.filter((m) => m.clienteId !== id),
-        });
-        supabase.from("elora_clientes").delete().eq("id", id).then(({ error }) => {
-          if (error) console.error("Erro ao remover cliente no Supabase:", error);
         });
       },
 
