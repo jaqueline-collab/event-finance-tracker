@@ -994,8 +994,8 @@ function ResumoPage() {
       let aguardando = 0;
       for (const c of clientesFiltrados) {
         if (!clienteAtivoNoCiclo(c, y, m)) continue;
-        if (clienteElegivelParaFechamento(c, y, m, hoje)) elegiveis++;
-        else aguardando++;
+        elegiveis++;
+        if (!cicloJaEncerrado(c, y, m, hoje)) aguardando++;
       }
       if (elegiveis === 0) continue;
       const key = `${y}-${String(m + 1).padStart(2, "0")}`;
