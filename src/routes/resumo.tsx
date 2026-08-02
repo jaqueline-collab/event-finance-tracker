@@ -2202,7 +2202,7 @@ function ResumoPage() {
                               {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
                               {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
                             </div>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dg.id)}>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dg.id).catch(() => {}); }}>
                               <Trash2 className="h-3 w-3 text-destructive" />
                             </Button>
                           </div>
@@ -2222,7 +2222,7 @@ function ResumoPage() {
                                 {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
                                 {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
                               </div>
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dc.id)}>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dc.id).catch(() => {}); }}>
                                 <Trash2 className="h-3 w-3 text-destructive" />
                               </Button>
                             </div>
