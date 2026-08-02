@@ -114,6 +114,28 @@ function falharPersistencia(err: unknown, contexto: string): never {
   throw err;
 }
 
+/** Impede que uma gravação mantenha a interface aguardando indefinidamente. */
+async function gravarComPrazo<T>(
+  operacao: PromiseLike<T>,
+  etapa: string,
+  timeoutMs = 12000,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(operacao),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`timeout-gravacao: ${etapa}`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 /** Converte erros do Supabase em mensagens claras para o usuário. */
 export function mensagemErroPersistencia(err: unknown, contexto: string): string {
   const e = err as { message?: string; code?: string; details?: string } | null;
@@ -136,6 +158,13 @@ export function mensagemErroPersistencia(err: unknown, contexto: string): string
   }
   if (raw.includes("failed to fetch") || raw.includes("network")) {
     return "Falha de conexão com o banco. Verifique sua internet e tente novamente.";
+  }
+  if (
+    raw.includes("timeout-gravacao") ||
+    raw.includes("aborterror") ||
+    raw.includes("aborted")
+  ) {
+    return `${contexto}: a gravação excedeu o tempo limite. Verifique sua conexão e tente novamente.`;
   }
   return `${contexto}${e?.message ? `: ${e.message}` : "."}`;
 }
@@ -432,16 +461,22 @@ export const useStore = create<State>()(
         if (!userId) {
           throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
         }
-        const { error } = await supabase
-          .from("elora_clientes")
-          .insert({ ...mapClienteToDb(novoCliente), user_id: userId } as never);
+        const { error } = await gravarComPrazo(
+          supabase
+            .from("elora_clientes")
+            .insert({ ...mapClienteToDb(novoCliente), user_id: userId } as never),
+          "cadastro do cliente",
+        );
         if (error) {
           console.error("Erro ao salvar cliente no Supabase:", error);
           throw error;
         }
-        const { error: movError } = await supabase
-          .from("elora_movimentos")
-          .insert({ ...movimentoToDb(setupMovimento), user_id: userId } as never);
+        const { error: movError } = await gravarComPrazo(
+          supabase
+            .from("elora_movimentos")
+            .insert({ ...movimentoToDb(setupMovimento), user_id: userId } as never),
+          "setup inicial do cliente",
+        );
         if (movError) {
           // Cliente já gravado; avisa mas não desfaz o cadastro do usuário.
           console.error("Erro ao salvar setup inicial no Supabase:", movError);
