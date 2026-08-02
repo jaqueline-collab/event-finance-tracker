@@ -1,46 +1,56 @@
-# Correção do botão "Gerar Fechamento"
+# Fechamento Mensal — MAU no fluxo principal, sem gráfico no PDF, ordem dos campos
 
-## Diagnóstico (leitura, nada alterado)
+## 1. MAU por cliente direto na tela de Gerar Fechamento
 
-**1. Existe condição silenciosa?**
-Sim — mas não é `disabled`. Nenhum dos dois botões tem `disabled`:
-
-- Botão do topo (`src/routes/resumo.tsx:1453`) apenas abre o modal (`abrirNovoFechamento()`).
-- Botão real de gravação, dentro do modal, "Gerar fechamento" (`resumo.tsx:1911`), chama `enviarParaFinanceiro()`, cuja **primeira linha é um return mudo**:
+Hoje o MAU só existe **depois** que o fechamento foi gerado, no `MauFechamentoEditor` dentro do modal de auditoria (`resumo.tsx:2873`), que grava via `atualizarMauFechamentoItem` na store. A regra de cálculo já está definida ali e será reaproveitada sem alteração:
 
 ```text
-if (!fechamentoData || !fechamentoSelecionado) return;   // sem toast, sem log, sem spinner
+excedente = max(0, MAU informado - plano.contatosInclusos)
+acréscimo = excedente × plano.valorContatosExc   (fallback: valorCanaisExc, senão 0,10)
 ```
 
-Quando a competência selecionada não produz dados (ciclo em aberto, nenhum cliente elegível/selecionado, filtros de plano/parceiro/vencimento zerando a lista), o clique não faz literalmente nada. Só existe aviso quando a lista chega vazia por outro caminho (`detalhes.length === 0`).
+O que muda:
 
-**2. Passou pela correção de "toast explicativo + saving"?**
-Não. `resumo.tsx` recebeu o padrão apenas no botão de desconto (`savingDesconto`, linha 2537) e no salvar do MAU (linha 150). O fluxo de fechamento ficou de fora: sem estado `saving`, sem spinner, sem validação explicativa. É exatamente a lacuna.
+- Novo estado local `mauPorCliente: Record<clienteId, number>` no modal de fechamento, resetado quando a competência muda.
+- Na tabela de clientes selecionáveis do modal, cada linha ganha uma coluna **MAU do mês** (input numérico) e uma coluna **Excedente** mostrando `qtd × unitário = +R$ X`, ou "dentro do plano".
+- Bloco-resumo acima da tabela: total de MAU excedente do fechamento (soma dos acréscimos).
+- O acréscimo entra na composição em `fechamentoSelecionado`: `subtotal` do cliente passa a ser `subtotal + mauExcedenteValor`, propagando naturalmente para desconto por cliente, `totalReceita`, ticket médio, KPIs, PDF e para os lançamentos do Financeiro.
+- No snapshot gravado (`payloadSnapshot`) vão os mesmos campos que o editor pós-fechamento usa — `mauMes`, `mauExcedenteQtd`, `mauExcedenteValor`, `mauUnit`, `mauInclusos` — para que o editor de auditoria continue coerente e não duplique o valor.
+- O `MauFechamentoEditor` do modal de auditoria permanece como está (edição posterior).
 
-**3. `addFechamento()` foi migrado para função de servidor?**
-Não. Em `src/lib/store.ts:767` ele ainda usa o caminho do navegador: `getAuthUid()` + `insert()` direto em `elora_fechamentos`/`elora_fechamento_itens`, sem prazo (timeout). `addLancamento`, chamado antes dele no mesmo fluxo, segue o mesmo caminho. Ou seja: mesmo quando o clique passa da validação, ele pode ficar pendurado sem retorno — o mesmo padrão que travava Clientes e Movimentos.
+## 2. Remover gráficos do PDF
 
-## Correção proposta
+- Remove o estado `incluirGraficos` e o checkbox "Incluir gráficos no PDF" da tela (`resumo.tsx:1884`).
+- Remove o bloco de desenho do gráfico de receita no PDF (`resumo.tsx:1186` em diante). O PDF passa a ter só tabelas e observações.
+- O gráfico de área exibido **na tela** (fora do PDF) não é alterado — se preferir removê-lo também, é só dizer.
 
-### A. Feedback explícito no botão (frontend)
-- Trocar o `return` mudo por validações com `toast.error` específicas: sem competência selecionada, sem dados no ciclo, nenhum cliente selecionado.
-- Adicionar estado `gerandoFechamento`: botão "Gerar fechamento" com spinner + texto "Gerando..." e `disabled` apenas durante a gravação (nunca antes).
-- Botão do topo continua abrindo o modal, mas avisa por toast quando não há competência elegível em vez de abrir um modal vazio.
+## 3. Nova ordem da tela (modal Gerar Fechamento)
 
-### B. Migração para função de servidor autenticada
-- Criar `src/lib/fechamentos.schemas.ts` (Zod: fechamento + itens + lançamentos financeiros).
-- Criar `src/lib/fechamentos.functions.ts` com `registrarFechamento` (`createServerFn` + `requireSupabaseAuth`), que numa única chamada:
-  1. insere os lançamentos em `elora_financeiro`;
-  2. insere o fechamento pai em `elora_fechamentos` com `criado_por = context.userId`;
-  3. insere os itens em `elora_fechamento_itens`;
-  4. em caso de erro, desfaz o que criou nessa chamada e devolve mensagem de erro real.
-- Módulo mantido como wrapper fino (helpers em `fechamentos.server.ts`), conforme o padrão já usado em clientes/movimentos.
-- `addFechamento` na store passa a chamar a função de servidor via `gravarComPrazo(..., 20000)` e só atualiza o Zustand após sucesso confirmado.
+```text
+Cabeçalho: competência + resumo   [Limpar tudo] [Gerar relatório (PDF)]
+--------------------------------------------------------------
+1. KPIs do fechamento (clientes, setups, churns, total)
+2. Métricas secundárias (LTV, ticket, sistema, acompanhamento)
+3. Clientes do ciclo  ->  seleção + MAU do mês + excedente   (NOVO)
+4. Descontos aplicados
+5. Modo de envio (consolidado / por cliente) + nome do boleto
+6. Enviar por e-mail
+7. Observação (impressa no final do PDF)                     (movido p/ baixo)
+--------------------------------------------------------------
+                                     [ Gerar Fechamento ]  (rodapé, fim de tudo)
+```
 
-### C. Escopo protegido
-- Nenhum fechamento existente (fev–jun/2026) é lido, alterado ou apagado.
-- Nada é gerado: a correção só torna o botão funcional e falante.
-- Nenhuma rotina de limpeza/importação em lote é adicionada.
+- A seção "Enviar para o Financeiro", hoje no meio da tela, deixa de ter botão próprio: o disparo passa a ser o botão único **Gerar Fechamento** no rodapé, depois da Observação.
+- O botão mantém a validação com toast e o estado de "Gerando..." com spinner.
+
+## Escopo protegido
+
+Nada é gerado nem alterado: fechamentos de fevereiro a junho ficam intactos, e `elora_clientes`, `elora_movimentos`, `elora_planos`, `elora_parceiros`, `elora_descontos` e `elora_custos_wts` não são tocados. Sem migração de banco.
+
+## Validação antes de concluir
+
+Teste numérico com exemplo real (só leitura do plano, sem gravar): informo um MAU acima da franquia de um cliente do ciclo e confiro na tela que `excedente × unitário` bate com o cálculo manual e que o total do fechamento sobe exatamente esse valor. Mostro o resultado antes de você dar por concluído.
 
 ## Detalhes técnicos
-Arquivos tocados: `src/routes/resumo.tsx` (validação + estado de saving), `src/lib/store.ts` (`addFechamento`), novos `src/lib/fechamentos.schemas.ts`, `src/lib/fechamentos.functions.ts`, `src/lib/fechamentos.server.ts`. Sem migração de banco.
+
+Arquivo tocado: `src/routes/resumo.tsx` (estado de MAU, coluna na tabela, composição em `fechamentoSelecionado`, snapshot em `enviarParaFinanceiro`, remoção do gráfico no `exportarFechamentoPdf`, reordenação do JSX do modal). Sem mudanças em `store.ts` nem no banco.
