@@ -100,7 +100,7 @@ export const mapDbToPlano = (r: any): Plano => {
     precoCanalMessengerExc: Number(r.preco_canal_messenger_exc ?? r.preco_canais_exc ?? 29.90),
     valorCanaisExc: Number(r.valor_canais_exc ?? 59.90),
     valorUsuariosExc: Number(r.valor_usuarios_exc ?? 39.90),
-    valorContatosExc: Number(r.valor_contatos_exc ?? 0.10),
+    valorContatosExc: Number(r.valor_contatos_exc ?? 0.095),
     valorIA: Number(r.valor_ia ?? 99.00),
     valorAsaas: Number(r.valor_asaas ?? 89.00),
     valorZapi: Number(r.valor_zapi ?? 149.00),
