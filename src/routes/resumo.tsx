@@ -164,7 +164,7 @@ function MauFechamentoEditor({
 function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros, financeiro,
-    addLancamento, descontos, addDesconto, removeDesconto,
+    descontos, addDesconto, removeDesconto,
   fechamentos = [], fechamentoItens = [], removeFechamento, updateFechamento,
     gerarFechamentoNoServidor,
     restaurarFechamento, excluirFechamentoDefinitivo,
