@@ -36,6 +36,7 @@ import {
 import { normalizarDataVencimento } from "./calc/datas";
 import { toast } from "sonner";
 import { cadastrarClienteComSetup } from "./clientes.functions";
+import { registrarMovimento } from "./movimentos.functions";
 
 // ===== Helpers de persistência segura =====
 
