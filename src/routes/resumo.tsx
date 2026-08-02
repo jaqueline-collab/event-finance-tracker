@@ -261,7 +261,7 @@ function ResumoPage() {
     setDescMotivo("");
   };
 
-  const salvarDesconto = () => {
+  const salvarDesconto = async () => {
     if (!descontoModal || !fechamentoData) return;
     const valorNum = descTipo === "isencao_total" ? null : Number(descValor.replace(",", "."));
     if (descTipo !== "isencao_total" && (!Number.isFinite(valorNum!) || valorNum! <= 0)) {
@@ -272,16 +272,20 @@ function ResumoPage() {
       toast.error("Percentual não pode passar de 100%.");
       return;
     }
-    addDesconto({
-      clienteId: descontoModal.clienteId,
-      tipo: descTipo,
-      escopo: descontoModal.escopo,
-      valor: valorNum,
-      competenciaInicio: fechamentoData.competenciaKey,
-      competenciaFim: null,
-      recorrente: descRecorrente,
-      motivo: descMotivo.trim() || null,
-    });
+    try {
+      await addDesconto({
+        clienteId: descontoModal.clienteId,
+        tipo: descTipo,
+        escopo: descontoModal.escopo,
+        valor: valorNum,
+        competenciaInicio: fechamentoData.competenciaKey,
+        competenciaFim: null,
+        recorrente: descRecorrente,
+        motivo: descMotivo.trim() || null,
+      });
+    } catch {
+      return; // erro já reportado via toast pela store
+    }
     toast.success("Desconto aplicado.");
     setDescontoModal(null);
     resetDescontoForm();
