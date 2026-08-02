@@ -268,10 +268,10 @@ function ClientesPage() {
     if (!acaoClienteId) return;
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
     // Editing: remove old (revertendo deltas) e recria com novos valores
-    if (editMovId) {
-      removeMovimento(editMovId);
-    }
     try {
+      if (editMovId) {
+        await removeMovimento(editMovId);
+      }
       await addMovimento({
       clienteId: acaoClienteId,
       data: movForm.data,
@@ -300,12 +300,16 @@ function ClientesPage() {
 
   const confirmarRemocaoCliente = (c: Cliente) => {
     const texto = `Excluir o cliente ${c.nome}?\n\nEsta ação remove o cadastro e pode esconder lançamentos/histórico ligados a ele. Só confirme se isso foi solicitado explicitamente.`;
-    if (window.confirm(texto)) removeCliente(c.id);
+    if (window.confirm(texto)) {
+      void removeCliente(c.id).catch(() => {});
+    }
   };
 
   const confirmarRemocaoMovimento = (mv: Movimento) => {
     const texto = `Excluir esta movimentação de ${mv.data.split("-").reverse().join("/")}?\n\nSe for upgrade/downgrade, os valores atuais do cliente serão recalculados. Só confirme se isso foi solicitado explicitamente.`;
-    if (window.confirm(texto)) removeMovimento(mv.id);
+    if (window.confirm(texto)) {
+      void removeMovimento(mv.id).catch(() => {});
+    }
   };
 
   const openEditMovimento = (mv: Movimento) => {
