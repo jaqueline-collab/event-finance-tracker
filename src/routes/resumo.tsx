@@ -736,6 +736,8 @@ function ResumoPage() {
         receita: resDesc.total,
         acomp, sistema,
         movs: movsCliente, venc, ltvDias,
+        cicloAberto: !cicloJaEncerrado(c, cy, cm, hoje),
+        cicloFimLabel: cicloDoCliente(c, cy, cm).fim.toLocaleDateString("pt-BR"),
       };
     });
 
