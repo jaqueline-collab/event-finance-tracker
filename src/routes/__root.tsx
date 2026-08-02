@@ -15,7 +15,7 @@ import appCss from "../styles.css?url";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client-configured";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";

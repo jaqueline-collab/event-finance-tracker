@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client-configured";
 import { MODULES, useCurrentUserAccess, type PermissionRow } from "@/lib/permissions";
 
 export const Route = createFileRoute("/usuarios")({
