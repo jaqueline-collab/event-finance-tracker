@@ -184,28 +184,28 @@ interface State {
   updateCusto: (id: string, c: Partial<CustoBase>) => void;
   removeCusto: (id: string) => void;
   // planos
-  addPlano: (p: Omit<Plano, "id">) => void;
-  updatePlano: (id: string, p: Partial<Plano>) => void;
-  removePlano: (id: string) => void;
+  addPlano: (p: Omit<Plano, "id">) => Promise<string>;
+  updatePlano: (id: string, p: Partial<Plano>) => Promise<void>;
+  removePlano: (id: string) => Promise<void>;
   // clientes
   addCliente: (c: Omit<Cliente, "id">) => Promise<string>;
-  updateCliente: (id: string, c: Partial<Cliente>) => void;
-  removeCliente: (id: string) => void;
+  updateCliente: (id: string, c: Partial<Cliente>) => Promise<void>;
+  removeCliente: (id: string) => Promise<void>;
   // movimentos
   addMovimento: (m: Omit<Movimento, "id">) => Promise<void>;
-  removeMovimento: (id: string) => void;
+  removeMovimento: (id: string) => Promise<void>;
   // parceiros
-  addParceiro: (p: Omit<Parceiro, "id" | "criadoEm">) => void;
-  updateParceiro: (id: string, p: Partial<Parceiro>) => void;
-  removeParceiro: (id: string) => void;
+  addParceiro: (p: Omit<Parceiro, "id" | "criadoEm">) => Promise<string>;
+  updateParceiro: (id: string, p: Partial<Parceiro>) => Promise<void>;
+  removeParceiro: (id: string) => Promise<void>;
   // financeiro
   addLancamento: (l: Omit<LancamentoFinanceiro, "id">) => Promise<string>;
-  updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => void;
-  removeLancamento: (id: string) => void;
+  updateLancamento: (id: string, l: Partial<LancamentoFinanceiro>) => Promise<void>;
+  removeLancamento: (id: string) => Promise<void>;
   // descontos
-  addDesconto: (d: Omit<Desconto, "id">) => string;
-  updateDesconto: (id: string, d: Partial<Desconto>) => void;
-  removeDesconto: (id: string) => void;
+  addDesconto: (d: Omit<Desconto, "id">) => Promise<string>;
+  updateDesconto: (id: string, d: Partial<Desconto>) => Promise<void>;
+  removeDesconto: (id: string) => Promise<void>;
   // fechamentos
   addFechamento: (
     f: Omit<Fechamento, "id">,
