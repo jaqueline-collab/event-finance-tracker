@@ -17,7 +17,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente, mensagemErroPersistencia } from "@/lib/store";
 import { toast } from "sonner";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
@@ -46,6 +46,8 @@ function ClientesPage() {
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
   const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
+  const [savingCliente, setSavingCliente] = useState(false);
+  const [savingMovimento, setSavingMovimento] = useState(false);
   
   const [form, setForm] = useState({
     nome: "",
