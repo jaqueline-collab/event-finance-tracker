@@ -228,6 +228,9 @@ function ResumoPage() {
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
   const [observacaoPdf, setObservacaoPdf] = useState("");
+  const [gerandoFechamento, setGerandoFechamento] = useState(false);
+  // MAU informado por cliente diretamente no fluxo de Gerar Fechamento
+  const [mauPorCliente, setMauPorCliente] = useState<Record<string, string>>({});
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
   const [emailDestino, setEmailDestino] = useState("");
   // Nome do boleto / descrição que será gravada no Financeiro.
