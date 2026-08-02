@@ -9,6 +9,7 @@ const clienteRowSchema = z.object({
   data_inicio: z.string().nullable().optional(),
   data_vencimento: z.string().nullable().optional(),
   data_churn: z.string().nullable().optional(),
+  status_comercial: z.string().max(20).nullable().optional(),
   ciclo_personalizado: z.boolean().optional(),
   ciclo_dia_inicial: z.number().int().min(1).max(31).nullable().optional(),
   ciclo_dia_final: z.number().int().min(1).max(31).nullable().optional(),

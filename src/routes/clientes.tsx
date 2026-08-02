@@ -38,7 +38,7 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
 ];
 
 function ClientesPage() {
-  const { clientes, planos, custos, movimentos, parceiros, addCliente, removeCliente, addMovimento, removeMovimento } = useStore();
+  const { clientes, planos, custos, movimentos, parceiros, addCliente, updateCliente, removeCliente, addMovimento, removeMovimento } = useStore();
   const [open, setOpen] = useState(false);
   
   // Modal de Ação (Movimento)
@@ -56,6 +56,7 @@ function ClientesPage() {
     parceiroId: planos[0]?.parceiroIds?.[0] ?? "",
     dataInicio: new Date().toISOString().slice(0, 10),
     dataVencimento: "",
+    statusComercial: "ativo" as "ativo" | "trial",
     cicloPersonalizado: false,
     cicloDiaInicial: "",
     cicloDiaFinal: "",
@@ -363,7 +364,6 @@ function ClientesPage() {
 
   // Aplica os filtros (sem ordenação) — base para métricas e lista
   const clientesFiltrados = useMemo(() => {
-    const hoje = new Date();
     return clientes.filter((c) => {
       if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
       if (parceiroSel.length > 0 && !parceiroSel.includes(c.parceiroId || "")) return false;
@@ -374,15 +374,12 @@ function ClientesPage() {
       if (churnRange?.to && (!c.dataChurn || c.dataChurn > churnRange.to)) return false;
       if (situacaoSel.length > 0) {
         const cancelado = !!c.dataChurn;
-        const inicio = new Date(c.dataInicio);
-        const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
-        const isTrial = !cancelado && dias <= 14;
-        const isAtivo = !cancelado && !isTrial;
-        const labels: string[] = [];
-        if (cancelado) labels.push("cancelado");
-        if (isTrial) labels.push("trial");
-        if (isAtivo) labels.push("ativo");
-        if (!situacaoSel.some((s) => labels.includes(s))) return false;
+        const situacao = cancelado
+          ? "cancelado"
+          : c.statusComercial === "trial"
+            ? "trial"
+            : "ativo";
+        if (!situacaoSel.includes(situacao)) return false;
       }
       return true;
     });
@@ -447,8 +444,8 @@ function ClientesPage() {
           { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
           { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
           { key: "situacao", label: "Situação", type: "multi", options: [
-            { value: "trial", label: "Trial (até 14 dias)" },
             { value: "ativo", label: "Ativo" },
+            { value: "trial", label: "Trial" },
             { value: "cancelado", label: "Cancelado" },
           ] },
           { key: "setup", label: "Data de setup", type: "dateRange" },
@@ -533,6 +530,16 @@ function ClientesPage() {
                   <div>
                     <Label className="mb-1.5 block font-medium">Próximo Vencimento (Dia)</Label>
                     <Input type="number" min={1} max={31} placeholder="Ex: 5, 10, 15..." value={form.dataVencimento} onChange={(e) => setForm({ ...form, dataVencimento: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="mb-1.5 block font-medium">Status inicial</Label>
+                    <Select value={form.statusComercial} onValueChange={(v) => setForm({ ...form, statusComercial: v === "trial" ? "trial" : "ativo" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ativo">Ativo</SelectItem>
+                        <SelectItem value="trial">Trial</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -826,6 +833,7 @@ function ClientesPage() {
                         dataInicio: form.dataInicio,
                         dataChurn: null,
                         dataVencimento: form.dataVencimento || null,
+                        statusComercial: form.statusComercial,
                         parceiroId: form.parceiroId || null,
                         canais: form.canaisWhats + form.canaisInsta + form.canaisMessenger,
                         canaisZapi: form.canaisZapi,
@@ -861,6 +869,7 @@ function ClientesPage() {
                         parceiroId: "",
                         dataInicio: new Date().toISOString().slice(0, 10),
                         dataVencimento: "",
+                        statusComercial: "ativo",
                         cicloPersonalizado: false,
                         cicloDiaInicial: "",
                         cicloDiaFinal: "",
@@ -939,6 +948,9 @@ function ClientesPage() {
                         >
                           {c.nome}
                         </span>
+                        {!c.dataChurn && c.statusComercial === "trial" && (
+                          <Badge className="w-fit text-[10px] bg-yellow-500/20 text-yellow-500 border-none font-semibold">Trial</Badge>
+                        )}
                         {c.dataVencimento && (
                           <span className="text-[10px] text-muted-foreground font-normal">
                             Vencimento: Dia {formatDiaVencimento(c.dataVencimento)}
@@ -1086,9 +1098,34 @@ function ClientesPage() {
                 <DialogHeader className="border-b border-border pb-4">
                   <DialogTitle className="text-2xl flex items-center justify-between">
                     <span>{cliente.nome}</span>
-                    <Badge variant={cliente.dataChurn ? "destructive" : "outline"} className={cliente.dataChurn ? "bg-destructive/20 text-destructive font-semibold border-none" : "bg-accent/20 text-accent font-semibold border-none"}>
-                      {cliente.dataChurn ? "Inativo / Churn" : "Ativo"}
-                    </Badge>
+                    {cliente.dataChurn ? (
+                      <Badge variant="destructive" className="bg-destructive/20 text-destructive font-semibold border-none">
+                        Inativo / Churn
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-normal text-muted-foreground">Status</span>
+                        <Select
+                          value={cliente.statusComercial === "trial" ? "trial" : "ativo"}
+                          onValueChange={async (v) => {
+                            const novo = v === "trial" ? "trial" : "ativo";
+                            if (novo === (cliente.statusComercial ?? "ativo")) return;
+                            try {
+                              await updateCliente(cliente.id, { statusComercial: novo });
+                              toast.success(`Status alterado para ${novo === "trial" ? "Trial" : "Ativo"}.`);
+                            } catch (err) {
+                              toast.error(mensagemErroPersistencia(err, "Atualização do status"));
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-32 text-sm font-normal"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ativo">Ativo</SelectItem>
+                            <SelectItem value="trial">Trial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </DialogTitle>
                 </DialogHeader>
                 
