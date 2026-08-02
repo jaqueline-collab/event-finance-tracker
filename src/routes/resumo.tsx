@@ -227,7 +227,6 @@ function ResumoPage() {
   const fechamentoMes = competenciaNovoFechamento || competenciaSel || defaultCompetencia;
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
-  const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [observacaoPdf, setObservacaoPdf] = useState("");
   const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
   const [emailDestino, setEmailDestino] = useState("");
