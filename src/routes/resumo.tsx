@@ -360,15 +360,21 @@ function ResumoPage() {
     return churn <= ciclo.fim;
   };
 
-  // Cliente é elegível ao fechamento de uma competência quando o ciclo já
-  // encerrou ou quando hoje é o último dia do ciclo.
+  // Antecipação liberada: basta o cliente estar ativo em algum dia do ciclo
+  // da competência. O ciclo pode estar em aberto (fechamento antecipado).
   const clienteElegivelParaFechamento = (
+    c: typeof clientes[number],
+    y: number,
+    m: number,
+  ) => clienteAtivoNoCiclo(c, y, m);
+
+  // Apenas informativo: o ciclo da competência já terminou?
+  const cicloJaEncerrado = (
     c: typeof clientes[number],
     y: number,
     m: number,
     hoje: Date,
   ) => {
-    if (!clienteAtivoNoCiclo(c, y, m)) return false;
     const ciclo = cicloDoCliente(c, y, m);
     const fim = new Date(ciclo.fim.getFullYear(), ciclo.fim.getMonth(), ciclo.fim.getDate());
     return fim <= hoje;
@@ -646,8 +652,9 @@ function ResumoPage() {
     const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     // Apenas clientes cujo ciclo da competência já encerrou entram no fechamento.
     const ativosTodos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
-    const ativos = ativosTodos.filter((c) => clienteElegivelParaFechamento(c, cy, cm, hoje));
-    const aguardandoCicloFechar = ativosTodos.filter((c) => !clienteElegivelParaFechamento(c, cy, cm, hoje));
+    const ativos = ativosTodos;
+    // Informativo: clientes cujo ciclo desta competência ainda não terminou.
+    const cicloEmAberto = ativosTodos.filter((c) => !cicloJaEncerrado(c, cy, cm, hoje));
     // Faixa de ciclos representativa (pode haver clientes com ciclos diferentes).
     const ciclos = ativos.map((c) => cicloDoCliente(c, cy, cm));
     const cicloLabel = (() => {
@@ -729,6 +736,8 @@ function ResumoPage() {
         receita: resDesc.total,
         acomp, sistema,
         movs: movsCliente, venc, ltvDias,
+        cicloAberto: !cicloJaEncerrado(c, cy, cm, hoje),
+        cicloFimLabel: cicloDoCliente(c, cy, cm).fim.toLocaleDateString("pt-BR"),
       };
     });
 
@@ -772,7 +781,7 @@ function ResumoPage() {
       cicloLabel,
       vencimentoLabel,
       ativos,
-      aguardandoCicloFechar,
+      cicloEmAberto,
       setupsNoMes,
       churnsNoMes,
       totalSetups,
@@ -948,17 +957,9 @@ function ResumoPage() {
   };
 
   const abrirNovoFechamento = (mesKey?: string) => {
-    // Preferimos a competência clicada; se não for elegível (ciclo em aberto,
-    // sem clientes), caímos na competência elegível mais recente.
-    const elegiveis = opcoesFechamento.map((o) => o.key);
-    let competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
-    if (!elegiveis.includes(competencia) && elegiveis.length > 0) {
-      const aviso = mesKey
-        ? `Ciclo de ${formatCompetenciaLabel(Number(mesKey.slice(0, 4)), Number(mesKey.slice(5, 7)) - 1)} ainda em aberto — abrindo ${opcoesFechamento[0].label}.`
-        : null;
-      competencia = elegiveis[0];
-      if (aviso) toast.message(aviso);
-    }
+    // A competência clicada é sempre respeitada — ciclos em aberto podem ser
+    // fechados antecipadamente.
+    const competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
     setCompetenciaNovoFechamento(competencia);
     setNomeFechamentoTocado(false);
     setFechamentoOpen(true);
@@ -987,8 +988,8 @@ function ResumoPage() {
       let aguardando = 0;
       for (const c of clientesFiltrados) {
         if (!clienteAtivoNoCiclo(c, y, m)) continue;
-        if (clienteElegivelParaFechamento(c, y, m, hoje)) elegiveis++;
-        else aguardando++;
+        elegiveis++;
+        if (!cicloJaEncerrado(c, y, m, hoje)) aguardando++;
       }
       if (elegiveis === 0) continue;
       const key = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -1869,10 +1870,10 @@ function ResumoPage() {
                           />
                         </div>
                       </div>
-                      {fechamentoData.aguardandoCicloFechar.length > 0 && (
+                      {fechamentoData.cicloEmAberto.length > 0 && (
                         <p className="text-[11px] opacity-90 mt-1">
-                          ⏳ {fechamentoData.aguardandoCicloFechar.length} cliente(s) aguardando fim do ciclo (
-                          {fechamentoData.aguardandoCicloFechar.map((c) => c.nome).join(", ")}) — entram no próximo fechamento.
+                          ⚡ Fechamento antecipado: {fechamentoData.cicloEmAberto.length} cliente(s) com ciclo ainda em aberto (
+                          {fechamentoData.cicloEmAberto.map((c) => c.nome).join(", ")}) — serão cobrados pelo valor cheio do ciclo.
                         </p>
                       )}
                     </div>
@@ -1997,6 +1998,11 @@ function ResumoPage() {
                             <td className="p-2 font-medium">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span>{d.cliente.nome}</span>
+                                {d.cicloAberto && (
+                                  <Badge variant="outline" className="text-[10px] border-sky-500/40 text-sky-600 bg-sky-500/10">
+                                    ciclo em aberto — encerra {d.cicloFimLabel}
+                                  </Badge>
+                                )}
                                 {d.descontosCliente.map((dc) => (
                                   <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-yellow-500/40 text-yellow-600 bg-yellow-500/10">
                                     <Tag className="h-2.5 w-2.5" />
