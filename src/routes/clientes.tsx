@@ -38,7 +38,7 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
 ];
 
 function ClientesPage() {
-  const { clientes, planos, custos, movimentos, parceiros, addCliente, removeCliente, addMovimento, removeMovimento } = useStore();
+  const { clientes, planos, custos, movimentos, parceiros, addCliente, updateCliente, removeCliente, addMovimento, removeMovimento } = useStore();
   const [open, setOpen] = useState(false);
   
   // Modal de Ação (Movimento)
@@ -1098,9 +1098,34 @@ function ClientesPage() {
                 <DialogHeader className="border-b border-border pb-4">
                   <DialogTitle className="text-2xl flex items-center justify-between">
                     <span>{cliente.nome}</span>
-                    <Badge variant={cliente.dataChurn ? "destructive" : "outline"} className={cliente.dataChurn ? "bg-destructive/20 text-destructive font-semibold border-none" : "bg-accent/20 text-accent font-semibold border-none"}>
-                      {cliente.dataChurn ? "Inativo / Churn" : "Ativo"}
-                    </Badge>
+                    {cliente.dataChurn ? (
+                      <Badge variant="destructive" className="bg-destructive/20 text-destructive font-semibold border-none">
+                        Inativo / Churn
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-normal text-muted-foreground">Status</span>
+                        <Select
+                          value={cliente.statusComercial === "trial" ? "trial" : "ativo"}
+                          onValueChange={async (v) => {
+                            const novo = v === "trial" ? "trial" : "ativo";
+                            if (novo === (cliente.statusComercial ?? "ativo")) return;
+                            try {
+                              await updateCliente(cliente.id, { statusComercial: novo });
+                              toast.success(`Status alterado para ${novo === "trial" ? "Trial" : "Ativo"}.`);
+                            } catch (err) {
+                              toast.error(mensagemErroPersistencia(err, "Atualização do status"));
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-32 text-sm font-normal"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ativo">Ativo</SelectItem>
+                            <SelectItem value="trial">Trial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </DialogTitle>
                 </DialogHeader>
                 
