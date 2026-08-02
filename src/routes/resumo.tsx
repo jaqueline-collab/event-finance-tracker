@@ -1876,10 +1876,10 @@ function ResumoPage() {
                           />
                         </div>
                       </div>
-                      {fechamentoData.aguardandoCicloFechar.length > 0 && (
+                      {fechamentoData.cicloEmAberto.length > 0 && (
                         <p className="text-[11px] opacity-90 mt-1">
-                          ⏳ {fechamentoData.aguardandoCicloFechar.length} cliente(s) aguardando fim do ciclo (
-                          {fechamentoData.aguardandoCicloFechar.map((c) => c.nome).join(", ")}) — entram no próximo fechamento.
+                          ⚡ Fechamento antecipado: {fechamentoData.cicloEmAberto.length} cliente(s) com ciclo ainda em aberto (
+                          {fechamentoData.cicloEmAberto.map((c) => c.nome).join(", ")}) — serão cobrados pelo valor cheio do ciclo.
                         </p>
                       )}
                     </div>
