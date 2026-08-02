@@ -829,6 +829,7 @@ export const useStore = create<State>()(
       },
       removeFechamento: async (id) => {
         // Soft-delete: move para a lixeira, preservando fechamento e itens.
+        // Soft-delete: move para a lixeira, preservando fechamento e itens.
         const prev = get().fechamentos;
         const deletadoEm = new Date().toISOString();
         set({ fechamentos: prev.map((x) => (x.id === id ? { ...x, deletadoEm } : x)) });
