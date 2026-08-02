@@ -1181,44 +1181,6 @@ function ResumoPage() {
       });
     }
 
-    // Gráfico de receita (opcional)
-    if (incluirGraficos) {
-      const serie = linhas.slice(0, 6).reverse();
-      if (serie.length >= 2) {
-        let y = (pdf as any).lastAutoTable.finalY + 24;
-        if (y > pageH - 200) { pdf.addPage(); y = 60; }
-        pdf.setFontSize(11);
-        pdf.setTextColor(60, 60, 60);
-        pdf.text(`Receita — últimos ${serie.length} meses`, 40, y);
-        const x0 = 40, y0 = y + 12, w = pageW - 80, h = 140;
-        pdf.setDrawColor(220);
-        pdf.rect(x0, y0, w, h);
-        const maxV = Math.max(...serie.map((s) => s.receita), 1);
-        const step = w / (serie.length - 1);
-        // Área
-        pdf.setFillColor(28, 63, 170);
-        const pts: { x: number; y: number }[] = serie.map((s, i) => ({
-          x: x0 + i * step,
-          y: y0 + h - (s.receita / maxV) * (h - 16) - 8,
-        }));
-        // Linha
-        pdf.setDrawColor(28, 63, 170);
-        pdf.setLineWidth(1.5);
-        for (let i = 1; i < pts.length; i++) {
-          pdf.line(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
-        }
-        // Pontos + labels
-        pdf.setFontSize(8);
-        pdf.setTextColor(110, 110, 110);
-        pts.forEach((p, i) => {
-          pdf.setFillColor(28, 63, 170);
-          pdf.circle(p.x, p.y, 2.5, "F");
-          const label = serie[i].mesLabel;
-          pdf.text(label, p.x, y0 + h + 12, { align: "center" });
-        });
-      }
-    }
-
     // Observação livre
     if (observacaoPdf.trim()) {
       let y = ((pdf as any).lastAutoTable?.finalY ?? 200) + 30;
