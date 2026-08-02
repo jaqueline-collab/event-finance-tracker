@@ -40,9 +40,19 @@ import { toast } from "sonner";
 /** Retorna o uid da sessão atual, ou null se não houver sessão válida. */
 async function getAuthUid(): Promise<string | null> {
   try {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.user?.id ?? null;
-  } catch {
+    const result = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout-sessao")), 8000),
+      ),
+    ]);
+    return result.data.session?.user?.id ?? null;
+  } catch (err) {
+    if (err instanceof Error && err.message === "timeout-sessao") {
+      throw new Error(
+        "sessao-travada: não foi possível confirmar sua sessão a tempo. Recarregue a página e tente novamente.",
+      );
+    }
     return null;
   }
 }
