@@ -15,7 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente } from "@/lib/store";
+import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente, mensagemErroPersistencia } from "@/lib/store";
+import { toast } from "sonner";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -263,14 +264,15 @@ function ClientesPage() {
     });
   };
 
-  const handleSaveMovimento = () => {
+  const handleSaveMovimento = async () => {
     if (!acaoClienteId) return;
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
     // Editing: remove old (revertendo deltas) e recria com novos valores
     if (editMovId) {
       removeMovimento(editMovId);
     }
-    addMovimento({
+    try {
+      await addMovimento({
       clienteId: acaoClienteId,
       data: movForm.data,
       tipo: movForm.tipo,
@@ -286,7 +288,12 @@ function ClientesPage() {
       zapi: movForm.zapi,
       transcricaoIA: movForm.transcricaoIA,
       observacao: movForm.observacao || undefined,
-    });
+      });
+      toast.success("Movimentação salva com sucesso.");
+    } catch (err) {
+      toast.error(mensagemErroPersistencia(err, "Movimentação"));
+      return;
+    }
     setAcaoClienteId(null);
     setEditMovId(null);
   };
@@ -789,8 +796,9 @@ function ClientesPage() {
                   <Button
                     className="w-full h-11"
                     disabled={!form.nome || !form.planoId}
-                    onClick={() => {
-                      addCliente({
+                    onClick={async () => {
+                      try {
+                      await addCliente({
                         nome: form.nome,
                         nomeFinanceiro: form.nomeFinanceiro.trim() || null,
                         planoId: form.planoId,
@@ -818,6 +826,11 @@ function ClientesPage() {
                         apps: 1,
                         mau: form.contatosAtivos
                       });
+                      toast.success("Cliente salvo com sucesso.");
+                      } catch (err) {
+                        toast.error(mensagemErroPersistencia(err, "Cadastro do cliente"));
+                        return;
+                      }
                       setForm({
                         nome: "",
                         nomeFinanceiro: "",

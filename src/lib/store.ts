@@ -48,6 +48,33 @@ async function getAuthUid(): Promise<string | null> {
 }
 
 /** Converte erros do Supabase em mensagens claras para o usuário. */
+function movimentoToDb(mov: Movimento) {
+  return {
+    id: mov.id,
+    cliente_id: mov.clienteId,
+    data: mov.data,
+    tipo: mov.tipo,
+    plano_id: mov.planoId || null,
+    apps: mov.apps || null,
+    mau: mov.mau || null,
+    canais: mov.canais || null,
+    canais_whats: mov.canaisWhats ?? null,
+    canais_insta: mov.canaisInsta ?? null,
+    canais_messenger: mov.canaisMessenger ?? null,
+    canais_zapi: mov.canaisZapi ?? null,
+    usuarios_ativos: mov.usuariosAtivos || null,
+    contatos_ativos: mov.contatosAtivos || null,
+    agentes_ia: mov.agentesIA || null,
+    asaas: mov.asaas || null,
+    zapi: mov.zapi || null,
+    transcricao_ia: mov.transcricaoIA || null,
+    extras: mov.extras || null,
+    valor_servico: mov.valorServico || null,
+    observacao: mov.observacao || null,
+  };
+}
+
+/** Converte erros do Supabase em mensagens claras para o usuário. */
 export function mensagemErroPersistencia(err: unknown, contexto: string): string {
   const e = err as { message?: string; code?: string; details?: string } | null;
   const raw = `${e?.message ?? ""} ${e?.details ?? ""}`.toLowerCase();
@@ -141,11 +168,11 @@ interface State {
   updatePlano: (id: string, p: Partial<Plano>) => void;
   removePlano: (id: string) => void;
   // clientes
-  addCliente: (c: Omit<Cliente, "id">) => string;
+  addCliente: (c: Omit<Cliente, "id">) => Promise<string>;
   updateCliente: (id: string, c: Partial<Cliente>) => void;
   removeCliente: (id: string) => void;
   // movimentos
-  addMovimento: (m: Omit<Movimento, "id">) => void;
+  addMovimento: (m: Omit<Movimento, "id">) => Promise<void>;
   removeMovimento: (id: string) => void;
   // parceiros
   addParceiro: (p: Omit<Parceiro, "id" | "criadoEm">) => void;
@@ -331,7 +358,7 @@ export const useStore = create<State>()(
       },
 
       // Clientes
-      addCliente: (c) => {
+      addCliente: async (c) => {
         const id = uid();
         const novoCliente = {
           ...c,
@@ -358,47 +385,31 @@ export const useStore = create<State>()(
           extras: c.extras,
           observacao: "Setup inicial",
         };
+        // Grava PRIMEIRO no banco; só reflete na tela após confirmação.
+        const userId = await getAuthUid();
+        if (!userId) {
+          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
+        }
+        const { error } = await supabase
+          .from("elora_clientes")
+          .insert({ ...mapClienteToDb(novoCliente), user_id: userId } as never);
+        if (error) {
+          console.error("Erro ao salvar cliente no Supabase:", error);
+          throw error;
+        }
+        const { error: movError } = await supabase
+          .from("elora_movimentos")
+          .insert({ ...movimentoToDb(setupMovimento), user_id: userId } as never);
+        if (movError) {
+          // Cliente já gravado; avisa mas não desfaz o cadastro do usuário.
+          console.error("Erro ao salvar setup inicial no Supabase:", movError);
+          toast.error(mensagemErroPersistencia(movError, "Setup inicial do cliente"));
+          set({ clientes: [...get().clientes, novoCliente] });
+          return id;
+        }
         set({
           clientes: [...get().clientes, novoCliente],
           movimentos: [...get().movimentos, setupMovimento],
-        });
-
-        // Salvar no Supabase
-        supabase.from("elora_clientes").insert(mapClienteToDb(novoCliente)).then(({ error }) => {
-          if (error) {
-            console.error("Erro ao salvar cliente no Supabase:", error);
-            set({
-              clientes: get().clientes.filter((x) => x.id !== id),
-              movimentos: get().movimentos.filter((m) => m.clienteId !== id),
-            });
-            return;
-          }
-          const dbMov = {
-            id: setupMovimento.id,
-            cliente_id: setupMovimento.clienteId,
-            data: setupMovimento.data,
-            tipo: setupMovimento.tipo,
-            plano_id: setupMovimento.planoId || null,
-            apps: setupMovimento.apps || null,
-            mau: setupMovimento.mau || null,
-            canais: setupMovimento.canais || null,
-            canais_whats: setupMovimento.canaisWhats ?? null,
-            canais_insta: setupMovimento.canaisInsta ?? null,
-            canais_messenger: setupMovimento.canaisMessenger ?? null,
-            canais_zapi: setupMovimento.canaisZapi ?? null,
-            usuarios_ativos: setupMovimento.usuariosAtivos || null,
-            contatos_ativos: setupMovimento.contatosAtivos || null,
-            agentes_ia: setupMovimento.agentesIA || null,
-            asaas: setupMovimento.asaas || null,
-            zapi: setupMovimento.zapi || null,
-            transcricao_ia: setupMovimento.transcricaoIA || null,
-            extras: setupMovimento.extras || null,
-            valor_servico: setupMovimento.valorServico || null,
-            observacao: setupMovimento.observacao || null,
-          };
-          supabase.from("elora_movimentos").insert(dbMov).then(({ error: movError }) => {
-            if (movError) console.error("Erro ao salvar setup inicial no Supabase:", movError);
-          });
         });
         return id;
       },
@@ -435,37 +446,21 @@ export const useStore = create<State>()(
       },
 
       // Movimentos (Locais)
-      addMovimento: (m) => {
+      addMovimento: async (m) => {
         const mov = { ...m, id: uid() };
+        // Grava PRIMEIRO no banco; só reflete na tela após confirmação.
+        const userId = await getAuthUid();
+        if (!userId) {
+          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
+        }
+        const { error } = await supabase
+          .from("elora_movimentos")
+          .insert({ ...movimentoToDb(mov), user_id: userId } as never);
+        if (error) {
+          console.error("Erro ao inserir movimento no Supabase:", error);
+          throw error;
+        }
         set({ movimentos: [...get().movimentos, mov] });
-        
-        // Salvar no Supabase
-        const dbMov = {
-          id: mov.id,
-          cliente_id: mov.clienteId,
-          data: mov.data,
-          tipo: mov.tipo,
-          plano_id: mov.planoId || null,
-          apps: mov.apps || null,
-          mau: mov.mau || null,
-          canais: mov.canais || null,
-          canais_whats: mov.canaisWhats ?? null,
-          canais_insta: mov.canaisInsta ?? null,
-          canais_messenger: mov.canaisMessenger ?? null,
-          canais_zapi: mov.canaisZapi ?? null,
-          usuarios_ativos: mov.usuariosAtivos || null,
-          contatos_ativos: mov.contatosAtivos || null,
-          agentes_ia: mov.agentesIA || null,
-          asaas: mov.asaas || null,
-          zapi: mov.zapi || null,
-          transcricao_ia: mov.transcricaoIA || null,
-          extras: mov.extras || null,
-          valor_servico: mov.valorServico || null,
-          observacao: mov.observacao || null,
-        };
-        supabase.from("elora_movimentos").insert(dbMov).then(({ error }) => {
-          if (error) console.error("Erro ao inserir movimento no Supabase:", error);
-        });
 
         const cliente = get().clientes.find((c) => c.id === m.clienteId);
         if (cliente) {
@@ -508,15 +503,19 @@ export const useStore = create<State>()(
           if (m.extras !== undefined) patch.extras = m.extras;
           if (Object.keys(patch).length) {
             const updatedCliente = { ...cliente, ...patch };
+            // Apenas os campos alvo do movimento — nunca o registro inteiro.
+            const { error: cliErr } = await supabase
+              .from("elora_clientes")
+              .update(mapClientePatchToDb(patch))
+              .eq("id", m.clienteId);
+            if (cliErr) {
+              console.error("Erro ao sincronizar cliente pós-movimento:", cliErr);
+              throw cliErr;
+            }
             set({
               clientes: get().clientes.map((c) =>
                 c.id === m.clienteId ? updatedCliente : c,
               ),
-            });
-            // Sincronizar atualização de cliente pós-movimento no Supabase
-            // Apenas os campos alvo do movimento — nunca o registro inteiro.
-            supabase.from("elora_clientes").update(mapClientePatchToDb(patch)).eq("id", m.clienteId).then(({ error }) => {
-              if (error) console.error("Erro ao sincronizar cliente pós-movimento:", error);
             });
           }
         }
