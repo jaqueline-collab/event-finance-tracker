@@ -36,7 +36,7 @@ import {
 } from "@/lib/store";
 import { explicarReceitaCliente } from "@/lib/calc/receita";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
-import type { Desconto, Fechamento, FechamentoItem } from "@/lib/types";
+import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
 import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2 } from "lucide-react";
@@ -164,8 +164,9 @@ function MauFechamentoEditor({
 function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros, financeiro,
-    addLancamento, descontos, addDesconto, removeDesconto,
-    fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento, updateFechamento,
+    descontos, addDesconto, removeDesconto,
+  fechamentos = [], fechamentoItens = [], removeFechamento, updateFechamento,
+    gerarFechamentoNoServidor,
     restaurarFechamento, excluirFechamentoDefinitivo,
     atualizarMauFechamentoItem,
   } = useStore();
@@ -1295,7 +1296,16 @@ function ResumoPage() {
       || (descricaoConsolidada || "").trim()
       || `${jaExistentes + 1}º fechamento · ${labelMes}`;
     // Snapshot dos itens para persistência
-    const itensSnapshot = detalhesPorCliente.map((d) => ({
+    const novoUuid = () =>
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const novoIdCurto = () => Math.random().toString(36).slice(2, 10);
+    const fechamentoIdNovo = novoUuid();
+
+    const itensSnapshot: FechamentoItem[] = detalhesPorCliente.map((d) => ({
+      id: novoUuid(),
+      fechamentoId: fechamentoIdNovo,
       clienteId: d.cliente.id,
       planoId: d.plano?.id ?? null,
       cicloInicio: null as string | null,
@@ -1329,7 +1339,11 @@ function ResumoPage() {
 
     setGerandoFechamento(true);
     try {
-    if (modoEnvio === "consolidado") {
+      const lancamentos: LancamentoFinanceiro[] = [];
+      let descricaoFechamento: string;
+      let mensagemSucesso: string;
+
+      if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
         .map((d) => (d.venc ? Number(d.venc.slice(8, 10)) : null))
@@ -1338,8 +1352,9 @@ function ResumoPage() {
       const ultimoDia = new Date(y, m + 1, 0).getDate();
       const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
       const descricao = (descricaoConsolidada || "").trim() || `Fechamento ${labelMes} · ciclo ${cicloLabel}`;
-      try {
-        const lancId = await addLancamento({
+        const lancId = novoIdCurto();
+        lancamentos.push({
+          id: lancId,
           descricao,
           tipo: "fechamento",
           categoria: "Receita",
@@ -1351,36 +1366,18 @@ function ResumoPage() {
         });
         // Vincula todos os itens ao lançamento consolidado
         for (const it of itensSnapshot) it.lancamentoFinanceiroId = lancId;
-        const fechamentoId = await addFechamento(
-          {
-            competencia: competenciaKey,
-            titulo: tituloFechamento,
-            descricao: descricao,
-            status: "emitido",
-            totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
-            totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
-            totalLiquido: Number(totalReceita.toFixed(2)),
-            observacao: observacaoPdf.trim() || null,
-          },
-          itensSnapshot,
-        );
-        exibirFechamentoGerado(fechamentoId);
-        toast.success("Fechamento gerado e exibido no Resumo.");
-      } catch (e) {
-        console.error(e);
-        toast.error(mensagemErroPersistencia(e, "Não foi possível gerar o fechamento"));
-        return;
-      }
-    } else {
-      let n = 0;
-      try {
+        descricaoFechamento = descricao;
+        mensagemSucesso = "Fechamento gerado e exibido no Resumo.";
+      } else {
         for (const d of detalhesPorCliente) {
           const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
           const ultimoDia = new Date(y, m + 1, 0).getDate();
           const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
           const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
             || d.cliente.nomeFinanceiro || d.cliente.nome;
-          const lancId = await addLancamento({
+          const lancId = novoIdCurto();
+          lancamentos.push({
+            id: lancId,
             descricao: descricaoCli,
             tipo: "fechamento",
             categoria: "Receita",
@@ -1392,29 +1389,36 @@ function ResumoPage() {
           });
           const item = itensSnapshot.find((x) => x.clienteId === d.cliente.id);
           if (item) item.lancamentoFinanceiroId = lancId;
-          n++;
         }
-        const fechamentoId = await addFechamento(
-          {
-            competencia: competenciaKey,
-            titulo: tituloFechamento,
-            descricao: `Fechamento por cliente · ${labelMes}`,
-            status: "emitido",
-            totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
-            totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
-            totalLiquido: Number(totalReceita.toFixed(2)),
-            observacao: observacaoPdf.trim() || null,
-          },
+        descricaoFechamento = `Fechamento por cliente · ${labelMes}`;
+        mensagemSucesso = `Fechamento gerado com ${lancamentos.length} lançamento(s) e exibido no Resumo.`;
+      }
+
+      const fechamentoNovo: Fechamento = {
+        id: fechamentoIdNovo,
+        competencia: competenciaKey,
+        titulo: tituloFechamento,
+        descricao: descricaoFechamento,
+        status: "emitido",
+        totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
+        totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
+        totalLiquido: Number(totalReceita.toFixed(2)),
+        observacao: observacaoPdf.trim() || null,
+      };
+
+      try {
+        const fechamentoId = await gerarFechamentoNoServidor(
+          fechamentoNovo,
           itensSnapshot,
+          lancamentos,
         );
         exibirFechamentoGerado(fechamentoId);
-        toast.success(`Fechamento gerado com ${n} lançamento(s) e exibido no Resumo.`);
+        toast.success(mensagemSucesso);
       } catch (e) {
         console.error(e);
         toast.error(mensagemErroPersistencia(e, "Não foi possível gerar o fechamento"));
         return;
       }
-    }
     } finally {
       setGerandoFechamento(false);
     }

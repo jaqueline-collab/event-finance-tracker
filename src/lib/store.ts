@@ -37,6 +37,7 @@ import { normalizarDataVencimento } from "./calc/datas";
 import { toast } from "sonner";
 import { cadastrarClienteComSetup } from "./clientes.functions";
 import { registrarMovimento } from "./movimentos.functions";
+import { gerarFechamentoCompleto } from "./fechamentos.functions";
 
 // ===== Helpers de persistência segura =====
 
@@ -261,6 +262,15 @@ interface State {
   addFechamento: (
     f: Omit<Fechamento, "id">,
     itens: Omit<FechamentoItem, "id" | "fechamentoId">[],
+  ) => Promise<string>;
+  /**
+   * Caminho único de geração de fechamento: grava lançamentos, fechamento e
+   * itens numa só função de servidor autenticada, com prazo garantido.
+   */
+  gerarFechamentoNoServidor: (
+    fechamento: Fechamento,
+    itens: FechamentoItem[],
+    lancamentos: LancamentoFinanceiro[],
   ) => Promise<string>;
   removeFechamento: (id: string) => Promise<void>;
   restaurarFechamento: (id: string) => Promise<void>;
@@ -816,6 +826,26 @@ export const useStore = create<State>()(
           fechamentoItens: [...get().fechamentoItens, ...novosItens],
         });
         return id;
+      },
+      gerarFechamentoNoServidor: async (fechamento, itens, lancamentos) => {
+        const resultado = await gravarComPrazo(
+          gerarFechamentoCompleto({
+            data: {
+              fechamento: mapFechamentoToDb(fechamento),
+              itens: itens.map(mapFechamentoItemToDb),
+              lancamentos: lancamentos.map(mapFinanceiroToDb),
+            },
+          }),
+          "Geração do fechamento",
+          20000,
+        );
+        // Só reflete na tela depois da confirmação real do banco.
+        set({
+          financeiro: [...get().financeiro, ...lancamentos],
+          fechamentos: [...get().fechamentos, fechamento],
+          fechamentoItens: [...get().fechamentoItens, ...itens],
+        });
+        return resultado.fechamentoId;
       },
       removeFechamento: async (id) => {
         // Soft-delete: move para a lixeira, preservando fechamento e itens.
