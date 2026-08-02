@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client-configured";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import { setCachedUserId } from "@/lib/auth-session";
+import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 
 function NotFoundComponent() {
   return (
@@ -143,11 +143,13 @@ function RootComponent() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
       setCachedUserId(s?.user?.id ?? null);
+      setCachedAccessToken(s?.access_token ?? null);
       if (s) syncFromSupabase();
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setCachedUserId(data.session?.user?.id ?? null);
+      setCachedAccessToken(data.session?.access_token ?? null);
       setChecking(false);
       if (data.session) syncFromSupabase();
     });

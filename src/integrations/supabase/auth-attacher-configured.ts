@@ -1,10 +1,9 @@
 import { createMiddleware } from "@tanstack/react-start";
-import { supabase } from "./client-configured";
+import { getCachedAccessToken } from "@/lib/auth-session";
 
 export const attachConfiguredAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    const token = getCachedAccessToken();
     return next({
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
