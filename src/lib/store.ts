@@ -346,35 +346,37 @@ export const useStore = create<State>()(
       removeCusto: (id) => set({ custos: get().custos.filter((x) => x.id !== id) }),
 
       // Planos
-      addPlano: (p) => {
+      addPlano: async (p) => {
         const id = uid();
         const novoPlano = { ...p, id };
+        const userId = await requireAuthUid("Cadastro de plano");
+        const { error } = await supabase
+          .from("elora_planos")
+          .insert({ ...mapPlanoToDb(novoPlano), user_id: userId } as never);
+        if (error) falharPersistencia(error, "Cadastro de plano");
         set({ planos: [...get().planos, novoPlano] });
-        supabase.from("elora_planos").insert(mapPlanoToDb(novoPlano)).then(({ error }) => {
-          if (error) console.error("Erro ao salvar plano no Supabase:", error);
-        });
+        return id;
       },
-      updatePlano: (id, p) => {
-        const oldPlano = get().planos.find((x) => x.id === id);
-        const planos = get().planos.map((x) => (x.id === id ? { ...x, ...p } : x));
-        set({ planos });
-        const updated = planos.find((x) => x.id === id);
-        if (updated) {
-          supabase.from("elora_planos").update(mapPlanoToDb(updated)).eq("id", id).then(({ error }) => {
-            if (error) console.error("Erro ao atualizar plano no Supabase:", error);
-          });
-
-          // Os valores do cliente são recalculados automaticamente a partir
-          // das novas configurações do plano — nenhum movimento de ajuste
-          // é registrado para evitar poluir o histórico.
-          void oldPlano;
-        }
+      updatePlano: async (id, p) => {
+        const atual = get().planos.find((x) => x.id === id);
+        if (!atual) return;
+        const updated = { ...atual, ...p };
+        await requireAuthUid("Atualização de plano");
+        const { error } = await supabase
+          .from("elora_planos")
+          .update(mapPlanoToDb(updated))
+          .eq("id", id);
+        if (error) falharPersistencia(error, "Atualização de plano");
+        // Os valores do cliente são recalculados automaticamente a partir
+        // das novas configurações do plano — nenhum movimento de ajuste
+        // é registrado para evitar poluir o histórico.
+        set({ planos: get().planos.map((x) => (x.id === id ? updated : x)) });
       },
-      removePlano: (id) => {
+      removePlano: async (id) => {
+        await requireAuthUid("Exclusão de plano");
+        const { error } = await supabase.from("elora_planos").delete().eq("id", id);
+        if (error) falharPersistencia(error, "Exclusão de plano");
         set({ planos: get().planos.filter((x) => x.id !== id) });
-        supabase.from("elora_planos").delete().eq("id", id).then(({ error }) => {
-          if (error) console.error("Erro ao remover plano no Supabase:", error);
-        });
       },
 
       // Clientes
