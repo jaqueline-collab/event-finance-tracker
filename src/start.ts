@@ -2,7 +2,6 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachConfiguredAuth } from "@/integrations/supabase/auth-attacher-configured";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -20,6 +19,8 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth, attachConfiguredAuth],
+  // Apenas um cliente de auth: dois clientes sobre a mesma chave de sessão
+  // disputavam a renovação do token e travavam o getSession().
+  functionMiddleware: [attachConfiguredAuth],
   requestMiddleware: [errorMiddleware],
 }));
