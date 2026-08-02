@@ -118,7 +118,7 @@ function PlanosPage() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const whatsInc = Number(form.canaisWhatsInclusos) || 0;
     const instaInc = Number(form.canaisInstaInclusos) || 0;
     const msgInc = Number(form.canaisMessengerInclusos) || 0;
@@ -168,11 +168,15 @@ function PlanosPage() {
       parceiroIds: form.parceiroIds,
     };
 
-    if (editId) {
-      updatePlano(editId, planoData);
-      setEditId(null);
-    } else {
-      addPlano(planoData);
+    try {
+      if (editId) {
+        await updatePlano(editId, planoData);
+        setEditId(null);
+      } else {
+        await addPlano(planoData);
+      }
+    } catch {
+      return; // erro já reportado via toast pela store
     }
     setForm(defaultForm());
     setOpen(false);
@@ -501,7 +505,7 @@ function PlanosPage() {
                   </div>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => startEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => removePlano(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => { void removePlano(p.id).catch(() => {}); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </div>
               </CardHeader>

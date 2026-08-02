@@ -261,7 +261,7 @@ function ResumoPage() {
     setDescMotivo("");
   };
 
-  const salvarDesconto = () => {
+  const salvarDesconto = async () => {
     if (!descontoModal || !fechamentoData) return;
     const valorNum = descTipo === "isencao_total" ? null : Number(descValor.replace(",", "."));
     if (descTipo !== "isencao_total" && (!Number.isFinite(valorNum!) || valorNum! <= 0)) {
@@ -272,16 +272,20 @@ function ResumoPage() {
       toast.error("Percentual não pode passar de 100%.");
       return;
     }
-    addDesconto({
-      clienteId: descontoModal.clienteId,
-      tipo: descTipo,
-      escopo: descontoModal.escopo,
-      valor: valorNum,
-      competenciaInicio: fechamentoData.competenciaKey,
-      competenciaFim: null,
-      recorrente: descRecorrente,
-      motivo: descMotivo.trim() || null,
-    });
+    try {
+      await addDesconto({
+        clienteId: descontoModal.clienteId,
+        tipo: descTipo,
+        escopo: descontoModal.escopo,
+        valor: valorNum,
+        competenciaInicio: fechamentoData.competenciaKey,
+        competenciaFim: null,
+        recorrente: descRecorrente,
+        motivo: descMotivo.trim() || null,
+      });
+    } catch {
+      return; // erro já reportado via toast pela store
+    }
     toast.success("Desconto aplicado.");
     setDescontoModal(null);
     resetDescontoForm();
@@ -2198,7 +2202,7 @@ function ResumoPage() {
                               {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
                               {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
                             </div>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dg.id)}>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dg.id).catch(() => {}); }}>
                               <Trash2 className="h-3 w-3 text-destructive" />
                             </Button>
                           </div>
@@ -2218,7 +2222,7 @@ function ResumoPage() {
                                 {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
                                 {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
                               </div>
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDesconto(dc.id)}>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dc.id).catch(() => {}); }}>
                                 <Trash2 className="h-3 w-3 text-destructive" />
                               </Button>
                             </div>

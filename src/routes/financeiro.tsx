@@ -179,7 +179,11 @@ function FinanceiroPage() {
   const save = async () => {
     if (!form.descricao || !form.valor) return;
     if (editId) {
-      updateLancamento(editId, form);
+      try {
+        await updateLancamento(editId, form);
+      } catch {
+        return; // erro já reportado via toast
+      }
     } else {
       try {
         await addLancamento(form);
@@ -276,7 +280,7 @@ function FinanceiroPage() {
                       {formatBRL(l.valor)}
                     </TableCell>
                     <TableCell>
-                      <Select value={l.status} onValueChange={(v) => updateLancamento(l.id, { status: v as StatusFinanceiro })}>
+                      <Select value={l.status} onValueChange={(v) => { void updateLancamento(l.id, { status: v as StatusFinanceiro }).catch(() => {}); }}>
                         <SelectTrigger className="h-7 text-xs w-[120px]">
                           <Badge className={`${s.color} border-none gap-1`}>
                             <StatusIcon className="h-3 w-3" />
@@ -292,7 +296,7 @@ function FinanceiroPage() {
                       <div className="flex items-center gap-1.5">
                         <Switch
                           checked={l.nfEmitida}
-                          onCheckedChange={(v) => updateLancamento(l.id, { nfEmitida: v })}
+                          onCheckedChange={(v) => { void updateLancamento(l.id, { nfEmitida: v }).catch(() => {}); }}
                         />
                         {l.nfEmitida
                           ? <FileCheck2 className="h-3.5 w-3.5 text-accent" />
@@ -306,7 +310,7 @@ function FinanceiroPage() {
                           <Pencil className="h-3 w-3" />
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive"
-                          onClick={() => { if (confirm("Excluir este lançamento?")) removeLancamento(l.id); }}>
+                          onClick={() => { if (confirm("Excluir este lançamento?")) void removeLancamento(l.id).catch(() => {}); }}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
