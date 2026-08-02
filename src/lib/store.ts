@@ -1035,8 +1035,13 @@ export const useStore = create<State>()(
     }),
     {
       name: "elora-control-v1",
-      version: 2,
+      version: 3,
       migrate: (persistedState) => normalizePersistedState(persistedState),
+      // Planos e custos não são persistidos: sempre recarregados do banco no sync.
+      partialize: (state) => {
+        const { planos: _p, custos: _c, ...rest } = state as State;
+        return rest as unknown as State;
+      },
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...normalizePersistedState(persistedState),
