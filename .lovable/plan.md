@@ -18,11 +18,11 @@ O que muda:
 - No snapshot gravado (`payloadSnapshot`) vão os mesmos campos que o editor pós-fechamento usa — `mauMes`, `mauExcedenteQtd`, `mauExcedenteValor`, `mauUnit`, `mauInclusos` — para que o editor de auditoria continue coerente e não duplique o valor.
 - O `MauFechamentoEditor` do modal de auditoria permanece como está (edição posterior).
 
-## 2. Remover gráficos do PDF
+## 2. Remover o gráfico de receita (PDF e tela)
 
 - Remove o estado `incluirGraficos` e o checkbox "Incluir gráficos no PDF" da tela (`resumo.tsx:1884`).
 - Remove o bloco de desenho do gráfico de receita no PDF (`resumo.tsx:1186` em diante). O PDF passa a ter só tabelas e observações.
-- O gráfico de área exibido **na tela** (fora do PDF) não é alterado — se preferir removê-lo também, é só dizer.
+- Remove também o gráfico de área exibido **na tela** do modal de Gerar Fechamento, junto com os imports/dados que só existiam para alimentá-lo.
 
 ## 3. Nova ordem da tela (modal Gerar Fechamento)
 
