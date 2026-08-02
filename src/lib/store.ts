@@ -141,7 +141,7 @@ interface State {
   updatePlano: (id: string, p: Partial<Plano>) => void;
   removePlano: (id: string) => void;
   // clientes
-  addCliente: (c: Omit<Cliente, "id">) => string;
+  addCliente: (c: Omit<Cliente, "id">) => Promise<string>;
   updateCliente: (id: string, c: Partial<Cliente>) => void;
   removeCliente: (id: string) => void;
   // movimentos
