@@ -253,6 +253,7 @@ function ResumoPage() {
   const [descValor, setDescValor] = useState<string>("");
   const [descRecorrente, setDescRecorrente] = useState<boolean>(false);
   const [descMotivo, setDescMotivo] = useState<string>("");
+  const [savingDesconto, setSavingDesconto] = useState(false);
 
   const resetDescontoForm = () => {
     setDescTipo("valor");
