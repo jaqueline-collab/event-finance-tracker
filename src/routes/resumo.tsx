@@ -2006,6 +2006,11 @@ function ResumoPage() {
                             <td className="p-2 font-medium">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span>{d.cliente.nome}</span>
+                                {d.cicloAberto && (
+                                  <Badge variant="outline" className="text-[10px] border-sky-500/40 text-sky-600 bg-sky-500/10">
+                                    ciclo em aberto — encerra {d.cicloFimLabel}
+                                  </Badge>
+                                )}
                                 {d.descontosCliente.map((dc) => (
                                   <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-yellow-500/40 text-yellow-600 bg-yellow-500/10">
                                     <Tag className="h-2.5 w-2.5" />
