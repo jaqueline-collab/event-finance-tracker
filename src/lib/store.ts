@@ -827,8 +827,27 @@ export const useStore = create<State>()(
         });
         return id;
       },
+      gerarFechamentoNoServidor: async (fechamento, itens, lancamentos) => {
+        const resultado = await gravarComPrazo(
+          gerarFechamentoCompleto({
+            data: {
+              fechamento: mapFechamentoToDb(fechamento),
+              itens: itens.map(mapFechamentoItemToDb),
+              lancamentos: lancamentos.map(mapFinanceiroToDb),
+            },
+          }),
+          "Geração do fechamento",
+          20000,
+        );
+        // Só reflete na tela depois da confirmação real do banco.
+        set({
+          financeiro: [...get().financeiro, ...lancamentos],
+          fechamentos: [...get().fechamentos, fechamento],
+          fechamentoItens: [...get().fechamentoItens, ...itens],
+        });
+        return resultado.fechamentoId;
+      },
       removeFechamento: async (id) => {
-        // Soft-delete: move para a lixeira, preservando fechamento e itens.
         // Soft-delete: move para a lixeira, preservando fechamento e itens.
         const prev = get().fechamentos;
         const deletadoEm = new Date().toISOString();
