@@ -118,7 +118,7 @@ function PlanosPage() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const whatsInc = Number(form.canaisWhatsInclusos) || 0;
     const instaInc = Number(form.canaisInstaInclusos) || 0;
     const msgInc = Number(form.canaisMessengerInclusos) || 0;
