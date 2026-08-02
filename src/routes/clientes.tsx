@@ -364,7 +364,6 @@ function ClientesPage() {
 
   // Aplica os filtros (sem ordenação) — base para métricas e lista
   const clientesFiltrados = useMemo(() => {
-    const hoje = new Date();
     return clientes.filter((c) => {
       if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
       if (parceiroSel.length > 0 && !parceiroSel.includes(c.parceiroId || "")) return false;
@@ -949,6 +948,9 @@ function ClientesPage() {
                         >
                           {c.nome}
                         </span>
+                        {!c.dataChurn && c.statusComercial === "trial" && (
+                          <Badge className="w-fit text-[10px] bg-yellow-500/20 text-yellow-500 border-none font-semibold">Trial</Badge>
+                        )}
                         {c.dataVencimento && (
                           <span className="text-[10px] text-muted-foreground font-normal">
                             Vencimento: Dia {formatDiaVencimento(c.dataVencimento)}
