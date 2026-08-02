@@ -652,8 +652,9 @@ function ResumoPage() {
     const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     // Apenas clientes cujo ciclo da competência já encerrou entram no fechamento.
     const ativosTodos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
-    const ativos = ativosTodos.filter((c) => clienteElegivelParaFechamento(c, cy, cm, hoje));
-    const aguardandoCicloFechar = ativosTodos.filter((c) => !clienteElegivelParaFechamento(c, cy, cm, hoje));
+    const ativos = ativosTodos;
+    // Informativo: clientes cujo ciclo desta competência ainda não terminou.
+    const cicloEmAberto = ativosTodos.filter((c) => !cicloJaEncerrado(c, cy, cm, hoje));
     // Faixa de ciclos representativa (pode haver clientes com ciclos diferentes).
     const ciclos = ativos.map((c) => cicloDoCliente(c, cy, cm));
     const cicloLabel = (() => {
