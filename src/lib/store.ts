@@ -37,8 +37,14 @@ import { toast } from "sonner";
 
 // ===== Helpers de persistência segura =====
 
-/** Retorna o uid da sessão atual, ou null se não houver sessão válida. */
+/**
+ * Retorna o uid da sessão atual.
+ * Usa o cache em memória alimentado por onAuthStateChange (não disputa a trava
+ * de auth). Só cai no getSession() quando o cache ainda não foi preenchido.
+ */
 async function getAuthUid(): Promise<string | null> {
+  const cached = getCachedUserId();
+  if (cached) return cached;
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),
@@ -46,8 +52,11 @@ async function getAuthUid(): Promise<string | null> {
         setTimeout(() => reject(new Error("timeout-sessao")), 8000),
       ),
     ]);
-    return result.data.session?.user?.id ?? null;
+    const uid = result.data.session?.user?.id ?? null;
+    setCachedUserId(uid);
+    return uid;
   } catch (err) {
+    console.warn("[auth-debug] getAuthUid falhou:", err);
     if (err instanceof Error && err.message === "timeout-sessao") {
       throw new Error(
         "sessao-travada: não foi possível confirmar sua sessão a tempo. Recarregue a página e tente novamente.",
