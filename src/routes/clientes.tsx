@@ -1343,7 +1343,9 @@ function ClientesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setAcaoClienteId(null); setEditMovId(null); }}>Cancelar</Button>
-            <Button onClick={handleSaveMovimento}>{editMovId ? "Salvar Alteração" : "Registrar Ação"}</Button>
+            <Button onClick={handleSaveMovimento} disabled={savingMovimento}>
+              {savingMovimento ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : (editMovId ? "Salvar Alteração" : "Registrar Ação")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
