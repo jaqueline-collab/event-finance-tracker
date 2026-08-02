@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client-configured";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
+import { setCachedUserId } from "@/lib/auth-session";
 
 function NotFoundComponent() {
   return (
@@ -141,33 +142,20 @@ function RootComponent() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
+      setCachedUserId(s?.user?.id ?? null);
       if (s) syncFromSupabase();
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      setCachedUserId(data.session?.user?.id ?? null);
       setChecking(false);
       if (data.session) syncFromSupabase();
     });
     return () => subscription.unsubscribe();
   }, [syncFromSupabase]);
 
-  // Mantém a sessão viva: refresh ao voltar o foco e a cada 30 min.
-  useEffect(() => {
-    const refresh = () => {
-      supabase.auth.refreshSession().catch(() => {});
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", refresh);
-    const interval = window.setInterval(refresh, 30 * 60 * 1000);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", refresh);
-      window.clearInterval(interval);
-    };
-  }, []);
+  // O supabase-js já renova o token sozinho (autoRefreshToken). Refresh manual
+  // a cada foco/visibilidade disputava a trava de auth e travava os saves.
 
   // Rotas públicas: landing, parceiros e fluxo de auth
   const isPublicRoute = pathname === "/" || pathname === "/parceiros" || pathname.startsWith("/auth");
