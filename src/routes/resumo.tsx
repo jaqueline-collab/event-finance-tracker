@@ -1837,140 +1837,6 @@ function ResumoPage() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Opções de exportação */}
-                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="incluir-graficos"
-                      checked={incluirGraficos}
-                      onCheckedChange={(v) => setIncluirGraficos(Boolean(v))}
-                    />
-                    <Label htmlFor="incluir-graficos" className="text-sm cursor-pointer">
-                      Incluir gráficos no PDF
-                    </Label>
-                  </div>
-                  <div>
-                    <Label htmlFor="obs-pdf" className="text-xs text-muted-foreground">Observação (impressa no final do PDF)</Label>
-                    <Textarea
-                      id="obs-pdf"
-                      value={observacaoPdf}
-                      onChange={(e) => setObservacaoPdf(e.target.value)}
-                      placeholder="Notas, contexto do mês, recomendações…"
-                      className="mt-1 min-h-[72px] text-sm"
-                    />
-                  </div>
-                </div>
-
-                {/* Enviar para Financeiro */}
-                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <h4 className="text-sm font-semibold">Enviar para o Financeiro</h4>
-                      <p className="text-xs text-muted-foreground">Gera lançamentos a partir deste fechamento.</p>
-                    </div>
-                    <Button onClick={enviarParaFinanceiro} className="gap-2" size="sm">
-                      <Send className="h-3.5 w-3.5" /> Gerar fechamento
-                    </Button>
-                  </div>
-                  <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <RadioGroupItem value="consolidado" id="m-consolidado" />
-                      <span>1 lançamento consolidado</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <RadioGroupItem value="por_cliente" id="m-por-cliente" />
-                      <span>1 lançamento por cliente</span>
-                    </label>
-                  </RadioGroup>
-                  {modoEnvio === "consolidado" ? (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="desc-consolidada" className="text-xs text-muted-foreground">
-                          Nome do boleto / descrição no Financeiro
-                        </Label>
-                        <button
-                          type="button"
-                          className="text-[11px] text-primary hover:underline"
-                          onClick={() => {
-                            setDescricaoConsolidada(defaultDescricaoConsolidada);
-                            setDescricaoConsolidadaTocada(false);
-                          }}
-                        >
-                          Restaurar padrão
-                        </button>
-                      </div>
-                      <Input
-                        id="desc-consolidada"
-                        value={descricaoConsolidada}
-                        onChange={(e) => {
-                          setDescricaoConsolidada(e.target.value);
-                          setDescricaoConsolidadaTocada(true);
-                        }}
-                        placeholder={defaultDescricaoConsolidada}
-                      />
-                    </div>
-                  ) : (
-                    fechamentoSelecionado && fechamentoSelecionado.detalhes.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs text-muted-foreground">
-                            Nome do boleto por cliente (vai para Descrição no Financeiro)
-                          </Label>
-                          <button
-                            type="button"
-                            className="text-[11px] text-primary hover:underline"
-                            onClick={() => {
-                              setDescricoesPorCliente({ ...defaultDescricoesPorCliente });
-                              setDescricoesPorClienteTocadas({});
-                            }}
-                          >
-                            Restaurar padrões
-                          </button>
-                        </div>
-                        <div className="rounded-md border border-border/60 max-h-[260px] overflow-y-auto divide-y divide-border/40">
-                          {fechamentoSelecionado.detalhes.map((d) => (
-                            <div key={d.cliente.id} className="flex items-center gap-2 p-2">
-                              <div className="text-xs text-muted-foreground w-44 shrink-0 truncate" title={d.cliente.nome}>
-                                {d.cliente.nome}
-                              </div>
-                              <Input
-                                value={descricoesPorCliente[d.cliente.id] ?? ""}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setDescricoesPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
-                                  setDescricoesPorClienteTocadas((prev) => ({ ...prev, [d.cliente.id]: true }));
-                                }}
-                                placeholder={defaultDescricoesPorCliente[d.cliente.id] ?? ""}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-
-                {/* Enviar por e-mail */}
-                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
-                  <div>
-                    <h4 className="text-sm font-semibold">Enviar por e-mail</h4>
-                    <p className="text-xs text-muted-foreground">Envia o resumo deste fechamento para o e-mail informado.</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Input
-                      type="email"
-                      placeholder="destinatario@exemplo.com"
-                      value={emailDestino}
-                      onChange={(e) => setEmailDestino(e.target.value)}
-                      className="flex-1 min-w-[220px]"
-                    />
-                    <Button onClick={enviarPorEmail} variant="outline" className="gap-2" size="sm">
-                      <Mail className="h-3.5 w-3.5" /> Enviar
-                    </Button>
-                  </div>
-                </div>
-
                 {/* KPIs */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border/60 p-4">
@@ -2014,46 +1880,6 @@ function ResumoPage() {
                     <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalAcompanhamento ?? 0)}</div>
                   </div>
                 </div>
-
-                {/* Gráfico de área: receita mensal recente */}
-                {(() => {
-                  const serie = linhas.slice(0, 6).reverse(); // mais antigo -> mais recente
-                  if (serie.length < 2) return null;
-                  const w = 720, h = 140, pad = 24;
-                  const maxV = Math.max(...serie.map((s) => s.receita), 1);
-                  const stepX = (w - pad * 2) / (serie.length - 1);
-                  const points = serie.map((s, i) => {
-                    const x = pad + i * stepX;
-                    const y = h - pad - (s.receita / maxV) * (h - pad * 2);
-                    return { x, y, label: s.mesLabel, v: s.receita };
-                  });
-                  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-                  const area = `${path} L ${points[points.length - 1].x.toFixed(1)} ${(h - pad).toFixed(1)} L ${points[0].x.toFixed(1)} ${(h - pad).toFixed(1)} Z`;
-                  return (
-                    <div className="rounded-lg border border-border/60 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receita — últimos {serie.length} meses</h3>
-                        <span className="text-[10px] text-muted-foreground">pico: {formatBRL(maxV)}</span>
-                      </div>
-                      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto">
-                        <defs>
-                          <linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.45" />
-                            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
-                          </linearGradient>
-                        </defs>
-                        <path d={area} fill="url(#areaFill)" />
-                        <path d={path} fill="none" stroke="var(--primary)" strokeWidth="2" />
-                        {points.map((p, i) => (
-                          <g key={i}>
-                            <circle cx={p.x} cy={p.y} r={3} fill="var(--primary)" />
-                            <text x={p.x} y={h - 6} textAnchor="middle" className="fill-muted-foreground" fontSize="9" style={{ textTransform: "capitalize" }}>{p.label}</text>
-                          </g>
-                        ))}
-                      </svg>
-                    </div>
-                  );
-                })()}
 
                 {/* Detalhamento por cliente */}
                 <div>
@@ -2217,6 +2043,135 @@ function ResumoPage() {
                     </div>
                   </div>
                 </div>
+                {/* Enviar para Financeiro */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div>
+                    <h4 className="text-sm font-semibold">Modo de envio ao Financeiro</h4>
+                    <p className="text-xs text-muted-foreground">Define como os lançamentos serão criados.</p>
+                  </div>
+                  <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="consolidado" id="m-consolidado" />
+                      <span>1 lançamento consolidado</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="por_cliente" id="m-por-cliente" />
+                      <span>1 lançamento por cliente</span>
+                    </label>
+                  </RadioGroup>
+                  {modoEnvio === "consolidado" ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="desc-consolidada" className="text-xs text-muted-foreground">
+                          Nome do boleto / descrição no Financeiro
+                        </Label>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary hover:underline"
+                          onClick={() => {
+                            setDescricaoConsolidada(defaultDescricaoConsolidada);
+                            setDescricaoConsolidadaTocada(false);
+                          }}
+                        >
+                          Restaurar padrão
+                        </button>
+                      </div>
+                      <Input
+                        id="desc-consolidada"
+                        value={descricaoConsolidada}
+                        onChange={(e) => {
+                          setDescricaoConsolidada(e.target.value);
+                          setDescricaoConsolidadaTocada(true);
+                        }}
+                        placeholder={defaultDescricaoConsolidada}
+                      />
+                    </div>
+                  ) : (
+                    fechamentoSelecionado && fechamentoSelecionado.detalhes.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">
+                            Nome do boleto por cliente (vai para Descrição no Financeiro)
+                          </Label>
+                          <button
+                            type="button"
+                            className="text-[11px] text-primary hover:underline"
+                            onClick={() => {
+                              setDescricoesPorCliente({ ...defaultDescricoesPorCliente });
+                              setDescricoesPorClienteTocadas({});
+                            }}
+                          >
+                            Restaurar padrões
+                          </button>
+                        </div>
+                        <div className="rounded-md border border-border/60 max-h-[260px] overflow-y-auto divide-y divide-border/40">
+                          {fechamentoSelecionado.detalhes.map((d) => (
+                            <div key={d.cliente.id} className="flex items-center gap-2 p-2">
+                              <div className="text-xs text-muted-foreground w-44 shrink-0 truncate" title={d.cliente.nome}>
+                                {d.cliente.nome}
+                              </div>
+                              <Input
+                                value={descricoesPorCliente[d.cliente.id] ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDescricoesPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
+                                  setDescricoesPorClienteTocadas((prev) => ({ ...prev, [d.cliente.id]: true }));
+                                }}
+                                placeholder={defaultDescricoesPorCliente[d.cliente.id] ?? ""}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {/* Enviar por e-mail */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div>
+                    <h4 className="text-sm font-semibold">Enviar por e-mail</h4>
+                    <p className="text-xs text-muted-foreground">Envia o resumo deste fechamento para o e-mail informado.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      type="email"
+                      placeholder="destinatario@exemplo.com"
+                      value={emailDestino}
+                      onChange={(e) => setEmailDestino(e.target.value)}
+                      className="flex-1 min-w-[220px]"
+                    />
+                    <Button onClick={enviarPorEmail} variant="outline" className="gap-2" size="sm">
+                      <Mail className="h-3.5 w-3.5" /> Enviar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Observação */}
+                <div className="rounded-lg border border-border/60 p-4 bg-muted/10">
+                  <Label htmlFor="obs-pdf" className="text-xs text-muted-foreground">Observação (impressa no final do PDF)</Label>
+                  <Textarea
+                    id="obs-pdf"
+                    value={observacaoPdf}
+                    onChange={(e) => setObservacaoPdf(e.target.value)}
+                    placeholder="Notas, contexto do mês, recomendações…"
+                    className="mt-1 min-h-[72px] text-sm"
+                  />
+                </div>
+
+                {/* Rodapé: gerar fechamento */}
+                <div className="flex items-center justify-end gap-3 border-t border-border/60 pt-4">
+                  <span className="text-xs text-muted-foreground">
+                    Gera os lançamentos no Financeiro a partir da seleção acima.
+                  </span>
+                  <Button onClick={enviarParaFinanceiro} className="gap-2" disabled={gerandoFechamento}>
+                    {gerandoFechamento
+                      ? (<><Loader2 className="h-4 w-4 animate-spin" /> Gerando…</>)
+                      : (<><Send className="h-4 w-4" /> Gerar Fechamento</>)}
+                  </Button>
+                </div>
+
 
                 {/* Upgrades e Downgrades */}
                 {fechamentoData.movsMes.length > 0 && (
