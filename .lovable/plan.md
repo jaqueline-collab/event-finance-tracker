@@ -1,37 +1,27 @@
-# O cliente ESTÁ sendo salvo — o problema é a tela não mostrar
+# Cliente novo não aparece no filtro "Ativo"
 
-## O que os dados mostram (verificado agora no banco)
+## O que está acontecendo
 
-- "Cirurgiões Staffs - Fischer" foi gravado **duas vezes**: 18:14 e 18:17 de hoje, com todos os campos corretos (plano, parceiro, canais, MAU, datas) e com o dono correto.
-- O setup também foi gravado nas duas vezes (um movimento do tipo `setup` para cada cadastro).
+O cliente **Cirurgiões Staffs - Fischer** está gravado no banco, sem data de churn, com setup em 26/07/2026.
 
-Ou seja: o alerta de sucesso estava certo. O que falhou foi a **lista de clientes não exibir o registro recém-criado**, o que levou a repetir o cadastro e gerar duplicata.
+A tela de Clientes classifica cada cliente em uma única situação:
 
-## Causas prováveis de a lista não mostrar (a confirmar na correção)
+```text
+cancelado  -> tem data de churn
+trial      -> sem churn e até 14 dias desde o setup
+ativo      -> sem churn e mais de 14 dias desde o setup
+```
 
-1. A tela de Clientes guarda filtros e busca salvos no navegador (parceiro, plano, situação, período de setup/churn). Se algum filtro antigo estiver ativo, o cliente novo é criado mas fica fora da lista, sem nenhum aviso.
-2. Depois do cadastro, a tela apenas insere o cliente na memória local; não há releitura do banco para garantir que o que aparece é exatamente o que foi gravado.
+Como o setup foi há 7 dias, ele é rotulado apenas como "Trial". Ao filtrar por "Ativo", ele fica escondido — exatamente o que você viu. Qualquer cliente novo some do filtro "Ativo" nos primeiros 14 dias.
 
-## Plano de correção
+## Correção
 
-1. **Nunca mais esconder um cliente recém-criado**
-   - Ao concluir o cadastro com sucesso, limpar busca e filtros ativos da tela de Clientes; se algum filtro precisar ser mantido, mostrar aviso em destaque "cliente criado, mas oculto pelos filtros atuais" com botão para limpar.
-   - Destacar brevemente a linha do cliente recém-criado.
+Tornar as situações não exclusivas: cliente sem churn é sempre **Ativo**, e "Trial" vira uma marcação adicional dos primeiros 14 dias.
 
-2. **Confirmar com o banco antes de comemorar**
-   - A função de servidor passa a devolver a linha realmente gravada; se nenhuma linha voltar, o resultado é tratado como falha e não como sucesso.
-   - Após o sucesso, recarregar clientes e movimentos do banco para a tela refletir exatamente o que está persistido.
+- Filtrar por "Ativo" mostra todos os clientes sem churn (inclusive os em trial).
+- Filtrar por "Trial" continua mostrando só os recém-criados.
+- Filtrar por "Cancelado" segue igual.
 
-3. **Evitar duplicatas por repetição**
-   - Antes de gravar, checar se já existe cliente com o mesmo nome e a mesma data de início; se existir, pedir confirmação em vez de criar outro.
+## Detalhe técnico
 
-4. **Limpar a duplicata já criada**
-   - Remover um dos dois registros "Cirurgiões Staffs - Fischer" (o das 18:14) e o setup vinculado a ele, mantendo o mais recente intacto.
-
-5. **Validar de verdade**
-   - Cadastrar um cliente com filtros ativos e confirmar que ele aparece imediatamente.
-   - Dar F5 e confirmar que continua na lista, com o setup correto.
-
-## Limites
-
-- Nenhum outro cliente, movimento, lançamento ou fechamento será alterado ou excluído.
+Em `src/routes/clientes.tsx`, no cálculo de `clientesFiltrados`: hoje `isAtivo = !cancelado && !isTrial`; passa a ser `isAtivo = !cancelado`, mantendo `isTrial` como rótulo paralelo. Sem mudanças de dados ou de banco.
