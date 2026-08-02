@@ -12,6 +12,7 @@ import type {
   Plano,
 } from "./types";
 import { supabase } from "@/integrations/supabase/client-configured";
+import { getCachedUserId, setCachedUserId } from "./auth-session";
 import { setTabelaCustosWts } from "./calc/custos-wts";
 import {
   mapPlanoToDb,
