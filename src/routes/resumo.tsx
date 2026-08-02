@@ -36,7 +36,7 @@ import {
 } from "@/lib/store";
 import { explicarReceitaCliente } from "@/lib/calc/receita";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
-import type { Desconto, Fechamento, FechamentoItem } from "@/lib/types";
+import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
 import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2 } from "lucide-react";
@@ -165,7 +165,8 @@ function ResumoPage() {
   const {
     clientes, planos, custos, movimentos, parceiros, financeiro,
     addLancamento, descontos, addDesconto, removeDesconto,
-    fechamentos = [], fechamentoItens = [], addFechamento, removeFechamento, updateFechamento,
+  fechamentos = [], fechamentoItens = [], removeFechamento, updateFechamento,
+    gerarFechamentoNoServidor,
     restaurarFechamento, excluirFechamentoDefinitivo,
     atualizarMauFechamentoItem,
   } = useStore();
