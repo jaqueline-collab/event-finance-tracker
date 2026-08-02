@@ -60,6 +60,7 @@ function FinanceiroPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<LancamentoFinanceiro, "id">>(empty);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const startNew = () => {
     setEditId(null);
