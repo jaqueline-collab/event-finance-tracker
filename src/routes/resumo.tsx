@@ -1881,6 +1881,7 @@ function ResumoPage() {
                           setDescricoesPorCliente({});
                           setDescricoesPorClienteTocadas({});
                           setObservacaoPdf("");
+                          setMauPorCliente({});
                           setEmailDestino("");
                           setNomeFechamento("");
                           setNomeFechamentoTocado(false);
