@@ -48,6 +48,33 @@ async function getAuthUid(): Promise<string | null> {
 }
 
 /** Converte erros do Supabase em mensagens claras para o usuário. */
+function movimentoToDb(mov: Movimento) {
+  return {
+    id: mov.id,
+    cliente_id: mov.clienteId,
+    data: mov.data,
+    tipo: mov.tipo,
+    plano_id: mov.planoId || null,
+    apps: mov.apps || null,
+    mau: mov.mau || null,
+    canais: mov.canais || null,
+    canais_whats: mov.canaisWhats ?? null,
+    canais_insta: mov.canaisInsta ?? null,
+    canais_messenger: mov.canaisMessenger ?? null,
+    canais_zapi: mov.canaisZapi ?? null,
+    usuarios_ativos: mov.usuariosAtivos || null,
+    contatos_ativos: mov.contatosAtivos || null,
+    agentes_ia: mov.agentesIA || null,
+    asaas: mov.asaas || null,
+    zapi: mov.zapi || null,
+    transcricao_ia: mov.transcricaoIA || null,
+    extras: mov.extras || null,
+    valor_servico: mov.valorServico || null,
+    observacao: mov.observacao || null,
+  };
+}
+
+/** Converte erros do Supabase em mensagens claras para o usuário. */
 export function mensagemErroPersistencia(err: unknown, contexto: string): string {
   const e = err as { message?: string; code?: string; details?: string } | null;
   const raw = `${e?.message ?? ""} ${e?.details ?? ""}`.toLowerCase();
