@@ -1327,6 +1327,8 @@ function ResumoPage() {
       itensSnapshot[i].cicloFim = cic.fim.toISOString().slice(0, 10);
     }
 
+    setGerandoFechamento(true);
+    try {
     if (modoEnvio === "consolidado") {
       // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
       const dias = detalhesPorCliente
@@ -1412,6 +1414,9 @@ function ResumoPage() {
         toast.error(mensagemErroPersistencia(e, "Não foi possível gerar o fechamento"));
         return;
       }
+    }
+    } finally {
+      setGerandoFechamento(false);
     }
   };
 
