@@ -375,15 +375,12 @@ function ClientesPage() {
       if (churnRange?.to && (!c.dataChurn || c.dataChurn > churnRange.to)) return false;
       if (situacaoSel.length > 0) {
         const cancelado = !!c.dataChurn;
-        const inicio = new Date(c.dataInicio);
-        const dias = Math.floor((hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
-        const isTrial = !cancelado && dias <= 14;
-        const isAtivo = !cancelado && !isTrial;
-        const labels: string[] = [];
-        if (cancelado) labels.push("cancelado");
-        if (isTrial) labels.push("trial");
-        if (isAtivo) labels.push("ativo");
-        if (!situacaoSel.some((s) => labels.includes(s))) return false;
+        const situacao = cancelado
+          ? "cancelado"
+          : c.statusComercial === "trial"
+            ? "trial"
+            : "ativo";
+        if (!situacaoSel.includes(situacao)) return false;
       }
       return true;
     });
@@ -448,8 +445,8 @@ function ClientesPage() {
           { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
           { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
           { key: "situacao", label: "Situação", type: "multi", options: [
-            { value: "trial", label: "Trial (até 14 dias)" },
             { value: "ativo", label: "Ativo" },
+            { value: "trial", label: "Trial" },
             { value: "cancelado", label: "Cancelado" },
           ] },
           { key: "setup", label: "Data de setup", type: "dateRange" },
@@ -534,6 +531,16 @@ function ClientesPage() {
                   <div>
                     <Label className="mb-1.5 block font-medium">Próximo Vencimento (Dia)</Label>
                     <Input type="number" min={1} max={31} placeholder="Ex: 5, 10, 15..." value={form.dataVencimento} onChange={(e) => setForm({ ...form, dataVencimento: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="mb-1.5 block font-medium">Status inicial</Label>
+                    <Select value={form.statusComercial} onValueChange={(v) => setForm({ ...form, statusComercial: v === "trial" ? "trial" : "ativo" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ativo">Ativo</SelectItem>
+                        <SelectItem value="trial">Trial</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
