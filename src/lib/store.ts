@@ -458,10 +458,6 @@ export const useStore = create<State>()(
           observacao: "Setup inicial",
         };
         // Grava PRIMEIRO no banco; só reflete na tela após confirmação.
-        const userId = await getAuthUid();
-        if (!userId) {
-          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
-        }
         const result = await gravarComPrazo(
           cadastrarClienteComSetup({
             data: {
