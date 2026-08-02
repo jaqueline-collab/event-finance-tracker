@@ -2101,6 +2101,12 @@ function ResumoPage() {
                         <span>Subtotal</span>
                         <span>{formatBRL(fechamentoSelecionado?.subtotalBruto ?? 0)}</span>
                       </div>
+                      {totalMauExcedente > 0 && (
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Inclui excedente de MAU</span>
+                          <span className="text-primary">+{formatBRL(totalMauExcedente)}</span>
+                        </div>
+                      )}
                       {(fechamentoSelecionado?.descontoTotal ?? 0) > 0 && (
                         <div className="flex justify-between text-yellow-600 dark:text-yellow-500">
                           <span>Descontos</span>
