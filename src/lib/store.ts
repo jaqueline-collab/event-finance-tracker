@@ -287,10 +287,11 @@ const defaultPlanos: Plano[] = [
 
 function normalizePersistedState(state: unknown): Partial<State> {
   const s = state && typeof state === "object" ? (state as Partial<State>) : {};
+  // Catálogo (planos e custos) NUNCA vem do cache local: a fonte de verdade é o banco.
+  // Cache antigo de plano sobrescrevia valores editados (ex.: MAU excedente 0,095 virando 0,10).
+  const { planos: _planosIgnorados, custos: _custosIgnorados, ...rest } = s as Partial<State>;
   return {
-    ...s,
-    custos: Array.isArray(s.custos) ? s.custos : defaultCustos,
-    planos: Array.isArray(s.planos) ? s.planos : defaultPlanos,
+    ...rest,
     clientes: Array.isArray(s.clientes) ? s.clientes : [],
     movimentos: Array.isArray(s.movimentos) ? s.movimentos : [],
     parceiros: Array.isArray(s.parceiros) ? s.parceiros : [],
