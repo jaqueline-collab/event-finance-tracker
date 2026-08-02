@@ -1949,6 +1949,8 @@ function ResumoPage() {
                           <th className="text-left p-2 font-medium">Plano</th>
                           <th className="text-left p-2 font-medium">Vencimento</th>
                           <th className="text-right p-2 font-medium">LTV</th>
+                          <th className="text-right p-2 font-medium w-28">MAU do mês</th>
+                          <th className="text-right p-2 font-medium">Excedente</th>
                           <th className="text-right p-2 font-medium">Sistema</th>
                           <th className="text-right p-2 font-medium">Acomp.</th>
                           <th className="text-right p-2 font-medium">Total</th>
@@ -1956,7 +1958,7 @@ function ResumoPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {fechamentoData.detalhesPorCliente.map((d) => (
+                        {detalhesComMau.map((d) => (
                           <tr
                             key={d.cliente.id}
                             className={`border-t border-border/30 cursor-pointer hover:bg-muted/20 ${selectedClienteIds.has(d.cliente.id) ? "" : "opacity-50"}`}
@@ -1983,6 +1985,30 @@ function ResumoPage() {
                             <td className="p-2 text-muted-foreground">{abreviarPlano(d.plano?.nome)}</td>
                             <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
                             <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
+                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={mauPorCliente[d.cliente.id] ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setMauPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
+                                }}
+                                placeholder={String(d.mauInclusos)}
+                                className="h-8 text-sm text-right"
+                              />
+                            </td>
+                            <td className="p-2 text-right text-xs">
+                              {d.mauExcedenteQtd > 0 ? (
+                                <span className="text-primary font-semibold">
+                                  {d.mauExcedenteQtd.toLocaleString("pt-BR")} × {formatBRL(d.mauUnit)} = +{formatBRL(d.mauExcedenteValor)}
+                                </span>
+                              ) : d.mauInformado ? (
+                                <span className="text-accent">dentro do plano</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
                             <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
                             <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
                             <td className="p-2 text-right font-semibold text-primary">
@@ -2008,8 +2034,8 @@ function ResumoPage() {
                             </td>
                           </tr>
                         ))}
-                        {fechamentoData.detalhesPorCliente.length === 0 && (
-                          <tr><td colSpan={9} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                        {detalhesComMau.length === 0 && (
+                          <tr><td colSpan={11} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
                         )}
                       </tbody>
                     </table>
