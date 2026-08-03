@@ -1,4 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { useEffect, useMemo, useState } from "react";
 import { getPainelParceiro } from "@/lib/parceiro.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +15,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertTriangle, Users, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Users, ArrowUpRight, ArrowDownRight, Eye, X } from "lucide-react";
+
+const searchSchema = z.object({
+  como: fallback(z.string(), "").default(""),
+});
 
 export const Route = createFileRoute("/parceiro")({
+  validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [
       { title: "Área do Parceiro · Elora" },
@@ -38,6 +46,8 @@ const dataBr = (v?: string | null) =>
 type PainelData = Awaited<ReturnType<typeof getPainelParceiro>>;
 
 function AreaParceiro() {
+  const { como } = Route.useSearch();
+  const modoAdmin = como.trim().length > 0;
   const [dados, setDados] = useState<PainelData | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -45,14 +55,30 @@ function AreaParceiro() {
 
   useEffect(() => {
     let cancelado = false;
-    getPainelParceiro({ data: {} })
+    setCarregando(true);
+    setErro(null);
+    getPainelParceiro({ data: modoAdmin ? { verComoParceiroId: como.trim() } : {} })
       .then((r) => !cancelado && setDados(r))
       .catch((e) => !cancelado && setErro(e instanceof Error ? e.message : String(e)))
       .finally(() => !cancelado && setCarregando(false));
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [como, modoAdmin]);
+
+  const banner = modoAdmin ? (
+    <div className="sticky top-0 z-40 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-3 backdrop-blur">
+      <p className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+        <Eye className="h-4 w-4" />
+        Visualizando como: {dados?.parceiro.nome ?? "…"} (modo admin, somente leitura)
+      </p>
+      <Button asChild variant="outline" size="sm">
+        <Link to="/gestao-parceiros">
+          <X className="mr-2 h-4 w-4" /> Sair desse modo
+        </Link>
+      </Button>
+    </div>
+  ) : null;
 
   const veValores = Boolean(dados?.veValores);
   const clientes = dados?.clientes ?? [];
@@ -70,6 +96,7 @@ function AreaParceiro() {
   if (carregando) {
     return (
       <div className="space-y-4">
+        {banner}
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -79,19 +106,25 @@ function AreaParceiro() {
 
   if (erro) {
     return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Não foi possível carregar sua área</AlertTitle>
-        <AlertDescription>{erro}</AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        {banner}
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Não foi possível carregar sua área</AlertTitle>
+          <AlertDescription>{erro}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {banner}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{dados?.parceiro.nome}</h1>
-        <p className="text-sm text-muted-foreground">Clientes vinculados à sua parceria</p>
+        <p className="text-sm text-muted-foreground">
+          {modoAdmin ? "Clientes vinculados a este parceiro" : "Clientes vinculados à sua parceria"}
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
