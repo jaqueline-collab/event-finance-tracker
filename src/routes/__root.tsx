@@ -139,7 +139,7 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
-  const papel = usePapelUsuario();
+  const papel = usePapelUsuario(Boolean(session));
   const isParceiro = !papel.loading && !papel.isInterno && Boolean(papel.parceiroId);
 
   // Pessoa de parceiro não acessa telas internas: sempre cai na área dela.
