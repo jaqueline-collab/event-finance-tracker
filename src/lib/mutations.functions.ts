@@ -30,9 +30,15 @@ export const persistMutation = createServerFn({ method: "POST" })
       return id;
     };
     const requireAdmin = async () => {
-      const result = await db.rpc("is_admin").abortSignal(deadline());
+      const result = await db
+        .from("app_users")
+        .select("id")
+        .eq("user_id", context.userId)
+        .eq("is_admin", true)
+        .maybeSingle()
+        .abortSignal(deadline());
       fail("admin-verificacao", result.error);
-      if (result.data !== true) throw new Error("admin-verificacao: acesso negado");
+      if (!result.data?.id) throw new Error("admin-verificacao: acesso negado");
     };
 
     switch (data.operation) {
