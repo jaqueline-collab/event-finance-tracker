@@ -21,7 +21,7 @@ function readCache(): Omit<PapelUsuario, "loading"> | null {
 }
 
 /** Detecta se o login é da equipe interna ou de uma pessoa de parceiro. */
-export function usePapelUsuario(): PapelUsuario {
+export function usePapelUsuario(temSessao = true): PapelUsuario {
   const cached = readCache();
   const [papel, setPapel] = useState<Omit<PapelUsuario, "loading">>(
     cached ?? { isInterno: true, parceiroId: null, veValores: false },
@@ -29,6 +29,10 @@ export function usePapelUsuario(): PapelUsuario {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!temSessao) {
+      setLoading(false);
+      return;
+    }
     let cancelado = false;
     getPapelUsuario()
       .then((r) => {
@@ -50,7 +54,7 @@ export function usePapelUsuario(): PapelUsuario {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [temSessao]);
 
   return { ...papel, loading };
 }
