@@ -56,7 +56,7 @@ E uma função `parceiro_ve_valores()` que devolve verdadeiro só quando a pesso
 - `elora_movimentos`: leitura permitida quando o cliente do movimento pertence ao parceiro da pessoa logada.
 - `elora_parceiros`: a pessoa lê apenas o próprio parceiro; só admin altera (inclusive o toggle).
 - `elora_parceiro_usuarios`: admin gerencia tudo; a pessoa lê apenas o próprio registro.
-- `elora_custos_wts`: **nenhuma** regra concede leitura a parceiro — permanece restrita a admin/equipe interna. Mesmo tratamento para `elora_fechamentos`, `elora_fechamento_itens`, `elora_financeiro` e `elora_descontos`.
+- `elora_custos_wts`: hoje a regra de leitura é `true` para qualquer usuário autenticado — ou seja, um parceiro logado leria o custo. Ela será substituída por uma regra restrita à equipe interna cadastrada (`is_equipe_interna()`), fechando esse acesso de forma permanente. `elora_fechamentos`, `elora_fechamento_itens`, `elora_financeiro` e `elora_descontos` já são escopados ao próprio usuário interno, então o parceiro nunca os lê.
 - `elora_planos`: parceiro não lê a tabela diretamente. Ele recebe nome e franquias do plano por uma view segura `elora_planos_parceiro`, que projeta apenas colunas não sensíveis (nome, inclusos de canal/usuário/contato) e nunca as colunas de custo.
 
 ### Como o toggle chega até a consulta
