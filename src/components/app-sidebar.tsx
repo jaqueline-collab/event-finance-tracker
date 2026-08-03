@@ -13,6 +13,8 @@ import {
   Wallet,
   GripVertical,
   UserCog,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +35,7 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useCurrentUserAccess, type ModuleKey } from "@/lib/permissions";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
@@ -86,6 +89,7 @@ export function AppSidebar() {
   }, []);
 
   const visibleGestao = gestaoItems.filter((i) => access.isAdmin || access.canView(i.moduleKey));
+  const showGestaoSkeleton = access.loading && visibleGestao.length === 0;
 
   const persistOrder = (items: typeof defaultGestaoItems) => {
     try {
@@ -135,6 +139,15 @@ export function AppSidebar() {
           <SidebarGroupLabel>Gestão</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              {showGestaoSkeleton &&
+                [0, 1, 2, 3, 4].map((i) => (
+                  <SidebarMenuItem key={`sk-${i}`}>
+                    <div className="flex items-center gap-2 px-2 py-1.5">
+                      <Skeleton className="h-4 w-4 rounded" />
+                      {!isCollapsed && <Skeleton className="h-3.5 flex-1" />}
+                    </div>
+                  </SidebarMenuItem>
+                ))}
               {visibleGestao.map((item) => (
                 <SidebarMenuItem
                   key={item.url}
@@ -160,6 +173,26 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+            {!access.loading && access.error && !isCollapsed && (
+              <div className="mx-2 mt-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-muted-foreground">
+                <p className="flex items-start gap-1.5">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-destructive" />
+                  <span>{access.error}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void access.refresh()}
+                  className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-foreground underline underline-offset-2"
+                >
+                  <RefreshCw className="h-3 w-3" /> Tentar novamente
+                </button>
+              </div>
+            )}
+            {!access.loading && !access.error && visibleGestao.length === 0 && !isCollapsed && (
+              <p className="mx-2 mt-2 text-[11px] text-muted-foreground">
+                Nenhum módulo liberado para o seu acesso. Peça a um administrador para liberar em Usuários.
+              </p>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
