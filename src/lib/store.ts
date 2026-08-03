@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { cadastrarClienteComSetup } from "./clientes.functions";
 import { registrarMovimento } from "./movimentos.functions";
 import { gerarFechamentoCompleto } from "./fechamentos.functions";
+import { persistMutation } from "./mutations.functions";
 
 // ===== Helpers de persistência segura =====
 
@@ -411,11 +412,9 @@ export const useStore = create<State>()(
       addPlano: async (p) => {
         const id = uid();
         const novoPlano = { ...p, id };
-        const userId = await requireAuthUid("Cadastro de plano");
-        const { error } = await supabase
-          .from("elora_planos")
-          .insert({ ...mapPlanoToDb(novoPlano), user_id: userId } as never);
-        if (error) falharPersistencia(error, "Cadastro de plano");
+        try {
+          await gravarComPrazo(persistMutation({ data: { operation: "plan-create", payload: mapPlanoToDb(novoPlano) } }), "cadastro do plano", 20000);
+        } catch (error) { falharPersistencia(error, "Cadastro de plano"); }
         set({ planos: [...get().planos, novoPlano] });
         return id;
       },
@@ -423,21 +422,18 @@ export const useStore = create<State>()(
         const atual = get().planos.find((x) => x.id === id);
         if (!atual) return;
         const updated = { ...atual, ...p };
-        await requireAuthUid("Atualização de plano");
-        const { error } = await supabase
-          .from("elora_planos")
-          .update(mapPlanoToDb(updated))
-          .eq("id", id);
-        if (error) falharPersistencia(error, "Atualização de plano");
+        try {
+          await gravarComPrazo(persistMutation({ data: { operation: "plan-update", id, payload: mapPlanoToDb(updated) } }), "atualização do plano", 20000);
+        } catch (error) { falharPersistencia(error, "Atualização de plano"); }
         // Os valores do cliente são recalculados automaticamente a partir
         // das novas configurações do plano — nenhum movimento de ajuste
         // é registrado para evitar poluir o histórico.
         set({ planos: get().planos.map((x) => (x.id === id ? updated : x)) });
       },
       removePlano: async (id) => {
-        await requireAuthUid("Exclusão de plano");
-        const { error } = await supabase.from("elora_planos").delete().eq("id", id);
-        if (error) falharPersistencia(error, "Exclusão de plano");
+        try {
+          await gravarComPrazo(persistMutation({ data: { operation: "plan-delete", id } }), "exclusão do plano", 20000);
+        } catch (error) { falharPersistencia(error, "Exclusão de plano"); }
         set({ planos: get().planos.filter((x) => x.id !== id) });
       },
 
@@ -521,9 +517,9 @@ export const useStore = create<State>()(
         set({ clientes: get().clientes.map((x) => (x.id === id ? updated : x)) });
       },
       removeCliente: async (id) => {
-        await requireAuthUid("Exclusão de cliente");
-        const { error } = await supabase.from("elora_clientes").delete().eq("id", id);
-        if (error) falharPersistencia(error, "Exclusão de cliente");
+        try {
+          await gravarComPrazo(persistMutation({ data: { operation: "client-delete", id } }), "exclusão do cliente", 20000);
+        } catch (error) { falharPersistencia(error, "Exclusão de cliente"); }
         set({
           clientes: get().clientes.filter((x) => x.id !== id),
           movimentos: get().movimentos.filter((m) => m.clienteId !== id),
@@ -623,10 +619,8 @@ export const useStore = create<State>()(
       removeMovimento: async (id) => {
         const old = get().movimentos.find((m) => m.id === id);
         if (!old) return;
-        await requireAuthUid("Exclusão de movimento");
-        // 1) Remove no banco primeiro — nada muda na tela antes da confirmação.
-        const { error: delErr } = await supabase.from("elora_movimentos").delete().eq("id", id);
-        if (delErr) falharPersistencia(delErr, "Exclusão de movimento");
+        let clienteId: string | null = null;
+        let clientePatch: Record<string, unknown> | null = null;
         // Reverte deltas no cliente quando o movimento for upgrade/downgrade
         if (old.tipo === "upgrade" || old.tipo === "downgrade") {
           const cliente = get().clientes.find((c) => c.id === old.clienteId);
@@ -655,16 +649,19 @@ export const useStore = create<State>()(
             if (nCanais !== undefined && nCanais !== cliente.canais) patch.canais = nCanais;
             if (Object.keys(patch).length) {
               const updated = { ...cliente, ...patch } as Cliente;
-              // Apenas os campos revertidos — nunca o registro inteiro.
-              const { error: cliErr } = await supabase
-                .from("elora_clientes")
-                .update(mapClientePatchToDb(patch))
-                .eq("id", cliente.id);
-              if (cliErr) falharPersistencia(cliErr, "Reversão do cliente após excluir movimento");
-              set({ clientes: get().clientes.map((c) => (c.id === cliente.id ? updated : c)) });
+              clienteId = cliente.id;
+              clientePatch = mapClientePatchToDb(patch) as Record<string, unknown>;
+              try {
+                await gravarComPrazo(persistMutation({ data: { operation: "movement-delete", id, clientId: cliente.id, clientPatch: clientePatch } }), "exclusão do movimento", 20000);
+              } catch (error) { falharPersistencia(error, "Exclusão de movimento"); }
+              set({ clientes: get().clientes.map((c) => (c.id === cliente.id ? updated : c)), movimentos: get().movimentos.filter((m) => m.id !== id) });
+              return;
             }
           }
         }
+        try {
+          await gravarComPrazo(persistMutation({ data: { operation: "movement-delete", id, clientId, clientPatch } }), "exclusão do movimento", 20000);
+        } catch (error) { falharPersistencia(error, "Exclusão de movimento"); }
         set({ movimentos: get().movimentos.filter((m) => m.id !== id) });
       },
 
@@ -673,11 +670,8 @@ export const useStore = create<State>()(
         const id = uid();
         const criadoEm = new Date().toISOString().slice(0, 10);
         const novoParceiro = { ...p, id, criadoEm };
-        const userId = await requireAuthUid("Cadastro de parceiro");
-        const { error } = await supabase
-          .from("elora_parceiros")
-          .insert({ ...mapParceiroToDb(novoParceiro), user_id: userId } as never);
-        if (error) falharPersistencia(error, "Cadastro de parceiro");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "partner-create", payload: mapParceiroToDb(novoParceiro) } }), "cadastro do parceiro", 20000); }
+        catch (error) { falharPersistencia(error, "Cadastro de parceiro"); }
         set({ parceiros: [...get().parceiros, novoParceiro] });
         return id;
       },
@@ -685,18 +679,13 @@ export const useStore = create<State>()(
         const atual = get().parceiros.find((x) => x.id === id);
         if (!atual) return;
         const updated = { ...atual, ...p };
-        await requireAuthUid("Atualização de parceiro");
-        const { error } = await supabase
-          .from("elora_parceiros")
-          .update(mapParceiroToDb(updated))
-          .eq("id", id);
-        if (error) falharPersistencia(error, "Atualização de parceiro");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "partner-update", id, payload: mapParceiroToDb(updated) } }), "atualização do parceiro", 20000); }
+        catch (error) { falharPersistencia(error, "Atualização de parceiro"); }
         set({ parceiros: get().parceiros.map((x) => (x.id === id ? updated : x)) });
       },
       removeParceiro: async (id) => {
-        await requireAuthUid("Exclusão de parceiro");
-        const { error } = await supabase.from("elora_parceiros").delete().eq("id", id);
-        if (error) falharPersistencia(error, "Exclusão de parceiro");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "partner-delete", id } }), "exclusão do parceiro", 20000); }
+        catch (error) { falharPersistencia(error, "Exclusão de parceiro"); }
         set({ parceiros: get().parceiros.filter((x) => x.id !== id) });
       },
 
@@ -704,18 +693,8 @@ export const useStore = create<State>()(
       addLancamento: async (l) => {
         const id = uid();
         const novo: LancamentoFinanceiro = { ...l, id };
-        const userId = await getAuthUid();
-        if (!userId) {
-          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
-        }
-        // Grava PRIMEIRO no banco; só reflete na tela após confirmação.
-        const { error } = await (supabase as any)
-          .from("elora_financeiro")
-          .insert({ ...mapFinanceiroToDb(novo), user_id: userId });
-        if (error) {
-          console.error("Erro ao salvar lançamento financeiro:", error);
-          throw error;
-        }
+        try { await gravarComPrazo(persistMutation({ data: { operation: "finance-create", payload: mapFinanceiroToDb(novo) } }), "cadastro do lançamento", 20000); }
+        catch (error) { falharPersistencia(error, "Cadastro de lançamento financeiro"); }
         set({ financeiro: [...get().financeiro, novo] });
         return id;
       },
@@ -723,21 +702,13 @@ export const useStore = create<State>()(
         const atual = get().financeiro.find((x) => x.id === id);
         if (!atual) return;
         const updated = { ...atual, ...l };
-        await requireAuthUid("Atualização de lançamento financeiro");
-        const { error } = await (supabase as any)
-          .from("elora_financeiro")
-          .update(mapFinanceiroToDb(updated))
-          .eq("id", id);
-        if (error) falharPersistencia(error, "Atualização de lançamento financeiro");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "finance-update", id, payload: mapFinanceiroToDb(updated) } }), "atualização do lançamento", 20000); }
+        catch (error) { falharPersistencia(error, "Atualização de lançamento financeiro"); }
         set({ financeiro: get().financeiro.map((x) => (x.id === id ? updated : x)) });
       },
       removeLancamento: async (id) => {
-        await requireAuthUid("Exclusão de lançamento financeiro");
-        const { error } = await (supabase as any)
-          .from("elora_financeiro")
-          .delete()
-          .eq("id", id);
-        if (error) falharPersistencia(error, "Exclusão de lançamento financeiro");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "finance-delete", id } }), "exclusão do lançamento", 20000); }
+        catch (error) { falharPersistencia(error, "Exclusão de lançamento financeiro"); }
         set({ financeiro: get().financeiro.filter((x) => x.id !== id) });
       },
 
@@ -747,11 +718,8 @@ export const useStore = create<State>()(
           ? (crypto as any).randomUUID()
           : uid();
         const novo: Desconto = { ...d, id };
-        const userId = await requireAuthUid("Cadastro de desconto");
-        const { error } = await (supabase as any)
-          .from("elora_descontos")
-          .insert({ ...mapDescontoToDb(novo), user_id: userId });
-        if (error) falharPersistencia(error, "Cadastro de desconto");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "discount-create", payload: mapDescontoToDb(novo) } }), "cadastro do desconto", 20000); }
+        catch (error) { falharPersistencia(error, "Cadastro de desconto"); }
         set({ descontos: [...get().descontos, novo] });
         return id;
       },
@@ -759,18 +727,13 @@ export const useStore = create<State>()(
         const atual = get().descontos.find((x) => x.id === id);
         if (!atual) return;
         const updated = { ...atual, ...d };
-        await requireAuthUid("Atualização de desconto");
-        const { error } = await (supabase as any)
-          .from("elora_descontos")
-          .update(mapDescontoToDb(updated))
-          .eq("id", id);
-        if (error) falharPersistencia(error, "Atualização de desconto");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "discount-update", id, payload: mapDescontoToDb(updated) } }), "atualização do desconto", 20000); }
+        catch (error) { falharPersistencia(error, "Atualização de desconto"); }
         set({ descontos: get().descontos.map((x) => (x.id === id ? updated : x)) });
       },
       removeDesconto: async (id) => {
-        await requireAuthUid("Exclusão de desconto");
-        const { error } = await (supabase as any).from("elora_descontos").delete().eq("id", id);
-        if (error) falharPersistencia(error, "Exclusão de desconto");
+        try { await gravarComPrazo(persistMutation({ data: { operation: "discount-delete", id } }), "exclusão do desconto", 20000); }
+        catch (error) { falharPersistencia(error, "Exclusão de desconto"); }
         set({ descontos: get().descontos.filter((x) => x.id !== id) });
       },
 
