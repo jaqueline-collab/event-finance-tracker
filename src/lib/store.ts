@@ -660,7 +660,7 @@ export const useStore = create<State>()(
           }
         }
         try {
-          await gravarComPrazo(persistMutation({ data: { operation: "movement-delete", id, clientId, clientPatch } }), "exclusão do movimento", 20000);
+          await gravarComPrazo(persistMutation({ data: { operation: "movement-delete", id, clientId: clienteId, clientPatch: clientePatch } }), "exclusão do movimento", 20000);
         } catch (error) { falharPersistencia(error, "Exclusão de movimento"); }
         set({ movimentos: get().movimentos.filter((m) => m.id !== id) });
       },
@@ -812,68 +812,33 @@ export const useStore = create<State>()(
       },
       removeFechamento: async (id) => {
         // Soft-delete: move para a lixeira, preservando fechamento e itens.
-        const prev = get().fechamentos;
         const deletadoEm = new Date().toISOString();
-        set({ fechamentos: prev.map((x) => (x.id === id ? { ...x, deletadoEm } : x)) });
-        const { error } = await (supabase as any)
-          .from("elora_fechamentos")
-          .update({ deletado_em: deletadoEm })
-          .eq("id", id);
-        if (error) {
-          console.error("Erro ao mover fechamento para a lixeira:", error);
-          set({ fechamentos: prev });
-          throw error;
-        }
+        try { await gravarComPrazo(persistMutation({ data: { operation: "closing-update", id, payload: { deletado_em: deletadoEm } } }), "envio do fechamento à lixeira", 20000); }
+        catch (error) { falharPersistencia(error, "Mover fechamento para a lixeira"); }
+        set({ fechamentos: get().fechamentos.map((x) => (x.id === id ? { ...x, deletadoEm } : x)) });
       },
       restaurarFechamento: async (id) => {
-        const prev = get().fechamentos;
-        set({ fechamentos: prev.map((x) => (x.id === id ? { ...x, deletadoEm: null } : x)) });
-        const { error } = await (supabase as any)
-          .from("elora_fechamentos")
-          .update({ deletado_em: null })
-          .eq("id", id);
-        if (error) {
-          console.error("Erro ao restaurar fechamento:", error);
-          set({ fechamentos: prev });
-          throw error;
-        }
+        try { await gravarComPrazo(persistMutation({ data: { operation: "closing-update", id, payload: { deletado_em: null } } }), "restauração do fechamento", 20000); }
+        catch (error) { falharPersistencia(error, "Restaurar fechamento"); }
+        set({ fechamentos: get().fechamentos.map((x) => (x.id === id ? { ...x, deletadoEm: null } : x)) });
       },
       excluirFechamentoDefinitivo: async (id) => {
-        set({
-          fechamentos: get().fechamentos.filter((x) => x.id !== id),
-          fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id),
-        });
         // Remove definitivamente o registro persistido do fechamento e seus itens.
         // Lançamentos financeiros vinculados são preservados para manter histórico.
-        const { error: errI } = await (supabase as any)
-          .from("elora_fechamento_itens")
-          .delete()
-          .eq("fechamento_id", id);
-        if (errI) console.error("Erro ao remover itens do fechamento:", errI);
-        const { error: errF } = await (supabase as any)
-          .from("elora_fechamentos")
-          .delete()
-          .eq("id", id);
-        if (errF) {
-          console.error("Erro ao remover fechamento:", errF);
-          throw errF;
-        }
+        try { await gravarComPrazo(persistMutation({ data: { operation: "closing-delete", id } }), "exclusão definitiva do fechamento", 20000); }
+        catch (error) { falharPersistencia(error, "Excluir fechamento definitivamente"); }
+        set({ fechamentos: get().fechamentos.filter((x) => x.id !== id), fechamentoItens: get().fechamentoItens.filter((x) => x.fechamentoId !== id) });
       },
       updateFechamento: async (id, patch) => {
-        const prev = get().fechamentos;
-        set({ fechamentos: prev.map((x) => x.id === id ? { ...x, ...patch } : x) });
         const dbPatch: Record<string, unknown> = {};
         if (patch.titulo !== undefined) dbPatch.titulo = patch.titulo;
         if (patch.descricao !== undefined) dbPatch.descricao = patch.descricao;
         if (patch.observacao !== undefined) dbPatch.observacao = patch.observacao;
         if (patch.status !== undefined) dbPatch.status = patch.status;
         if (Object.keys(dbPatch).length === 0) return;
-        const { error } = await (supabase as any).from("elora_fechamentos").update(dbPatch).eq("id", id);
-        if (error) {
-          console.error("Erro ao atualizar fechamento:", error);
-          set({ fechamentos: prev });
-          throw error;
-        }
+        try { await gravarComPrazo(persistMutation({ data: { operation: "closing-update", id, payload: dbPatch } }), "atualização do fechamento", 20000); }
+        catch (error) { falharPersistencia(error, "Atualizar fechamento"); }
+        set({ fechamentos: get().fechamentos.map((x) => x.id === id ? { ...x, ...patch } : x) });
       },
 
       atualizarMauFechamentoItem: async (itemId, mauMes) => {
@@ -938,41 +903,19 @@ export const useStore = create<State>()(
           });
         }
 
-        // Otimista
-        set({
-          fechamentoItens: state.fechamentoItens.map((x) => (x.id === itemId ? itemAtualizado : x)),
-          fechamentos: state.fechamentos.map((f) => (f.id === novoFech.id ? novoFech : f)),
-          financeiro: novoFinanceiro,
-        });
-
-        // Persistência
-        const { error: errI } = await (supabase as any)
-          .from("elora_fechamento_itens")
-          .update(mapFechamentoItemToDb(itemAtualizado))
-          .eq("id", itemId);
-        if (errI) {
-          console.error("Erro ao atualizar item do fechamento:", errI);
-          set({ fechamentoItens: state.fechamentoItens, fechamentos: state.fechamentos, financeiro: state.financeiro });
-          throw errI;
-        }
-        const { error: errF } = await (supabase as any)
-          .from("elora_fechamentos")
-          .update({ total_bruto: totalBruto, total_desconto: totalDesconto, total_liquido: totalLiquido })
-          .eq("id", novoFech.id);
-        if (errF) console.error("Erro ao atualizar totais do fechamento:", errF);
-
-        if (item.lancamentoFinanceiroId) {
-          const lanc = novoFinanceiro.find((l) => l.id === item.lancamentoFinanceiroId);
-          if (lanc) {
-            (supabase as any)
-              .from("elora_financeiro")
-              .update(mapFinanceiroToDb(lanc))
-              .eq("id", lanc.id)
-              .then(({ error }: any) => {
-                if (error) console.error("Erro ao atualizar lançamento financeiro (MAU):", error);
-              });
-          }
-        }
+        const lanc = item.lancamentoFinanceiroId ? novoFinanceiro.find((l) => l.id === item.lancamentoFinanceiroId) : undefined;
+        try {
+          await gravarComPrazo(persistMutation({ data: {
+            operation: "closing-mau-update",
+            itemId,
+            closingId: novoFech.id,
+            itemPayload: mapFechamentoItemToDb(itemAtualizado),
+            closingPayload: { total_bruto: totalBruto, total_desconto: totalDesconto, total_liquido: totalLiquido },
+            financeId: lanc?.id ?? null,
+            financePayload: lanc ? mapFinanceiroToDb(lanc) : null,
+          } }), "atualização de MAU", 20000);
+        } catch (error) { falharPersistencia(error, "Atualizar MAU do fechamento"); }
+        set({ fechamentoItens: state.fechamentoItens.map((x) => (x.id === itemId ? itemAtualizado : x)), fechamentos: state.fechamentos.map((f) => (f.id === novoFech.id ? novoFech : f)), financeiro: novoFinanceiro });
       },
 
       resetAll: () => {
