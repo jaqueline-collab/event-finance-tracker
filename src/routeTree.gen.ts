@@ -17,6 +17,7 @@ import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as GestaoParceirosRouteImport } from './routes/gestao-parceiros'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClientesRouteImport } from './routes/clientes'
@@ -67,6 +68,11 @@ const OrcamentosRoute = OrcamentosRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoParceirosRoute = GestaoParceirosRouteImport.update({
+  id: '/gestao-parceiros',
+  path: '/gestao-parceiros',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FinanceiroRoute = FinanceiroRouteImport.update({
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/financeiro': typeof FinanceiroRoute
+  '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiro': typeof ParceiroRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/financeiro': typeof FinanceiroRoute
+  '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiro': typeof ParceiroRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/financeiro': typeof FinanceiroRoute
+  '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiro': typeof ParceiroRoute
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/dashboard'
     | '/financeiro'
+    | '/gestao-parceiros'
     | '/mcp'
     | '/orcamentos'
     | '/parceiro'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/dashboard'
     | '/financeiro'
+    | '/gestao-parceiros'
     | '/mcp'
     | '/orcamentos'
     | '/parceiro'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/dashboard'
     | '/financeiro'
+    | '/gestao-parceiros'
     | '/mcp'
     | '/orcamentos'
     | '/parceiro'
@@ -264,6 +276,7 @@ export interface RootRouteChildren {
   ClientesRoute: typeof ClientesRoute
   DashboardRoute: typeof DashboardRoute
   FinanceiroRoute: typeof FinanceiroRoute
+  GestaoParceirosRoute: typeof GestaoParceirosRoute
   McpRoute: typeof McpRoute
   OrcamentosRoute: typeof OrcamentosRoute
   ParceiroRoute: typeof ParceiroRoute
@@ -335,6 +348,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-parceiros': {
+      id: '/gestao-parceiros'
+      path: '/gestao-parceiros'
+      fullPath: '/gestao-parceiros'
+      preLoaderRoute: typeof GestaoParceirosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/financeiro': {
@@ -433,6 +453,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClientesRoute: ClientesRoute,
   DashboardRoute: DashboardRoute,
   FinanceiroRoute: FinanceiroRoute,
+  GestaoParceirosRoute: GestaoParceirosRoute,
   McpRoute: McpRoute,
   OrcamentosRoute: OrcamentosRoute,
   ParceiroRoute: ParceiroRoute,
