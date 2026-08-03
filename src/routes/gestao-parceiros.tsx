@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
+import { Eye, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/gestao-parceiros")({
   head: () => ({
@@ -185,14 +185,21 @@ function GestaoParceiros() {
                 <CardTitle className="text-base">{p.nome}</CardTitle>
                 <p className="text-xs text-muted-foreground">{p.email || "sem e-mail"} · {p.celular || "sem celular"}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removeParceiro(p.id)}
-                aria-label={`Excluir ${p.nome}`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/parceiro" search={{ como: p.id }}>
+                    <Eye className="mr-2 h-4 w-4" /> Ver como este parceiro
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeParceiro(p.id)}
+                  aria-label={`Excluir ${p.nome}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex items-start gap-3 rounded-md border border-border/60 p-3">
