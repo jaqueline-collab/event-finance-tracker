@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
+import { usePapelUsuario } from "@/lib/use-papel";
 
 function NotFoundComponent() {
   return (
@@ -138,6 +139,16 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
+  const papel = usePapelUsuario();
+  const isParceiro = !papel.loading && !papel.isInterno && Boolean(papel.parceiroId);
+
+  // Pessoa de parceiro não acessa telas internas: sempre cai na área dela.
+  useEffect(() => {
+    if (!isParceiro) return;
+    if (typeof window === "undefined") return;
+    if (pathname === "/parceiro" || pathname === "/" || pathname.startsWith("/auth") || pathname === "/parceiros") return;
+    router.navigate({ to: "/parceiro", replace: true });
+  }, [isParceiro, pathname, router]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -201,11 +212,13 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background text-foreground">
-          <AppSidebar />
+          {!isParceiro && <AppSidebar />}
           <div className="flex-1 flex flex-col min-w-0">
             <header className="h-14 flex items-center gap-3 border-b border-border/60 px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
-              <SidebarTrigger />
-              <div className="text-sm text-muted-foreground flex-1">Elora · Controle financeiro</div>
+              {!isParceiro && <SidebarTrigger />}
+              <div className="text-sm text-muted-foreground flex-1">
+                {isParceiro ? "Elora · Área do parceiro" : "Elora · Controle financeiro"}
+              </div>
               <span className="text-xs text-muted-foreground hidden sm:inline">
                 {session.user.email}
               </span>

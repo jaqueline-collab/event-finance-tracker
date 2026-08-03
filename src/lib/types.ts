@@ -79,6 +79,18 @@ export interface Parceiro {
   planosVinculados: string[];
   observacao?: string;
   criadoEm: string;
+  /** Se true, o parceiro logado vê os valores cobrados dos clientes dele. Nunca libera custo/margem. */
+  mostrarValoresCliente?: boolean;
+}
+
+export interface ParceiroUsuario {
+  id: string;
+  parceiroId: string;
+  nome: string;
+  email: string;
+  ativo: boolean;
+  vinculado: boolean;
+  criadoEm: string;
 }
 
 export type TipoMovimento =
