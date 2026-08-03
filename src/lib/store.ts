@@ -750,40 +750,14 @@ export const useStore = create<State>()(
             : uid(),
           fechamentoId: id,
         }));
-        const userId = await getAuthUid();
-        if (!userId) {
-          throw new Error("sessao-expirada: não foi possível identificar o usuário logado.");
-        }
-        // 1) Grava o fechamento (pai) — nada é refletido na tela antes disso.
-        const { error: errF } = await (supabase as any)
-          .from("elora_fechamentos")
-          .insert({ ...mapFechamentoToDb(novo), criado_por: userId });
-        if (errF) {
-          console.error("Erro ao salvar fechamento:", errF);
-          throw errF;
-        }
-        // 2) Grava os itens; se falhar, faz rollback do pai e VERIFICA o rollback.
-        if (novosItens.length > 0) {
-          const { error: errI } = await (supabase as any)
-            .from("elora_fechamento_itens")
-            .insert(novosItens.map(mapFechamentoItemToDb));
-          if (errI) {
-            console.error("Erro ao salvar itens do fechamento:", errI);
-            const { error: errRollback } = await (supabase as any)
-              .from("elora_fechamentos")
-              .delete()
-              .eq("id", id);
-            if (errRollback) {
-              console.error("Falha no rollback do fechamento:", errRollback);
-              toast.error(
-                "Fechamento pode ter ficado incompleto no banco, verifique manualmente.",
-                { description: `ID ${id} — ${errRollback.message ?? "erro ao desfazer"}` },
-              );
-            }
-            throw errI;
-          }
-        }
-        // 3) Só agora reflete na tela.
+        try {
+          await gravarComPrazo(gerarFechamentoCompleto({ data: {
+            fechamento: mapFechamentoToDb(novo),
+            itens: novosItens.map(mapFechamentoItemToDb),
+            lancamentos: [],
+          } }), "cadastro do fechamento", 20000);
+        } catch (error) { falharPersistencia(error, "Cadastro de fechamento"); }
+        // Só agora reflete na tela.
         set({
           fechamentos: [...get().fechamentos, novo],
           fechamentoItens: [...get().fechamentoItens, ...novosItens],
@@ -928,9 +902,7 @@ export const useStore = create<State>()(
         if (!p) return;
         const today = new Date();
         const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
-        const id = uid();
-        const demoCliente: Cliente = {
-          id,
+        const demoCliente: Omit<Cliente, "id"> = {
           nome: "Clínica Demo",
           planoId: p.id,
           statusComercial: "ativo",
@@ -951,22 +923,10 @@ export const useStore = create<State>()(
           valorAcompanhamento: 0,
           extras: {},
         };
-        set({
-          clientes: [...get().clientes, demoCliente],
-          movimentos: [
-            ...get().movimentos,
-            {
-              id: uid(),
-              clienteId: id,
-              data: sixMonthsAgo.toISOString().slice(0, 10),
-              tipo: "setup",
-              planoId: p.id,
-              apps: 2,
-              mau: 1500,
-            },
-          ],
+        void get().addCliente(demoCliente).catch((error) => {
+          console.error("Erro ao criar cliente de demonstração:", error);
+          toast.error(mensagemErroPersistencia(error, "Criar cliente de demonstração"));
         });
-        supabase.from("elora_clientes").insert(mapClienteToDb(demoCliente));
       },
     }),
     {
