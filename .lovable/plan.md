@@ -79,10 +79,16 @@ Os valores não são filtrados no front — eles não saem do banco quando o tog
 
 ## Gestão de acesso (admin)
 
-Na tela **Parceiros**, dentro de cada parceiro:
+Hoje a rota `/parceiros` é a página pública da parceria e não existe tela interna de cadastro de parceiros — o item "Parceiros" do menu aponta para a página pública. Será criada a tela interna **Parceiros** em `/gestao-parceiros` (o menu passa a apontar para ela; a página pública fica intacta), com:
 - Switch "Mostrar valores cobrados dos clientes" (padrão desligado).
 - Lista de pessoas com acesso: nome, e-mail, ativo/inativo, data de criação.
-- Botões para conceder acesso (nome + e-mail), revogar (marca inativo) e reativar.
+- Botões para conceder acesso (nome + e-mail), revogar (marca inativo) e reativar — sem autoconvite: só admin concede.
+
+## Depois de implementado
+
+1. Rodar os 7 pontos do teste de segurança e reportar cada resultado.
+2. Perguntar nome e e-mail da primeira pessoa de acesso da Rabbit Agency antes de criar o registro.
+3. Ligar `mostrar_valores_cliente = true` para a Rabbit Agency.
 
 ## Teste de segurança obrigatório antes de concluir
 
