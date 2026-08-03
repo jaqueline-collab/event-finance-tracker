@@ -47,7 +47,7 @@ const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: Mo
 
 const configItemsAll: { title: string; url: string; icon: any; moduleKey: ModuleKey; adminOnly?: boolean }[] = [
   { title: "Planos", url: "/planos", icon: Package, moduleKey: "planos" },
-  { title: "Parceiros", url: "/parceiros", icon: Handshake, moduleKey: "parceiros" },
+  { title: "Parceiros", url: "/gestao-parceiros", icon: Handshake, moduleKey: "parceiros" },
   { title: "Usuários", url: "/usuarios", icon: UserCog, moduleKey: "usuarios", adminOnly: true },
 ];
 

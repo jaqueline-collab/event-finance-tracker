@@ -103,10 +103,10 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
         canaisZapi: m.canaisZapi ?? null,
         usuariosAtivos: m.usuariosAtivos ?? null,
         contatosAtivos: m.contatosAtivos ?? null,
-        agentesIa: m.agentesIa ?? null,
+        agentesIa: m.agentesIA ?? null,
         asaas: m.asaas ?? null,
         zapi: m.zapi ?? null,
-        transcricaoIa: m.transcricaoIa ?? null,
+        transcricaoIa: m.transcricaoIA ?? null,
         observacao: m.observacao ?? null,
       };
     });
