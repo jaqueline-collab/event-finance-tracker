@@ -27,7 +27,7 @@ export function receitaMensalCliente(
   const valorCanalInstaExc = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.90;
   const valorCanalMessengerExc = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.90;
   const valorUsuariosExc = plano.valorUsuariosExc ?? 39.90;
-  const valorContatosExc = plano.valorContatosExc ?? 0.10;
+  const valorContatosExc = plano.valorContatosExc ?? 0.095;
   const valorIA = plano.valorIA ?? 99.00;
   const valorAsaas = plano.valorAsaas ?? 89.00;
   const valorZapi = plano.valorZapi ?? 149.00;
@@ -101,7 +101,7 @@ export function explicarReceitaCliente(
   const valorCanalInstaExc = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.90;
   const valorCanalMessengerExc = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.90;
   const valorUsuariosExc = plano.valorUsuariosExc ?? 39.90;
-  const valorContatosExc = plano.valorContatosExc ?? 0.10;
+  const valorContatosExc = plano.valorContatosExc ?? 0.095;
   const valorIA = plano.valorIA ?? 99.00;
   const valorAsaas = plano.valorAsaas ?? 89.00;
   const valorZapi = plano.valorZapi ?? 149.00;

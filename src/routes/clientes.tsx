@@ -117,7 +117,7 @@ function ClientesPage() {
     const valorCanalInstaExc = selectedPlano.valorCanalInstaExc ?? selectedPlano.valorCanaisExc ?? 59.90;
     const valorCanalMessengerExc = selectedPlano.valorCanalMessengerExc ?? selectedPlano.valorCanaisExc ?? 59.90;
     const valorUsuariosExc = selectedPlano.valorUsuariosExc ?? 39.90;
-    const valorContatosExc = selectedPlano.valorContatosExc ?? 0.10;
+    const valorContatosExc = selectedPlano.valorContatosExc ?? 0.095;
     const valorIA = selectedPlano.valorIA ?? 99.00;
     const valorAsaas = selectedPlano.valorAsaas ?? 89.00;
     const valorZapi = selectedPlano.valorZapi ?? 149.00;

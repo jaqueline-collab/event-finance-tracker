@@ -38,27 +38,22 @@ export function useCurrentUserAccess(): CurrentUserAccess {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: sess } = await supabase.auth.getSession();
-    const mail = sess.session?.user.email?.toLowerCase() ?? null;
-    setEmail(mail);
-    if (!mail) {
-      setIsAdmin(false);
-      setPerms([]);
-      setLoading(false);
-      return;
-    }
-    const { data: userRow } = await (supabase as any)
-      .from("app_users")
-      .select("is_admin")
-      .eq("email", mail)
-      .maybeSingle();
-    setIsAdmin(Boolean(userRow?.is_admin));
-    const { data: p } = await (supabase as any)
-      .from("app_user_permissions")
-      .select("email, module, can_view, can_edit")
-      .eq("email", mail);
-    setPerms((p as PermissionRow[]) ?? []);
-    setLoading(false);
+    try {
+      const { data: sess } = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout-permissoes")), 8000)),
+      ]);
+      const mail = sess.session?.user.email?.toLowerCase() ?? null;
+      setEmail(mail);
+      if (!mail) { setIsAdmin(false); setPerms([]); return; }
+      const { data: userRow } = await (supabase as any).from("app_users").select("is_admin").eq("email", mail).maybeSingle();
+      setIsAdmin(Boolean(userRow?.is_admin));
+      const { data: p } = await (supabase as any).from("app_user_permissions").select("email, module, can_view, can_edit").eq("email", mail);
+      setPerms((p as PermissionRow[]) ?? []);
+    } catch (error) {
+      console.error("Erro ao carregar permissões:", error);
+      setIsAdmin(false); setPerms([]);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
