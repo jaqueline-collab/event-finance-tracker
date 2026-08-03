@@ -37,13 +37,33 @@ export const getPapelUsuario = createServerFn({ method: "POST" })
 export const getPainelParceiro = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => painelParceiroSchema.parse(input ?? {}))
-  .handler(async ({ context }) => {
+  .handler(async ({ data, context }) => {
     const db = context.supabase as any;
-    await db.rpc("link_parceiro_usuario");
-    const { data: parceiroId } = await db.rpc("parceiro_do_usuario");
-    if (!parceiroId) throw new Error("acesso-parceiro: este login não está vinculado a nenhum parceiro.");
-    const { data: veValoresRaw } = await db.rpc("parceiro_ve_valores");
-    const veValores = Boolean(veValoresRaw);
+    const verComo = (data as { verComoParceiroId?: string } | undefined)?.verComoParceiroId;
+    let parceiroId: string | null = null;
+    let veValores = false;
+
+    if (verComo) {
+      // Modo "visualizar como parceiro": exclusivo da equipe interna, somente leitura.
+      const { data: interno } = await db.rpc("is_equipe_interna");
+      if (!interno) throw new Error("acesso-negado: modo de visualização é exclusivo da equipe interna.");
+      const { data: alvo, error: alvoErr } = await db
+        .from("elora_parceiros")
+        .select("id, mostrar_valores_cliente")
+        .eq("id", verComo)
+        .maybeSingle();
+      if (alvoErr) throw new Error(`parceiro: ${alvoErr.message}`);
+      if (!alvo?.id) throw new Error("visualizar-como: parceiro não encontrado.");
+      parceiroId = alvo.id as string;
+      veValores = Boolean(alvo.mostrar_valores_cliente);
+    } else {
+      await db.rpc("link_parceiro_usuario");
+      const { data: proprio } = await db.rpc("parceiro_do_usuario");
+      if (!proprio) throw new Error("acesso-parceiro: este login não está vinculado a nenhum parceiro.");
+      parceiroId = proprio as string;
+      const { data: veValoresRaw } = await db.rpc("parceiro_ve_valores");
+      veValores = Boolean(veValoresRaw);
+    }
 
     const [parceiroRes, clientesRes, planosRes] = await Promise.all([
       db.from("elora_parceiros").select("id, nome, email, celular").eq("id", parceiroId).maybeSingle(),
