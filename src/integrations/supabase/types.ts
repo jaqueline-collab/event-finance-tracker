@@ -567,12 +567,57 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_parceiro_usuarios: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          email: string
+          id: string
+          nome: string
+          parceiro_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          email: string
+          id?: string
+          nome: string
+          parceiro_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          parceiro_id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_parceiro_usuarios_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "elora_parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_parceiros: {
         Row: {
           celular: string | null
           criado_em: string
           email: string | null
           id: string
+          mostrar_valores_cliente: boolean
           nome: string
           observacao: string | null
           planos_vinculados: Json | null
@@ -583,6 +628,7 @@ export type Database = {
           criado_em?: string
           email?: string | null
           id: string
+          mostrar_valores_cliente?: boolean
           nome: string
           observacao?: string | null
           planos_vinculados?: Json | null
@@ -593,6 +639,7 @@ export type Database = {
           criado_em?: string
           email?: string | null
           id?: string
+          mostrar_valores_cliente?: boolean
           nome?: string
           observacao?: string | null
           planos_vinculados?: Json | null
@@ -752,12 +799,75 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      elora_planos_parceiro: {
+        Row: {
+          canais_inclusos: number | null
+          canais_insta_inclusos: number | null
+          canais_messenger_inclusos: number | null
+          canais_whats_inclusos: number | null
+          categoria: string | null
+          ciclo_dia_final: number | null
+          ciclo_dia_inicial: number | null
+          cobranca: string | null
+          contatos_inclusos: number | null
+          dia_vencimento: number | null
+          id: string | null
+          inclui_asaas: boolean | null
+          inclui_ia: boolean | null
+          inclui_transcricao: boolean | null
+          inclui_zapi: number | null
+          nome: string | null
+          usuarios_inclusos: number | null
+        }
+        Insert: {
+          canais_inclusos?: number | null
+          canais_insta_inclusos?: number | null
+          canais_messenger_inclusos?: number | null
+          canais_whats_inclusos?: number | null
+          categoria?: string | null
+          ciclo_dia_final?: number | null
+          ciclo_dia_inicial?: number | null
+          cobranca?: string | null
+          contatos_inclusos?: number | null
+          dia_vencimento?: number | null
+          id?: string | null
+          inclui_asaas?: boolean | null
+          inclui_ia?: boolean | null
+          inclui_transcricao?: boolean | null
+          inclui_zapi?: number | null
+          nome?: string | null
+          usuarios_inclusos?: number | null
+        }
+        Update: {
+          canais_inclusos?: number | null
+          canais_insta_inclusos?: number | null
+          canais_messenger_inclusos?: number | null
+          canais_whats_inclusos?: number | null
+          categoria?: string | null
+          ciclo_dia_final?: number | null
+          ciclo_dia_inicial?: number | null
+          cobranca?: string | null
+          contatos_inclusos?: number | null
+          dia_vencimento?: number | null
+          id?: string | null
+          inclui_asaas?: boolean | null
+          inclui_ia?: boolean | null
+          inclui_transcricao?: boolean | null
+          inclui_zapi?: number | null
+          nome?: string | null
+          usuarios_inclusos?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       bootstrap_admin_if_empty: { Args: never; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
+      is_equipe_interna: { Args: never; Returns: boolean }
       link_app_user: { Args: never; Returns: undefined }
+      link_parceiro_usuario: { Args: never; Returns: undefined }
+      parceiro_do_usuario: { Args: never; Returns: string }
+      parceiro_ve_valores: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
