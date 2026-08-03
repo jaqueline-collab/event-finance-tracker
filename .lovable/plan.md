@@ -56,7 +56,7 @@ E uma função `parceiro_ve_valores()` que devolve verdadeiro só quando a pesso
 - `elora_movimentos`: leitura permitida quando o cliente do movimento pertence ao parceiro da pessoa logada.
 - `elora_parceiros`: a pessoa lê apenas o próprio parceiro; só admin altera (inclusive o toggle).
 - `elora_parceiro_usuarios`: admin gerencia tudo; a pessoa lê apenas o próprio registro.
-- `elora_custos_wts`: **nenhuma** regra concede leitura a parceiro — permanece restrita a admin/equipe interna. Mesmo tratamento para `elora_fechamentos`, `elora_fechamento_itens`, `elora_financeiro` e `elora_descontos`.
+- `elora_custos_wts`: hoje a regra de leitura é `true` para qualquer usuário autenticado — ou seja, um parceiro logado leria o custo. Ela será substituída por uma regra restrita à equipe interna cadastrada (`is_equipe_interna()`), fechando esse acesso de forma permanente. `elora_fechamentos`, `elora_fechamento_itens`, `elora_financeiro` e `elora_descontos` já são escopados ao próprio usuário interno, então o parceiro nunca os lê.
 - `elora_planos`: parceiro não lê a tabela diretamente. Ele recebe nome e franquias do plano por uma view segura `elora_planos_parceiro`, que projeta apenas colunas não sensíveis (nome, inclusos de canal/usuário/contato) e nunca as colunas de custo.
 
 ### Como o toggle chega até a consulta
@@ -79,10 +79,16 @@ Os valores não são filtrados no front — eles não saem do banco quando o tog
 
 ## Gestão de acesso (admin)
 
-Na tela **Parceiros**, dentro de cada parceiro:
+Hoje a rota `/parceiros` é a página pública da parceria e não existe tela interna de cadastro de parceiros — o item "Parceiros" do menu aponta para a página pública. Será criada a tela interna **Parceiros** em `/gestao-parceiros` (o menu passa a apontar para ela; a página pública fica intacta), com:
 - Switch "Mostrar valores cobrados dos clientes" (padrão desligado).
 - Lista de pessoas com acesso: nome, e-mail, ativo/inativo, data de criação.
-- Botões para conceder acesso (nome + e-mail), revogar (marca inativo) e reativar.
+- Botões para conceder acesso (nome + e-mail), revogar (marca inativo) e reativar — sem autoconvite: só admin concede.
+
+## Depois de implementado
+
+1. Rodar os 7 pontos do teste de segurança e reportar cada resultado.
+2. Perguntar nome e e-mail da primeira pessoa de acesso da Rabbit Agency antes de criar o registro.
+3. Ligar `mostrar_valores_cliente = true` para a Rabbit Agency.
 
 ## Teste de segurança obrigatório antes de concluir
 
