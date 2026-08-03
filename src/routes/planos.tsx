@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStore, formatBRL } from "@/lib/store";
 import type { Plano } from "@/lib/types";
 import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers, Loader2 } from "lucide-react";
@@ -245,18 +246,18 @@ function PlanosPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Planos</h1>
           <p className="text-muted-foreground text-sm">Configure os pacotes comerciais com franquias e custos operacionais</p>
         </div>
-        <Button onClick={() => { setOpen((v) => !v); setEditId(null); setForm(defaultForm()); }}>
+        <Button onClick={() => { setOpen(true); setEditId(null); setForm(defaultForm()); }}>
           <Plus className="mr-2 h-4 w-4" /> Novo Plano
         </Button>
       </div>
 
-      {open && (
-        <Card className="border-border/60 bg-muted/20">
-          <CardHeader>
-            <CardTitle>{editId ? "Editar Plano" : "Criar Novo Plano"}</CardTitle>
-            <CardDescription>Configure os dados comerciais, franquias e os preços de custo operacional por plano.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditId(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
+            <DialogTitle>{editId ? "Editar Plano" : "Criar Novo Plano"}</DialogTitle>
+            <DialogDescription>Configure os dados comerciais, franquias e os preços de custo operacional por plano.</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
             {/* Dados Comerciais */}
             <div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tipo do Plano</h3>
