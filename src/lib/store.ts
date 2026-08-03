@@ -12,7 +12,6 @@ import type {
   Plano,
 } from "./types";
 import { supabase } from "@/integrations/supabase/client-configured";
-import { getCachedUserId, setCachedUserId } from "./auth-session";
 import { setTabelaCustosWts } from "./calc/custos-wts";
 import {
   mapPlanoToDb,
@@ -42,35 +41,6 @@ import { persistMutation } from "./mutations.functions";
 
 // ===== Helpers de persistência segura =====
 
-/**
- * Retorna o uid da sessão atual.
- * Usa o cache em memória alimentado por onAuthStateChange (não disputa a trava
- * de auth). Só cai no getSession() quando o cache ainda não foi preenchido.
- */
-async function getAuthUid(): Promise<string | null> {
-  const cached = getCachedUserId();
-  if (cached) return cached;
-  try {
-    const result = await Promise.race([
-      supabase.auth.getSession(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout-sessao")), 8000),
-      ),
-    ]);
-    const uid = result.data.session?.user?.id ?? null;
-    setCachedUserId(uid);
-    return uid;
-  } catch (err) {
-    console.warn("[auth-debug] getAuthUid falhou:", err);
-    if (err instanceof Error && err.message === "timeout-sessao") {
-      throw new Error(
-        "sessao-travada: não foi possível confirmar sua sessão a tempo. Recarregue a página e tente novamente.",
-      );
-    }
-    return null;
-  }
-}
-
 /** Converte erros do Supabase em mensagens claras para o usuário. */
 function movimentoToDb(mov: Movimento) {
   return {
@@ -96,19 +66,6 @@ function movimentoToDb(mov: Movimento) {
     valor_servico: mov.valorServico || null,
     observacao: mov.observacao || null,
   };
-}
-
-/**
- * Garante que existe sessão válida e devolve o uid.
- * Lança erro (com toast) quando não há sessão — nunca falha em silêncio.
- */
-async function requireAuthUid(contexto: string): Promise<string> {
-  const userId = await getAuthUid();
-  if (!userId) {
-    toast.error("Sessão expirada — faça login novamente e repita a operação.");
-    throw new Error(`sessao-expirada: ${contexto}`);
-  }
-  return userId;
 }
 
 /** Reporta falha de persistência (log + toast específico) e propaga o erro real. */

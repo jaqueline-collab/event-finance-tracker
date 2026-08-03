@@ -19,11 +19,8 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  // Apenas UM cliente de auth. O attacher gerado (`attachSupabaseAuth`) chama
-  // supabase.auth.getSession() em um segundo cliente sobre a mesma chave de
-  // sessão; os dois disputavam a renovação do token e travavam as gravações.
-  // NÃO reintroduza `attachSupabaseAuth` aqui, mesmo que o arquivo gerado
-  // `auth-attacher.ts` reapareça após reconectar a integração do backend.
+  // Apenas o middleware que lê o token do cliente configurado. Não registre
+  // outro cliente de sessão aqui: clientes concorrentes travavam gravações.
   functionMiddleware: [attachConfiguredAuth],
   requestMiddleware: [errorMiddleware],
 }));
