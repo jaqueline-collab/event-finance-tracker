@@ -482,17 +482,17 @@ function PlanosPage() {
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>Cancelar</Button>
-              <Button disabled={saving} onClick={handleSave}>
-                {saving
-                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
-                  : editId ? "Salvar Alterações" : <><Plus className="mr-2 h-4 w-4" />Criar Plano</>}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <DialogFooter className="px-6 py-4 border-t border-border/60 bg-background">
+            <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>Cancelar</Button>
+            <Button disabled={saving} onClick={handleSave}>
+              {saving
+                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
+                : editId ? "Salvar Alterações" : <><Plus className="mr-2 h-4 w-4" />Criar Plano</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {planos.map((p) => {
