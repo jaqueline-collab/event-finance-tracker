@@ -1,34 +1,34 @@
-# Corrigir menus laterais sumidos e layout do formulário de Planos
+# Correções: permissões do menu lateral + formulário de Planos
 
-## Diagnóstico confirmado
+## Correção importante do diagnóstico anterior
 
-**1. Menus laterais vazios (causa raiz encontrada)**
-- No banco, `jaqueline@eloracrm.com.br` está com `is_admin = true` e `user_id` preenchido corretamente.
-- Porém as tabelas `app_users` e `app_user_permissions` **não têm nenhum GRANT** para os papéis `authenticated`/`service_role` (consulta em `information_schema.role_table_grants` retornou vazio). Sem GRANT, a API de dados nega a leitura mesmo com RLS correta.
-- Resultado: em `src/lib/permissions.ts`, a leitura de `app_users` falha, `isAdmin` vira `false` e a lista de permissões fica vazia — então `AppSidebar` filtra todos os itens e a sidebar aparece só com "Gestão" e "Configurações".
-- Agravante: enquanto `access.loading` é `true`, a sidebar já renderiza vazia, e qualquer erro é engolido no `catch`, sem aviso na tela.
+A consulta em `information_schema.role_table_grants` retornou vazio, mas isso é um falso negativo: essa view só mostra grants visíveis ao papel que consulta. Ao ler os privilégios reais (`pg_class.relacl`), **todas as 13 tabelas** — incluindo `app_users` e `app_user_permissions` — já têm privilégios completos para `anon`, `authenticated` e `service_role`.
 
-**2. Formulário de Planos desconfigurado**
-- O formulário de criar/editar plano é um `Card` inline dentro da página (`src/routes/planos.tsx`, bloco `{open && (...)}`), com dezenas de campos empilhados.
-- Ao abrir a edição, a página cresce, o conteúdo passa por baixo do cabeçalho fixo (`header` sticky do `__root.tsx`) e os títulos de seção ficam cortados, exatamente como no print.
+Conclusão: **não há GRANT faltando em nenhuma tabela**. A migração de GRANTs sai do plano; a verificação extra pedida já está feita e o resultado é "nenhuma lacuna".
 
-## Implementação
+Tabelas verificadas: app_users, app_user_permissions, elora_clientes, elora_custos, elora_custos_wts, elora_descontos, elora_fechamento_itens, elora_fechamentos, elora_financeiro, elora_kanban_cards, elora_movimentos, elora_parceiros, elora_planos.
 
-1. **Liberar acesso às tabelas de usuários/permissões**
-   - Migração adicionando os GRANTs faltantes em `app_users` e `app_user_permissions` para `authenticated` (SELECT/INSERT/UPDATE/DELETE) e `service_role`, mantendo as políticas RLS atuais intactas.
-   - Nenhum dado é alterado ou removido.
+## Causa real do menu vazio
 
-2. **Tornar a falha visível e não destrutiva na sidebar**
-   - Enquanto as permissões carregam, mostrar itens em estado de carregamento em vez de lista vazia.
-   - Se a leitura falhar, exibir um aviso discreto ("não foi possível carregar suas permissões") em vez de esconder tudo silenciosamente.
+A leitura de permissões (`useCurrentUserAccess`) faz `getSession()` com timeout de 8s. Quando a trava de sessão do navegador atrasa essa chamada, ou quando a consulta a `app_users` falha, o código cai no `catch` e força `isAdmin = false` com lista de permissões vazia — sem avisar nada. Resultado: os títulos "Gestão" e "Configurações" aparecem sem nenhum item, exatamente como no print.
 
-3. **Reorganizar o formulário de Planos**
-   - Converter o bloco inline em um modal (Dialog) com largura ampla, corpo rolável e rodapé fixo com "Cancelar" / "Salvar plano".
-   - Reagrupar em seções claras (Tipo do plano, Dados comerciais, Ciclo de faturamento, Franquias incluídas, Preços de venda, Custos operacionais, Parceiros), com grade consistente e espaçamento uniforme.
-   - Manter toda a lógica de cálculo, validação, `saving` e persistência atual sem alteração.
+## O que será feito
+
+### 1. Leitura de permissões resiliente
+- Se `getSession()` estourar o tempo, tentar identificar o usuário pelo id já em cache na sessão do app.
+- Tratar erros das consultas explicitamente (hoje são ignorados).
+- Guardar o último acesso bem-sucedido e reaproveitá-lo em caso de falha, em vez de zerar tudo.
+- Expor um estado de erro para a interface.
+
+### 2. Menu lateral
+- Mostrar itens em estado de carregamento (esqueleto) enquanto as permissões carregam.
+- Se a leitura falhar, exibir aviso discreto com botão "Tentar novamente", em vez de lista vazia.
+- Se não houver nenhum módulo liberado e não houver erro, mostrar texto explicativo.
+
+### 3. Formulário de Planos em modal
+- Mover o formulário inline para um `Dialog` com cabeçalho fixo, corpo rolável e rodapé com Cancelar / Salvar.
+- Manter as seções atuais (Tipo do Plano, Dados Comerciais, Ciclo, Franquias, Módulos Opcionais, Preços, Parceiros).
+- Nenhuma alteração em cálculo, validação ou persistência.
 
 ## Validação
-
-- Recarregar a aplicação logada e confirmar que Dashboard, Clientes, Fechamento Mensal, Financeiro, Funil aparecem em Gestão e Planos/Parceiros/Usuários em Configurações.
-- Consultar novamente os GRANTs para confirmar que estão aplicados.
-- Abrir "Novo Plano" e "Editar" um plano existente e confirmar que nada fica sob o cabeçalho e que o salvamento continua funcionando.
+Recarregar logada e confirmar Dashboard, Clientes, Fechamento Mensal, Financeiro e Funil em Gestão, e Planos/Parceiros/Usuários em Configurações; abrir e editar um plano no modal sem sobreposição com o cabeçalho.
