@@ -9,7 +9,7 @@ export const MODULES = [
   { key: "financeiro", label: "Financeiro", url: "/financeiro" },
   { key: "orcamentos", label: "Funil", url: "/orcamentos" },
   { key: "planos", label: "Planos", url: "/planos" },
-  { key: "parceiros", label: "Parceiros", url: "/parceiros" },
+  { key: "parceiros", label: "Parceiros", url: "/gestao-parceiros" },
   { key: "usuarios", label: "Usuários", url: "/usuarios" },
 ] as const;
 
