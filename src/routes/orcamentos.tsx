@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { persistMutation } from "@/lib/mutations.functions";
 
 export const Route = createFileRoute("/orcamentos")({
   head: () => ({ meta: [{ title: "Funil de Vendas · Elora" }] }),
@@ -138,13 +139,8 @@ function FunilPage() {
         dataCriacao: cards.find(c => c.id === editId)?.dataCriacao || new Date().toISOString().slice(0, 10),
         observacao: form.observacao
       };
+      await persistMutation({ data: { operation: "kanban-update", id: editId, payload: mapCardToDb(updatedCard) } });
       setCards(cards.map(c => c.id === editId ? updatedCard : c));
-      const { error } = await supabase.from("elora_kanban_cards").update(mapCardToDb(updatedCard)).eq("id", editId);
-      if (error) {
-        console.error("Erro ao atualizar oportunidade:", error);
-        toast.error("Não foi possível atualizar a oportunidade.");
-        return;
-      }
     } else {
       const newCard: KanbanCard = {
         id: Math.random().toString(36).substring(2, 9),
@@ -155,30 +151,31 @@ function FunilPage() {
         dataCriacao: new Date().toISOString().slice(0, 10),
         observacao: form.observacao
       };
+      await persistMutation({ data: { operation: "kanban-create", payload: mapCardToDb(newCard) } });
       setCards([...cards, newCard]);
-      const { error } = await supabase.from("elora_kanban_cards").insert(mapCardToDb(newCard));
-      if (error) {
-        console.error("Erro ao salvar oportunidade:", error);
-        toast.error("Não foi possível salvar a oportunidade.");
-        return;
-      }
     }
     setOpen(false);
+    } catch (error) {
+      console.error("Erro ao salvar oportunidade:", error);
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a oportunidade.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Deseja realmente remover esta oportunidade do funil?")) {
-      setCards(cards.filter(c => c.id !== id));
-      supabase.from("elora_kanban_cards").delete().eq("id", id).then(({ error }) => {
-        if (error) console.error("Erro ao remover oportunidade:", error);
-      });
+      try {
+        await persistMutation({ data: { operation: "kanban-delete", id } });
+        setCards(cards.filter(c => c.id !== id));
+      } catch (error) {
+        console.error("Erro ao remover oportunidade:", error);
+        toast.error("Não foi possível remover a oportunidade.");
+      }
     }
   };
 
-  const moveCard = (id: string, direction: "prev" | "next") => {
+  const moveCard = async (id: string, direction: "prev" | "next") => {
     const cardIndex = cards.findIndex(c => c.id === id);
     if (cardIndex === -1) return;
     const card = cards[cardIndex];
@@ -193,10 +190,13 @@ function FunilPage() {
 
     if (nextColIndex !== currentColIndex) {
       const updatedCard = { ...card, status: COLUMNS[nextColIndex].id };
-      setCards(cards.map(c => c.id === id ? updatedCard : c));
-      supabase.from("elora_kanban_cards").update(mapCardToDb(updatedCard)).eq("id", id).then(({ error }) => {
-        if (error) console.error("Erro ao mover oportunidade:", error);
-      });
+      try {
+        await persistMutation({ data: { operation: "kanban-update", id, payload: mapCardToDb(updatedCard) } });
+        setCards(cards.map(c => c.id === id ? updatedCard : c));
+      } catch (error) {
+        console.error("Erro ao mover oportunidade:", error);
+        toast.error("Não foi possível mover a oportunidade.");
+      }
     }
   };
 

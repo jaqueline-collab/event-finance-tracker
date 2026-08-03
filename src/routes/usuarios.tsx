@@ -11,6 +11,7 @@ import { Plus, Trash2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client-configured";
 import { MODULES, useCurrentUserAccess, type PermissionRow } from "@/lib/permissions";
+import { persistMutation } from "@/lib/mutations.functions";
 
 export const Route = createFileRoute("/usuarios")({
   head: () => ({ meta: [{ title: "Usuários · Elora" }] }),
@@ -33,6 +34,7 @@ function UsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [novoEmail, setNovoEmail] = useState("");
   const [novoNome, setNovoNome] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -54,17 +56,16 @@ function UsuariosPage() {
   const adicionar = async () => {
     const email = novoEmail.trim().toLowerCase();
     if (!email.includes("@")) { toast.error("Email inválido."); return; }
-    const { error } = await (supabase as any).from("app_users").insert({
-      email, display_name: novoNome || email, is_admin: false, invited_by: access.email,
-    });
-    if (error) { toast.error(error.message); return; }
-    // permissões padrão: leitura no dashboard
-    await (supabase as any).from("app_user_permissions").insert({
-      email, module: "dashboard", can_view: true, can_edit: false,
-    });
-    toast.success(`Usuário ${email} adicionado. Ele entra pelo link mágico em /auth.`);
-    setNovoEmail(""); setNovoNome("");
-    carregar();
+    setSaving(true);
+    try {
+      await persistMutation({ data: { operation: "admin-user-create", payload: { email, display_name: novoNome || email, is_admin: false, invited_by: access.email } } });
+      await persistMutation({ data: { operation: "admin-permission-upsert", email, module: "dashboard", payload: { can_view: true, can_edit: false } } });
+      toast.success(`Usuário ${email} adicionado. Ele entra pelo link mágico em /auth.`);
+      setNovoEmail(""); setNovoNome("");
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível adicionar o usuário.");
+    } finally { setSaving(false); }
   };
 
   const remover = async (u: AppUserRow) => {
@@ -73,14 +74,17 @@ function UsuariosPage() {
       return;
     }
     if (!confirm(`Remover ${u.email}?`)) return;
-    await (supabase as any).from("app_user_permissions").delete().eq("email", u.email);
-    await (supabase as any).from("app_users").delete().eq("id", u.id);
-    carregar();
+    try {
+      await persistMutation({ data: { operation: "admin-user-delete", id: u.id, email: u.email } });
+      await carregar();
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível remover o usuário."); }
   };
 
   const toggleAdmin = async (u: AppUserRow) => {
-    await (supabase as any).from("app_users").update({ is_admin: !u.is_admin }).eq("id", u.id);
-    carregar();
+    try {
+      await persistMutation({ data: { operation: "admin-user-update", id: u.id, payload: { is_admin: !u.is_admin } } });
+      await carregar();
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível alterar o papel."); }
   };
 
   const togglePerm = async (
@@ -90,23 +94,15 @@ function UsuariosPage() {
     value: boolean,
   ) => {
     const existing = perms.find((p) => p.email === email && p.module === moduleKey);
-    if (existing) {
-      const patch: any = { [field]: value };
-      if (field === "can_edit" && value) patch.can_view = true;
-      if (field === "can_view" && !value) patch.can_edit = false;
-      await (supabase as any)
-        .from("app_user_permissions")
-        .update(patch)
-        .eq("email", email)
-        .eq("module", moduleKey);
-    } else {
-      await (supabase as any).from("app_user_permissions").insert({
-        email, module: moduleKey,
-        can_view: field === "can_view" ? value : false,
-        can_edit: field === "can_edit" ? value : false,
-      });
-    }
-    carregar();
+    const patch: Record<string, boolean> = existing
+      ? { can_view: existing.can_view, can_edit: existing.can_edit, [field]: value }
+      : { can_view: field === "can_view" ? value : false, can_edit: field === "can_edit" ? value : false };
+    if (field === "can_edit" && value) patch.can_view = true;
+    if (field === "can_view" && !value) patch.can_edit = false;
+    try {
+      await persistMutation({ data: { operation: "admin-permission-upsert", email, module: moduleKey, payload: patch } });
+      await carregar();
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível alterar a permissão."); }
   };
 
   if (access.loading || loading) return <div className="text-muted-foreground">Carregando...</div>;
@@ -135,7 +131,7 @@ function UsuariosPage() {
             <Label className="text-xs">Nome (opcional)</Label>
             <Input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome de exibição" />
           </div>
-          <div className="flex items-end"><Button onClick={adicionar}>Adicionar</Button></div>
+          <div className="flex items-end"><Button onClick={adicionar} disabled={saving}>{saving ? "Salvando..." : "Adicionar"}</Button></div>
         </CardContent>
       </Card>
 
