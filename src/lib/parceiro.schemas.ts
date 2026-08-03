@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export const painelParceiroSchema = z.object({}).passthrough().optional().default({});
+export const painelParceiroSchema = z
+  .object({ verComoParceiroId: z.string().min(1).optional() })
+  .passthrough()
+  .optional()
+  .default({});
 
 export const concederAcessoSchema = z.object({
   parceiroId: z.string().min(1, "Parceiro obrigatório"),
