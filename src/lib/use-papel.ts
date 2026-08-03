@@ -30,7 +30,7 @@ export function usePapelUsuario(): PapelUsuario {
 
   useEffect(() => {
     let cancelado = false;
-    getPapelUsuario({ data: undefined as never })
+    getPapelUsuario()
       .then((r) => {
         if (cancelado) return;
         const valor = { isInterno: r.isInterno, parceiroId: r.parceiroId, veValores: r.veValores };

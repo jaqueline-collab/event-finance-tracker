@@ -14,6 +14,7 @@ import { Route as SimuladorRouteImport } from './routes/simulador'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as PlanosRouteImport } from './routes/planos'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
+import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
@@ -51,6 +52,11 @@ const PlanosRoute = PlanosRouteImport.update({
 const ParceirosRoute = ParceirosRouteImport.update({
   id: '/parceiros',
   path: '/parceiros',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParceiroRoute = ParceiroRouteImport.update({
+  id: '/parceiro',
+  path: '/parceiro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrcamentosRoute = OrcamentosRouteImport.update({
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof FinanceiroRoute
   '/mcp': typeof McpRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiro': typeof ParceiroRoute
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/financeiro': typeof FinanceiroRoute
   '/mcp': typeof McpRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiro': typeof ParceiroRoute
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/financeiro': typeof FinanceiroRoute
   '/mcp': typeof McpRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiro': typeof ParceiroRoute
   '/parceiros': typeof ParceirosRoute
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/mcp'
     | '/orcamentos'
+    | '/parceiro'
     | '/parceiros'
     | '/planos'
     | '/resumo'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/mcp'
     | '/orcamentos'
+    | '/parceiro'
     | '/parceiros'
     | '/planos'
     | '/resumo'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/mcp'
     | '/orcamentos'
+    | '/parceiro'
     | '/parceiros'
     | '/planos'
     | '/resumo'
@@ -254,6 +266,7 @@ export interface RootRouteChildren {
   FinanceiroRoute: typeof FinanceiroRoute
   McpRoute: typeof McpRoute
   OrcamentosRoute: typeof OrcamentosRoute
+  ParceiroRoute: typeof ParceiroRoute
   ParceirosRoute: typeof ParceirosRoute
   PlanosRoute: typeof PlanosRoute
   ResumoRoute: typeof ResumoRoute
@@ -301,6 +314,13 @@ declare module '@tanstack/react-router' {
       path: '/parceiros'
       fullPath: '/parceiros'
       preLoaderRoute: typeof ParceirosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parceiro': {
+      id: '/parceiro'
+      path: '/parceiro'
+      fullPath: '/parceiro'
+      preLoaderRoute: typeof ParceiroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orcamentos': {
@@ -415,6 +435,7 @@ const rootRouteChildren: RootRouteChildren = {
   FinanceiroRoute: FinanceiroRoute,
   McpRoute: McpRoute,
   OrcamentosRoute: OrcamentosRoute,
+  ParceiroRoute: ParceiroRoute,
   ParceirosRoute: ParceirosRoute,
   PlanosRoute: PlanosRoute,
   ResumoRoute: ResumoRoute,
