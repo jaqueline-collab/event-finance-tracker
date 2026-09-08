@@ -28,10 +28,20 @@ Usa exatamente a mesma conta que o sistema já usa para o faturamento — nada d
 
 Nada é gravado enquanto o resumo é exibido; é só simulação de tela. O botão "Registrar Ação" continua funcionando igual.
 
+## Uma única fonte de verdade para o cálculo
+
+A prévia não pode ter conta própria. A regra que transforma "o que mudou" no cliente resultante fica em **uma função compartilhada só**:
+
+- Se a store já tiver uma função utilitária para isso, ela é importada e usada na prévia.
+- Se a regra estiver escrita dentro de `addMovimento`, ela é primeiro extraída para essa função compartilhada, e `addMovimento` passa a chamá-la também.
+
+Assim, se um dia alguém mudar a regra, prévia e cobrança real mudam juntas.
+
 ## Detalhes técnicos
 
 - Arquivo: `src/routes/clientes.tsx`, dentro do Dialog de movimento (linhas ~1300-1388).
-- Um `useMemo` monta o cliente simulado a partir de `movForm` (mesma lógica de aplicação de deltas usada em `addMovimento` na store) e chama `receitaMensalCliente(cliente, planos, custos)` para os dois cenários.
+- Extrair de `addMovimento` (`src/lib/store.ts`) a aplicação de deltas para `aplicarMovimentoNoCliente(cliente, movimento): Cliente` em `src/lib/calc/` (ou reutilizar a existente, se houver), usada pela store e pela prévia.
+- Um `useMemo` monta o cliente simulado com essa função a partir de `movForm` e chama `receitaMensalCliente(cliente, planos, custos)` para os dois cenários.
 - A linha de detalhamento reaproveita `explicarReceitaCliente` de `src/lib/calc/receita.ts` comparando os itens antes/depois, ou lista simples dos campos alterados.
 - Formatação com `formatBRL` / `formatBRLPreciso` já existentes.
 - Sem mudança de banco, de server functions ou de regra de negócio.
