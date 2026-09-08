@@ -45,3 +45,7 @@ Assim, se um dia alguém mudar a regra, prévia e cobrança real mudam juntas.
 - A linha de detalhamento reaproveita `explicarReceitaCliente` de `src/lib/calc/receita.ts` comparando os itens antes/depois, ou lista simples dos campos alterados.
 - Formatação com `formatBRL` / `formatBRLPreciso` já existentes.
 - Sem mudança de banco, de server functions ou de regra de negócio.
+
+## Teste após implementar
+
+Abrir um upgrade real (ex.: +2 usuários em um cliente ativo), conferir o "Valor após" contra o cálculo manual (valor atual + 2 × preço do usuário excedente do plano, respeitando a franquia) e reportar os números.
