@@ -14,8 +14,8 @@ export function VideoIntro() {
   };
 
   return (
-    <section className="bg-landing-dark px-6 pb-20 -mt-12">
-      <div className="max-w-5xl mx-auto">
+    <section className="bg-landing-dark px-6 pb-20 -mt-16">
+      <div className="max-w-6xl mx-auto">
         <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black aspect-video">
           <video
             ref={ref}
