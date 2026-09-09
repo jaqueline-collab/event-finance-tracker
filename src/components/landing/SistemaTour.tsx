@@ -1,12 +1,33 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
 import { Reveal } from "@/components/landing/motion";
+import atendimento from "@/assets/Atendimento.png.asset.json";
+import chatbot from "@/assets/Chatbot_IAs.png.asset.json";
+import importar from "@/assets/Contatos_Importar.png.asset.json";
 import funil from "@/assets/funil_vendas.jpg.asset.json";
 import sequencias from "@/assets/Sequencias_Edicao.jpg.asset.json";
 import agendadas from "@/assets/Mensagens_agendadas.jpg.asset.json";
 import classificacao from "@/assets/Grafico_ClassificacaoAtendimento.png.asset.json";
 
 const TELAS = [
+  {
+    url: atendimento.url,
+    label: "Central de Atendimento",
+    desc: "Conversas unificadas do WhatsApp, Instagram e Messenger com histórico, anexos e ações rápidas.",
+    path: "atendimentos",
+  },
+  {
+    url: chatbot.url,
+    label: "Agentes de IA",
+    desc: "Agentes e supervisores de IA que agendam, qualificam e escalam atendimentos automaticamente.",
+    path: "apps/agentes-ia",
+  },
+  {
+    url: importar.url,
+    label: "Importação de Contatos",
+    desc: "Importe contatos do Excel, CSV, Google Sheets ou vCard em poucos cliques.",
+    path: "contatos/importar",
+  },
   {
     url: funil.url,
     label: "CRM e Funil de Vendas",
@@ -42,7 +63,7 @@ export function SistemaTour() {
       <div className="max-w-6xl mx-auto">
         <Reveal>
           <div className="text-center mb-12">
-            <span className="text-xs font-semibold tracking-widest uppercase text-landing-blue">
+            <span className="text-xs font-semibold tracking-widest uppercase text-rabbit-navy">
               Produto em ação
             </span>
             <h2
@@ -59,7 +80,7 @@ export function SistemaTour() {
 
         <div className="grid lg:grid-cols-[280px_1fr] gap-6 items-start">
           <Reveal>
-            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 snap-x">
               {TELAS.map((t, i) => {
                 const sel = i === ativo;
                 return (
@@ -67,10 +88,10 @@ export function SistemaTour() {
                     key={t.label}
                     onClick={() => setAtivo(i)}
                     aria-pressed={sel}
-                    className={`text-left rounded-lg px-4 py-3 border transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink ${
+                    className={`text-left rounded-lg px-4 py-3 border transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink snap-start ${
                       sel
-                        ? "border-landing-fg bg-landing-fg text-white"
-                        : "border-landing-border bg-white text-landing-fg hover:border-landing-fg/40"
+                        ? "border-rabbit-navy bg-rabbit-navy text-white"
+                        : "border-landing-border bg-white text-landing-fg hover:border-rabbit-navy/40"
                     }`}
                   >
                     <div className="text-sm font-semibold">{t.label}</div>
