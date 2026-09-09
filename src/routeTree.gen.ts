@@ -19,6 +19,7 @@ import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as GestaoParceirosRouteImport } from './routes/gestao-parceiros'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -80,6 +81,11 @@ const FinanceiroRoute = FinanceiroRouteImport.update({
   path: '/financeiro',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
+  '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
   '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
+  '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
   '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
+  '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
   '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/clientes'
     | '/dashboard'
+    | '/faq'
     | '/financeiro'
     | '/gestao-parceiros'
     | '/mcp'
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/clientes'
     | '/dashboard'
+    | '/faq'
     | '/financeiro'
     | '/gestao-parceiros'
     | '/mcp'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/clientes'
     | '/dashboard'
+    | '/faq'
     | '/financeiro'
     | '/gestao-parceiros'
     | '/mcp'
@@ -275,6 +287,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ClientesRoute: typeof ClientesRoute
   DashboardRoute: typeof DashboardRoute
+  FaqRoute: typeof FaqRoute
   FinanceiroRoute: typeof FinanceiroRoute
   GestaoParceirosRoute: typeof GestaoParceirosRoute
   McpRoute: typeof McpRoute
@@ -362,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/financeiro'
       fullPath: '/financeiro'
       preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -452,6 +472,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ClientesRoute: ClientesRoute,
   DashboardRoute: DashboardRoute,
+  FaqRoute: FaqRoute,
   FinanceiroRoute: FinanceiroRoute,
   GestaoParceirosRoute: GestaoParceirosRoute,
   McpRoute: McpRoute,

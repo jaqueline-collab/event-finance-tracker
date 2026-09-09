@@ -8,6 +8,7 @@ import funil from "@/assets/funil_vendas.jpg.asset.json";
 import sequencias from "@/assets/Sequencias_Edicao.jpg.asset.json";
 import agendadas from "@/assets/Mensagens_agendadas.jpg.asset.json";
 import classificacao from "@/assets/Grafico_ClassificacaoAtendimento.png.asset.json";
+import mockupIphone from "@/assets/mockup_iphone16pro_01_1.png.asset.json";
 
 const TELAS = [
   {
@@ -122,7 +123,7 @@ export function SistemaTour() {
                   <span className="truncate">app.eloracrm.com.br/{tela.path}</span>
                 </div>
               </div>
-              <div className="bg-white">
+              <div className="bg-white relative">
                 <img
                   key={tela.url}
                   src={tela.url}
@@ -130,6 +131,14 @@ export function SistemaTour() {
                   className="w-full h-auto block animate-fade-in"
                   loading="lazy"
                 />
+                {ativo === 0 && (
+                  <img
+                    src={mockupIphone.url}
+                    alt="App EloraCRM no celular"
+                    className="hidden md:block absolute -bottom-6 right-4 w-28 lg:w-32 h-auto drop-shadow-2xl animate-fade-in"
+                    loading="lazy"
+                  />
+                )}
               </div>
             </div>
             <div className="px-1 pt-4 lg:hidden">
