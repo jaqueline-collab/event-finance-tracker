@@ -86,18 +86,9 @@ function Navbar() {
           </span>
         </a>
         <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
-          <a href="#produto" className="hover:text-landing-yellow transition">
-            Produto
-          </a>
-          <Link to="/simulador" className="hover:text-landing-yellow transition">
-            Simulador
-          </Link>
           <Link to="/parceiros" className="hover:text-landing-yellow transition">
             Parceiros
           </Link>
-          <a href="#contato" className="hover:text-landing-yellow transition">
-            Contato
-          </a>
         </nav>
         <div className="flex items-center gap-2">
           <a
