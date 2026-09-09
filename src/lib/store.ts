@@ -33,6 +33,7 @@ import {
   mapDbToFechamentoItem,
 } from "./mappers";
 import { normalizarDataVencimento } from "./calc/datas";
+import { calcularPatchMovimento } from "./calc/movimento";
 import { toast } from "sonner";
 import { cadastrarClienteComSetup } from "./clientes.functions";
 import { registrarMovimento } from "./movimentos.functions";
