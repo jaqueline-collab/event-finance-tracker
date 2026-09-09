@@ -114,7 +114,8 @@ export function Footer() {
       </div>
 
       <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-white/10 text-xs text-white/40 text-center">
-        © {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.
+        <p>© {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.</p>
+        <p className="text-white/30 mt-1">DITOS & C.O LTDA</p>
       </div>
     </footer>
   );
