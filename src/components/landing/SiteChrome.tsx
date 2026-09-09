@@ -1,0 +1,121 @@
+import { Link } from "@tanstack/react-router";
+import { Mail, Phone, Globe, ArrowUpRight, LogIn, Rabbit } from "lucide-react";
+import { EloraMark } from "@/components/landing/EloraMark";
+import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
+
+export function Navbar() {
+  return (
+    <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2 leading-none">
+          <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0 -mt-0.5" />
+          <span
+            className="text-white font-bold tracking-tight text-lg"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            EloraCRM
+          </span>
+        </Link>
+        <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
+          <Link to="/parceiros" className="hover:text-landing-yellow-vivo transition">
+            Parceiros
+          </Link>
+          <Link to="/faq" className="hover:text-landing-yellow-vivo transition">
+            Perguntas frequentes
+          </Link>
+        </nav>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://app.eloracrm.com.br/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
+          >
+            Elora App <ArrowUpRight className="h-4 w-4" />
+          </a>
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-1.5 border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors"
+          >
+            <LogIn className="h-4 w-4" /> Logar
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export function Footer() {
+  return (
+    <footer
+      id="contato"
+      className="bg-landing-dark-2 text-white/80 py-14 px-6 border-t border-white/10"
+    >
+      <div className="max-w-6xl mx-auto grid gap-10 md:grid-cols-3 md:gap-8 items-start">
+        <div>
+          <div className="flex items-center gap-2 leading-none">
+            <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0" />
+            <span
+              className="text-white font-bold tracking-tight text-2xl"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              EloraCRM
+            </span>
+          </div>
+          <p className="text-sm text-white/60 mt-3 max-w-xs">
+            Para as conversas e o negócio andarem juntos.
+          </p>
+          <Link
+            to="/faq"
+            className="inline-block text-sm text-landing-yellow-vivo hover:underline mt-4"
+          >
+            Perguntas frequentes
+          </Link>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-landing-yellow-vivo">
+            Contato
+          </div>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-center gap-2">
+              <Mail className="h-4 w-4" /> {EMAIL_CONTATO}
+            </li>
+            <li>
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-white"
+              >
+                <Phone className="h-4 w-4" /> {WHATSAPP_NUMERO}
+              </a>
+            </li>
+            <li className="flex items-center gap-2">
+              <Globe className="h-4 w-4" /> app.eloracrm.com.br
+            </li>
+          </ul>
+        </div>
+
+        <div className="rounded-2xl border border-white/15 bg-white/5 p-6">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-landing-yellow-vivo">
+            <Rabbit className="h-4 w-4" /> Parceiro oficial
+          </div>
+          <p className="text-sm text-white/70 mt-3">
+            Máquina de vendas, SDR dedicado e processos 100% integrados ao Elora.
+          </p>
+          <Link
+            to="/parceiros"
+            className="inline-flex items-center gap-1.5 mt-4 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-5 py-2.5 rounded-md text-sm transition-colors"
+          >
+            Conheça a Rabbit Agency <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-white/10 text-xs text-white/40 text-center">
+        © {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.
+      </div>
+    </footer>
+  );
+}
