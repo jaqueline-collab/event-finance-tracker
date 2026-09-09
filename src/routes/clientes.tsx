@@ -1411,6 +1411,34 @@ function ClientesPage() {
               <Label className="mb-1 block font-medium">Contatos / MAU</Label>
               <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
             </div>
+            {previaMovimento && (
+              <div className="md:col-span-3 rounded-lg border border-border bg-muted/30 p-4">
+                <div className="text-sm font-medium mb-2">Impacto na mensalidade</div>
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Valor atual</div>
+                    <div className="font-semibold">{formatBRL(previaMovimento.atual)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Alteração</div>
+                    <div className={`font-semibold ${previaMovimento.delta > 0 ? "text-accent" : previaMovimento.delta < 0 ? "text-destructive" : ""}`}>
+                      {Math.abs(previaMovimento.delta) < 0.005
+                        ? "Sem alteração de valor"
+                        : `${previaMovimento.delta > 0 ? "+" : "−"} ${formatBRL(Math.abs(previaMovimento.delta))}`}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">{previaMovimento.churn ? "Deixa de ser cobrado" : "Valor após"}</div>
+                    <div className="font-semibold">{formatBRL(previaMovimento.depois)}</div>
+                  </div>
+                </div>
+                {previaMovimento.mudancas.length > 0 && (
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    {previaMovimento.mudancas.join(" · ")}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="md:col-span-3">
               <Label className="mb-1 block">Observação</Label>
               <Input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} placeholder="Detalhe opcional do movimento" />
