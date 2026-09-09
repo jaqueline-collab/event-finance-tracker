@@ -7,20 +7,20 @@ import { EMAIL_CONTATO, WHATSAPP_LINK, WHATSAPP_NUMERO } from "@/lib/landing/con
 export const Route = createFileRoute("/parceiros")({
   head: () => ({
     meta: [
-      { title: "Parceiros · EloraCRM + Rabbit Agency" },
+      { title: "Rabbit Agency — Parceiro Oficial EloraCRM" },
       {
         name: "description",
         content:
-          "Parceria oficial entre EloraCRM e Rabbit Agency: atendimento, CRM e SDR para clínicas, consultórios e negócios de saúde.",
+          "Parceria oficial EloraCRM + Rabbit Agency: máquina de vendas ponta a ponta para clínicas, consultórios e negócios de saúde. SDR dedicado, Social Seller e treinamento 6 mãos.",
       },
       {
         property: "og:title",
-        content: "Parceiros · EloraCRM + Rabbit Agency",
+        content: "Rabbit Agency — Parceiro Oficial EloraCRM",
       },
       {
         property: "og:description",
         content:
-          "Parceria oficial entre EloraCRM e Rabbit Agency: atendimento, CRM e SDR para clínicas, consultórios e negócios de saúde.",
+          "Processos 100% integrados entre captação, atendimento e CRM. Conheça a máquina de vendas da Rabbit Agency + EloraCRM.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://eloracrm.lovable.app/parceiros" },
@@ -35,10 +35,10 @@ export const Route = createFileRoute("/parceiros")({
 function ParceirosPage() {
   return (
     <div
-      className="min-h-screen bg-landing-bg text-landing-fg"
+      className="min-h-screen bg-rabbit-black text-rabbit-white"
       style={{ fontFamily: "var(--font-body)" }}
     >
-      <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
+      <header className="fixed top-0 inset-x-0 z-50 bg-rabbit-black/90 backdrop-blur-md border-b border-rabbit-white/10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 leading-none">
             <EloraMark className="h-7 w-7 text-landing-yellow shrink-0 -mt-0.5" />
@@ -53,17 +53,8 @@ function ParceirosPage() {
             <Link to="/" className="hover:text-landing-yellow transition">
               Início
             </Link>
-            <Link to="/" hash="produto" className="hover:text-landing-yellow transition">
-              Produto
-            </Link>
-            <Link to="/simulador" className="hover:text-landing-yellow transition">
-              Simulador
-            </Link>
             <Link to="/parceiros" className="text-landing-yellow transition">
               Parceiros
-            </Link>
-            <Link to="/" hash="contato" className="hover:text-landing-yellow transition">
-              Contato
             </Link>
           </nav>
           <div className="flex items-center gap-2">
@@ -89,7 +80,7 @@ function ParceirosPage() {
         <Parceiros />
       </main>
 
-      <footer className="bg-landing-dark-2 text-white/80 py-14 px-6 border-t border-white/10">
+      <footer className="bg-rabbit-black text-white/80 py-14 px-6 border-t border-white/10">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 leading-none">
@@ -113,16 +104,6 @@ function ParceirosPage() {
               <li>
                 <Link to="/" className="hover:text-white">
                   Início
-                </Link>
-              </li>
-              <li>
-                <Link to="/" hash="produto" className="hover:text-white">
-                  Produto
-                </Link>
-              </li>
-              <li>
-                <Link to="/simulador" className="hover:text-white">
-                  Simulador
                 </Link>
               </li>
               <li>
