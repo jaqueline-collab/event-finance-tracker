@@ -73,6 +73,13 @@
   --color-landing-muted: #6b7280;
   --color-landing-surface: #f9fafb;
   --color-landing-border: #e5e7eb;
+  /* Rabbit Agency tokens */
+  --color-rabbit-black: #0a0a0a;
+  --color-rabbit-white: #ffffff;
+  --color-rabbit-navy: #1e3a5f;
+  --color-rabbit-navy-light: #2a4a73;
+  --color-rabbit-gray: #6b7280;
+  --color-rabbit-surface: #f8fafc;
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
 }
