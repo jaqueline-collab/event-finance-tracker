@@ -6,7 +6,6 @@ import {
   Mail,
   Phone,
   Globe,
-  ArrowRight,
   ArrowUpRight,
   LogIn,
 } from "lucide-react";
@@ -86,18 +85,9 @@ function Navbar() {
           </span>
         </a>
         <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
-          <a href="#produto" className="hover:text-landing-yellow transition">
-            Produto
-          </a>
-          <Link to="/simulador" className="hover:text-landing-yellow transition">
-            Simulador
-          </Link>
           <Link to="/parceiros" className="hover:text-landing-yellow transition">
             Parceiros
           </Link>
-          <a href="#contato" className="hover:text-landing-yellow transition">
-            Contato
-          </a>
         </nav>
         <div className="flex items-center gap-2">
           <a
@@ -159,17 +149,11 @@ function Hero() {
           chatbot, disparo e agentes de IA. Tudo num só lugar.
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/simulador"
-            className="bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-7 py-3.5 rounded-md text-base transition-colors inline-flex items-center gap-2"
-          >
-            Simular meu plano <ArrowRight className="h-4 w-4" />
-          </Link>
           <a
             href="https://app.eloracrm.com.br/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 border border-white/30 hover:border-white text-white font-semibold px-7 py-3.5 rounded-md text-base transition-colors"
+            className="inline-flex items-center gap-1.5 bg-landing-yellow hover:bg-landing-yellow-dark text-landing-fg font-semibold px-7 py-3.5 rounded-md text-base transition-colors"
           >
             Elora App <ArrowUpRight className="h-4 w-4" />
           </a>
