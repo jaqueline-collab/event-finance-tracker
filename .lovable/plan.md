@@ -1,7 +1,7 @@
 # Ajustes na Homepage (rodapé, vídeo, FAQ, cores e imagens do app)
 
 ## Objetivo
-Alinhar a página inicial (`/`) com a identidade visual que funcionou na página de Parceiros (preto, branco, azul marinho), rodapé enxuto, vídeo que começa sozinho, FAQ ocupando melhor a página — e aproveitar as imagens reais do app enviadas para dar mais força visual à seção de produto.
+Alinhar a página inicial (`/`) com a identidade visual que funcionou na página de Parceiros (preto, branco, azul marinho), adicionar o amarelo vivo como ponto de energia, enxugar o rodapé, fazer o vídeo começar sozinho, melhorar o layout da FAQ e aproveitar as imagens reais do app enviadas para dar mais força visual à seção de produto.
 
 ## 1. Rodapé simplificado
 - Remover a coluna "Navegação" (Produto, Simulador, Parceiros, Elora App, Área do parceiro).
@@ -16,12 +16,13 @@ Alinhar a página inicial (`/`) com a identidade visual que funcionou na página
 - Hoje o FAQ fica espremido numa faixa estreita central (max-w-3xl).
 - Novo layout em 2 colunas (max-w-6xl): à esquerda título + texto de apoio; à direita as perguntas. Em celular, coluna única.
 
-## 4. Cores alinhadas à página de Parceiros
-- Hero: badge e palavra em destaque saem do amarelo para azul marinho claro/branco, no estilo do hero da Rabbit.
-- Botões ("Elora App", "Logar"): principal branco com texto preto, secundário com borda branca — mesmo padrão da página de Parceiros.
-- FAQ e detalhes em azul marinho (`rabbit-navy`), sem amarelo.
-- Botão flutuante do WhatsApp mantém o verde (cor da marca WhatsApp).
-- Tokens amarelos permanecem no CSS (usados em outras telas), só deixam de ser o acento da homepage.
+## 4. Cores: preto, branco, azul marinho + amarelo vivo
+- **Base**: fundo escuro no hero e rodapé, branco nas seções de conteúdo, azul marinho (`rabbit-navy`) como cor principal de destaque.
+- **Amarelo vivo**: usado como ponto de energia — ícones do WhatsApp flutuante, microdetalhes, badge e CTA principal no hero. Não substitui o azul marinho, mas dá o contraste.
+- **Hero**: badge com borda e texto em amarelo vivo; botão principal "Elora App" em amarelo vivo com texto escuro; botão secundário "Logar" com borda branca.
+- **FAQ e detalhes**: azul marinho como cor de destaque secundária; amarelo vivo em ícones pequenos ou labels.
+- Botão flutuante do WhatsApp mantém o verde da marca.
+- Tokens amarelos existentes (`--color-landing-yellow`) são reaproveitados; se necessário, adicionar um token mais vivo sem quebrar os demais usos.
 
 ## 5. Uso das imagens enviadas
 As quatro imagens mostram telas reais do EloraCRM. Fazer upload das 4 via `lovable-assets` para `src/assets/` e usá-las assim:
@@ -37,7 +38,8 @@ As quatro imagens mostram telas reais do EloraCRM. Fazer upload das 4 via `lovab
 - `src/components/landing/VideoIntro.tsx` — autoplay mudo com botão de som.
 - `src/components/landing/SistemaTour.tsx` — 3 novas abas com as telas enviadas.
 - `src/assets/` — 4 novos ponteiros `.asset.json` (upload via `lovable-assets` a partir de `/mnt/user-uploads/`).
+- `src/styles.css` — adicionar token `--color-landing-yellow-vivo` se o amarelo atual não for vivo o suficiente.
 
 ## Validação
 - Build (`tsgo` + build-errors.log).
-- Preview: vídeo rodando sozinho, FAQ em 2 colunas no desktop, rodapé enxuto, cores preto/branco/azul, mockup do iPhone no hero e novas abas do tour funcionando.
+- Preview: vídeo rodando sozinho, FAQ em 2 colunas no desktop, rodapé enxuto, cores preto/branco/azul com amarelo vivo nos pontos de destaque, mockup do iPhone no hero e novas abas do tour funcionando.
