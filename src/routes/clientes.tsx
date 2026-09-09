@@ -23,6 +23,8 @@ import autoTable from "jspdf-autotable";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
 import { usePersistentFilters } from "@/hooks/use-persistent-filters";
+import { aplicarMovimentoNoCliente } from "@/lib/calc/movimento";
+import { explicarReceitaCliente } from "@/lib/calc/receita";
 
 export const Route = createFileRoute("/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Elora" }] }),
