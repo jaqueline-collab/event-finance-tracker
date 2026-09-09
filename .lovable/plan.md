@@ -1,35 +1,43 @@
-# Ajustes na Homepage (rodapé, vídeo, FAQ e cores)
+# Ajustes na Homepage (rodapé, vídeo, FAQ, cores e imagens do app)
 
 ## Objetivo
-Alinhar a página inicial (`/`) com a identidade visual que funcionou na página de Parceiros: preto, branco e azul marinho, rodapé enxuto, vídeo que começa sozinho e FAQ ocupando melhor a página.
+Alinhar a página inicial (`/`) com a identidade visual que funcionou na página de Parceiros (preto, branco, azul marinho), rodapé enxuto, vídeo que começa sozinho, FAQ ocupando melhor a página — e aproveitar as imagens reais do app enviadas para dar mais força visual à seção de produto.
 
 ## 1. Rodapé simplificado
-- Remover a coluna "Navegação" (links Produto, Simulador, Parceiros, Elora App, Área do parceiro) — os menus que não fazem mais sentido.
-- Manter apenas: marca EloraCRM + frase, e a coluna de Contato (e-mail, WhatsApp, site).
-- Resultado: rodapé de 2 colunas, mais limpo e coerente com a página atual.
+- Remover a coluna "Navegação" (Produto, Simulador, Parceiros, Elora App, Área do parceiro).
+- Manter apenas: marca EloraCRM + frase e a coluna de Contato (e-mail, WhatsApp, site).
+- Rodapé de 2 colunas, mais limpo.
 
 ## 2. Vídeo com reprodução automática
-- No componente `VideoIntro`, ativar autoplay: o vídeo passa a iniciar sozinho quando a página carrega, sem som (obrigatório pelos navegadores para autoplay funcionar), com um botão de volume para o visitante ativar o áudio.
-- Remover a capa escura com botão de play; os controles de pausa/volume continuam disponíveis.
+- No `VideoIntro`: o vídeo inicia sozinho ao carregar a página, sem som (exigência dos navegadores para autoplay), com botão visível para ativar o áudio.
+- Remover a capa escura com botão de play; controles de pausa/volume continuam disponíveis.
 
 ## 3. FAQ ocupando a página
-- A seção FAQ hoje fica espremida em uma faixa estreita no centro (max-w-3xl).
-- Reorganizar para layout em 2 colunas (lado esquerdo: título e texto de apoio; lado direito: as perguntas), ocupando a largura total usada nas outras seções (max-w-6xl).
-- Em celular, continua em coluna única.
+- Hoje o FAQ fica espremido numa faixa estreita central (max-w-3xl).
+- Novo layout em 2 colunas (max-w-6xl): à esquerda título + texto de apoio; à direita as perguntas. Em celular, coluna única.
 
 ## 4. Cores alinhadas à página de Parceiros
-Trocar o amarelo como cor principal da homepage pelo esquema da página de Parceiros (preto + branco + azul marinho):
-- **Hero**: manter fundo escuro; trocar o badge e a palavra em amarelo por tons de azul marinho claro / branco, no estilo usado no hero da Rabbit.
-- **Botões**: "Elora App" e "Logar" passam a seguir o padrão da página de Parceiros — botão principal branco com texto preto, botão secundário com borda branca.
-- **FAQ e detalhes**: o azul de destaque do FAQ e ícones passam para o tom de azul marinho (`rabbit-navy`), sem o amarelo.
-- **Botão flutuante do WhatsApp**: manter o verde do WhatsApp (cor da marca, não do tema).
-- Os tokens `--color-landing-yellow` serão mantidos no CSS (usados em outras telas), apenas deixam de ser o acento da homepage.
+- Hero: badge e palavra em destaque saem do amarelo para azul marinho claro/branco, no estilo do hero da Rabbit.
+- Botões ("Elora App", "Logar"): principal branco com texto preto, secundário com borda branca — mesmo padrão da página de Parceiros.
+- FAQ e detalhes em azul marinho (`rabbit-navy`), sem amarelo.
+- Botão flutuante do WhatsApp mantém o verde (cor da marca WhatsApp).
+- Tokens amarelos permanecem no CSS (usados em outras telas), só deixam de ser o acento da homepage.
+
+## 5. Uso das imagens enviadas
+As quatro imagens mostram telas reais do EloraCRM. Fazer upload das 4 via `lovable-assets` para `src/assets/` e usá-las assim:
+
+- **Mockup iPhone (lista de atendimentos no app)**: destaque visual no HERO, à direita do texto em desktop — o produto aparecendo logo de cara, dentro do mockup de celular. Em celular, fica abaixo do texto.
+- **Central de Atendimento (tela cheia com conversas e anexos)**: nova aba no `SistemaTour` ("Central de Atendimento") — colocada como PRIMEIRA aba, por ser a tela mais forte do produto.
+- **Agente IA / Supervisor IA (cards coloridos)**: nova aba no `SistemaTour` ("Agentes de IA"), mostrando automação de verdade.
+- **Importar contatos (Excel, CSV, vCard)**: nova aba no `SistemaTour` ("Importação de Contatos"), mostrando facilidade de migração.
+- As 4 abas atuais do tour (Funil, Sequências, Agendadas, Relatórios) são mantidas; o tour passa a 8 itens, com rolagem horizontal no mobile já prevista.
 
 ## Arquivos alterados
-- `src/routes/index.tsx` — hero, FAQ (layout e cores), rodapé enxuto, botões da navbar e do hero.
+- `src/routes/index.tsx` — hero (mockup do iPhone + cores), FAQ (layout e cores), rodapé enxuto, botões.
 - `src/components/landing/VideoIntro.tsx` — autoplay mudo com botão de som.
-- `src/styles.css` — sem mudança de tokens (reuso de `rabbit-navy`/`landing-blue`).
+- `src/components/landing/SistemaTour.tsx` — 3 novas abas com as telas enviadas.
+- `src/assets/` — 4 novos ponteiros `.asset.json` (upload via `lovable-assets` a partir de `/mnt/user-uploads/`).
 
 ## Validação
 - Build (`tsgo` + build-errors.log).
-- Verificar no preview: vídeo rodando sozinho, FAQ em 2 colunas no desktop, rodapé enxuto, cores preto/branco/azul consistentes com a página de Parceiros.
+- Preview: vídeo rodando sozinho, FAQ em 2 colunas no desktop, rodapé enxuto, cores preto/branco/azul, mockup do iPhone no hero e novas abas do tour funcionando.
