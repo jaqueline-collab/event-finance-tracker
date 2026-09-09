@@ -1,17 +1,16 @@
 import videoAsset from "@/assets/elora-video.mp4.asset.json";
-import { Play } from "lucide-react";
+import { Volume2, VolumeX } from "lucide-react";
 import { useRef, useState } from "react";
 
 export function VideoIntro() {
   const ref = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
 
-  const play = () => {
+  const toggleMute = () => {
     const v = ref.current;
     if (!v) return;
-    v.muted = false;
-    v.play();
-    setPlaying(true);
+    v.muted = !v.muted;
+    setMuted(v.muted);
   };
 
   return (
@@ -23,25 +22,20 @@ export function VideoIntro() {
             src={videoAsset.url}
             className="w-full h-full object-cover"
             playsInline
-            controls={playing}
+            autoPlay
+            muted
+            loop
+            controls
             preload="metadata"
-            onPause={() => setPlaying(false)}
           />
-          {!playing && (
-            <button
-              type="button"
-              onClick={play}
-              className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-black/40 via-black/20 to-black/60 hover:bg-black/30 transition-colors group"
-              aria-label="Reproduzir vídeo"
-            >
-              <span className="h-20 w-20 rounded-full bg-landing-yellow text-landing-fg flex items-center justify-center shadow-xl group-hover:scale-105 transition-transform">
-                <Play className="h-8 w-8 ml-1" fill="currentColor" />
-              </span>
-              <span className="absolute bottom-6 left-6 text-white/90 text-sm font-medium tracking-wide">
-                Conheça o EloraCRM em 2 minutos
-              </span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="absolute top-4 right-4 inline-flex items-center justify-center h-10 w-10 rounded-full bg-black/50 hover:bg-black/70 text-white border border-white/20 backdrop-blur-sm transition-colors"
+            aria-label={muted ? "Ativar som" : "Desativar som"}
+          >
+            {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
         </div>
       </div>
     </section>

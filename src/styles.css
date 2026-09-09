@@ -70,6 +70,8 @@
   --color-landing-yellow: #f5c518;
   --color-landing-yellow-dark: #e0b412;
   --color-landing-yellow-soft: #fff4c2;
+  /* Amarelo vivo — energia extra para CTAs e badges. */
+  --color-landing-yellow-vivo: #ffe600;
   --color-landing-muted: #6b7280;
   --color-landing-surface: #f9fafb;
   --color-landing-border: #e5e7eb;
