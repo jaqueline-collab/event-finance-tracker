@@ -8,6 +8,7 @@ import funil from "@/assets/funil_vendas.jpg.asset.json";
 import sequencias from "@/assets/Sequencias_Edicao.jpg.asset.json";
 import agendadas from "@/assets/Mensagens_agendadas.jpg.asset.json";
 import classificacao from "@/assets/Grafico_ClassificacaoAtendimento.png.asset.json";
+import mockupIphone from "@/assets/mockup_iphone16pro_01_1.png.asset.json";
 
 const TELAS = [
   {
