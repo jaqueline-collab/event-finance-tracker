@@ -6,7 +6,6 @@ import {
   Mail,
   Phone,
   Globe,
-  ArrowRight,
   ArrowUpRight,
   LogIn,
 } from "lucide-react";
