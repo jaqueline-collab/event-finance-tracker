@@ -267,6 +267,57 @@ function ClientesPage() {
     });
   };
 
+  // Prévia do impacto financeiro do movimento (simulação em memória, nada é gravado).
+  const previaMovimento = useMemo(() => {
+    const cliente = clientes.find((c) => c.id === acaoClienteId);
+    if (!cliente) return null;
+    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn"];
+    if (!tiposComImpacto.includes(movForm.tipo)) return null;
+
+    const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
+    const movimento: Omit<Movimento, "id"> = {
+      clienteId: cliente.id,
+      data: movForm.data,
+      tipo: movForm.tipo,
+      planoId: movForm.planoId || undefined,
+      canaisWhats: parseNum(movForm.canaisWhats),
+      canaisInsta: parseNum(movForm.canaisInsta),
+      canaisMessenger: parseNum(movForm.canaisMessenger),
+      canaisZapi: parseNum(movForm.canaisZapi),
+      usuariosAtivos: parseNum(movForm.usuariosAtivos),
+      contatosAtivos: parseNum(movForm.contatosAtivos),
+      agentesIA: movForm.agentesIA,
+      asaas: movForm.asaas,
+      zapi: movForm.zapi,
+      transcricaoIA: movForm.transcricaoIA,
+    };
+
+    const atual = receitaMensalCliente(cliente, planos, custos);
+    if (movForm.tipo === "churn") {
+      return { churn: true, atual, depois: 0, delta: -atual, mudancas: [] as string[] };
+    }
+
+    const simulado = aplicarMovimentoNoCliente(cliente, movimento);
+    const depois = receitaMensalCliente(simulado, planos, custos);
+
+    const antesItens = explicarReceitaCliente(cliente, planos).itens;
+    const depoisItens = explicarReceitaCliente(simulado, planos).itens;
+    const labels = Array.from(new Set([...antesItens, ...depoisItens].map((i) => i.label)));
+    const mudancas: string[] = [];
+    for (const label of labels) {
+      const a = antesItens.find((i) => i.label === label);
+      const d = depoisItens.find((i) => i.label === label);
+      const va = a?.total ?? 0;
+      const vd = d?.total ?? 0;
+      if (Math.abs(vd - va) < 0.005) continue;
+      const sinal = vd > va ? "+" : "−";
+      mudancas.push(`${label}: ${sinal} ${formatBRL(Math.abs(vd - va))}`);
+    }
+
+    return { churn: false, atual, depois, delta: depois - atual, mudancas };
+  }, [acaoClienteId, clientes, planos, custos, movForm]);
+
+
   const handleSaveMovimento = async () => {
     if (!acaoClienteId) {
       toast.error("Selecione um cliente antes de salvar a movimentação.");
