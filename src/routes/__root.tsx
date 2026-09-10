@@ -21,6 +21,7 @@ import { LogOut } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 import { usePapelUsuario } from "@/lib/use-papel";
+import { ThemeToggle, themeInitScript } from "@/components/theme-toggle";
 
 function NotFoundComponent() {
   return (
@@ -234,6 +235,7 @@ function RootComponent() {
               <span className="text-xs text-muted-foreground hidden sm:inline">
                 {session.user.email}
               </span>
+              <ThemeToggle />
               <Button
                 variant="ghost"
                 size="sm"
