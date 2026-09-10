@@ -73,7 +73,13 @@ function AreaCliente() {
 
   useEffect(carregar, [como]);
 
+  const modoVisualizacao = Boolean(como.trim());
+
   const adicionar = async () => {
+    if (modoVisualizacao) {
+      toast.error("Modo de visualização: alterações estão desativadas.");
+      return;
+    }
     if (nome.trim().length < 2 || !email.includes("@")) {
       toast.error("Informe nome e um e-mail válido.");
       return;
@@ -93,6 +99,10 @@ function AreaCliente() {
   };
 
   const remover = async (id: string) => {
+    if (modoVisualizacao) {
+      toast.error("Modo de visualização: alterações estão desativadas.");
+      return;
+    }
     try {
       await removerPessoaEquipe({ data: { id } });
       toast.success("Acesso removido.");
@@ -126,6 +136,17 @@ function AreaCliente() {
 
   return (
     <div className="space-y-6">
+      {modoVisualizacao && (
+        <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/15 px-4 py-3">
+          <p className="text-sm font-medium text-foreground">
+            Visualizando como <span className="font-semibold">{cliente.nome}</span> — modo administrador,
+            somente leitura.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => navigate({ to: "/perfil" })}>
+            Sair da visualização
+          </Button>
+        </div>
+      )}
       <div className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/10 via-background to-background p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
