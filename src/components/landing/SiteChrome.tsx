@@ -31,6 +31,11 @@ export function Navbar() {
           <Link to="/faq" className="hover:text-landing-yellow-vivo transition">
             Perguntas frequentes
           </Link>
+          {session && (
+            <Link to={destinoPainel} className="font-semibold text-landing-yellow-vivo hover:opacity-80 transition">
+              Meu painel
+            </Link>
+          )}
         </nav>
         <div className="flex items-center gap-2">
           <a
