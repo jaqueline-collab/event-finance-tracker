@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client-configured";
-import { salvarMeuPerfil } from "@/lib/perfil.functions";
+import { enviarAvatar, salvarMeuPerfil } from "@/lib/perfil.functions";
 import { iniciaisDe, usePerfil } from "@/hooks/use-perfil";
 import { traduzirErroAuth } from "@/lib/auth-errors";
 
@@ -93,12 +93,20 @@ function PaginaPerfil() {
     setEnviando(true);
     try {
       const ext = arquivo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const caminho = `${uid}/avatar-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("avatars")
-        .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type });
-      if (error) throw error;
-      setAvatarPath(caminho);
+      const buffer = await arquivo.arrayBuffer();
+      let bin = "";
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.length; i += 8192) {
+        bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      }
+      const envio = enviarAvatar({
+        data: { base64: btoa(bin), contentType: arquivo.type || "image/jpeg", ext },
+      });
+      const limite = new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error("O envio demorou demais. Tente novamente.")), 25000),
+      );
+      const { path } = await Promise.race([envio, limite]);
+      setAvatarPath(path);
       setPrevia(URL.createObjectURL(arquivo));
       toast.success("Foto carregada. Clique em salvar para confirmar.");
     } catch (err) {

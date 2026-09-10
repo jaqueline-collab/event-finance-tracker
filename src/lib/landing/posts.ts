@@ -2,6 +2,7 @@ import capa1 from "@/assets/blog/capa-primeira-resposta.svg";
 import capa2 from "@/assets/blog/capa-agentes-ia.svg";
 import capa3 from "@/assets/blog/capa-funil-whatsapp.svg";
 import capa4 from "@/assets/blog/capa-indicadores.svg";
+import capa5 from "@/assets/blog/capa-custo-api-whatsapp.svg";
 
 export type Bloco =
   | { tipo: "h2"; texto: string }
@@ -24,6 +25,120 @@ export type Post = {
 export const CATEGORIAS = ["Atendimento", "Vendas", "Inteligência Artificial", "Gestão"];
 
 export const POSTS: Post[] = [
+  {
+    slug: "reduzir-custos-api-oficial-whatsapp",
+    titulo: "Como reduzir custos na API Oficial do WhatsApp",
+    resumo:
+      "A cobrança passa a considerar também as mensagens enviadas pela sua empresa. Veja onde o custo nasce e como reduzir sem piorar o atendimento.",
+    categoria: "Gestão",
+    autor: "Equipe EloraCRM",
+    data: "2026-09-10",
+    leitura: 9,
+    capa: capa5,
+    corpo: [
+      {
+        tipo: "p",
+        texto:
+          "A mudança na precificação da API Oficial do WhatsApp torna a gestão das mensagens ainda mais importante. Cada mensagem enviada pela empresa precisa ter mais intenção, mais clareza e mais eficiência.",
+      },
+      { tipo: "citacao", texto: "Não é sobre responder menos. É sobre responder melhor." },
+      { tipo: "h2", texto: "1. Entenda onde o custo nasce" },
+      {
+        tipo: "p",
+        texto:
+          "O custo não está apenas no número de clientes atendidos, e sim no volume de mensagens enviadas pela empresa. Uma empresa com 1.000 atendimentos e 5 mensagens por atendimento envia 5.000 mensagens: a R$ 0,04, são R$ 200,00 por mês. Outra, com os mesmos 1.000 atendimentos e 15 mensagens por atendimento, envia 15.000 mensagens e paga R$ 600,00. Mesmo volume de atendimentos, custo três vezes maior.",
+      },
+      { tipo: "h2", texto: "2. Reduza mensagens quebradas" },
+      {
+        tipo: "p",
+        texto:
+          "Perguntar “Olá”, “Tudo bem?”, “Me passa seu nome?”, “Agora o CPF?”, “Agora seu e-mail?”, “Qual produto?” são 6 mensagens — R$ 0,24 por atendimento. A mesma coisa em uma mensagem completa custa R$ 0,04. Em 5.000 atendimentos por mês, a diferença chega a R$ 1.000,00 de economia potencial.",
+      },
+      { tipo: "h2", texto: "3. Crie respostas rápidas mais inteligentes" },
+      {
+        tipo: "p",
+        texto:
+          "Respostas rápidas não são só textos prontos: elas padronizam o atendimento e evitam várias mensagens seguidas. Em vez de “Claro.”, “Temos sim.”, “O valor é R$ 299.”, “Quer o link?”, use uma única mensagem com preço e próximo passo.",
+      },
+      {
+        tipo: "lista",
+        itens: [
+          "Primeiro atendimento",
+          "Pedido de dados cadastrais",
+          "Envio de preço e explicação de planos",
+          "Confirmação de agendamento",
+          "Suporte recorrente e encerramento",
+          "Recuperação de venda e reativação",
+        ],
+      },
+      { tipo: "h2", texto: "4. Revise o chatbot para ter menos etapas" },
+      {
+        tipo: "p",
+        texto:
+          "Um bot com 8 mensagens custa R$ 0,32 por atendimento — R$ 3.200,00 em 10.000 atendimentos. Agrupe perguntas, corte saudações desnecessárias, evite loops e transfira com contexto. Um bot bem configurado reduz custo porque resolve mais rápido.",
+      },
+      { tipo: "h2", texto: "5. Configure a IA para ser objetiva" },
+      {
+        tipo: "p",
+        texto:
+          "IA que responde em textos longos e picados pode chegar a 12 mensagens por atendimento (R$ 0,48). Ajustada para 5 mensagens, cai para R$ 0,20 — economia de R$ 1.400,00 por mês em 5.000 atendimentos.",
+      },
+      {
+        tipo: "lista",
+        itens: [
+          "Responda com objetividade e sem dividir a resposta em várias mensagens",
+          "No máximo uma pergunta por etapa",
+          "Não repita informações já enviadas",
+          "Transfira para humano quando não houver segurança",
+          "Evite mensagens de preenchimento como “só um momento”",
+        ],
+      },
+      { tipo: "h2", texto: "6. Transfira para o humano com contexto" },
+      {
+        tipo: "p",
+        texto:
+          "Transferência mal feita gera mensagens extras e irrita o cliente. Passe nome, motivo do contato, dados já coletados, etapa do funil e a próxima ação recomendada.",
+      },
+      { tipo: "h2", texto: "7. Campanhas: segmentação vale dinheiro" },
+      {
+        tipo: "p",
+        texto:
+          "Com referência de R$ 0,38 por mensagem de marketing, disparar para 20.000 contatos sem segmentação custa R$ 7.600,00. Com 5.000 contatos segmentados, R$ 1.900,00 — geralmente com retorno maior.",
+      },
+      { tipo: "h2", texto: "8. Metas por tipo de atendimento" },
+      {
+        tipo: "lista",
+        itens: [
+          "Primeiro atendimento comercial: de 10 para 6 mensagens",
+          "Suporte simples: de 8 para 5",
+          "Segunda via de boleto: de 6 para 3",
+          "Agendamento: de 7 para 4",
+          "Qualificação de lead: de 12 para 6",
+          "Pós-venda: de 8 para 5",
+        ],
+      },
+      { tipo: "h2", texto: "9. Plano de redução em 30 dias" },
+      {
+        tipo: "lista",
+        itens: [
+          "Semana 1 — diagnóstico: volume de atendimentos, mensagens enviadas e média por atendimento",
+          "Semana 2 — ajustes rápidos: respostas rápidas, agrupamento de perguntas, encerramentos",
+          "Semana 3 — bot e IA: menos etapas, prompts objetivos, regras de transferência",
+          "Semana 4 — gestão: relatório mensal, metas por setor e treinamento do time",
+        ],
+      },
+      { tipo: "h2", texto: "O que não fazer" },
+      {
+        tipo: "p",
+        texto:
+          "Não oriente o time a “responder menos” sem critério, não corte mensagens importantes de suporte, não elimine automações úteis e não pare campanhas sem analisar retorno. A mudança é uma oportunidade de melhorar a operação, não apenas um aumento de custo.",
+      },
+      {
+        tipo: "citacao",
+        texto: "Cada mensagem precisa ter uma função clara.",
+      },
+    ],
+  },
   {
     slug: "reduzir-tempo-primeira-resposta-whatsapp",
     titulo: "Como reduzir o tempo de primeira resposta no WhatsApp",

@@ -60,28 +60,32 @@ export function SistemaTour() {
   const tela = TELAS[ativo];
 
   return (
-    <section id="produto" className="py-24 px-6 bg-white border-t border-landing-border">
+    <section
+      id="produto"
+      className="py-16 md:py-24 px-4 sm:px-6 bg-white border-t border-landing-border overflow-hidden"
+    >
       <div className="max-w-6xl mx-auto">
         <Reveal>
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 md:mb-12">
             <span className="text-xs font-semibold tracking-widest uppercase text-rabbit-navy">
               Produto em ação
             </span>
             <h2
-              className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
+              className="text-3xl sm:text-4xl md:text-5xl font-bold text-landing-fg mt-2 tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Veja o Elora funcionando
             </h2>
-            <p className="text-landing-muted mt-3 max-w-2xl mx-auto">
-              Telas reais da plataforma. Clique nas abas para conhecer cada parte do sistema.
+            <p className="text-sm sm:text-base text-landing-muted mt-3 max-w-2xl mx-auto">
+              Telas reais da plataforma. Toque nas abas para conhecer cada parte do sistema.
             </p>
           </div>
         </Reveal>
 
-        <div className="grid lg:grid-cols-[280px_1fr] gap-6 items-start">
+        <div className="grid lg:grid-cols-[280px_1fr] gap-5 lg:gap-6 items-start">
           <Reveal>
-            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 snap-x">
+            {/* No celular vira um carrossel de abas curtas; no desktop, lista com descrição */}
+            <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {TELAS.map((t, i) => {
                 const sel = i === ativo;
                 return (
@@ -89,13 +93,13 @@ export function SistemaTour() {
                     key={t.label}
                     onClick={() => setAtivo(i)}
                     aria-pressed={sel}
-                    className={`text-left rounded-lg px-4 py-3 border transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink snap-start ${
+                    className={`text-left rounded-full lg:rounded-lg px-4 py-2 lg:py-3 border transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink-0 snap-start ${
                       sel
                         ? "border-rabbit-navy bg-rabbit-navy text-white"
                         : "border-landing-border bg-white text-landing-fg hover:border-rabbit-navy/40"
                     }`}
                   >
-                    <div className="text-sm font-semibold">{t.label}</div>
+                    <div className="text-[13px] sm:text-sm font-semibold">{t.label}</div>
                     <div
                       className={`text-xs mt-0.5 hidden lg:block leading-relaxed ${
                         sel ? "text-white/60" : "text-landing-muted"
@@ -110,9 +114,9 @@ export function SistemaTour() {
           </Reveal>
 
           <Reveal delay={120}>
-            {/* Mockup de navegador */}
-            <div className="rounded-2xl border border-landing-border bg-landing-surface shadow-2xl overflow-hidden">
-              <div className="flex items-center gap-3 px-4 h-11 bg-landing-dark">
+            {/* Mockup de navegador — moldura só a partir do desktop */}
+            <div className="rounded-xl md:rounded-2xl border border-landing-border bg-landing-surface shadow-lg md:shadow-2xl overflow-hidden">
+              <div className="hidden md:flex items-center gap-3 px-4 h-11 bg-landing-dark">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="h-3 w-3 rounded-full bg-red-400/80" />
                   <span className="h-3 w-3 rounded-full bg-yellow-400/80" />
@@ -143,7 +147,7 @@ export function SistemaTour() {
             </div>
             <div className="px-1 pt-4 lg:hidden">
               <div className="text-sm font-semibold text-landing-fg">{tela.label}</div>
-              <div className="text-xs text-landing-muted mt-0.5">{tela.desc}</div>
+              <div className="text-xs text-landing-muted mt-1 leading-relaxed">{tela.desc}</div>
             </div>
           </Reveal>
         </div>

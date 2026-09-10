@@ -3,6 +3,7 @@ import { Sparkles, ArrowUpRight, LogIn, ArrowRight } from "lucide-react";
 import { Navbar, Footer } from "@/components/landing/SiteChrome";
 import { VideoIntro } from "@/components/landing/VideoIntro";
 import { SistemaTour } from "@/components/landing/SistemaTour";
+import { SeloMeta } from "@/components/landing/SeloMeta";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { FaqLista } from "@/components/landing/FaqLista";
 import { Reveal, Typewriter } from "@/components/landing/motion";
@@ -55,6 +56,7 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
+      <SeloMeta />
       <SistemaTour />
       <DoBlog />
       <FaqResumo />

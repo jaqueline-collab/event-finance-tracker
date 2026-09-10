@@ -59,3 +59,25 @@ export const salvarMeuPerfil = createServerFn({ method: "POST" })
       avatarPath: registro.avatar_path,
     };
   });
+
+const avatarSchema = z.object({
+  base64: z.string().min(10),
+  contentType: z.string().min(3).max(80),
+  ext: z.string().trim().max(8).default("jpg"),
+});
+
+/** Sobe a foto do perfil pelo servidor (evita travar no navegador). */
+export const enviarAvatar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => avatarSchema.parse(input ?? {}))
+  .handler(async ({ data, context }): Promise<{ path: string }> => {
+    const bin = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
+    if (bin.byteLength > 5 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 5 MB.");
+    const ext = (data.ext || "jpg").replace(/[^a-z0-9]/gi, "").toLowerCase() || "jpg";
+    const caminho = `${context.userId}/avatar-${Date.now()}.${ext}`;
+    const { error } = await context.supabase.storage
+      .from("avatars")
+      .upload(caminho, bin, { upsert: true, contentType: data.contentType });
+    if (error) throw new Error(error.message);
+    return { path: caminho };
+  });

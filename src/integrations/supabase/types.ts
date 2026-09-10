@@ -611,6 +611,86 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_notificacoes: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          criado_por: string | null
+          id: string
+          link: string | null
+          para_todos: boolean
+          parceiro_id: string | null
+          texto: string | null
+          titulo: string
+          user_id: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          link?: string | null
+          para_todos?: boolean
+          parceiro_id?: string | null
+          texto?: string | null
+          titulo: string
+          user_id?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          link?: string | null
+          para_todos?: boolean
+          parceiro_id?: string | null
+          texto?: string | null
+          titulo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_notificacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "elora_notificacoes_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "elora_parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_notificacoes_lidas: {
+        Row: {
+          lida_em: string
+          notificacao_id: string
+          user_id: string
+        }
+        Insert: {
+          lida_em?: string
+          notificacao_id: string
+          user_id: string
+        }
+        Update: {
+          lida_em?: string
+          notificacao_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_notificacoes_lidas_notificacao_id_fkey"
+            columns: ["notificacao_id"]
+            isOneToOne: false
+            referencedRelation: "elora_notificacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_parceiro_usuarios: {
         Row: {
           ativo: boolean
