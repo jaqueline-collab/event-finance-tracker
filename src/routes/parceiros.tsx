@@ -1,8 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, LogIn, Mail, Phone, Globe } from "lucide-react";
-import { EloraMark } from "@/components/landing/EloraMark";
+import { createFileRoute } from "@tanstack/react-router";
+import { Navbar, Footer } from "@/components/landing/SiteChrome";
+import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Parceiros } from "@/components/landing/Parceiros";
-import { EMAIL_CONTATO, WHATSAPP_LINK, WHATSAPP_NUMERO } from "@/lib/landing/contato";
 
 export const Route = createFileRoute("/parceiros")({
   head: () => ({
