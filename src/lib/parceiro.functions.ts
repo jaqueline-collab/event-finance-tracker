@@ -16,15 +16,18 @@ export const getPapelUsuario = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const db = context.supabase as any;
-    await db.rpc("link_parceiro_usuario");
-    const [{ data: interno }, { data: parceiroId }, { data: veValores }] = await Promise.all([
-      db.rpc("is_equipe_interna"),
-      db.rpc("parceiro_do_usuario"),
-      db.rpc("parceiro_ve_valores"),
-    ]);
+    await Promise.all([db.rpc("link_parceiro_usuario"), db.rpc("link_cliente_usuario")]);
+    const [{ data: interno }, { data: parceiroId }, { data: veValores }, { data: clienteId }] =
+      await Promise.all([
+        db.rpc("is_equipe_interna"),
+        db.rpc("parceiro_do_usuario"),
+        db.rpc("parceiro_ve_valores"),
+        db.rpc("cliente_do_usuario"),
+      ]);
     return {
       isInterno: Boolean(interno),
       parceiroId: (parceiroId as string | null) ?? null,
+      clienteId: (clienteId as string | null) ?? null,
       veValores: Boolean(veValores),
     };
   });
