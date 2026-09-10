@@ -140,7 +140,7 @@ function MauFechamentoEditor({
               <span className="text-primary font-semibold">+{formatBRL(acrescimo)}</span>
             </>
           ) : mau ? (
-            <span className="text-accent">Dentro do plano — sem acréscimo.</span>
+            <span className="text-fin">Dentro do plano — sem acréscimo.</span>
           ) : (
             <span>Informe os MAU do mês para calcular o excedente.</span>
           )}
@@ -1525,7 +1525,7 @@ function ResumoPage() {
                       </TableCell>
                       <TableCell className="font-medium">{l.mesLabel}</TableCell>
                       <TableCell className="text-right text-muted-foreground">{fechDaComp.length}</TableCell>
-                      <TableCell className="text-right text-accent">+{l.novos}</TableCell>
+                      <TableCell className="text-right text-fin">+{l.novos}</TableCell>
                       <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
                       <TableCell className="text-right font-medium">{formatBRL(totalFechado)}</TableCell>
                     </TableRow>
@@ -1584,7 +1584,7 @@ function ResumoPage() {
                                       </Button>
                                       <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
                                       {f.legacyFinanceiroId ? (
-                                        <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-600">
+                                        <Badge variant="outline" className="text-[10px] border-fin/40 text-fin">
                                           recuperado do Financeiro
                                         </Badge>
                                       ) : (
@@ -1917,7 +1917,7 @@ function ResumoPage() {
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Setups no mês</div>
-                    <div className="text-2xl font-semibold mt-1 text-accent">+{fechamentoData.setupsNoMes.length}</div>
+                    <div className="text-2xl font-semibold mt-1 text-fin">+{fechamentoData.setupsNoMes.length}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">{formatBRL(fechamentoData.totalSetups)}</div>
                   </div>
                   <div className="rounded-lg border border-border/60 p-4">
@@ -2004,7 +2004,7 @@ function ResumoPage() {
                                   </Badge>
                                 )}
                                 {d.descontosCliente.map((dc) => (
-                                  <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-yellow-500/40 text-yellow-600 bg-yellow-500/10">
+                                  <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-fin/40 text-fin bg-fin/10">
                                     <Tag className="h-2.5 w-2.5" />
                                     {descreverDesconto(dc)}
                                   </Badge>
@@ -2033,7 +2033,7 @@ function ResumoPage() {
                                   {d.mauExcedenteQtd.toLocaleString("pt-BR")} × {formatBRLPreciso(d.mauUnit)} = +{formatBRL(d.mauExcedenteValor)}
                                 </span>
                               ) : d.mauInformado ? (
-                                <span className="text-accent">dentro do plano</span>
+                                <span className="text-fin">dentro do plano</span>
                               ) : (
                                 <span className="text-muted-foreground">—</span>
                               )}
@@ -2089,9 +2089,9 @@ function ResumoPage() {
                     {(fechamentoSelecionado?.descontosGerais.length ?? 0) > 0 && (
                       <div className="mt-2 space-y-1">
                         {fechamentoSelecionado!.descontosGerais.map((dg) => (
-                          <div key={dg.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                          <div key={dg.id} className="flex items-center justify-between text-xs gap-2 rounded border border-fin/30 bg-fin/5 px-2 py-1">
                             <div className="flex items-center gap-2 min-w-0">
-                              <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                              <Tag className="h-3 w-3 text-fin shrink-0" />
                               <span className="font-medium">Fechamento inteiro · {descreverDesconto(dg)}</span>
                               {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
                               {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
@@ -2109,9 +2109,9 @@ function ResumoPage() {
                       <div className="mt-2 space-y-1">
                         {fechamentoData.detalhesPorCliente.flatMap((d) =>
                           d.descontosCliente.map((dc) => (
-                            <div key={dc.id} className="flex items-center justify-between text-xs gap-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2 py-1">
+                            <div key={dc.id} className="flex items-center justify-between text-xs gap-2 rounded border border-fin/30 bg-fin/5 px-2 py-1">
                               <div className="flex items-center gap-2 min-w-0">
-                                <Tag className="h-3 w-3 text-yellow-600 shrink-0" />
+                                <Tag className="h-3 w-3 text-fin shrink-0" />
                                 <span className="font-medium truncate">{d.cliente.nome} · {descreverDesconto(dc)}</span>
                                 {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
                                 {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
@@ -2137,7 +2137,7 @@ function ResumoPage() {
                         </div>
                       )}
                       {(fechamentoSelecionado?.descontoTotal ?? 0) > 0 && (
-                        <div className="flex justify-between text-yellow-600 dark:text-yellow-500">
+                        <div className="flex justify-between text-fin dark:text-fin">
                           <span>Descontos</span>
                           <span>-{formatBRL(fechamentoSelecionado!.descontoTotal)}</span>
                         </div>
@@ -2294,7 +2294,7 @@ function ResumoPage() {
                           const deltaReceita = fechamentoData.calcDeltaReceita(mv);
                           return (
                             <div key={mv.id} className="flex items-start gap-3 rounded-lg border border-border/60 p-3">
-                              <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-accent/15 text-accent" : "bg-yellow-500/15 text-yellow-500"}`}>
+                              <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-fin/15 text-fin" : "bg-fin/15 text-fin"}`}>
                                 <Icon className="h-3.5 w-3.5" />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -2302,7 +2302,7 @@ function ResumoPage() {
                                   <span className="font-semibold">{c?.nome ?? "—"}</span>
                                   <Badge variant="outline" className="text-[10px]">{isUp ? "Upgrade" : "Downgrade"}</Badge>
                                   {deltaReceita !== 0 && (
-                                    <span className={`text-xs font-semibold ${deltaReceita > 0 ? "text-accent" : "text-destructive"}`}>
+                                    <span className={`text-xs font-semibold ${deltaReceita > 0 ? "text-fin" : "text-destructive"}`}>
                                       {deltaReceita > 0 ? "+" : ""}{formatBRL(deltaReceita)}/mês
                                     </span>
                                   )}
@@ -2394,7 +2394,7 @@ function ResumoPage() {
                   </div>
                   <div className="rounded-lg border border-border/60 p-3">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Variação no mês</div>
-                    <div className={`text-lg font-semibold mt-1 ${deltaMes > 0 ? "text-accent" : deltaMes < 0 ? "text-destructive" : ""}`}>
+                    <div className={`text-lg font-semibold mt-1 ${deltaMes > 0 ? "text-fin" : deltaMes < 0 ? "text-destructive" : ""}`}>
                       {deltaMes > 0 ? "+" : ""}{formatBRL(deltaMes)}
                     </div>
                   </div>
@@ -2444,14 +2444,14 @@ function ResumoPage() {
                           mv.tipo === "churn" ? "Churn" : "Serviço";
                         return (
                           <div key={mv.id} className="flex items-start gap-3 rounded-md border border-border/40 p-3">
-                            <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-accent/20 text-accent" : isDown ? "bg-destructive/20 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                            <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-fin/20 text-fin" : isDown ? "bg-destructive/20 text-destructive" : "bg-muted text-muted-foreground"}`}>
                               {isUp ? <TrendingUp className="h-3.5 w-3.5" /> : isDown ? <TrendingDown className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge variant="outline" className="text-[10px]">{labelTipo}</Badge>
                                 {delta !== 0 && (
-                                  <span className={`text-xs font-semibold ${delta > 0 ? "text-accent" : "text-destructive"}`}>
+                                  <span className={`text-xs font-semibold ${delta > 0 ? "text-fin" : "text-destructive"}`}>
                                     {delta > 0 ? "+" : ""}{formatBRL(delta)}/mês
                                   </span>
                                 )}
@@ -2471,14 +2471,14 @@ function ResumoPage() {
                         );
                       })}
                       {descsClienteDrawer.map((dc) => (
-                        <div key={dc.id} className="flex items-start gap-3 rounded-md border border-yellow-500/40 bg-yellow-500/5 p-3">
-                          <div className="mt-0.5 rounded-full p-1.5 bg-yellow-500/20 text-yellow-600">
+                        <div key={dc.id} className="flex items-start gap-3 rounded-md border border-fin/40 bg-fin/5 p-3">
+                          <div className="mt-0.5 rounded-full p-1.5 bg-fin/20 text-fin">
                             <Tag className="h-3.5 w-3.5" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-700">Desconto</Badge>
-                              <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-500">
+                              <Badge variant="outline" className="text-[10px] border-fin/40 text-fin">Desconto</Badge>
+                              <span className="text-xs font-semibold text-fin dark:text-fin">
                                 -{formatBRL(calcularDesconto(recCiclo, [dc]).descontoTotal)}
                               </span>
                               <span className="text-xs text-muted-foreground">· {descreverDesconto(dc)}</span>
@@ -2960,7 +2960,7 @@ function ResumoPage() {
                                         <tr key={mv.id} className="border-b border-border/20 last:border-0">
                                           <td className="py-1.5">{fmtDate(mv.data)}</td>
                                           <td className="py-1.5">
-                                            <Badge variant="outline" className={`text-[10px] ${isUp ? "border-accent/40 text-accent" : isDown ? "border-destructive/40 text-destructive" : ""}`}>
+                                            <Badge variant="outline" className={`text-[10px] ${isUp ? "border-fin/40 text-fin" : isDown ? "border-destructive/40 text-destructive" : ""}`}>
                                               {mv.tipo}
                                             </Badge>
                                           </td>
@@ -2969,7 +2969,7 @@ function ResumoPage() {
                                             {mv.tipo === "servico" && mv.valorServico
                                               ? formatBRL(mv.valorServico)
                                               : delta !== 0
-                                                ? <span className={delta > 0 ? "text-accent" : "text-destructive"}>{delta > 0 ? "+" : ""}{formatBRL(delta)}/mês</span>
+                                                ? <span className={delta > 0 ? "text-fin" : "text-destructive"}>{delta > 0 ? "+" : ""}{formatBRL(delta)}/mês</span>
                                                 : <span className="text-muted-foreground">—</span>}
                                           </td>
                                         </tr>

@@ -119,9 +119,13 @@ function PaginaPerfil() {
   const salvar = async () => {
     setSalvando(true);
     try {
-      await salvarMeuPerfil({
+      const gravacao = salvarMeuPerfil({
         data: { nome: nome.trim() || null, telefone: telefone.trim() || null, avatarPath },
       });
+      const limite = new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error("O salvamento demorou demais. Tente novamente.")), 20000),
+      );
+      await Promise.race([gravacao, limite]);
       setPrevia(null);
       await recarregar();
       toast.success("Perfil atualizado.");
@@ -372,7 +376,7 @@ function PaginaPerfil() {
             </div>
             <Button
               disabled={!clienteSel}
-              onClick={() => navigate({ to: "/cliente", search: { como: clienteSel } })}
+              onClick={() => navigate({ to: "/area-do-cliente", search: { como: clienteSel } })}
             >
               <Eye className="h-4 w-4" />
               <span className="ml-2">Ir para a Área do Cliente</span>

@@ -169,11 +169,12 @@ function RootComponent() {
   const papel = usePapelUsuario(Boolean(session));
   const isCliente = !papel.loading && !papel.isInterno && Boolean(papel.clienteId);
   const isParceiro = !papel.loading && !papel.isInterno && !isCliente && Boolean(papel.parceiroId);
-  const areaPropria = isCliente ? "/cliente" : isParceiro ? "/parceiro" : null;
+  const areaPropria = isCliente ? "/area-do-cliente" : isParceiro ? "/parceiro" : null;
   // Telas de cliente/parceiro nunca mostram o menu interno — nem para o admin
-  // que está apenas visualizando ("ver como cliente").
+  // que está apenas visualizando ("ver como cliente"). Comparação EXATA:
+  // /clientes e /gestao-parceiros são telas internas de gestão e mantêm o menu.
   const emAreaExterna =
-    pathname.startsWith("/cliente") || pathname.startsWith("/parceiro");
+    pathname === "/area-do-cliente" || pathname === "/cliente" || pathname === "/parceiro";
   const semMenuLateral = Boolean(areaPropria) || emAreaExterna;
 
   // Cliente e pessoa de parceiro não acessam telas internas: caem na área deles.
@@ -252,9 +253,9 @@ function RootComponent() {
             <header className="h-14 flex items-center gap-2 sm:gap-3 border-b border-border/60 px-3 sm:px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
               {!semMenuLateral && <SidebarTrigger />}
               <div className="text-sm text-muted-foreground flex-1 min-w-0 truncate">
-                {isCliente || pathname.startsWith("/cliente")
+                {isCliente || pathname === "/area-do-cliente" || pathname === "/cliente"
                   ? "Elora · Área do cliente"
-                  : isParceiro || pathname.startsWith("/parceiro")
+                  : isParceiro || pathname === "/parceiro"
                     ? "Elora · Área do parceiro"
                     : "Elora · Controle financeiro"}
               </div>

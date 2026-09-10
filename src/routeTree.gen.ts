@@ -26,6 +26,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AreaDoClienteRouteImport } from './routes/area-do-cliente'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidades.$slug'
@@ -121,6 +122,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AreaDoClienteRoute = AreaDoClienteRouteImport.update({
+  id: '/area-do-cliente',
+  path: '/area-do-cliente',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -172,6 +178,7 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/area-do-cliente': typeof AreaDoClienteRoute
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/area-do-cliente': typeof AreaDoClienteRoute
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
@@ -229,6 +237,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/area-do-cliente': typeof AreaDoClienteRoute
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/area-do-cliente'
     | '/auth'
     | '/cliente'
     | '/clientes'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/area-do-cliente'
     | '/auth'
     | '/cliente'
     | '/clientes'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/area-do-cliente'
     | '/auth'
     | '/cliente'
     | '/clientes'
@@ -344,6 +356,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AreaDoClienteRoute: typeof AreaDoClienteRoute
   AuthRoute: typeof AuthRouteWithChildren
   ClienteRoute: typeof ClienteRoute
   ClientesRoute: typeof ClientesRoute
@@ -491,6 +504,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/area-do-cliente': {
+      id: '/area-do-cliente'
+      path: '/area-do-cliente'
+      fullPath: '/area-do-cliente'
+      preLoaderRoute: typeof AreaDoClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -569,6 +589,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AreaDoClienteRoute: AreaDoClienteRoute,
   AuthRoute: AuthRouteWithChildren,
   ClienteRoute: ClienteRoute,
   ClientesRoute: ClientesRoute,

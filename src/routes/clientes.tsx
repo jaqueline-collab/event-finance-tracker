@@ -34,7 +34,7 @@ export const Route = createFileRoute("/clientes")({
 
 const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] = [
   { value: "setup", label: "Setup / Ativação", color: "bg-primary/20 text-primary" },
-  { value: "upgrade", label: "Upgrade", color: "bg-accent/20 text-accent" },
+  { value: "upgrade", label: "Upgrade", color: "bg-fin/20 text-fin" },
   { value: "downgrade", label: "Downgrade", color: "bg-sky-500/20 text-sky-400" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
@@ -694,7 +694,7 @@ function ClientesPage() {
                       <Label htmlFor="asaas" className="text-sm cursor-pointer font-medium">ASAAS</Label>
                     </div>
                     <div className="flex items-center space-x-2.5 border border-border/40 rounded-lg px-3 py-1.5 bg-muted/5">
-                      <Zap className="h-4 w-4 text-accent" />
+                      <Zap className="h-4 w-4 text-fin" />
                       <Label htmlFor="zapi-qtd" className="text-sm cursor-pointer font-medium">Canais Z-API:</Label>
                       <Input
                         id="zapi-qtd"
@@ -724,7 +724,7 @@ function ClientesPage() {
               <div className="bg-muted/30 p-6 flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border">
-                    <DollarSign className="h-5 w-5 text-accent" />
+                    <DollarSign className="h-5 w-5 text-fin" />
                     <h3 className="font-semibold text-base tracking-tight">Simulação em Tempo Real</h3>
                   </div>
 
@@ -791,7 +791,7 @@ function ClientesPage() {
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center font-semibold text-sm pt-2 border-t border-border/40 text-accent mt-1">
+                    <div className="flex justify-between items-center font-semibold text-sm pt-2 border-t border-border/40 text-fin mt-1">
                       <span>Faturamento Mensal (MRR):</span>
                       <span>{formatBRL(realTimePricing.receitaTotal)}</span>
                     </div>
@@ -864,7 +864,7 @@ function ClientesPage() {
                     </div>
                     <div className="flex justify-between items-center text-sm pt-1 border-t border-border/20">
                       <span className="font-semibold text-muted-foreground">Resultado Líquido:</span>
-                      <span className={`font-bold ${realTimePricing.lucroTotal >= 0 ? "text-accent" : "text-destructive"}`}>
+                      <span className={`font-bold ${realTimePricing.lucroTotal >= 0 ? "text-fin" : "text-destructive"}`}>
                         {formatBRL(realTimePricing.lucroTotal)}/mês
                       </span>
                     </div>
@@ -1022,15 +1022,15 @@ function ClientesPage() {
                     <TableCell className="text-right text-muted-foreground font-medium">
                       {formatBRL(acumulado)}
                     </TableCell>
-                    <TableCell className={`text-right font-semibold ${lucroSistema >= 0 ? "text-accent" : "text-destructive"}`}>
+                    <TableCell className={`text-right font-semibold ${lucroSistema >= 0 ? "text-fin" : "text-destructive"}`}>
                       {lucroSistema >= 0 ? "+" : ""}{formatBRL(lucroSistema)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
-                        <Badge className={lucro >= 0 ? "bg-accent/20 text-accent font-semibold" : "bg-destructive/20 text-destructive font-semibold"}>
+                        <Badge className={lucro >= 0 ? "bg-fin/20 text-fin font-semibold" : "bg-destructive/20 text-destructive font-semibold"}>
                           {lucro >= 0 ? "+" : ""}{formatBRL(lucro)}
                         </Badge>
-                        <span className={`text-[10px] font-medium ${margem >= 0 ? "text-accent" : "text-destructive"}`}>{margem.toFixed(1)}%</span>
+                        <span className={`text-[10px] font-medium ${margem >= 0 ? "text-fin" : "text-destructive"}`}>{margem.toFixed(1)}%</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1127,7 +1127,7 @@ function ClientesPage() {
                 titulo: mTipoLabel.charAt(0).toUpperCase() + mTipoLabel.slice(1),
                 desc: descParts.join(" | ") || "Recursos da conta atualizados.",
                 icon: m.tipo === "upgrade" ? TrendingUp : m.tipo === "downgrade" ? TrendingDown : Settings2,
-                color: m.tipo === "upgrade" ? "text-accent border-accent" : m.tipo === "downgrade" ? "text-sky-500 border-sky-500" : "text-muted-foreground border-muted-foreground",
+                color: m.tipo === "upgrade" ? "text-fin border-fin" : m.tipo === "downgrade" ? "text-sky-500 border-sky-500" : "text-muted-foreground border-muted-foreground",
                 movId: m.id,
                 canEdit: isDelta,
               });
@@ -1216,7 +1216,7 @@ function ClientesPage() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Faturamento acumulado</p>
-                        <p className="text-sm font-bold text-accent">{formatBRL(faturamentoAcumuladoCliente(cliente, planos, custos, movimentos))}</p>
+                        <p className="text-sm font-bold text-fin">{formatBRL(faturamentoAcumuladoCliente(cliente, planos, custos, movimentos))}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Data Setup</p>
@@ -1283,10 +1283,10 @@ function ClientesPage() {
                           <div className="space-y-0.5 col-span-2 sm:col-span-1">
                             <p className="text-xs text-muted-foreground">Módulos Extras Ativos</p>
                             <div className="flex flex-wrap gap-1.5 mt-1">
-                              {estadoAtual.agentesIA && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Agentes IA</Badge>}
-                              {estadoAtual.asaas && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">ASAAS</Badge>}
-                              {estadoAtual.zapi && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Z-API WhatsApp</Badge>}
-                              {estadoAtual.transcricaoIA && <Badge className="text-[10px] bg-accent/20 text-accent font-semibold border-none">Transcrição IA</Badge>}
+                              {estadoAtual.agentesIA && <Badge className="text-[10px] bg-fin/20 text-fin font-semibold border-none">Agentes IA</Badge>}
+                              {estadoAtual.asaas && <Badge className="text-[10px] bg-fin/20 text-fin font-semibold border-none">ASAAS</Badge>}
+                              {estadoAtual.zapi && <Badge className="text-[10px] bg-fin/20 text-fin font-semibold border-none">Z-API WhatsApp</Badge>}
+                              {estadoAtual.transcricaoIA && <Badge className="text-[10px] bg-fin/20 text-fin font-semibold border-none">Transcrição IA</Badge>}
                               {!estadoAtual.agentesIA && !estadoAtual.asaas && !estadoAtual.zapi && !estadoAtual.transcricaoIA && <span className="text-xs text-muted-foreground">—</span>}
                             </div>
                           </div>
@@ -1424,7 +1424,7 @@ function ClientesPage() {
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Alteração</div>
-                    <div className={`font-semibold ${previaMovimento.delta > 0 ? "text-accent" : previaMovimento.delta < 0 ? "text-destructive" : ""}`}>
+                    <div className={`font-semibold ${previaMovimento.delta > 0 ? "text-fin" : previaMovimento.delta < 0 ? "text-destructive" : ""}`}>
                       {Math.abs(previaMovimento.delta) < 0.005
                         ? "Sem alteração de valor"
                         : `${previaMovimento.delta > 0 ? "+" : "−"} ${formatBRL(Math.abs(previaMovimento.delta))}`}
@@ -1604,7 +1604,7 @@ function ClientesPage() {
                           </div>
                           <div>
                             <div className="text-muted-foreground">Acumulado</div>
-                            <div className="font-medium text-accent">{formatBRL(acumulado)}</div>
+                            <div className="font-medium text-fin">{formatBRL(acumulado)}</div>
                           </div>
                           <div>
                             <div className="text-muted-foreground">Canais Whats/Insta/Msg</div>
