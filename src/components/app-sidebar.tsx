@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCurrentUserAccess, type ModuleKey } from "@/lib/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EloraMark } from "@/components/landing/EloraMark";
 
 const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
