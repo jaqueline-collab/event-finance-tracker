@@ -137,6 +137,8 @@ export const getPainelCliente = createServerFn({ method: "POST" })
       }));
 
     return {
+      semVinculo: false as const,
+
       cliente: {
         id: cliente.id as string,
         nome: cliente.nome as string,

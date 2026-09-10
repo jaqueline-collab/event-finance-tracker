@@ -133,7 +133,26 @@ function AreaCliente() {
     );
   }
 
+  if (dados.semVinculo) {
+    return (
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Este login não é de um cliente</AlertTitle>
+        <AlertDescription className="space-y-3">
+          <p>
+            Sua conta não está vinculada a nenhuma empresa cliente. Para conferir esta tela, entre no
+            seu perfil e use a opção “Ir para a Área do Cliente” escolhendo a empresa.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => navigate({ to: "/perfil" })}>
+            Ir para o meu perfil
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   const { cliente, plano, contratado, recursos, historico, equipe } = dados;
+
 
   return (
     <div className="space-y-6">
