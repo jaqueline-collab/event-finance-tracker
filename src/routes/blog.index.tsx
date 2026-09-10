@@ -89,8 +89,9 @@ function BlogIndex() {
               </Pill>
             ))}
           </div>
-        </div>
-      </section>
+        </>
+      </PageHeader>
+
 
       <section className="py-14 md:py-20 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
