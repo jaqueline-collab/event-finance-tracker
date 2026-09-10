@@ -146,7 +146,7 @@ function RootComponent() {
   useEffect(() => {
     if (!isParceiro) return;
     if (typeof window === "undefined") return;
-    if (pathname === "/parceiro" || pathname === "/" || pathname.startsWith("/auth") || pathname === "/parceiros") return;
+    if (pathname === "/parceiro" || pathname.startsWith("/auth") || ehPaginaPublica(pathname)) return;
     router.navigate({ to: "/parceiro", replace: true });
   }, [isParceiro, pathname, router]);
 
@@ -170,10 +170,10 @@ function RootComponent() {
   // O supabase-js já renova o token sozinho (autoRefreshToken). Refresh manual
   // a cada foco/visibilidade disputava a trava de auth e travava os saves.
 
-  // Rotas públicas: landing, parceiros e fluxo de auth
-  const isPublicRoute = pathname === "/" || pathname === "/parceiros" || pathname.startsWith("/auth");
-  // Rota da landing / parceiros: não renderiza shell do app
-  const isLanding = pathname === "/" || pathname === "/parceiros";
+  // Rotas públicas: site institucional (home, parceiros, faq, blog) e fluxo de auth
+  const isPublicRoute = ehPaginaPublica(pathname) || pathname.startsWith("/auth");
+  // Site institucional: não renderiza shell do app
+  const isLanding = ehPaginaPublica(pathname);
 
   // Landing pública: renderiza imediatamente sem esperar checagem de sessão
   if (isLanding) {
