@@ -52,29 +52,12 @@ function BlogIndex() {
     >
       <Navbar />
 
-      <section className="relative bg-landing-dark text-white pt-28 pb-14 md:pt-32 md:pb-16 px-6 overflow-hidden">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-40"
-          style={{
-            background:
-              "radial-gradient(900px circle at 80% 10%, #1e3a5f 0%, transparent 55%), radial-gradient(700px circle at 10% 90%, #2a4a73 0%, transparent 65%)",
-          }}
-        />
-        <div className="relative max-w-6xl mx-auto text-center">
-          <span className="text-xs font-semibold tracking-widest uppercase text-landing-yellow-vivo">
-            Conteúdo
-          </span>
-          <h1
-            className="mt-3 text-4xl md:text-5xl font-bold tracking-tight"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Blog do EloraCRM
-          </h1>
-          <p className="mt-4 text-white/70 max-w-2xl mx-auto">
-            Atendimento, vendas, inteligência artificial e gestão — sem enrolação.
-          </p>
-
+      <PageHeader
+        etiqueta="Conteúdo"
+        titulo="Blog do EloraCRM"
+        descricao="Atendimento, vendas, inteligência artificial e gestão — sem enrolação."
+      >
+        <>
           <div className="mt-8 max-w-xl mx-auto relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
             <input
