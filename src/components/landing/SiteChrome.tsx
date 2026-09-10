@@ -10,7 +10,7 @@ export function Navbar() {
         <Link to="/" className="flex items-center gap-2 leading-none">
           <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0 -mt-0.5" />
           <span
-            className="text-white font-bold tracking-tight text-lg"
+            className="hidden sm:inline text-white font-bold tracking-tight text-lg"
             style={{ fontFamily: "var(--font-display)" }}
           >
             EloraCRM
@@ -32,13 +32,13 @@ export function Navbar() {
             href="https://app.eloracrm.com.br/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-5 py-2 rounded-md text-sm transition-colors"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-4 sm:px-5 py-2 rounded-md text-sm transition-colors"
           >
             Elora App <ArrowUpRight className="h-4 w-4" />
           </a>
           <Link
             to="/auth"
-            className="inline-flex items-center gap-1.5 border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-3 sm:px-4 py-2 rounded-md text-sm transition-colors"
           >
             <LogIn className="h-4 w-4" /> Logar
           </Link>
