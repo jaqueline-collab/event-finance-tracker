@@ -35,7 +35,7 @@ export const Route = createFileRoute("/clientes")({
 const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] = [
   { value: "setup", label: "Setup / Ativação", color: "bg-primary/20 text-primary" },
   { value: "upgrade", label: "Upgrade", color: "bg-accent/20 text-accent" },
-  { value: "downgrade", label: "Downgrade", color: "bg-yellow-500/20 text-yellow-400" },
+  { value: "downgrade", label: "Downgrade", color: "bg-sky-500/20 text-sky-400" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
 ];
@@ -814,42 +814,42 @@ function ClientesPage() {
                       {realTimePricing.extraCanais > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Canais extra (+{realTimePricing.extraCanaisQtd}):</span>
-                          <span className="text-yellow-400">+{formatBRL(realTimePricing.extraCanais)}</span>
+                          <span className="text-sky-400">+{formatBRL(realTimePricing.extraCanais)}</span>
                         </div>
                       )}
 
                       {realTimePricing.extraUsers > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Users extra (+{Math.max(0, form.usuariosAtivos - (selectedPlano?.usuariosInclusos ?? 3))}):</span>
-                          <span className="text-yellow-400">+{formatBRL(realTimePricing.extraUsers)}</span>
+                          <span className="text-sky-400">+{formatBRL(realTimePricing.extraUsers)}</span>
                         </div>
                       )}
 
                       {form.canaisZapi > 0 && realTimePricing.zapi > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Modulação Z-API ({form.canaisZapi} {form.canaisZapi === 1 ? 'canal' : 'canais'}):</span>
-                          <span className="text-yellow-400">+{formatBRL(realTimePricing.zapi)}</span>
+                          <span className="text-sky-400">+{formatBRL(realTimePricing.zapi)}</span>
                         </div>
                       )}
 
                       {realTimePricing.ia > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Módulo Inteligência Artificial:</span>
-                          <span className="text-yellow-400">+{formatBRL(realTimePricing.ia)}</span>
+                          <span className="text-sky-400">+{formatBRL(realTimePricing.ia)}</span>
                         </div>
                       )}
 
                       {realTimePricing.asaas > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Gateway de Pagamento ASAAS:</span>
-                          <span className="text-yellow-400">+{formatBRL(realTimePricing.asaas)}</span>
+                          <span className="text-sky-400">+{formatBRL(realTimePricing.asaas)}</span>
                         </div>
                       )}
 
                       {realTimePricing.transcricao > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Transcrição IA ({form.usuariosAtivos} users):</span>
-                          <span className="text-yellow-400">+{formatBRL(realTimePricing.transcricao)}</span>
+                          <span className="text-sky-400">+{formatBRL(realTimePricing.transcricao)}</span>
                         </div>
                       )}
                     </div>
@@ -860,7 +860,7 @@ function ClientesPage() {
                   <div className="rounded-lg bg-background/50 p-3 space-y-2 border border-border/40">
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-muted-foreground">Total Custo mensal:</span>
-                      <span className="font-semibold text-yellow-400">{formatBRL(realTimePricing.custoTotal)}</span>
+                      <span className="font-semibold text-sky-400">{formatBRL(realTimePricing.custoTotal)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm pt-1 border-t border-border/20">
                       <span className="font-semibold text-muted-foreground">Resultado Líquido:</span>
@@ -1003,7 +1003,7 @@ function ClientesPage() {
                           {c.nome}
                         </span>
                         {!c.dataChurn && c.statusComercial === "trial" && (
-                          <Badge className="w-fit text-[10px] bg-yellow-500/20 text-yellow-500 border-none font-semibold">Trial</Badge>
+                          <Badge className="w-fit text-[10px] bg-sky-500/15 text-sky-500 border-none font-semibold">Trial</Badge>
                         )}
                         {c.dataVencimento && (
                           <span className="text-[10px] text-muted-foreground font-normal">
@@ -1127,7 +1127,7 @@ function ClientesPage() {
                 titulo: mTipoLabel.charAt(0).toUpperCase() + mTipoLabel.slice(1),
                 desc: descParts.join(" | ") || "Recursos da conta atualizados.",
                 icon: m.tipo === "upgrade" ? TrendingUp : m.tipo === "downgrade" ? TrendingDown : Settings2,
-                color: m.tipo === "upgrade" ? "text-accent border-accent" : m.tipo === "downgrade" ? "text-yellow-500 border-yellow-500" : "text-muted-foreground border-muted-foreground",
+                color: m.tipo === "upgrade" ? "text-accent border-accent" : m.tipo === "downgrade" ? "text-sky-500 border-sky-500" : "text-muted-foreground border-muted-foreground",
                 movId: m.id,
                 canEdit: isDelta,
               });

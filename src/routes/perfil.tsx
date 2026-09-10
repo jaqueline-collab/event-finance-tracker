@@ -1,7 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Camera, Loader2, Save, Trash2 } from "lucide-react";
+import { Camera, Eye, Loader2, Save, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { listarClientesParaVer } from "@/lib/cliente.functions";
+import { usePapelUsuario } from "@/lib/use-papel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +36,7 @@ export const Route = createFileRoute("/perfil")({
 });
 
 function PaginaPerfil() {
-  const { perfil, email, avatarUrl, carregando, recarregar } = usePerfil();
+  const { perfil, userId, email, avatarUrl, recarregar } = usePerfil();
   const inputArquivo = useRef<HTMLInputElement>(null);
 
   const [nome, setNome] = useState("");
@@ -38,6 +47,20 @@ function PaginaPerfil() {
   const [enviando, setEnviando] = useState(false);
   const [novoEmail, setNovoEmail] = useState("");
   const [trocandoEmail, setTrocandoEmail] = useState(false);
+  const [codigo, setCodigo] = useState("");
+  const [codigoEnviado, setCodigoEnviado] = useState(false);
+
+  const navigate = useNavigate();
+  const papel = usePapelUsuario();
+  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
+  const [clienteSel, setClienteSel] = useState("");
+
+  useEffect(() => {
+    if (!papel.isInterno) return;
+    listarClientesParaVer()
+      .then(setClientes)
+      .catch(() => setClientes([]));
+  }, [papel.isInterno]);
 
   useEffect(() => {
     if (!perfil) return;
@@ -50,8 +73,13 @@ function PaginaPerfil() {
   const iniciais = iniciaisDe(nome, email);
 
   const enviarFoto = async (arquivo: File) => {
-    if (!perfil?.userId) {
-      toast.error("Sessão não carregada. Recarregue a página.");
+    let uid = userId;
+    if (!uid) {
+      const { data } = await supabase.auth.getUser();
+      uid = data.user?.id ?? null;
+    }
+    if (!uid) {
+      toast.error("Sua sessão expirou. Entre novamente para trocar a foto.");
       return;
     }
     if (!arquivo.type.startsWith("image/")) {
@@ -65,7 +93,7 @@ function PaginaPerfil() {
     setEnviando(true);
     try {
       const ext = arquivo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const caminho = `${perfil.userId}/avatar-${Date.now()}.${ext}`;
+      const caminho = `${uid}/avatar-${Date.now()}.${ext}`;
       const { error } = await supabase.storage
         .from("avatars")
         .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type });
@@ -96,21 +124,58 @@ function PaginaPerfil() {
     }
   };
 
-  const trocarEmail = async () => {
+  /** Passo 1: manda um código de 6 dígitos para o e-mail ATUAL. */
+  const enviarCodigo = async () => {
     const alvo = novoEmail.trim();
     if (!alvo.includes("@")) {
       toast.error("Informe um e-mail válido.");
       return;
     }
+    if (!email) {
+      toast.error("Não identificamos seu e-mail atual. Recarregue a página.");
+      return;
+    }
     setTrocandoEmail(true);
     try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
+      setCodigoEnviado(true);
+      toast.success(`Enviamos um código de 6 dígitos para ${email}.`);
+    } catch (err) {
+      toast.error(traduzirErroAuth(err));
+    } finally {
+      setTrocandoEmail(false);
+    }
+  };
+
+  /** Passo 2: confere o código do e-mail atual e só então pede a troca. */
+  const confirmarTroca = async () => {
+    const alvo = novoEmail.trim();
+    const token = codigo.trim();
+    if (token.length < 6) {
+      toast.error("Digite o código de 6 dígitos que enviamos.");
+      return;
+    }
+    setTrocandoEmail(true);
+    try {
+      const { error: erroCodigo } = await supabase.auth.verifyOtp({
+        email: email as string,
+        token,
+        type: "email",
+      });
+      if (erroCodigo) throw erroCodigo;
       const { error } = await supabase.auth.updateUser(
         { email: alvo },
         { emailRedirectTo: `${window.location.origin}/auth/callback` },
       );
       if (error) throw error;
-      toast.success("Enviamos um link de confirmação para o novo e-mail.");
+      toast.success("Código confirmado. Agora confirme pelo link enviado ao novo e-mail.");
       setNovoEmail("");
+      setCodigo("");
+      setCodigoEnviado(false);
     } catch (err) {
       toast.error(traduzirErroAuth(err));
     } finally {
@@ -156,7 +221,7 @@ function PaginaPerfil() {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={enviando || carregando}
+                disabled={enviando}
                 onClick={() => inputArquivo.current?.click()}
               >
                 {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
@@ -200,7 +265,7 @@ function PaginaPerfil() {
             </div>
           </div>
 
-          <Button onClick={() => void salvar()} disabled={salvando || carregando}>
+          <Button onClick={() => void salvar()} disabled={salvando}>
             {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             <span className="ml-2">{salvando ? "Salvando..." : "Salvar alterações"}</span>
           </Button>
@@ -211,8 +276,8 @@ function PaginaPerfil() {
         <CardHeader>
           <CardTitle>E-mail de acesso</CardTitle>
           <CardDescription>
-            Seu acesso atual é <span className="font-medium text-foreground">{email ?? "—"}</span>. A troca
-            só vale depois que você confirmar pelo link enviado no novo e-mail.
+            Seu acesso atual é <span className="font-medium text-foreground">{email ?? "—"}</span>. Primeiro
+            enviamos um código para esse e-mail; depois de confirmá-lo, o novo endereço recebe o link final.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -222,18 +287,91 @@ function PaginaPerfil() {
               id="novo-email"
               type="email"
               value={novoEmail}
+              disabled={codigoEnviado}
               onChange={(e) => setNovoEmail(e.target.value)}
               placeholder="novo@exemplo.com"
             />
           </div>
-          <Button variant="outline" onClick={() => void trocarEmail()} disabled={trocandoEmail}>
-            {trocandoEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            <span className={trocandoEmail ? "ml-2" : ""}>
-              {trocandoEmail ? "Enviando..." : "Solicitar troca de e-mail"}
-            </span>
-          </Button>
+
+          {codigoEnviado && (
+            <div className="space-y-2">
+              <Label htmlFor="codigo">Código enviado para {email}</Label>
+              <Input
+                id="codigo"
+                inputMode="numeric"
+                maxLength={8}
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+              />
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => void (codigoEnviado ? confirmarTroca() : enviarCodigo())}
+              disabled={trocandoEmail}
+            >
+              {trocandoEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              <span className="ml-2">
+                {trocandoEmail
+                  ? "Aguarde..."
+                  : codigoEnviado
+                    ? "Confirmar código e trocar"
+                    : "Enviar código para o e-mail atual"}
+              </span>
+            </Button>
+            {codigoEnviado && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setCodigoEnviado(false);
+                  setCodigo("");
+                }}
+              >
+                Cancelar
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {papel.isInterno && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ver como cliente</CardTitle>
+            <CardDescription>
+              Abra a Área do Cliente exatamente como ela aparece para a conta escolhida, em modo
+              somente leitura. Nenhum login extra é necessário.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cliente-360">Cliente</Label>
+              <Select value={clienteSel} onValueChange={setClienteSel}>
+                <SelectTrigger id="cliente-360">
+                  <SelectValue placeholder={clientes.length ? "Escolha um cliente" : "Carregando..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              disabled={!clienteSel}
+              onClick={() => navigate({ to: "/cliente", search: { como: clienteSel } })}
+            >
+              <Eye className="h-4 w-4" />
+              <span className="ml-2">Ir para a Área do Cliente</span>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
