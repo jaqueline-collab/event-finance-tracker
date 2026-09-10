@@ -1,4 +1,4 @@
-# Menu de gestão de volta, cores por tema, novo endereço e salvar do perfil
+# Menu de gestão de volta, cor financeira única, novo endereço e salvar do perfil
 
 ## 1. Menu lateral sumiu na sua tela de Clientes (causa encontrada)
 
@@ -17,17 +17,24 @@ Quem abrir o endereço antigo é levado automaticamente para o novo, então nenh
 já enviado quebra. A visualização como cliente vira
 `/area-do-cliente?como=<cliente>`.
 
-## 3. Cores: amarelo só no tema escuro, azul no tema claro
+## 3. Uma cor só para destaque financeiro (sua diretriz)
 
-O amarelo vem de uma cor central do painel (o "acento") que hoje é amarela nos dois
-temas — é ela que pinta lucro, margem, badges, valores e ícones.
+O problema real: hoje existe uma cor central amarela **e** vários amarelos escritos à
+mão espalhados no código (lucro, margem, badges, status "Pendente", custos, descontos).
+Por isso a cor nunca muda "geral".
 
-- No **tema escuro** (fundo preto) o amarelo fica como está.
-- No **tema claro** (fundo branco) essa cor passa a ser o azul da identidade.
-- Os amarelos escritos à mão (status "Pendente" e custos no Financeiro, descontos e
-  badges do Fechamento Mensal) passam a seguir a mesma regra: azul no claro, amarelo
-  no escuro.
-- A marca (marquinha do EloraCRM) e o site institucional continuam como estão.
+Correção:
+
+- Criar **uma variável nova e única**, dedicada a destaque financeiro, definida uma
+  única vez no arquivo de cores: **azul no tema claro, amarelo no tema escuro**.
+- Ela não reaproveita a cor de destaque do painel (que serve outros fins) e não se
+  chama "alerta" — ela existe só para valor financeiro.
+- **Eliminar todo amarelo escrito à mão** em Clientes, Financeiro, Fechamento Mensal,
+  Dashboard e Área do cliente, fazendo todos esses pontos lerem a variável única.
+- Resultado: trocar a cor no futuro é mudar uma linha num arquivo só, e propaga para
+  todas as telas. Marca e site institucional não mudam.
+- Validação: buscar `yellow-` nos arquivos do painel e confirmar zero ocorrência; abrir
+  as quatro telas nos dois temas conferindo que a cor é idêntica em todas.
 
 ## 4. Salvar do perfil travado em "Salvando..."
 
@@ -48,14 +55,17 @@ mensagem aparece. Ainda não confirmei o motivo da chamada não responder, entã
 - Renomear `src/routes/cliente.tsx` para `src/routes/area-do-cliente.tsx`; criar
   `src/routes/cliente.tsx` como redirecionamento (`beforeLoad` → `redirect`) preservando
   o parâmetro `como`. Atualizar links em `perfil.tsx` e `acessos-cliente.tsx`.
-- `src/styles.css`: `--accent` / `--accent-foreground` em `:root` passam para azul
-  (alinhado a `--primary`); `.dark` mantém o amarelo atual.
-- Trocar `yellow-500/600/700` fixos em `src/routes/financeiro.tsx` e `src/routes/resumo.tsx`
-  por um par de tokens novos (`--warning` claro=azul / escuro=amarelo) registrados em
-  `@theme inline`.
+- `src/styles.css`: novos tokens `--fin` / `--fin-foreground` (claro: azul alinhado a
+  `--primary`; escuro: amarelo atual `oklch(0.91 0.19 104)`), registrados em
+  `@theme inline` como `--color-fin`, gerando `text-fin`/`bg-fin`.
+- Substituir em `src/routes/clientes.tsx`, `financeiro.tsx`, `resumo.tsx`,
+  `dashboard.tsx` e `src/routes/area-do-cliente.tsx` todo uso de `text-accent`/`bg-accent`
+  financeiro e todo `yellow-500/600/700` hardcoded por `text-fin`/`bg-fin`; `--accent`
+  volta a ser neutro (usos não financeiros não mudam de cor).
 - `src/routes/perfil.tsx`: `salvar()` com `Promise.race` de 20s, erro exibido via toast;
   investigar a resposta real de `salvarMeuPerfil` (RLS/upsert em `perfis`) com sessão
   autenticada e corrigir o que aparecer.
-- Validação: `bun run tsgo` + build; com sessão real conferir `/clientes` (menu presente),
-  `/area-do-cliente` (sem menu), redirecionamento de `/cliente`, salvar perfil com foto e
-  as telas em tema claro sem amarelo.
+- Validação final: `bun run tsgo` + build; busca por `yellow-` com zero resultado nos
+  arquivos do painel; com sessão real conferir `/clientes` (menu presente),
+  `/area-do-cliente` (sem menu), redirecionamento de `/cliente`, salvar perfil com foto
+  e as telas nos dois temas com cor idêntica.
