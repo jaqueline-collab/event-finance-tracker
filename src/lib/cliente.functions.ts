@@ -37,7 +37,7 @@ const alterarAcessoClienteSchema = z.object({
   remover: z.boolean().optional(),
 });
 
-async function resolverClienteId(db: any, verComo?: string) {
+async function resolverClienteId(db: any, verComo?: string): Promise<string | null> {
   if (verComo) {
     const { data: interno } = await db.rpc("is_equipe_interna");
     if (!interno) throw new Error("acesso-negado: modo de visualização é exclusivo da equipe interna.");
@@ -45,8 +45,8 @@ async function resolverClienteId(db: any, verComo?: string) {
   }
   await db.rpc("link_cliente_usuario");
   const { data: proprio } = await db.rpc("cliente_do_usuario");
-  if (!proprio) throw new Error("acesso-cliente: este login não está vinculado a nenhuma conta de cliente.");
-  return proprio as string;
+  // Sem vínculo não é erro: pode ser um admin/parceiro abrindo a área do cliente.
+  return (proprio as string) || null;
 }
 
 export const getPainelCliente = createServerFn({ method: "POST" })
@@ -55,6 +55,8 @@ export const getPainelCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const clienteId = await resolverClienteId(db, data.verComoClienteId?.trim() || undefined);
+    if (!clienteId) return { semVinculo: true as const };
+
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
