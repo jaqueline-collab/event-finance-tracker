@@ -6,7 +6,9 @@ import { SistemaTour } from "@/components/landing/SistemaTour";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { FaqLista } from "@/components/landing/FaqLista";
 import { Reveal, Typewriter } from "@/components/landing/motion";
+import { BlogCard } from "@/components/landing/BlogCard";
 import { FAQS } from "@/lib/landing/faqs";
+import { POSTS } from "@/lib/landing/posts";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,6 +56,7 @@ function LandingPage() {
       <Hero />
       <VideoIntro />
       <SistemaTour />
+      <DoBlog />
       <FaqResumo />
       <Footer />
       <WhatsAppFloat />
@@ -113,6 +116,43 @@ function Hero() {
             </Link>
           </div>
         </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ============================== DO BLOG ============================== */
+function DoBlog() {
+  return (
+    <section className="py-20 md:py-24 px-6 bg-landing-surface border-t border-landing-border">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <span className="text-xs font-semibold tracking-widest uppercase text-rabbit-navy">
+              Conteúdo
+            </span>
+            <h2
+              className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Do blog
+            </h2>
+          </div>
+          <Link
+            to="/blog"
+            className="inline-flex items-center gap-1.5 bg-rabbit-navy hover:bg-rabbit-navy/90 text-white font-semibold px-6 py-3 rounded-md text-sm transition-colors"
+          >
+            Ver todos os artigos <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
+          {POSTS.slice(0, 3).map((p, i) => (
+            <Reveal key={p.slug} delay={i * 90}>
+              <BlogCard post={p} />
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );
