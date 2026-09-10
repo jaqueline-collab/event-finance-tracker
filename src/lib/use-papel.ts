@@ -4,6 +4,7 @@ import { getPapelUsuario } from "@/lib/parceiro.functions";
 export interface PapelUsuario {
   isInterno: boolean;
   parceiroId: string | null;
+  clienteId: string | null;
   veValores: boolean;
   loading: boolean;
 }
