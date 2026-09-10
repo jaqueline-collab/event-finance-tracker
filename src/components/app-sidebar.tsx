@@ -211,6 +211,14 @@ export function AppSidebar() {
         <SidebarSeparator className="mb-1" />
         <SidebarMenu>
           <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Site">
+              <Link to="/">
+                <Globe />
+                <span>Site</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             {/* Submenu renderizado ANTES do botão = expande para cima. Oculto se sidebar colapsado. */}
             {configOpen && !isCollapsed && (
               <SidebarMenuSub className="mb-1 border-l border-sidebar-border">
