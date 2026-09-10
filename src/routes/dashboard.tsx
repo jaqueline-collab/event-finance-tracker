@@ -391,8 +391,8 @@ function Index() {
                     <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="g-lucro-sistema" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.5} />
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--fin)" stopOpacity={0.5} />
+                    <stop offset="95%" stopColor="var(--fin)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -407,7 +407,7 @@ function Index() {
                   }}
                   formatter={(v) => formatBRL(Number(v ?? 0))}
                 />
-                <Area type="monotone" dataKey="lucroSistema" stroke="var(--accent)" fill="url(#g-lucro-sistema)" name="Lucro sobre o Sistema" />
+                <Area type="monotone" dataKey="lucroSistema" stroke="var(--fin)" fill="url(#g-lucro-sistema)" name="Lucro sobre o Sistema" />
                 <Area type="monotone" dataKey="lucroTotal" stroke="var(--primary)" fill="url(#g-lucro-total)" name="Lucro Total" />
               </AreaChart>
             </ResponsiveContainer>
@@ -484,7 +484,7 @@ function Index() {
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Handshake className="h-4 w-4 text-accent" /> Ranking de parceiros
+              <Handshake className="h-4 w-4 text-fin" /> Ranking de parceiros
             </CardTitle>
             <CardDescription>Receita e lucro dos clientes vinculados. Clique nas colunas para ordenar.</CardDescription>
           </CardHeader>
@@ -502,7 +502,7 @@ function Index() {
       <Card className="border-border/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-accent" /> Ticket médio por plano
+            <DollarSign className="h-4 w-4 text-fin" /> Ticket médio por plano
           </CardTitle>
           <CardDescription>Receita média mensal por cliente em cada plano.</CardDescription>
         </CardHeader>

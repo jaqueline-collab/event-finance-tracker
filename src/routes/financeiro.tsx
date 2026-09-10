@@ -29,8 +29,8 @@ export const Route = createFileRoute("/financeiro")({
 });
 
 const statusOptions: { value: StatusFinanceiro; label: string; color: string; Icon: any }[] = [
-  { value: "pendente", label: "Pendente", color: "bg-yellow-500/15 text-yellow-500", Icon: Clock },
-  { value: "pago", label: "Pago", color: "bg-accent/15 text-accent", Icon: CheckCircle2 },
+  { value: "pendente", label: "Pendente", color: "bg-fin/15 text-fin", Icon: Clock },
+  { value: "pago", label: "Pago", color: "bg-fin/15 text-fin", Icon: CheckCircle2 },
   { value: "cancelado", label: "Cancelado", color: "bg-destructive/15 text-destructive", Icon: XCircle },
 ];
 
@@ -227,8 +227,8 @@ function FinanceiroPage() {
       {/* KPIs */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card><CardHeader className="pb-2"><CardDescription>Receitas (total)</CardDescription><CardTitle className="text-xl text-primary">{formatBRL(totais.receitaTotal)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Pago {formatBRL(totais.receitaPaga)} · Pend. {formatBRL(totais.receitaPendente)}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Custos (total)</CardDescription><CardTitle className="text-xl text-yellow-500">{formatBRL(totais.custoTotal)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Pago {formatBRL(totais.custoPago)} · Pend. {formatBRL(totais.custoPendente)}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Saldo previsto</CardDescription><CardTitle className={`text-xl ${totais.saldo >= 0 ? "text-accent" : "text-destructive"}`}>{formatBRL(totais.saldo)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Receita − Custo</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>Custos (total)</CardDescription><CardTitle className="text-xl text-fin">{formatBRL(totais.custoTotal)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Pago {formatBRL(totais.custoPago)} · Pend. {formatBRL(totais.custoPendente)}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>Saldo previsto</CardDescription><CardTitle className={`text-xl ${totais.saldo >= 0 ? "text-fin" : "text-destructive"}`}>{formatBRL(totais.saldo)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Receita − Custo</CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>NF a emitir</CardDescription><CardTitle className="text-xl">{totais.nfPendentes}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Fechamentos sem NF</CardContent></Card>
       </div>
 
@@ -285,7 +285,7 @@ function FinanceiroPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">{l.competencia ?? "—"}</TableCell>
                     <TableCell className="text-xs">{l.vencimento ? l.vencimento.split("-").reverse().join("/") : "—"}</TableCell>
-                    <TableCell className={`text-right font-semibold ${l.tipo === "fechamento" ? "text-primary" : "text-yellow-500"}`}>
+                    <TableCell className={`text-right font-semibold ${l.tipo === "fechamento" ? "text-primary" : "text-fin"}`}>
                       {formatBRL(l.valor)}
                     </TableCell>
                     <TableCell>
@@ -308,7 +308,7 @@ function FinanceiroPage() {
                           onCheckedChange={(v) => { void updateLancamento(l.id, { nfEmitida: v }).catch(() => {}); }}
                         />
                         {l.nfEmitida
-                          ? <FileCheck2 className="h-3.5 w-3.5 text-accent" />
+                          ? <FileCheck2 className="h-3.5 w-3.5 text-fin" />
                           : <FileX2 className="h-3.5 w-3.5 text-muted-foreground" />}
                         {l.nfNumero && <span className="text-[10px] text-muted-foreground">#{l.nfNumero}</span>}
                       </div>
