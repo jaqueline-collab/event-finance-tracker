@@ -151,7 +151,8 @@ function AreaCliente() {
     );
   }
 
-  const { cliente, plano, contratado, recursos, historico, equipe } = dados;
+  const d = dados as Required<Painel>;
+  const { cliente, plano, contratado, recursos, historico, equipe } = d;
 
 
   return (
@@ -271,14 +272,14 @@ function AreaCliente() {
         </TabsContent>
 
         <TabsContent value="novidades" className="mt-4 space-y-3">
-          {dados.releases.length === 0 && (
+          {d.releases.length === 0 && (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
                 Nenhuma novidade publicada para a sua conta ainda.
               </CardContent>
             </Card>
           )}
-          {dados.releases.map((r) => (
+          {d.releases.map((r) => (
             <Card key={r.id}>
               <CardHeader>
                 <div className="flex flex-wrap items-center gap-2">
