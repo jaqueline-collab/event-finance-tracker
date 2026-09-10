@@ -127,13 +127,12 @@ export function SistemaTour() {
                   <span className="truncate">app.eloracrm.com.br/{tela.path}</span>
                 </div>
               </div>
-              <div className="bg-white relative">
+              <div className="bg-landing-surface relative min-h-[200px] sm:min-h-[280px]">
                 <img
                   key={tela.url}
                   src={tela.url}
                   alt={`Tela do Elora: ${tela.label}`}
                   className="w-full h-auto block animate-fade-in"
-                  loading="lazy"
                 />
                 {ativo === 0 && (
                   <img
