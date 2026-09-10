@@ -4,9 +4,11 @@ import { EloraMark } from "@/components/landing/EloraMark";
 import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
 import { usePerfil } from "@/hooks/use-perfil";
 import { UserMenu } from "@/components/user-menu";
+import { useDestinoPainel } from "@/lib/use-papel";
 
 export function Navbar() {
   const { session, nome, email, avatarUrl, iniciais } = usePerfil();
+  const destinoPainel = useDestinoPainel(Boolean(session));
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
