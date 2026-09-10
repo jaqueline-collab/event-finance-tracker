@@ -132,6 +132,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Páginas do site institucional (sem login e sem shell do app). */
+function ehPaginaPublica(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/parceiros" ||
+    pathname === "/faq" ||
+    pathname === "/blog" ||
+    pathname.startsWith("/blog/")
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const syncFromSupabase = useStore((state) => state.syncFromSupabase);
