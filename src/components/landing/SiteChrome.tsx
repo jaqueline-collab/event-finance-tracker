@@ -39,12 +39,16 @@ export function Navbar() {
           >
             Elora App <ArrowUpRight className="h-4 w-4" />
           </a>
-          <Link
-            to="/auth"
-            className="inline-flex items-center gap-1.5 whitespace-nowrap border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-3 sm:px-4 py-2 rounded-md text-sm transition-colors"
-          >
-            <LogIn className="h-4 w-4" /> Logar
-          </Link>
+          {session ? (
+            <UserMenu nome={nome} email={email} avatarUrl={avatarUrl} iniciais={iniciais} />
+          ) : (
+            <Link
+              to="/auth"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-3 sm:px-4 py-2 rounded-md text-sm transition-colors"
+            >
+              <LogIn className="h-4 w-4" /> Logar
+            </Link>
+          )}
         </div>
       </div>
     </header>
