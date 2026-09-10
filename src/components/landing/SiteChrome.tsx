@@ -20,6 +20,9 @@ export function Navbar() {
           <Link to="/parceiros" className="hover:text-landing-yellow-vivo transition">
             Parceiros
           </Link>
+          <Link to="/blog" className="hover:text-landing-yellow-vivo transition">
+            Blog
+          </Link>
           <Link to="/faq" className="hover:text-landing-yellow-vivo transition">
             Perguntas frequentes
           </Link>
@@ -65,12 +68,14 @@ export function Footer() {
           <p className="text-sm text-white/60 mt-3 max-w-xs">
             Para as conversas e o negócio andarem juntos.
           </p>
-          <Link
-            to="/faq"
-            className="inline-block text-sm text-landing-yellow-vivo hover:underline mt-4"
-          >
-            Perguntas frequentes
-          </Link>
+          <div className="mt-4 flex flex-col gap-1.5">
+            <Link to="/blog" className="text-sm text-landing-yellow-vivo hover:underline">
+              Blog
+            </Link>
+            <Link to="/faq" className="text-sm text-landing-yellow-vivo hover:underline">
+              Perguntas frequentes
+            </Link>
+          </div>
         </div>
 
         <div>

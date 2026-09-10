@@ -1,7 +1,8 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Search, X } from "lucide-react";
 import { Navbar, Footer } from "@/components/landing/SiteChrome";
-import { FaqLista } from "@/components/landing/FaqLista";
+import { FaqLista, normalizar } from "@/components/landing/FaqLista";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Reveal } from "@/components/landing/motion";
 import { FAQS } from "@/lib/landing/faqs";
@@ -19,9 +20,10 @@ export const Route = createFileRoute("/faq")({
       { property: "og:title", content: TITULO },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://eloracrm.com.br/faq" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://eloracrm.lovable.app/faq" }],
+    links: [{ rel: "canonical", href: "https://eloracrm.com.br/faq" }],
     scripts: [
       {
         type: "application/ld+json",
@@ -41,7 +43,18 @@ export const Route = createFileRoute("/faq")({
 });
 
 function FaqPage() {
-  const metade = Math.ceil(FAQS.length / 2);
+  const [busca, setBusca] = useState("");
+  const termo = busca.trim();
+
+  const filtrados = useMemo(() => {
+    const t = normalizar(termo);
+    if (!t) return FAQS;
+    return FAQS.filter((f) => normalizar(`${f.q} ${f.a}`).includes(t));
+  }, [termo]);
+
+  const buscando = termo.length > 0;
+  const metade = Math.ceil(filtrados.length / 2);
+
   return (
     <div
       className="min-h-screen bg-landing-bg text-landing-fg"
@@ -71,18 +84,79 @@ function FaqPage() {
           <p className="mt-4 text-white/70 max-w-2xl mx-auto">
             Tudo o que você precisa saber para começar a vender mais com o EloraCRM.
           </p>
+
+          <div className="mt-8 max-w-xl mx-auto relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por palavra: cancelar, suporte, WhatsApp..."
+              aria-label="Buscar nas perguntas frequentes"
+              className="w-full rounded-full bg-white/10 border border-white/20 pl-12 pr-11 py-3.5 text-white placeholder:text-white/40 outline-none focus:border-landing-yellow-vivo transition-colors"
+            />
+            {busca && (
+              <button
+                type="button"
+                onClick={() => setBusca("")}
+                aria-label="Limpar busca"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+          {buscando && (
+            <p className="mt-4 text-sm text-white/60">
+              {filtrados.length === 0
+                ? "Nenhuma pergunta encontrada"
+                : `${filtrados.length} pergunta${filtrados.length > 1 ? "s" : ""} encontrada${
+                    filtrados.length > 1 ? "s" : ""
+                  }`}
+            </p>
+          )}
         </div>
       </section>
 
       <section className="py-16 md:py-20 px-6 bg-white">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6 md:gap-8 items-start">
-          <Reveal>
-            <FaqLista itens={FAQS.slice(0, metade)} inicial={0} />
-          </Reveal>
-          <Reveal delay={120}>
-            <FaqLista itens={FAQS.slice(metade)} />
-          </Reveal>
-        </div>
+        {filtrados.length === 0 ? (
+          <div className="max-w-xl mx-auto text-center">
+            <p className="text-landing-muted">
+              Não achamos nada com “{termo}”. Fale com a gente que respondemos na hora.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-6 py-3 rounded-md text-sm transition-colors"
+              >
+                Falar no WhatsApp <ArrowUpRight className="h-4 w-4" />
+              </a>
+              <button
+                type="button"
+                onClick={() => setBusca("")}
+                className="inline-flex items-center gap-1.5 border border-landing-border hover:border-rabbit-navy text-landing-fg font-semibold px-6 py-3 rounded-md text-sm transition-colors"
+              >
+                Limpar busca
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6 md:gap-8 items-start">
+            <Reveal>
+              <FaqLista
+                itens={filtrados.slice(0, metade)}
+                inicial={0}
+                {...(buscando ? { termo } : {})}
+              />
+            </Reveal>
+            <Reveal delay={120}>
+              {filtrados.length > 1 && (
+                <FaqLista itens={filtrados.slice(metade)} {...(buscando ? { termo } : {})} />
+              )}
+            </Reveal>
+          </div>
+        )}
 
         <div className="max-w-6xl mx-auto mt-14 rounded-2xl bg-landing-dark text-white p-8 md:p-10 text-center">
           <h2
