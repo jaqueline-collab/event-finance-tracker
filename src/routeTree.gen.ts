@@ -17,12 +17,14 @@ import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as OrcamentosRouteImport } from './routes/orcamentos'
+import { Route as NovidadesRouteImport } from './routes/novidades'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as GestaoParceirosRouteImport } from './routes/gestao-parceiros'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
@@ -74,6 +76,11 @@ const OrcamentosRoute = OrcamentosRouteImport.update({
   path: '/orcamentos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NovidadesRoute = NovidadesRouteImport.update({
+  id: '/novidades',
+  path: '/novidades',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
@@ -102,6 +109,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const ClientesRoute = ClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClienteRoute = ClienteRouteImport.update({
+  id: '/cliente',
+  path: '/cliente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -161,12 +173,14 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
   '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
+  '/novidades': typeof NovidadesRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiro': typeof ParceiroRoute
   '/parceiros': typeof ParceirosRoute
@@ -187,12 +201,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
   '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
+  '/novidades': typeof NovidadesRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiro': typeof ParceiroRoute
   '/parceiros': typeof ParceirosRoute
@@ -214,12 +230,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
   '/gestao-parceiros': typeof GestaoParceirosRoute
   '/mcp': typeof McpRoute
+  '/novidades': typeof NovidadesRoute
   '/orcamentos': typeof OrcamentosRoute
   '/parceiro': typeof ParceiroRoute
   '/parceiros': typeof ParceirosRoute
@@ -242,12 +260,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/cliente'
     | '/clientes'
     | '/dashboard'
     | '/faq'
     | '/financeiro'
     | '/gestao-parceiros'
     | '/mcp'
+    | '/novidades'
     | '/orcamentos'
     | '/parceiro'
     | '/parceiros'
@@ -268,12 +288,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/cliente'
     | '/clientes'
     | '/dashboard'
     | '/faq'
     | '/financeiro'
     | '/gestao-parceiros'
     | '/mcp'
+    | '/novidades'
     | '/orcamentos'
     | '/parceiro'
     | '/parceiros'
@@ -294,12 +316,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/auth'
+    | '/cliente'
     | '/clientes'
     | '/dashboard'
     | '/faq'
     | '/financeiro'
     | '/gestao-parceiros'
     | '/mcp'
+    | '/novidades'
     | '/orcamentos'
     | '/parceiro'
     | '/parceiros'
@@ -321,12 +345,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRouteWithChildren
+  ClienteRoute: typeof ClienteRoute
   ClientesRoute: typeof ClientesRoute
   DashboardRoute: typeof DashboardRoute
   FaqRoute: typeof FaqRoute
   FinanceiroRoute: typeof FinanceiroRoute
   GestaoParceirosRoute: typeof GestaoParceirosRoute
   McpRoute: typeof McpRoute
+  NovidadesRoute: typeof NovidadesRoute
   OrcamentosRoute: typeof OrcamentosRoute
   ParceiroRoute: typeof ParceiroRoute
   ParceirosRoute: typeof ParceirosRoute
@@ -402,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrcamentosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/novidades': {
+      id: '/novidades'
+      path: '/novidades'
+      fullPath: '/novidades'
+      preLoaderRoute: typeof NovidadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
@@ -442,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/clientes'
       fullPath: '/clientes'
       preLoaderRoute: typeof ClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cliente': {
+      id: '/cliente'
+      path: '/cliente'
+      fullPath: '/cliente'
+      preLoaderRoute: typeof ClienteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -530,12 +570,14 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
+  ClienteRoute: ClienteRoute,
   ClientesRoute: ClientesRoute,
   DashboardRoute: DashboardRoute,
   FaqRoute: FaqRoute,
   FinanceiroRoute: FinanceiroRoute,
   GestaoParceirosRoute: GestaoParceirosRoute,
   McpRoute: McpRoute,
+  NovidadesRoute: NovidadesRoute,
   OrcamentosRoute: OrcamentosRoute,
   ParceiroRoute: ParceiroRoute,
   ParceirosRoute: ParceirosRoute,

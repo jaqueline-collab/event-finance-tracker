@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client-configured";
-import { usePapelUsuario } from "@/lib/use-papel";
+import { useDestinoPainel } from "@/lib/use-papel";
 
 export function UserMenu({
   nome,
@@ -26,8 +26,7 @@ export function UserMenu({
   className?: string;
 }) {
   const navigate = useNavigate();
-  const papel = usePapelUsuario(true);
-  const destino = !papel.isInterno && papel.parceiroId ? "/parceiro" : "/dashboard";
+  const destino = useDestinoPainel(true);
 
   const sair = async () => {
     try {
