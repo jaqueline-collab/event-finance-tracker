@@ -21,7 +21,7 @@ export function Navbar() {
   const destinoPainel = useDestinoPainel(Boolean(session));
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-6">
         <Link to="/" className="flex items-center gap-2 leading-none">
           <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0 -mt-0.5" />
           <span
@@ -31,7 +31,7 @@ export function Navbar() {
             EloraCRM
           </span>
         </Link>
-        <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
+        <nav className="hidden md:flex min-w-0 items-center justify-self-center gap-5 lg:gap-7 text-sm text-white/80">
           <Link to="/parceiros" className="hover:text-landing-yellow-vivo transition">
             Parceiros
           </Link>

@@ -79,7 +79,7 @@ export function SistemaTour() {
             </p>
           </div>
 
-        <div className="grid md:grid-cols-[210px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
+        <div className="grid md:grid-cols-[180px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
           <div className="min-w-0">
             {/* No celular vira um carrossel de abas curtas; no desktop, lista com descrição */}
             <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -98,7 +98,7 @@ export function SistemaTour() {
                   >
                     <div className="text-[13px] sm:text-sm font-semibold">{t.label}</div>
                     <div
-                      className={`text-xs mt-0.5 hidden md:block leading-relaxed ${
+                      className={`text-xs mt-0.5 hidden lg:block leading-relaxed ${
                         sel ? "text-white/60" : "text-landing-muted"
                       }`}
                     >
