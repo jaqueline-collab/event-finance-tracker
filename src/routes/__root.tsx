@@ -16,8 +16,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client-configured";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { UserMenu } from "@/components/user-menu";
+import { usePerfil } from "@/hooks/use-perfil";
 import type { Session } from "@supabase/supabase-js";
 import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 import { usePapelUsuario } from "@/lib/use-papel";
@@ -142,6 +142,19 @@ function ehPaginaPublica(pathname: string) {
     pathname === "/faq" ||
     pathname === "/blog" ||
     pathname.startsWith("/blog/")
+  );
+}
+
+/** Bolinha de perfil no topo do painel (foto ou iniciais). */
+function HeaderUserMenu({ email }: { email: string | null }) {
+  const perfil = usePerfil();
+  return (
+    <UserMenu
+      nome={perfil.nome}
+      email={perfil.email ?? email}
+      avatarUrl={perfil.avatarUrl}
+      iniciais={perfil.iniciais}
+    />
   );
 }
 
