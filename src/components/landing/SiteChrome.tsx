@@ -174,15 +174,18 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-white/10 flex flex-col items-center gap-3 text-xs text-white/40 text-center">
+      <div className="max-w-6xl mx-auto mt-10 pt-8 border-t border-white/10 flex justify-center">
         <img
           src={seloMeta.url}
           alt="Selo Meta Business Partner"
           className="h-10 w-auto opacity-90 bg-white rounded-md p-1"
           loading="lazy"
         />
+      </div>
+
+      <div className="max-w-6xl mx-auto mt-8 pt-5 border-t border-white/5 flex flex-col items-center gap-1 text-xs text-white/40 text-center">
         <p>© {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.</p>
-        <p className="text-white/30 -mt-2">DITOS & C.O LTDA</p>
+        <p className="text-white/30">DITOS &amp; C.O LTDA</p>
       </div>
     </footer>
   );
