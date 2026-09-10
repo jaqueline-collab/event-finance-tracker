@@ -232,22 +232,8 @@ function RootComponent() {
               <div className="text-sm text-muted-foreground flex-1">
                 {isParceiro ? "Elora · Área do parceiro" : "Elora · Controle financeiro"}
               </div>
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                {session.user.email}
-              </span>
               <ThemeToggle />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  router.invalidate();
-                  window.location.replace("/auth");
-                }}
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">Sair</span>
-              </Button>
+              <HeaderUserMenu email={session.user.email ?? null} />
             </header>
             <main className="flex-1 p-6">
               <Outlet />
