@@ -22,6 +22,7 @@ import type { Session } from "@supabase/supabase-js";
 import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 import { usePapelUsuario } from "@/lib/use-papel";
 import { ThemeToggle, themeInitScript } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notification-bell";
 
 function NotFoundComponent() {
   return (
@@ -169,6 +170,11 @@ function RootComponent() {
   const isCliente = !papel.loading && !papel.isInterno && Boolean(papel.clienteId);
   const isParceiro = !papel.loading && !papel.isInterno && !isCliente && Boolean(papel.parceiroId);
   const areaPropria = isCliente ? "/cliente" : isParceiro ? "/parceiro" : null;
+  // Telas de cliente/parceiro nunca mostram o menu interno — nem para o admin
+  // que está apenas visualizando ("ver como cliente").
+  const emAreaExterna =
+    pathname.startsWith("/cliente") || pathname.startsWith("/parceiro");
+  const semMenuLateral = Boolean(areaPropria) || emAreaExterna;
 
   // Cliente e pessoa de parceiro não acessam telas internas: caem na área deles.
   useEffect(() => {
@@ -241,21 +247,22 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background text-foreground">
-          {!areaPropria && <AppSidebar />}
+          {!semMenuLateral && <AppSidebar />}
           <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 flex items-center gap-3 border-b border-border/60 px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
-              {!areaPropria && <SidebarTrigger />}
-              <div className="text-sm text-muted-foreground flex-1">
-                {isCliente
+            <header className="h-14 flex items-center gap-2 sm:gap-3 border-b border-border/60 px-3 sm:px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
+              {!semMenuLateral && <SidebarTrigger />}
+              <div className="text-sm text-muted-foreground flex-1 min-w-0 truncate">
+                {isCliente || pathname.startsWith("/cliente")
                   ? "Elora · Área do cliente"
-                  : isParceiro
+                  : isParceiro || pathname.startsWith("/parceiro")
                     ? "Elora · Área do parceiro"
                     : "Elora · Controle financeiro"}
               </div>
               <ThemeToggle />
+              <NotificationBell />
               <HeaderUserMenu email={session.user.email ?? null} />
             </header>
-            <main className="flex-1 p-6">
+            <main className="flex-1 p-4 sm:p-6">
               <Outlet />
             </main>
           </div>

@@ -5,6 +5,7 @@ import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/con
 import { usePerfil } from "@/hooks/use-perfil";
 import { UserMenu } from "@/components/user-menu";
 import { useDestinoPainel } from "@/lib/use-papel";
+import seloMeta from "@/assets/meta-business-partner.png.asset.json";
 
 export function Navbar() {
   const { session, nome, email, avatarUrl, iniciais } = usePerfil();
@@ -173,9 +174,15 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-white/10 text-xs text-white/40 text-center">
+      <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-white/10 flex flex-col items-center gap-3 text-xs text-white/40 text-center">
+        <img
+          src={seloMeta.url}
+          alt="Selo Meta Business Partner"
+          className="h-10 w-auto opacity-90 bg-white rounded-md p-1"
+          loading="lazy"
+        />
         <p>© {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.</p>
-        <p className="text-white/30 mt-1">DITOS & C.O LTDA</p>
+        <p className="text-white/30 -mt-2">DITOS & C.O LTDA</p>
       </div>
     </footer>
   );

@@ -15,6 +15,13 @@
       "when": 1789067214642,
       "tag": "0001_area_do_cliente",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789077297225,
+      "tag": "0002_create_elora_notificacoes",
+      "breakpoints": true
     }
   ]
 }
