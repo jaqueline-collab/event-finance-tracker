@@ -127,12 +127,12 @@ export function SistemaTour() {
                   <span className="truncate">app.eloracrm.com.br/{tela.path}</span>
                 </div>
               </div>
-              <div className="bg-landing-surface relative min-h-[200px] sm:min-h-[280px]">
+              <div className="bg-landing-surface relative min-h-[200px] sm:min-h-[280px] overflow-x-auto md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <img
                   key={tela.url}
                   src={tela.url}
                   alt={`Tela do Elora: ${tela.label}`}
-                  className="w-full h-auto block animate-fade-in"
+                  className="h-auto block animate-fade-in min-w-[680px] w-[680px] md:min-w-0 md:w-full"
                 />
                 {ativo === 0 && (
                   <img
@@ -144,7 +144,10 @@ export function SistemaTour() {
                 )}
               </div>
             </div>
-            <div className="px-1 pt-4 lg:hidden">
+            <p className="md:hidden text-[11px] text-landing-muted mt-2 text-center">
+              Arraste a imagem para o lado para ver a tela inteira.
+            </p>
+            <div className="px-1 pt-3 lg:hidden">
               <div className="text-sm font-semibold text-landing-fg">{tela.label}</div>
               <div className="text-xs text-landing-muted mt-1 leading-relaxed">{tela.desc}</div>
             </div>
