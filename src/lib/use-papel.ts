@@ -25,7 +25,7 @@ function readCache(): Omit<PapelUsuario, "loading"> | null {
 export function usePapelUsuario(temSessao = true): PapelUsuario {
   const cached = readCache();
   const [papel, setPapel] = useState<Omit<PapelUsuario, "loading">>(
-    cached ?? { isInterno: true, parceiroId: null, veValores: false },
+    cached ?? { isInterno: true, parceiroId: null, clienteId: null, veValores: false },
   );
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +38,12 @@ export function usePapelUsuario(temSessao = true): PapelUsuario {
     getPapelUsuario()
       .then((r) => {
         if (cancelado) return;
-        const valor = { isInterno: r.isInterno, parceiroId: r.parceiroId, veValores: r.veValores };
+        const valor = {
+          isInterno: r.isInterno,
+          parceiroId: r.parceiroId,
+          clienteId: r.clienteId ?? null,
+          veValores: r.veValores,
+        };
         setPapel(valor);
         try {
           window.localStorage.setItem(CACHE_KEY, JSON.stringify(valor));
