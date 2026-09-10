@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useEffect, useState } from "react";
@@ -55,6 +55,7 @@ const APP_URL = "https://app.eloracrm.com.br/";
 
 function AreaCliente() {
   const { como } = Route.useSearch();
+  const navigate = useNavigate();
   const [dados, setDados] = useState<Painel | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
