@@ -797,6 +797,33 @@ export type Database = {
         }
         Relationships: []
       }
+      perfis: {
+        Row: {
+          avatar_path: string | null
+          created_at: string
+          nome: string | null
+          telefone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_path?: string | null
+          created_at?: string
+          nome?: string | null
+          telefone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_path?: string | null
+          created_at?: string
+          nome?: string | null
+          telefone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       elora_planos_parceiro: {

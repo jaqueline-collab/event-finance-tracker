@@ -2,8 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { Mail, Phone, Globe, ArrowUpRight, LogIn, Rabbit } from "lucide-react";
 import { EloraMark } from "@/components/landing/EloraMark";
 import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
+import { usePerfil } from "@/hooks/use-perfil";
+import { UserMenu } from "@/components/user-menu";
 
 export function Navbar() {
+  const { session, nome, email, avatarUrl, iniciais } = usePerfil();
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -36,12 +39,16 @@ export function Navbar() {
           >
             Elora App <ArrowUpRight className="h-4 w-4" />
           </a>
-          <Link
-            to="/auth"
-            className="inline-flex items-center gap-1.5 whitespace-nowrap border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-3 sm:px-4 py-2 rounded-md text-sm transition-colors"
-          >
-            <LogIn className="h-4 w-4" /> Logar
-          </Link>
+          {session ? (
+            <UserMenu nome={nome} email={email} avatarUrl={avatarUrl} iniciais={iniciais} />
+          ) : (
+            <Link
+              to="/auth"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-3 sm:px-4 py-2 rounded-md text-sm transition-colors"
+            >
+              <LogIn className="h-4 w-4" /> Logar
+            </Link>
+          )}
         </div>
       </div>
     </header>

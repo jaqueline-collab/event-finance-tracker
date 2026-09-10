@@ -16,8 +16,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client-configured";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { UserMenu } from "@/components/user-menu";
+import { usePerfil } from "@/hooks/use-perfil";
 import type { Session } from "@supabase/supabase-js";
 import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 import { usePapelUsuario } from "@/lib/use-papel";
@@ -145,6 +145,19 @@ function ehPaginaPublica(pathname: string) {
   );
 }
 
+/** Bolinha de perfil no topo do painel (foto ou iniciais). */
+function HeaderUserMenu({ email }: { email: string | null }) {
+  const perfil = usePerfil();
+  return (
+    <UserMenu
+      nome={perfil.nome}
+      email={perfil.email ?? email}
+      avatarUrl={perfil.avatarUrl}
+      iniciais={perfil.iniciais}
+    />
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const syncFromSupabase = useStore((state) => state.syncFromSupabase);
@@ -232,22 +245,8 @@ function RootComponent() {
               <div className="text-sm text-muted-foreground flex-1">
                 {isParceiro ? "Elora · Área do parceiro" : "Elora · Controle financeiro"}
               </div>
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                {session.user.email}
-              </span>
               <ThemeToggle />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  router.invalidate();
-                  window.location.replace("/auth");
-                }}
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">Sair</span>
-              </Button>
+              <HeaderUserMenu email={session.user.email ?? null} />
             </header>
             <main className="flex-1 p-6">
               <Outlet />
