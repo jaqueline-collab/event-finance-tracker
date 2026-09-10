@@ -133,7 +133,27 @@ function AreaCliente() {
     );
   }
 
-  const { cliente, plano, contratado, recursos, historico, equipe } = dados;
+  if (dados.semVinculo) {
+    return (
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Este login não é de um cliente</AlertTitle>
+        <AlertDescription className="space-y-3">
+          <p>
+            Sua conta não está vinculada a nenhuma empresa cliente. Para conferir esta tela, entre no
+            seu perfil e use a opção “Ir para a Área do Cliente” escolhendo a empresa.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => navigate({ to: "/perfil" })}>
+            Ir para o meu perfil
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  const d = dados as Required<Painel>;
+  const { cliente, plano, contratado, recursos, historico, equipe } = d;
+
 
   return (
     <div className="space-y-6">
@@ -252,14 +272,14 @@ function AreaCliente() {
         </TabsContent>
 
         <TabsContent value="novidades" className="mt-4 space-y-3">
-          {dados.releases.length === 0 && (
+          {d.releases.length === 0 && (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
                 Nenhuma novidade publicada para a sua conta ainda.
               </CardContent>
             </Card>
           )}
-          {dados.releases.map((r) => (
+          {d.releases.map((r) => (
             <Card key={r.id}>
               <CardHeader>
                 <div className="flex flex-wrap items-center gap-2">
