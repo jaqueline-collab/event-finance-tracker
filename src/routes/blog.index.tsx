@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, X } from "lucide-react";
-import { Navbar, Footer } from "@/components/landing/SiteChrome";
+import { Navbar, Footer, PageHeader } from "@/components/landing/SiteChrome";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { BlogCard } from "@/components/landing/BlogCard";
 import { Reveal } from "@/components/landing/motion";
