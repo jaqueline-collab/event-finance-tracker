@@ -82,6 +82,12 @@ export function usePerfil() {
       }
     });
 
+    // Nunca deixar a tela presa em "carregando": se a leitura da sessão demorar,
+    // liberamos a interface do mesmo jeito.
+    const destravar = setTimeout(() => {
+      if (ativo) setCarregando(false);
+    }, 4000);
+
     supabase.auth.getSession().then(({ data }) => {
       if (!ativo) return;
       setSession(data.session);
@@ -91,10 +97,13 @@ export function usePerfil() {
         setPerfil(null);
         gravarCache(null);
       }
+    }).catch(() => {
+      if (ativo) setCarregando(false);
     });
 
     return () => {
       ativo = false;
+      clearTimeout(destravar);
       subscription.unsubscribe();
     };
   }, [carregar]);
@@ -103,6 +112,7 @@ export function usePerfil() {
 
   return {
     session,
+    userId: session?.user?.id ?? perfil?.userId ?? null,
     perfil,
     email,
     nome: perfil?.nome ?? null,

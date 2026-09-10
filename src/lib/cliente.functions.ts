@@ -384,3 +384,18 @@ export const removerRelease = createServerFn({ method: "POST" })
     if (error) throw new Error(`novidade: ${error.message}`);
     return { id: data.id };
   });
+
+/** Lista de clientes para o modo "ver como cliente" (somente equipe interna). */
+export const listarClientesParaVer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const db = context.supabase as any;
+    const { data: interno } = await db.rpc("is_equipe_interna");
+    if (!interno) throw new Error("acesso-negado: apenas equipe interna.");
+    const { data, error } = await db
+      .from("elora_clientes")
+      .select("id, nome")
+      .order("nome", { ascending: true });
+    if (error) throw new Error(`clientes: ${error.message}`);
+    return (data ?? []) as { id: string; nome: string }[];
+  });
