@@ -58,3 +58,11 @@ export function usePapelUsuario(temSessao = true): PapelUsuario {
 
   return { ...papel, loading };
 }
+
+/** Para onde levar a pessoa logada ao clicar em "Meu painel". */
+export function useDestinoPainel(temSessao = true): "/dashboard" | "/parceiro" | "/cliente" {
+  const papel = usePapelUsuario(temSessao);
+  if (!papel.isInterno && papel.clienteId) return "/cliente";
+  if (!papel.isInterno && papel.parceiroId) return "/parceiro";
+  return "/dashboard";
+}
