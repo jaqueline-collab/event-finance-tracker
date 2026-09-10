@@ -166,15 +166,18 @@ function RootComponent() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
   const papel = usePapelUsuario(Boolean(session));
-  const isParceiro = !papel.loading && !papel.isInterno && Boolean(papel.parceiroId);
+  const isCliente = !papel.loading && !papel.isInterno && Boolean(papel.clienteId);
+  const isParceiro = !papel.loading && !papel.isInterno && !isCliente && Boolean(papel.parceiroId);
+  const areaPropria = isCliente ? "/cliente" : isParceiro ? "/parceiro" : null;
 
-  // Pessoa de parceiro não acessa telas internas: sempre cai na área dela.
+  // Cliente e pessoa de parceiro não acessam telas internas: caem na área deles.
   useEffect(() => {
-    if (!isParceiro) return;
+    if (!areaPropria) return;
     if (typeof window === "undefined") return;
-    if (pathname === "/parceiro" || pathname.startsWith("/auth") || ehPaginaPublica(pathname)) return;
-    router.navigate({ to: "/parceiro", replace: true });
-  }, [isParceiro, pathname, router]);
+    if (pathname === areaPropria || pathname === "/perfil") return;
+    if (pathname.startsWith("/auth") || ehPaginaPublica(pathname)) return;
+    router.navigate({ to: areaPropria, replace: true });
+  }, [areaPropria, pathname, router]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
