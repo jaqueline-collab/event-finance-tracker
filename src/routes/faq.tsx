@@ -97,8 +97,9 @@ function FaqPage() {
                   }`}
             </p>
           )}
-        </div>
-      </section>
+        </>
+      </PageHeader>
+
 
       <section className="py-16 md:py-20 px-6 bg-white">
         {filtrados.length === 0 ? (
