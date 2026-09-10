@@ -3,7 +3,6 @@ import { Sparkles, ArrowUpRight, LogIn, ArrowRight } from "lucide-react";
 import { Navbar, Footer } from "@/components/landing/SiteChrome";
 import { VideoIntro } from "@/components/landing/VideoIntro";
 import { SistemaTour } from "@/components/landing/SistemaTour";
-import { SeloMeta } from "@/components/landing/SeloMeta";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { FaqLista } from "@/components/landing/FaqLista";
 import { Reveal, Typewriter } from "@/components/landing/motion";
@@ -56,7 +55,6 @@ function LandingPage() {
       <Navbar />
       <Hero />
       <VideoIntro />
-      <SeloMeta />
       <SistemaTour />
       <DoBlog />
       <FaqResumo />
@@ -71,7 +69,7 @@ function Hero() {
   return (
     <section
       id="top"
-      className="relative bg-landing-dark text-white pt-28 pb-24 md:pt-32 md:pb-32 px-6 overflow-hidden"
+      className="relative bg-landing-dark text-white pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-32 lg:pb-20 px-5 sm:px-6 overflow-hidden"
     >
       <div
         aria-hidden
@@ -87,7 +85,7 @@ function Hero() {
             <Sparkles className="h-3.5 w-3.5" /> Atendimento + Vendas + IA
           </span>
           <h1
-            className="mt-6 text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight"
+            className="mt-5 sm:mt-6 text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.08] tracking-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Para as conversas e o negócio
@@ -97,11 +95,11 @@ function Hero() {
               frases={["andarem juntos.", "venderem mais.", "responderem na hora."]}
             />
           </h1>
-          <p className="mt-5 text-lg md:text-xl text-white/70 max-w-2xl mx-auto">
+          <p className="mt-5 text-base sm:text-lg lg:text-xl text-white/70 max-w-2xl mx-auto">
             Centralize WhatsApp, Instagram e Messenger em uma plataforma com CRM, chatbot,
             disparo e agentes de IA. Tudo num só lugar.
           </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-7 sm:mt-8 flex flex-wrap items-center justify-center gap-3">
             <a
               href="https://app.eloracrm.com.br/"
               target="_blank"
@@ -126,15 +124,15 @@ function Hero() {
 /* ============================== DO BLOG ============================== */
 function DoBlog() {
   return (
-    <section className="py-20 md:py-24 px-6 bg-landing-surface border-t border-landing-border">
+    <section className="py-14 sm:py-16 lg:py-24 px-5 sm:px-6 bg-landing-surface border-t border-landing-border">
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
           <div>
             <span className="text-xs font-semibold tracking-widest uppercase text-rabbit-navy">
               Conteúdo
             </span>
             <h2
-              className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
+              className="text-3xl sm:text-4xl lg:text-5xl font-bold text-landing-fg mt-2"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Do blog
@@ -142,13 +140,13 @@ function DoBlog() {
           </div>
           <Link
             to="/blog"
-            className="inline-flex items-center gap-1.5 bg-rabbit-navy hover:bg-rabbit-navy/90 text-white font-semibold px-6 py-3 rounded-md text-sm transition-colors"
+            className="inline-flex items-center gap-1.5 bg-rabbit-navy hover:bg-rabbit-navy/90 text-white font-semibold px-4 sm:px-6 py-3 rounded-md text-sm transition-colors"
           >
             Ver todos os artigos <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-8 sm:mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {POSTS.slice(0, 3).map((p, i) => (
             <Reveal key={p.slug} delay={i * 90}>
               <BlogCard post={p} />
@@ -163,14 +161,14 @@ function DoBlog() {
 /* ============================== FAQ RESUMO ============================== */
 function FaqResumo() {
   return (
-    <section className="py-20 md:py-24 px-6 bg-white border-t border-landing-border">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-start">
+    <section className="py-14 sm:py-16 lg:py-24 px-5 sm:px-6 bg-white border-t border-landing-border">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-8 lg:gap-16 items-start">
         <Reveal>
           <span className="text-xs font-semibold tracking-widest uppercase text-rabbit-navy">
             Perguntas frequentes
           </span>
           <h2
-            className="text-4xl md:text-5xl font-bold text-landing-fg mt-2"
+            className="text-3xl sm:text-4xl lg:text-5xl font-bold text-landing-fg mt-2"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Tira-dúvidas

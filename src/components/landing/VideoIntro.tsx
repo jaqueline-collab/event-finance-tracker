@@ -14,9 +14,9 @@ export function VideoIntro() {
   };
 
   return (
-    <section className="bg-landing-dark px-4 sm:px-6 pb-12 sm:pb-20 -mt-10 sm:-mt-16">
+    <section className="bg-landing-dark px-4 sm:px-6 pb-10 sm:pb-16 lg:pb-20">
       <div className="max-w-6xl mx-auto">
-        <div className="relative rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black aspect-video">
+        <div className="relative rounded-lg overflow-hidden border border-white/10 shadow-2xl bg-black aspect-video">
           <video
             ref={ref}
             src={videoAsset.url}
@@ -30,7 +30,7 @@ export function VideoIntro() {
           <button
             type="button"
             onClick={toggleMute}
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center justify-center h-10 w-10 rounded-full bg-black/50 hover:bg-black/70 text-white border border-white/20 backdrop-blur-sm transition-colors"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center justify-center h-10 w-10 rounded-full bg-landing-dark/90 hover:bg-landing-dark text-white border border-white/30 backdrop-blur-sm transition-colors"
             aria-label={muted ? "Ativar som" : "Desativar som"}
           >
             {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}

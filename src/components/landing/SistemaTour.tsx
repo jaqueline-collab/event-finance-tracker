@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
-import { Reveal } from "@/components/landing/motion";
 import atendimento from "@/assets/Atendimento.png.asset.json";
 import chatbot from "@/assets/Chatbot_IAs.png.asset.json";
 import importar from "@/assets/Contatos_Importar.png.asset.json";
@@ -62,11 +61,10 @@ export function SistemaTour() {
   return (
     <section
       id="produto"
-      className="py-16 md:py-24 px-4 sm:px-6 bg-white border-t border-landing-border overflow-hidden"
+      className="py-14 sm:py-16 lg:py-24 px-4 sm:px-6 bg-white border-t border-landing-border overflow-hidden"
     >
       <div className="max-w-6xl mx-auto">
-        <Reveal>
-          <div className="text-center mb-8 md:mb-12">
+          <div className="text-center mb-7 sm:mb-9 lg:mb-12">
             <span className="text-xs font-semibold tracking-widest uppercase text-rabbit-navy">
               Produto em ação
             </span>
@@ -80,12 +78,11 @@ export function SistemaTour() {
               Telas reais da plataforma. Toque nas abas para conhecer cada parte do sistema.
             </p>
           </div>
-        </Reveal>
 
-        <div className="grid lg:grid-cols-[280px_1fr] gap-5 lg:gap-6 items-start">
-          <Reveal>
+        <div className="grid md:grid-cols-[180px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
+          <div className="min-w-0">
             {/* No celular vira um carrossel de abas curtas; no desktop, lista com descrição */}
-            <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {TELAS.map((t, i) => {
                 const sel = i === ativo;
                 return (
@@ -93,7 +90,7 @@ export function SistemaTour() {
                     key={t.label}
                     onClick={() => setAtivo(i)}
                     aria-pressed={sel}
-                    className={`text-left rounded-full lg:rounded-lg px-4 py-2 lg:py-3 border transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink-0 snap-start ${
+                    className={`text-left rounded-full md:rounded-lg px-4 py-2 md:py-3 border transition-all whitespace-nowrap md:whitespace-normal shrink-0 snap-start ${
                       sel
                         ? "border-rabbit-navy bg-rabbit-navy text-white"
                         : "border-landing-border bg-white text-landing-fg hover:border-rabbit-navy/40"
@@ -111,11 +108,11 @@ export function SistemaTour() {
                 );
               })}
             </div>
-          </Reveal>
+          </div>
 
-          <Reveal delay={120}>
+          <div className="min-w-0">
             {/* Mockup de navegador — moldura só a partir do desktop */}
-            <div className="rounded-xl md:rounded-2xl border border-landing-border bg-landing-surface shadow-lg md:shadow-2xl overflow-hidden">
+            <div className="rounded-lg border border-landing-border bg-landing-surface shadow-lg lg:shadow-2xl overflow-hidden">
               <div className="hidden md:flex items-center gap-3 px-4 h-11 bg-landing-dark">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="h-3 w-3 rounded-full bg-red-400/80" />
@@ -127,31 +124,29 @@ export function SistemaTour() {
                   <span className="truncate">app.eloracrm.com.br/{tela.path}</span>
                 </div>
               </div>
-              <div className="bg-landing-surface relative min-h-[200px] sm:min-h-[280px] overflow-x-auto md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="bg-landing-surface relative aspect-[1366/879] overflow-hidden">
                 <img
                   key={tela.url}
                   src={tela.url}
                   alt={`Tela do Elora: ${tela.label}`}
-                  className="h-auto block animate-fade-in min-w-[680px] w-[680px] md:min-w-0 md:w-full"
+                  className="h-full w-full object-contain object-top block animate-fade-in"
+                  loading="eager"
                 />
                 {ativo === 0 && (
                   <img
                     src={mockupIphone.url}
                     alt="App EloraCRM no celular"
-                    className="hidden md:block absolute -bottom-6 right-4 w-28 lg:w-32 h-auto drop-shadow-2xl animate-fade-in"
+                    className="hidden lg:block absolute -bottom-5 right-3 w-24 xl:w-32 h-auto drop-shadow-2xl animate-fade-in"
                     loading="lazy"
                   />
                 )}
               </div>
             </div>
-            <p className="md:hidden text-[11px] text-landing-muted mt-2 text-center">
-              Arraste a imagem para o lado para ver a tela inteira.
-            </p>
-            <div className="px-1 pt-3 lg:hidden">
+            <div className="px-1 pt-3 md:hidden">
               <div className="text-sm font-semibold text-landing-fg">{tela.label}</div>
               <div className="text-xs text-landing-muted mt-1 leading-relaxed">{tela.desc}</div>
             </div>
-          </Reveal>
+          </div>
         </div>
       </div>
     </section>

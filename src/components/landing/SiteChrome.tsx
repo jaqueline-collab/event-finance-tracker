@@ -1,18 +1,27 @@
 import { Link } from "@tanstack/react-router";
-import { Mail, Phone, Globe, ArrowUpRight, LogIn, Rabbit } from "lucide-react";
+import { Mail, Phone, Globe, ArrowUpRight, LogIn, Rabbit, Menu } from "lucide-react";
 import { EloraMark } from "@/components/landing/EloraMark";
 import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
 import { usePerfil } from "@/hooks/use-perfil";
 import { UserMenu } from "@/components/user-menu";
 import { useDestinoPainel } from "@/lib/use-papel";
 import seloMeta from "@/assets/meta-business-partner.png.asset.json";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export function Navbar() {
   const { session, nome, email, avatarUrl, iniciais } = usePerfil();
   const destinoPainel = useDestinoPainel(Boolean(session));
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-6">
         <Link to="/" className="flex items-center gap-2 leading-none">
           <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0 -mt-0.5" />
           <span
@@ -22,7 +31,7 @@ export function Navbar() {
             EloraCRM
           </span>
         </Link>
-        <nav className="hidden md:flex items-center gap-7 text-sm text-white/80">
+        <nav className="hidden md:flex min-w-0 items-center justify-self-center gap-5 lg:gap-7 text-sm text-white/80">
           <Link to="/parceiros" className="hover:text-landing-yellow-vivo transition">
             Parceiros
           </Link>
@@ -38,12 +47,12 @@ export function Navbar() {
             </Link>
           )}
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <a
             href="https://app.eloracrm.com.br/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 whitespace-nowrap bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-4 sm:px-5 py-2 rounded-md text-sm transition-colors"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-3 sm:px-5 py-2 rounded-md text-sm transition-colors"
           >
             Elora App <ArrowUpRight className="h-4 w-4" />
           </a>
@@ -52,11 +61,54 @@ export function Navbar() {
           ) : (
             <Link
               to="/auth"
-              className="inline-flex items-center gap-1.5 whitespace-nowrap border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-3 sm:px-4 py-2 rounded-md text-sm transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 whitespace-nowrap border border-white/30 hover:border-landing-yellow-vivo hover:text-landing-yellow-vivo text-white font-semibold px-3 sm:px-4 py-2 rounded-md text-sm transition-colors md:inline-flex"
             >
               <LogIn className="h-4 w-4" /> Logar
             </Link>
           )}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Abrir menu"
+                className="md:hidden border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="border-white/10 bg-landing-dark text-white">
+              <SheetHeader className="text-left">
+                <SheetTitle className="flex items-center gap-2 text-white">
+                  <EloraMark className="h-6 w-6 text-landing-yellow-vivo" /> EloraCRM
+                </SheetTitle>
+              </SheetHeader>
+              <nav className="mt-8 flex flex-col gap-2">
+                <SheetClose asChild>
+                  <Link to="/" className="rounded-md px-3 py-3 font-medium hover:bg-white/10">Início</Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/parceiros" className="rounded-md px-3 py-3 font-medium hover:bg-white/10">Parceiros</Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/blog" className="rounded-md px-3 py-3 font-medium hover:bg-white/10">Blog</Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/faq" className="rounded-md px-3 py-3 font-medium hover:bg-white/10">Perguntas frequentes</Link>
+                </SheetClose>
+                {session ? (
+                  <SheetClose asChild>
+                    <Link to={destinoPainel} className="rounded-md px-3 py-3 font-semibold text-landing-yellow-vivo hover:bg-white/10">Meu painel</Link>
+                  </SheetClose>
+                ) : (
+                  <SheetClose asChild>
+                    <Link to="/auth" className="rounded-md px-3 py-3 font-semibold text-landing-yellow-vivo hover:bg-white/10">Entrar</Link>
+                  </SheetClose>
+                )}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
@@ -108,9 +160,9 @@ export function Footer() {
   return (
     <footer
       id="contato"
-      className="bg-landing-dark-2 text-white/80 py-14 px-6 border-t border-white/10"
+      className="bg-landing-dark-2 text-white/80 pt-12 pb-24 sm:py-14 px-5 sm:px-6 border-t border-white/10"
     >
-      <div className="max-w-6xl mx-auto grid gap-10 md:grid-cols-3 md:gap-8 items-start">
+      <div className="max-w-6xl mx-auto grid gap-9 md:grid-cols-2 md:gap-10 lg:grid-cols-3 lg:gap-12 items-start">
         <div>
           <div className="flex items-center gap-2 leading-none">
             <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0" />
@@ -124,13 +176,13 @@ export function Footer() {
           <p className="text-sm text-white/60 mt-3 max-w-xs">
             Para as conversas e o negócio andarem juntos.
           </p>
-          <div className="mt-4 flex flex-col gap-1.5">
-            <Link to="/blog" className="text-sm text-landing-yellow-vivo hover:underline">
-              Blog
-            </Link>
-            <Link to="/faq" className="text-sm text-landing-yellow-vivo hover:underline">
-              Perguntas frequentes
-            </Link>
+          <div className="mt-6">
+            <img
+              src={seloMeta.url}
+              alt="Selo Meta Business Partner"
+              className="h-11 w-auto bg-white rounded-md p-1"
+              loading="lazy"
+            />
           </div>
         </div>
 
@@ -158,7 +210,7 @@ export function Footer() {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-white/15 bg-white/5 p-6">
+        <div className="rounded-lg border border-white/15 bg-white/5 p-6 md:col-span-2 lg:col-span-1">
           <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-landing-yellow-vivo">
             <Rabbit className="h-4 w-4" /> Parceiro oficial
           </div>
@@ -174,16 +226,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto mt-10 pt-8 border-t border-white/10 flex justify-center">
-        <img
-          src={seloMeta.url}
-          alt="Selo Meta Business Partner"
-          className="h-10 w-auto opacity-90 bg-white rounded-md p-1"
-          loading="lazy"
-        />
-      </div>
-
-      <div className="max-w-6xl mx-auto mt-8 pt-5 border-t border-white/5 flex flex-col items-center gap-1 text-xs text-white/40 text-center">
+      <div className="max-w-6xl mx-auto mt-10 pt-5 border-t border-white/5 flex flex-col items-center gap-1 text-xs text-white/40 text-center">
         <p>© {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.</p>
         <p className="text-white/30">DITOS &amp; C.O LTDA</p>
       </div>
