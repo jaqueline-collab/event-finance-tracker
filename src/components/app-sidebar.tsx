@@ -15,6 +15,8 @@ import {
   UserCog,
   AlertTriangle,
   RefreshCw,
+  Sparkles,
+  Globe,
 } from "lucide-react";
 import {
   Sidebar,
@@ -50,6 +52,7 @@ const configItemsAll: { title: string; url: string; icon: any; moduleKey: Module
   { title: "Planos", url: "/planos", icon: Package, moduleKey: "planos" },
   { title: "Parceiros", url: "/gestao-parceiros", icon: Handshake, moduleKey: "parceiros" },
   { title: "Usuários", url: "/usuarios", icon: UserCog, moduleKey: "usuarios", adminOnly: true },
+  { title: "Novidades", url: "/novidades", icon: Sparkles, moduleKey: "novidades", adminOnly: true },
 ];
 
 const ORDER_KEY = "elora.sidebar.order.v1";
