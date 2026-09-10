@@ -144,6 +144,7 @@ export const getPainelCliente = createServerFn({ method: "POST" })
         status: (cliente.status_comercial as string) ?? "ativo",
       },
       plano,
+      releases,
       contratado: [
         { label: "Canais WhatsApp", valor: cliente.canais_whats ?? 0 },
         { label: "Canais Instagram", valor: cliente.canais_insta ?? 0 },
