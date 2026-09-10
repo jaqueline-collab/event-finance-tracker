@@ -98,7 +98,7 @@ function BlogPost() {
           <div className="relative max-w-3xl mx-auto">
             <Link
               to="/blog"
-              className="inline-flex items-center gap-1.5 text-sm text-white/60 hover:text-landing-yellow-vivo transition-colors"
+              className="flex w-fit items-center gap-1.5 text-sm text-white/60 hover:text-landing-yellow-vivo transition-colors"
             >
               <ArrowLeft className="h-4 w-4" /> Blog
             </Link>
