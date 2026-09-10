@@ -241,12 +241,16 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background text-foreground">
-          {!isParceiro && <AppSidebar />}
+          {!areaPropria && <AppSidebar />}
           <div className="flex-1 flex flex-col min-w-0">
             <header className="h-14 flex items-center gap-3 border-b border-border/60 px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
-              {!isParceiro && <SidebarTrigger />}
+              {!areaPropria && <SidebarTrigger />}
               <div className="text-sm text-muted-foreground flex-1">
-                {isParceiro ? "Elora · Área do parceiro" : "Elora · Controle financeiro"}
+                {isCliente
+                  ? "Elora · Área do cliente"
+                  : isParceiro
+                    ? "Elora · Área do parceiro"
+                    : "Elora · Controle financeiro"}
               </div>
               <ThemeToggle />
               <HeaderUserMenu email={session.user.email ?? null} />
