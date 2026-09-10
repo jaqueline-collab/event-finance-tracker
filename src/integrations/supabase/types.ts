@@ -71,6 +71,50 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_cliente_usuarios: {
+        Row: {
+          ativo: boolean
+          cliente_id: string
+          created_at: string
+          criado_por: string | null
+          email: string
+          id: string
+          nome: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_id: string
+          created_at?: string
+          criado_por?: string | null
+          email: string
+          id?: string
+          nome: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cliente_id?: string
+          created_at?: string
+          criado_por?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_cliente_usuarios_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_clientes: {
         Row: {
           agentes_ia: boolean | null
@@ -797,6 +841,84 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_release_destinos: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          id: string
+          release_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          id?: string
+          release_id: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          release_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_release_destinos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "elora_release_destinos_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "elora_releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_releases: {
+        Row: {
+          conteudo: string
+          created_at: string
+          criado_por: string | null
+          id: string
+          para_todos: boolean
+          publicado: boolean
+          publicado_em: string | null
+          resumo: string | null
+          tag: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          conteudo?: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          para_todos?: boolean
+          publicado?: boolean
+          publicado_em?: string | null
+          resumo?: string | null
+          tag?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          para_todos?: boolean
+          publicado?: boolean
+          publicado_em?: string | null
+          resumo?: string | null
+          tag?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       perfis: {
         Row: {
           avatar_path: string | null
@@ -889,9 +1011,11 @@ export type Database = {
     }
     Functions: {
       bootstrap_admin_if_empty: { Args: never; Returns: undefined }
+      cliente_do_usuario: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_equipe_interna: { Args: never; Returns: boolean }
       link_app_user: { Args: never; Returns: undefined }
+      link_cliente_usuario: { Args: never; Returns: undefined }
       link_parceiro_usuario: { Args: never; Returns: undefined }
       parceiro_do_usuario: { Args: never; Returns: string }
       parceiro_ve_valores: { Args: never; Returns: boolean }
