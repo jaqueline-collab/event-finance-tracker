@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCurrentUserAccess, type ModuleKey } from "@/lib/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EloraMark } from "@/components/landing/EloraMark";
 
 const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
@@ -126,9 +127,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-4 py-4">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex-shrink-0" />
+          <EloraMark className="h-7 w-7 flex-shrink-0 text-landing-yellow-vivo" />
           <div className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight">Elora</span>
+            <span
+              className="text-sm font-bold tracking-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              EloraCRM
+            </span>
             <span className="text-[10px] text-muted-foreground uppercase">Controle financeiro</span>
           </div>
         </div>
