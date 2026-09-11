@@ -150,6 +150,7 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
         nome: (parceiroRes.data?.nome as string) ?? "Parceiro",
       },
       veValores,
+      podeVerPainelCliente,
       clientes,
       movimentos,
     };

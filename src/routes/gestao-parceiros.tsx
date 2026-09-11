@@ -100,6 +100,22 @@ function GestaoParceiros() {
     }
   };
 
+  const alternarPainel = async (id: string, valor: boolean) => {
+    setOcupado(id);
+    try {
+      await updateParceiro(id, { acessoPainelClientes: valor });
+      toast.success(
+        valor
+          ? "Parceiro pode abrir o painel dos clientes dele."
+          : "Parceiro não abre mais o painel dos clientes.",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao alterar o acesso ao painel.");
+    } finally {
+      setOcupado(null);
+    }
+  };
+
   const conceder = async (parceiroId: string) => {
     const form = novoAcesso[parceiroId] ?? { nome: "", email: "" };
     if (!form.nome.trim() || !form.email.trim()) {
@@ -217,6 +233,23 @@ function GestaoParceiros() {
                   </p>
                 </div>
               </div>
+
+              <div className="flex items-start gap-3 rounded-md border border-border/60 p-3">
+                <Switch
+                  checked={Boolean(p.acessoPainelClientes)}
+                  disabled={ocupado === p.id}
+                  onCheckedChange={(v) => alternarPainel(p.id, v)}
+                  aria-label="Pode abrir o painel dos clientes"
+                />
+                <div className="text-sm">
+                  <p className="font-medium">Pode abrir o painel dos clientes</p>
+                  <p className="text-muted-foreground text-xs">
+                    Libera o botão "Ver painel" na área deste parceiro, abrindo a Área do Cliente dos
+                    clientes vinculados a ele em modo somente leitura.
+                  </p>
+                </div>
+              </div>
+
 
               <div className="space-y-2">
                 <p className="text-sm font-medium">Pessoas com acesso</p>
