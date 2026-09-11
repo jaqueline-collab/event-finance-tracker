@@ -81,6 +81,8 @@ export interface Parceiro {
   criadoEm: string;
   /** Se true, o parceiro logado vê os valores cobrados dos clientes dele. Nunca libera custo/margem. */
   mostrarValoresCliente?: boolean;
+  /** Se true, o parceiro pode abrir o painel (Área do Cliente) dos clientes vinculados a ele. */
+  acessoPainelClientes?: boolean;
 }
 
 export interface ParceiroUsuario {

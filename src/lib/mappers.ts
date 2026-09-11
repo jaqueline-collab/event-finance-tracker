@@ -125,6 +125,7 @@ export const mapParceiroToDb = (p: Parceiro) => ({
   planos_vinculados: p.planosVinculados,
   observacao: p.observacao,
   mostrar_valores_cliente: Boolean(p.mostrarValoresCliente),
+  acesso_painel_clientes: Boolean(p.acessoPainelClientes),
 });
 
 export const mapDbToParceiro = (r: any): Parceiro => ({
@@ -136,6 +137,7 @@ export const mapDbToParceiro = (r: any): Parceiro => ({
   observacao: r.observacao || "",
   criadoEm: r.criado_em ? new Date(r.criado_em).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
   mostrarValoresCliente: Boolean(r.mostrar_valores_cliente),
+  acessoPainelClientes: Boolean(r.acesso_painel_clientes),
 });
 
 export const mapClienteToDb = (c: Cliente) => ({
