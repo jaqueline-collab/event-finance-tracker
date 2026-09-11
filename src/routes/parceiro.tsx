@@ -81,6 +81,8 @@ function AreaParceiro() {
   ) : null;
 
   const veValores = Boolean(dados?.veValores);
+  // Vem sempre do banco no carregamento — sem cache local, para o botão nunca ficar desatualizado.
+  const podeVerPainel = Boolean((dados as any)?.podeVerPainelCliente);
   const clientes = dados?.clientes ?? [];
   const movimentos = dados?.movimentos ?? [];
 
@@ -182,12 +184,16 @@ function AreaParceiro() {
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Churn</TableHead>
                 {veValores && <TableHead className="text-right">Mensalidade</TableHead>}
+                {podeVerPainel && <TableHead className="text-right">Painel</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {clientes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={veValores ? 7 : 6} className="text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={6 + (veValores ? 1 : 0) + (podeVerPainel ? 1 : 0)}
+                    className="text-sm text-muted-foreground"
+                  >
                     Nenhum cliente vinculado ainda.
                   </TableCell>
                 </TableRow>
@@ -213,8 +219,18 @@ function AreaParceiro() {
                       {brl(((c as any).mensalidade as number) ?? 0)}
                     </TableCell>
                   )}
+                  {podeVerPainel && (
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/area-do-cliente" search={{ como: c.id }}>
+                          <Eye className="mr-2 h-4 w-4" /> Ver painel
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
+
             </TableBody>
           </Table>
         </CardContent>

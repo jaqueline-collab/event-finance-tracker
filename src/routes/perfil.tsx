@@ -1,16 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Camera, Eye, Loader2, Save, ShieldCheck, Trash2 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { listarClientesParaVer } from "@/lib/cliente.functions";
-import { usePapelUsuario } from "@/lib/use-papel";
+import { Camera, Loader2, Save, ShieldCheck, Trash2 } from "lucide-react";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,17 +42,8 @@ function PaginaPerfil() {
   const [codigo, setCodigo] = useState("");
   const [codigoEnviado, setCodigoEnviado] = useState(false);
 
-  const navigate = useNavigate();
-  const papel = usePapelUsuario();
-  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
-  const [clienteSel, setClienteSel] = useState("");
 
-  useEffect(() => {
-    if (!papel.isInterno) return;
-    listarClientesParaVer()
-      .then(setClientes)
-      .catch(() => setClientes([]));
-  }, [papel.isInterno]);
+
 
   useEffect(() => {
     if (!perfil) return;
@@ -348,42 +331,7 @@ function PaginaPerfil() {
           </div>
         </CardContent>
       </Card>
-
-      {papel.isInterno && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ver como cliente</CardTitle>
-            <CardDescription>
-              Abra a Área do Cliente exatamente como ela aparece para a conta escolhida, em modo
-              somente leitura. Nenhum login extra é necessário.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="cliente-360">Cliente</Label>
-              <Select value={clienteSel} onValueChange={setClienteSel}>
-                <SelectTrigger id="cliente-360">
-                  <SelectValue placeholder={clientes.length ? "Escolha um cliente" : "Carregando..."} />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              disabled={!clienteSel}
-              onClick={() => navigate({ to: "/area-do-cliente", search: { como: clienteSel } })}
-            >
-              <Eye className="h-4 w-4" />
-              <span className="ml-2">Ir para a Área do Cliente</span>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
+
   );
 }

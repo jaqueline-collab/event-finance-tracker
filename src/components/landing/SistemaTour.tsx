@@ -79,35 +79,26 @@ export function SistemaTour() {
             </p>
           </div>
 
-        <div className="grid md:grid-cols-[180px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
-          <div className="min-w-0">
-            {/* No celular vira um carrossel de abas curtas; no desktop, lista com descrição */}
-            <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {TELAS.map((t, i) => {
-                const sel = i === ativo;
-                return (
-                  <button
-                    key={t.label}
-                    onClick={() => setAtivo(i)}
-                    aria-pressed={sel}
-                    className={`text-left rounded-full md:rounded-lg px-4 py-2 md:py-3 border transition-all whitespace-nowrap md:whitespace-normal shrink-0 snap-start ${
-                      sel
-                        ? "border-rabbit-navy bg-rabbit-navy text-white"
-                        : "border-landing-border bg-white text-landing-fg hover:border-rabbit-navy/40"
-                    }`}
-                  >
-                    <div className="text-[13px] sm:text-sm font-semibold">{t.label}</div>
-                    <div
-                      className={`text-xs mt-0.5 hidden lg:block leading-relaxed ${
-                        sel ? "text-white/60" : "text-landing-muted"
-                      }`}
-                    >
-                      {t.desc}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+        <div className="space-y-5">
+          {/* Abas sempre acima da tela, roláveis na horizontal em qualquer largura */}
+          <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {TELAS.map((t, i) => {
+              const sel = i === ativo;
+              return (
+                <button
+                  key={t.label}
+                  onClick={() => setAtivo(i)}
+                  aria-pressed={sel}
+                  className={`text-left rounded-full px-4 py-2 border transition-all whitespace-nowrap shrink-0 snap-start ${
+                    sel
+                      ? "border-rabbit-navy bg-rabbit-navy text-white"
+                      : "border-landing-border bg-white text-landing-fg hover:border-rabbit-navy/40"
+                  }`}
+                >
+                  <span className="text-[13px] sm:text-sm font-semibold">{t.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="min-w-0">
@@ -142,12 +133,15 @@ export function SistemaTour() {
                 )}
               </div>
             </div>
-            <div className="px-1 pt-3 md:hidden">
+            <div className="px-1 pt-3">
               <div className="text-sm font-semibold text-landing-fg">{tela.label}</div>
-              <div className="text-xs text-landing-muted mt-1 leading-relaxed">{tela.desc}</div>
+              <div className="text-xs sm:text-sm text-landing-muted mt-1 leading-relaxed max-w-3xl">
+                {tela.desc}
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </section>
   );
