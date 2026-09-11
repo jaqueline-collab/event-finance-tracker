@@ -737,6 +737,7 @@ export type Database = {
       }
       elora_parceiros: {
         Row: {
+          acesso_painel_clientes: boolean
           celular: string | null
           criado_em: string
           email: string | null
@@ -748,6 +749,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          acesso_painel_clientes?: boolean
           celular?: string | null
           criado_em?: string
           email?: string | null
@@ -759,6 +761,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          acesso_painel_clientes?: boolean
           celular?: string | null
           criado_em?: string
           email?: string | null
@@ -1098,6 +1101,10 @@ export type Database = {
       link_cliente_usuario: { Args: never; Returns: undefined }
       link_parceiro_usuario: { Args: never; Returns: undefined }
       parceiro_do_usuario: { Args: never; Returns: string }
+      parceiro_pode_ver_painel: {
+        Args: { _cliente_id: string }
+        Returns: boolean
+      }
       parceiro_ve_valores: { Args: never; Returns: boolean }
     }
     Enums: {
