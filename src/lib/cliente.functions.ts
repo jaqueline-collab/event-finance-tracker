@@ -40,8 +40,12 @@ const alterarAcessoClienteSchema = z.object({
 async function resolverClienteId(db: any, verComo?: string): Promise<string | null> {
   if (verComo) {
     const { data: interno } = await db.rpc("is_equipe_interna");
-    if (!interno) throw new Error("acesso-negado: modo de visualização é exclusivo da equipe interna.");
-    return verComo;
+    if (interno) return verComo;
+    // Parceiro: só abre clientes vinculados a ele E com o sinalizador ligado.
+    // Mesma regra existe como política no banco (segunda camada de defesa).
+    const { data: podeParceiro } = await db.rpc("parceiro_pode_ver_painel", { _cliente_id: verComo });
+    if (podeParceiro) return verComo;
+    throw new Error("acesso-negado: este acesso ao painel do cliente não está liberado.");
   }
   await db.rpc("link_cliente_usuario");
   const { data: proprio } = await db.rpc("cliente_do_usuario");

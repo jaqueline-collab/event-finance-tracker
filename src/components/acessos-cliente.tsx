@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
+import { Eye, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -61,9 +62,17 @@ export function AcessosCliente({ clienteId }: { clienteId: string }) {
 
   return (
     <div>
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        <KeyRound className="h-4 w-4" /> Acessos à Área do Cliente
-      </h3>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <KeyRound className="h-4 w-4" /> Acessos à Área do Cliente
+        </h3>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/area-do-cliente" search={{ como: clienteId }}>
+            <Eye className="mr-2 h-4 w-4" /> Ver como cliente
+          </Link>
+        </Button>
+      </div>
+
       <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4">
         <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
           <Input placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
