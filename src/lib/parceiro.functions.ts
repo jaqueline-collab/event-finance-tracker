@@ -45,6 +45,7 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
     const verComo = (data as { verComoParceiroId?: string } | undefined)?.verComoParceiroId;
     let parceiroId: string | null = null;
     let veValores = false;
+    let podeVerPainelCliente = false;
 
     if (verComo) {
       // Modo "visualizar como parceiro": exclusivo da equipe interna, somente leitura.
@@ -52,13 +53,14 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
       if (!interno) throw new Error("acesso-negado: modo de visualização é exclusivo da equipe interna.");
       const { data: alvo, error: alvoErr } = await db
         .from("elora_parceiros")
-        .select("id, mostrar_valores_cliente")
+        .select("id, mostrar_valores_cliente, acesso_painel_clientes")
         .eq("id", verComo)
         .maybeSingle();
       if (alvoErr) throw new Error(`parceiro: ${alvoErr.message}`);
       if (!alvo?.id) throw new Error("visualizar-como: parceiro não encontrado.");
       parceiroId = alvo.id as string;
       veValores = Boolean(alvo.mostrar_valores_cliente);
+      podeVerPainelCliente = Boolean(alvo.acesso_painel_clientes);
     } else {
       await db.rpc("link_parceiro_usuario");
       const { data: proprio } = await db.rpc("parceiro_do_usuario");
@@ -66,7 +68,15 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
       parceiroId = proprio as string;
       const { data: veValoresRaw } = await db.rpc("parceiro_ve_valores");
       veValores = Boolean(veValoresRaw);
+      // Sempre lido do banco no carregamento — nunca de cache local.
+      const { data: proprioRow } = await db
+        .from("elora_parceiros")
+        .select("acesso_painel_clientes")
+        .eq("id", parceiroId)
+        .maybeSingle();
+      podeVerPainelCliente = Boolean(proprioRow?.acesso_painel_clientes);
     }
+
 
     const [parceiroRes, clientesRes, planosRes] = await Promise.all([
       db.from("elora_parceiros").select("id, nome, email, celular").eq("id", parceiroId).maybeSingle(),
