@@ -39,7 +39,8 @@ import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/
 import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2 } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2, Share2, Undo2 } from "lucide-react";
+import { alternarEnvioFechamentoParceiro } from "@/lib/parceiro.functions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -199,6 +200,22 @@ function ResumoPage() {
   };
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
+  // Sobreposição local do envio ao parceiro (o valor base vem do banco em f.enviadoParceiroEm).
+  const [enviosParceiro, setEnviosParceiro] = useState<Record<string, string | null>>({});
+  const [enviandoParceiro, setEnviandoParceiro] = useState<string | null>(null);
+
+  const alternarEnvioParceiro = async (fechamentoId: string, enviar: boolean) => {
+    setEnviandoParceiro(fechamentoId);
+    try {
+      const r = await alternarEnvioFechamentoParceiro({ data: { fechamentoId, enviar } });
+      setEnviosParceiro((s) => ({ ...s, [fechamentoId]: r.enviadoEm }));
+      toast.success(enviar ? "Fechamento liberado para o parceiro." : "Envio ao parceiro desfeito.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao alterar o envio ao parceiro.");
+    } finally {
+      setEnviandoParceiro(null);
+    }
+  };
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const [confirmPurgeFech, setConfirmPurgeFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
