@@ -29,6 +29,13 @@
       "when": 1789088276164,
       "tag": "0003_parceiro_acesso_painel_clientes",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789427090027,
+      "tag": "0004_painel_cliente_dados_seguro",
+      "breakpoints": true
     }
   ]
 }

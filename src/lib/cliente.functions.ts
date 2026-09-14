@@ -42,7 +42,7 @@ async function resolverClienteId(db: any, verComo?: string): Promise<string | nu
     const { data: interno } = await db.rpc("is_equipe_interna");
     if (interno) return verComo;
     // Parceiro: só abre clientes vinculados a ele E com o sinalizador ligado.
-    // Mesma regra existe como política no banco (segunda camada de defesa).
+    // Mesma regra é reaplicada dentro de painel_cliente_dados (segunda camada).
     const { data: podeParceiro } = await db.rpc("parceiro_pode_ver_painel", { _cliente_id: verComo });
     if (podeParceiro) return verComo;
     throw new Error("acesso-negado: este acesso ao painel do cliente não está liberado.");
@@ -61,84 +61,52 @@ export const getPainelCliente = createServerFn({ method: "POST" })
     const clienteId = await resolverClienteId(db, data.verComoClienteId?.trim() || undefined);
     if (!clienteId) return { semVinculo: true as const };
 
+    // Leitura sempre pelo ponto único do banco: a autorização é refeita lá
+    // dentro (equipe interna, próprio cliente ou parceiro com acesso ligado).
+    const { data: payload, error: painelErr } = await db.rpc("painel_cliente_dados", {
+      _cliente_id: clienteId,
+    });
+    if (painelErr) {
+      const msg = String(painelErr.message ?? "");
+      if (msg.includes("acesso-negado")) {
+        throw new Error("acesso-negado: este acesso ao painel do cliente não está liberado.");
+      }
+      throw new Error(`painel-cliente: ${msg}`);
+    }
+    if (!payload) throw new Error("cliente: conta não encontrada.");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as any;
-
-    const [clienteRes, movRes, equipeRes] = await Promise.all([
-      admin
-        .from("elora_clientes")
-        .select(
-          "id, nome, plano_id, data_inicio, data_vencimento, data_churn, status_comercial, apps, mau, canais_whats, canais_insta, canais_messenger, canais_zapi, usuarios_ativos, contatos_ativos, agentes_ia, asaas, zapi, transcricao_ia",
-        )
-        .eq("id", clienteId)
-        .maybeSingle(),
-      admin
-        .from("elora_movimentos")
-        .select(
-          "id, data, tipo, plano_id, canais_whats, canais_insta, canais_messenger, canais_zapi, usuarios_ativos, contatos_ativos, agentes_ia, asaas, zapi, transcricao_ia, observacao",
-        )
-        .eq("cliente_id", clienteId)
-        .order("data", { ascending: false }),
-      admin
-        .from("elora_cliente_usuarios")
-        .select("id, nome, email, ativo, user_id, created_at")
-        .eq("cliente_id", clienteId)
-        .order("created_at", { ascending: true }),
-    ]);
-
-    if (clienteRes.error) throw new Error(`cliente: ${clienteRes.error.message}`);
-    if (!clienteRes.data) throw new Error("cliente: conta não encontrada.");
-
-    const cliente = clienteRes.data as any;
+    const cliente = (payload as any).cliente as any;
+    const p = (payload as any).plano as any | null;
+    const movimentos = ((payload as any).movimentos ?? []) as any[];
+    const equipeRows = ((payload as any).equipe ?? []) as any[];
 
     let plano: { nome: string; inclusos: { label: string; valor: string }[] } | null = null;
-    if (cliente.plano_id) {
-      const { data: p } = await admin
-        .from("elora_planos")
-        .select(
-          "nome, canais_whats_inclusos, canais_insta_inclusos, canais_messenger_inclusos, usuarios_inclusos, contatos_inclusos, inclui_ia, inclui_asaas, inclui_zapi, inclui_transcricao",
-        )
-        .eq("id", cliente.plano_id)
-        .maybeSingle();
-      if (p) {
-        plano = {
-          nome: p.nome as string,
-          inclusos: [
-            { label: "Canais WhatsApp", valor: String(p.canais_whats_inclusos ?? 0) },
-            { label: "Canais Instagram", valor: String(p.canais_insta_inclusos ?? 0) },
-            { label: "Canais Messenger", valor: String(p.canais_messenger_inclusos ?? 0) },
-            { label: "Usuários", valor: String(p.usuarios_inclusos ?? 0) },
-            { label: "Contatos", valor: String(p.contatos_inclusos ?? 0) },
-            { label: "Agentes de IA", valor: p.inclui_ia ? "Incluso" : "Adicional" },
-            { label: "Asaas", valor: p.inclui_asaas ? "Incluso" : "Adicional" },
-            { label: "Z-API", valor: String(p.inclui_zapi ?? 0) },
-            { label: "Transcrição", valor: p.inclui_transcricao ? "Incluso" : "Adicional" },
-          ],
-        };
-      }
+    if (p) {
+      plano = {
+        nome: p.nome as string,
+        inclusos: [
+          { label: "Canais WhatsApp", valor: String(p.canais_whats_inclusos ?? 0) },
+          { label: "Canais Instagram", valor: String(p.canais_insta_inclusos ?? 0) },
+          { label: "Canais Messenger", valor: String(p.canais_messenger_inclusos ?? 0) },
+          { label: "Usuários", valor: String(p.usuarios_inclusos ?? 0) },
+          { label: "Contatos", valor: String(p.contatos_inclusos ?? 0) },
+          { label: "Agentes de IA", valor: p.inclui_ia ? "Incluso" : "Adicional" },
+          { label: "Asaas", valor: p.inclui_asaas ? "Incluso" : "Adicional" },
+          { label: "Z-API", valor: String(p.inclui_zapi ?? 0) },
+          { label: "Transcrição", valor: p.inclui_transcricao ? "Incluso" : "Adicional" },
+        ],
+      };
     }
 
-    const releasesRes = await admin
-      .from("elora_releases")
-      .select("id, titulo, resumo, conteudo, tag, publicado_em, para_todos, elora_release_destinos(cliente_id)")
-      .eq("publicado", true)
-      .order("publicado_em", { ascending: false });
+    const releases = (((payload as any).releases ?? []) as any[]).map((r) => ({
+      id: r.id as string,
+      titulo: r.titulo as string,
+      resumo: (r.resumo as string) ?? null,
+      conteudo: (r.conteudo as string) ?? "",
+      tag: (r.tag as string) ?? "novidade",
+      publicadoEm: r.publicado_em ? String(r.publicado_em) : null,
+    }));
 
-    const releases = ((releasesRes.data ?? []) as any[])
-      .filter(
-        (r) =>
-          r.para_todos ||
-          ((r.elora_release_destinos ?? []) as any[]).some((d) => d.cliente_id === clienteId),
-      )
-      .map((r) => ({
-        id: r.id as string,
-        titulo: r.titulo as string,
-        resumo: (r.resumo as string) ?? null,
-        conteudo: (r.conteudo as string) ?? "",
-        tag: (r.tag as string) ?? "novidade",
-        publicadoEm: r.publicado_em ? String(r.publicado_em) : null,
-      }));
 
     return {
       semVinculo: false as const,
@@ -167,7 +135,7 @@ export const getPainelCliente = createServerFn({ method: "POST" })
         zapi: Boolean(cliente.zapi),
         transcricao: Boolean(cliente.transcricao_ia),
       },
-      historico: ((movRes.data ?? []) as any[]).map((m) => ({
+      historico: movimentos.map((m) => ({
         id: m.id as string,
         data: String(m.data),
         tipo: m.tipo as string,
@@ -183,13 +151,14 @@ export const getPainelCliente = createServerFn({ method: "POST" })
           .filter(([, v]) => typeof v === "number" && v !== 0)
           .map(([label, v]) => `${label}: ${(v as number) > 0 ? "+" : ""}${v}`),
       })),
-      equipe: ((equipeRes.data ?? []) as any[]).map((p) => ({
-        id: p.id as string,
-        nome: p.nome as string,
-        email: p.email as string,
-        ativo: Boolean(p.ativo),
-        vinculado: Boolean(p.user_id),
+      equipe: equipeRows.map((e) => ({
+        id: e.id as string,
+        nome: e.nome as string,
+        email: e.email as string,
+        ativo: Boolean(e.ativo),
+        vinculado: Boolean(e.user_id),
       })),
+
       // Reservado para o painel de resultados que virá de uma API externa.
       resultados: null as null | Record<string, number>,
     };
