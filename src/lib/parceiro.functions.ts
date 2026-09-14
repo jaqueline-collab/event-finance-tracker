@@ -79,7 +79,11 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
 
 
     const [parceiroRes, clientesRes, planosRes] = await Promise.all([
-      db.from("elora_parceiros").select("id, nome, email, celular").eq("id", parceiroId).maybeSingle(),
+      db
+        .from("elora_parceiros")
+        .select("id, nome, email, celular, site_url, pode_ver_fechamentos")
+        .eq("id", parceiroId)
+        .maybeSingle(),
       db
         .from("elora_clientes")
         .select(
