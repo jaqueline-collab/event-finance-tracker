@@ -250,6 +250,37 @@ function GestaoParceiros() {
                 </div>
               </div>
 
+              <div className="flex items-start gap-3 rounded-md border border-border/60 p-3">
+                <Switch
+                  checked={Boolean(p.podeVerFechamentos)}
+                  disabled={ocupado === p.id}
+                  onCheckedChange={(v) => alternarFechamentos(p.id, v)}
+                  aria-label="Pode ver fechamentos"
+                />
+                <div className="text-sm">
+                  <p className="font-medium">Pode ver fechamentos</p>
+                  <p className="text-muted-foreground text-xs">
+                    Mostra a aba Financeiro na área deste parceiro. Mesmo ligado, ele só enxerga os
+                    fechamentos que você enviar explicitamente, e apenas as linhas dos clientes dele.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Site do parceiro</Label>
+                <Input
+                  defaultValue={p.siteUrl ?? ""}
+                  placeholder="rabbitagency.com.br"
+                  disabled={ocupado === p.id}
+                  onBlur={(e) => salvarSite(p.id, e.target.value, p.siteUrl ?? "")}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Usado no botão "Site" da barra superior da área deste parceiro.
+                </p>
+              </div>
+
+
+
 
               <div className="space-y-2">
                 <p className="text-sm font-medium">Pessoas com acesso</p>
