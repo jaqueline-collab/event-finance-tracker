@@ -273,3 +273,164 @@ export const alterarAcessoParceiro = createServerFn({ method: "POST" })
     if (!row?.id) throw new Error("alterar-acesso: registro não encontrado.");
     return { id: row.id as string, removido: false };
   });
+
+/**
+ * Financeiro da área do parceiro.
+ *
+ * Regras (todas aplicadas na fonte, nunca no front):
+ * - só roda para o parceiro do login, ou para a equipe interna no modo "ver como";
+ * - a aba só é habilitada quando elora_parceiros.pode_ver_fechamentos = true (lido do banco na hora);
+ * - só entram fechamentos com enviado_parceiro_em preenchido e não excluídos;
+ * - só entram linhas de clientes cujo parceiro_id é o deste parceiro;
+ * - a projeção é por LISTA BRANCA: custo, margem, lucro, WTS e desconto de escala
+ *   nunca são lidos nem devolvidos.
+ */
+export const getFinanceiroParceiro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => painelParceiroSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const verComo = (data as { verComoParceiroId?: string } | undefined)?.verComoParceiroId;
+
+    let parceiroId: string;
+    if (verComo) {
+      const { data: interno } = await db.rpc("is_equipe_interna");
+      if (!interno) throw new Error("acesso-negado: modo de visualização é exclusivo da equipe interna.");
+      parceiroId = verComo;
+    } else {
+      await db.rpc("link_parceiro_usuario");
+      const { data: proprio } = await db.rpc("parceiro_do_usuario");
+      if (!proprio) throw new Error("acesso-parceiro: este login não está vinculado a nenhum parceiro.");
+      parceiroId = proprio as string;
+    }
+
+    const { data: parc, error: parcErr } = await db
+      .from("elora_parceiros")
+      .select("id, nome, pode_ver_fechamentos")
+      .eq("id", parceiroId)
+      .maybeSingle();
+    if (parcErr) throw new Error(`parceiro: ${parcErr.message}`);
+    if (!parc?.id) throw new Error("financeiro-parceiro: parceiro não encontrado.");
+
+    const vazio = {
+      habilitado: false as boolean,
+      parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
+      fechamentos: [] as unknown[],
+    };
+    if (!parc.pode_ver_fechamentos) return vazio;
+
+    const { data: clientesRows, error: cliErr } = await db
+      .from("elora_clientes")
+      .select("id, nome")
+      .eq("parceiro_id", parceiroId);
+    if (cliErr) throw new Error(`clientes: ${cliErr.message}`);
+    const nomePorCliente = new Map<string, string>(
+      ((clientesRows ?? []) as any[]).map((c) => [c.id as string, c.nome as string]),
+    );
+    const ids = [...nomePorCliente.keys()];
+    if (ids.length === 0) return { ...vazio, habilitado: true };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const itensRes = await (supabaseAdmin as any)
+      .from("elora_fechamento_itens")
+      .select(
+        "id, fechamento_id, cliente_id, ciclo_inicio, ciclo_fim, vencimento, valor_bruto, valor_desconto, valor_liquido, payload_snapshot",
+      )
+      .in("cliente_id", ids);
+    if (itensRes.error) throw new Error(`fechamento-itens: ${itensRes.error.message}`);
+    const itensRows = (itensRes.data ?? []) as any[];
+    if (itensRows.length === 0) return { ...vazio, habilitado: true };
+
+    const fechIds = [...new Set(itensRows.map((i) => i.fechamento_id as string))];
+    const fechRes = await (supabaseAdmin as any)
+      .from("elora_fechamentos")
+      .select("id, competencia, titulo, enviado_parceiro_em")
+      .in("id", fechIds)
+      .not("enviado_parceiro_em", "is", null)
+      .is("deletado_em", null);
+    if (fechRes.error) throw new Error(`fechamentos: ${fechRes.error.message}`);
+
+    const cabecalhos = (fechRes.data ?? []) as any[];
+    const permitidos = new Set(cabecalhos.map((f) => f.id as string));
+
+    const composicaoDe = (snapshot: unknown) => {
+      const s = (snapshot ?? {}) as Record<string, unknown>;
+      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+      const linhas: { label: string; total: number }[] = [];
+      const sistema = num(s["sistema"]);
+      const acompanhamento = num(s["acompanhamento"]);
+      const mauQtd = num(s["mauExcedenteQtd"]);
+      const mauValor = num(s["mauExcedenteValor"]);
+      if (sistema) linhas.push({ label: "Sistema", total: sistema });
+      if (acompanhamento) linhas.push({ label: "Acompanhamento", total: acompanhamento });
+      if (mauValor) linhas.push({ label: `MAU excedente (${mauQtd})`, total: mauValor });
+      return linhas;
+    };
+
+    const fechamentos = cabecalhos
+      .map((f) => {
+        const linhas = itensRows
+          .filter((i) => i.fechamento_id === f.id && nomePorCliente.has(i.cliente_id as string))
+          .map((i) => {
+            const snap = (i.payload_snapshot ?? {}) as Record<string, unknown>;
+            return {
+              id: i.id as string,
+              clienteId: i.cliente_id as string,
+              clienteNome: nomePorCliente.get(i.cliente_id as string) ?? "—",
+              planoNome: (snap["planoNome"] as string | null) ?? null,
+              cicloInicio: (i.ciclo_inicio as string | null) ?? null,
+              cicloFim: (i.ciclo_fim as string | null) ?? null,
+              vencimento: (i.vencimento as string | null) ?? null,
+              valorBruto: Number(i.valor_bruto ?? 0),
+              valorDesconto: Number(i.valor_desconto ?? 0),
+              valorLiquido: Number(i.valor_liquido ?? 0),
+              composicao: composicaoDe(snap),
+            };
+          })
+          .sort((a, b) => a.clienteNome.localeCompare(b.clienteNome, "pt-BR"));
+        return {
+          id: f.id as string,
+          competencia: f.competencia as string,
+          titulo: f.titulo as string,
+          enviadoEm: f.enviado_parceiro_em as string,
+          linhas,
+          // Totais somados SÓ sobre as linhas deste parceiro.
+          totalBruto: linhas.reduce((s, l) => s + l.valorBruto, 0),
+          totalDesconto: linhas.reduce((s, l) => s + l.valorDesconto, 0),
+          totalLiquido: linhas.reduce((s, l) => s + l.valorLiquido, 0),
+        };
+      })
+      .filter((f) => permitidos.has(f.id) && f.linhas.length > 0)
+      .sort((a, b) => b.competencia.localeCompare(a.competencia));
+
+    return {
+      habilitado: true,
+      parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
+      fechamentos,
+    };
+  });
+
+/** Libera (ou revoga) a consulta de um fechamento pelos parceiros. Somente admin. */
+export const alternarEnvioFechamentoParceiro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => envioFechamentoSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { data: admin } = await db.rpc("is_admin");
+    if (!admin) throw new Error("acesso-negado: apenas administradores.");
+
+    const agora = data.enviar ? new Date().toISOString() : null;
+    const { data: row, error } = await db
+      .from("elora_fechamentos")
+      .update({
+        enviado_parceiro_em: agora,
+        enviado_parceiro_por: data.enviar ? context.userId : null,
+      })
+      .eq("id", data.fechamentoId)
+      .select("id, enviado_parceiro_em")
+      .maybeSingle();
+    if (error) throw new Error(`envio-parceiro: ${error.message}`);
+    if (!row?.id) throw new Error("envio-parceiro: fechamento não encontrado.");
+    return { id: row.id as string, enviadoEm: (row.enviado_parceiro_em as string | null) ?? null };
+  });
