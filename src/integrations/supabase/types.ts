@@ -1100,6 +1100,7 @@ export type Database = {
       link_app_user: { Args: never; Returns: undefined }
       link_cliente_usuario: { Args: never; Returns: undefined }
       link_parceiro_usuario: { Args: never; Returns: undefined }
+      painel_cliente_dados: { Args: { _cliente_id: string }; Returns: Json }
       parceiro_do_usuario: { Args: never; Returns: string }
       parceiro_pode_ver_painel: {
         Args: { _cliente_id: string }
