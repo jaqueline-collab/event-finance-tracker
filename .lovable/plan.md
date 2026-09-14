@@ -22,6 +22,7 @@ Nada de fechamento, cliente ou lançamento existente é alterado — só é acre
 Uma migração, só colunas novas:
 
 - `elora_parceiros.pode_ver_fechamentos boolean not null default false`
+- `elora_parceiros.site_url text null` (endereço do site do parceiro, editável por admin)
 - `elora_fechamentos.enviado_parceiro_em timestamptz null`
 - `elora_fechamentos.enviado_parceiro_por uuid null`
 
