@@ -83,13 +83,11 @@ function chavesDe(valor: unknown, saida: string[] = []): string[] {
 }
 
 let donoId: string;
-let parceiroUserId: string;
-let clienteUserId: string;
 
 beforeAll(async () => {
   donoId = await criarUsuario(`dono.${sufixo}@teste-elora.invalid`);
-  parceiroUserId = await criarUsuario(emailParceiro);
-  clienteUserId = await criarUsuario(emailCliente);
+  await criarUsuario(emailParceiro);
+  await criarUsuario(emailCliente);
 
   const p = await admin.from("elora_parceiros").insert([
     { id: PARC_A, user_id: donoId, nome: `Parceiro A ${sufixo}`, acesso_painel_clientes: false },
@@ -195,6 +193,3 @@ describe("painel do cliente — parceiro sem acesso", () => {
     expect(String(r.error?.message ?? "")).toContain("acesso-negado");
   }, 60_000);
 });
-
-void clienteUserId;
-void parceiroUserId;
