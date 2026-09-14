@@ -4,6 +4,7 @@ import { mapDbToCliente, mapDbToMovimento, mapDbToPlano } from "@/lib/mappers";
 import { explicarReceitaCliente, receitaMensalCliente } from "@/lib/calc/receita";
 import {
   concederAcessoSchema,
+  envioFechamentoSchema,
   painelParceiroSchema,
   toggleAcessoSchema,
 } from "@/lib/parceiro.schemas";
