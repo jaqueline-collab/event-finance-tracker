@@ -218,6 +218,8 @@ export interface Fechamento {
   observacao?: string | null;
   criadoEm?: string;
   deletadoEm?: string | null;
+  /** Preenchido quando o admin libera este fechamento para consulta do parceiro. */
+  enviadoParceiroEm?: string | null;
 }
 
 export interface FechamentoItem {

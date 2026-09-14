@@ -368,6 +368,7 @@ export const mapDbToFechamento = (r: any): Fechamento => ({
   observacao: r.observacao ?? null,
   criadoEm: r.criado_em ?? undefined,
   deletadoEm: r.deletado_em ?? null,
+  enviadoParceiroEm: r.enviado_parceiro_em ?? null,
 });
 
 export const mapFechamentoItemToDb = (i: FechamentoItem) => ({
