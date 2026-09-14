@@ -43,7 +43,7 @@ Marcar/desmarcar o envio é outra função de servidor, `alternarEnvioFechamento
 
 ## Telas
 
-- `src/routes/gestao-parceiros.tsx`: terceiro switch "Pode ver fechamentos", mesmo padrão dos dois atuais (`updateParceiro`), com `pode_ver_fechamentos` mapeado em `src/lib/types.ts` e `src/lib/mappers.ts`.
+- `src/routes/gestao-parceiros.tsx`: terceiro switch "Pode ver fechamentos" e campo de texto "Site do parceiro", ambos no padrão atual (`updateParceiro`), com `pode_ver_fechamentos` e `site_url` mapeados em `src/lib/types.ts` e `src/lib/mappers.ts`. A Rabbit Agency recebe `rabbitagency.com.br`.
 - `src/routes/resumo.tsx`: botão "Enviar para parceiro" em cada fechamento da lista, com badge de data de envio e ação de desfazer. Nenhuma alteração de cálculo nem de gravação de fechamento.
 - `src/routes/parceiro.tsx`: passa a ter layout próprio com menu lateral (`Clientes` / `Financeiro`, via search param `aba`) e barra superior (Site → `/`, Elora App → `/`, Treinamento → aviso em construção). A aba Clientes recebe busca, filtros de período e status, blocos-resumo (ativos, entradas, saídas, LTV média e mediana no período) e o gráfico de barras entradas x saídas por mês (recharts, já usado no painel). A aba Financeiro consome `getFinanceiroParceiro`.
 - O banner de "visualizando como" do modo admin continua igual, agora também na aba Financeiro.
