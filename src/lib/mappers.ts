@@ -126,6 +126,8 @@ export const mapParceiroToDb = (p: Parceiro) => ({
   observacao: p.observacao,
   mostrar_valores_cliente: Boolean(p.mostrarValoresCliente),
   acesso_painel_clientes: Boolean(p.acessoPainelClientes),
+  pode_ver_fechamentos: Boolean(p.podeVerFechamentos),
+  site_url: p.siteUrl ?? null,
 });
 
 export const mapDbToParceiro = (r: any): Parceiro => ({
@@ -138,6 +140,8 @@ export const mapDbToParceiro = (r: any): Parceiro => ({
   criadoEm: r.criado_em ? new Date(r.criado_em).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
   mostrarValoresCliente: Boolean(r.mostrar_valores_cliente),
   acessoPainelClientes: Boolean(r.acesso_painel_clientes),
+  podeVerFechamentos: Boolean(r.pode_ver_fechamentos),
+  siteUrl: r.site_url ?? null,
 });
 
 export const mapClienteToDb = (c: Cliente) => ({
