@@ -1576,6 +1576,42 @@ function ResumoPage() {
                                     <Badge variant="outline" className="text-[10px] ml-1">{itens.length} conta(s)</Badge>
                                     <span className="ml-auto flex items-center gap-3">
                                       <span className="text-xs text-muted-foreground">{criadoEmLabel}</span>
+                                      {!f.legacyFinanceiroId && (() => {
+                                        const enviadoEm = f.id in enviosParceiro
+                                          ? enviosParceiro[f.id]
+                                          : (f as any).enviadoParceiroEm ?? null;
+                                        const ocupado = enviandoParceiro === f.id;
+                                        return enviadoEm ? (
+                                          <span className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-[10px] border-fin/40 text-fin">
+                                              enviado ao parceiro em {new Date(enviadoEm).toLocaleDateString("pt-BR")}
+                                            </Badge>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 gap-1.5 text-xs"
+                                              disabled={ocupado}
+                                              title="Desfazer o envio ao parceiro"
+                                              onClick={(e) => { e.stopPropagation(); alternarEnvioParceiro(f.id, false); }}
+                                            >
+                                              {ocupado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                                              Desfazer envio
+                                            </Button>
+                                          </span>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 gap-1.5 text-xs"
+                                            disabled={ocupado}
+                                            title="Liberar este fechamento para consulta dos parceiros"
+                                            onClick={(e) => { e.stopPropagation(); alternarEnvioParceiro(f.id, true); }}
+                                          >
+                                            {ocupado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                                            Enviar para parceiro
+                                          </Button>
+                                        );
+                                      })()}
                                       <Button
                                         size="sm"
                                         variant="outline"
