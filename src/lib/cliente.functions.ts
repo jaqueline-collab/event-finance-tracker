@@ -135,7 +135,7 @@ export const getPainelCliente = createServerFn({ method: "POST" })
         zapi: Boolean(cliente.zapi),
         transcricao: Boolean(cliente.transcricao_ia),
       },
-      historico: ((movRes.data ?? []) as any[]).map((m) => ({
+      historico: movimentos.map((m) => ({
         id: m.id as string,
         data: String(m.data),
         tipo: m.tipo as string,
@@ -151,13 +151,14 @@ export const getPainelCliente = createServerFn({ method: "POST" })
           .filter(([, v]) => typeof v === "number" && v !== 0)
           .map(([label, v]) => `${label}: ${(v as number) > 0 ? "+" : ""}${v}`),
       })),
-      equipe: ((equipeRes.data ?? []) as any[]).map((p) => ({
-        id: p.id as string,
-        nome: p.nome as string,
-        email: p.email as string,
-        ativo: Boolean(p.ativo),
-        vinculado: Boolean(p.user_id),
+      equipe: equipeRows.map((e) => ({
+        id: e.id as string,
+        nome: e.nome as string,
+        email: e.email as string,
+        ativo: Boolean(e.ativo),
+        vinculado: Boolean(e.user_id),
       })),
+
       // Reservado para o painel de resultados que virá de uma API externa.
       resultados: null as null | Record<string, number>,
     };
