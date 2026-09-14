@@ -9,7 +9,7 @@ Na tela interna de Fechamento Mensal, cada fechamento já gerado ganha um botão
 Na área do parceiro passa a existir:
 
 - Menu lateral próprio com **Clientes** e **Financeiro** (Financeiro só aparece com o controle ligado).
-- Barra superior com **Site**, **Elora App** e **Treinamento** (este último abre um aviso de "página em construção").
+- Barra superior com **Site** (o site do próprio parceiro — ex.: rabbitagency.com.br), **Elora App** (login real do app, `https://app.eloracrm.com.br/`) e **Treinamento** (aviso "página em construção"). O endereço do site passa a ser um campo editável por você no cadastro do parceiro; quando estiver vazio, o botão Site simplesmente não aparece.
 - Em Clientes: busca por nome, filtro de período personalizável, filtro ativos/inativos e blocos-resumo do período escolhido — clientes ativos, entradas, saídas, LTV média e LTV mediana — mais um gráfico de barras de entradas x saídas por mês.
 - Em Financeiro: a lista dos fechamentos que você enviou, e dentro de cada um apenas as linhas dos clientes daquele parceiro, com composição cobrada, valor bruto, desconto e valor líquido.
 
