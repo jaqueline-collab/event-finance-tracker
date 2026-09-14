@@ -152,9 +152,12 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
       parceiro: {
         id: parceiroId as string,
         nome: (parceiroRes.data?.nome as string) ?? "Parceiro",
+        siteUrl: (parceiroRes.data?.site_url as string | null) ?? null,
       },
       veValores,
       podeVerPainelCliente,
+      // Lido do banco a cada carregamento — sem cache, para a aba nunca ficar desatualizada.
+      podeVerFechamentos: Boolean(parceiroRes.data?.pode_ver_fechamentos),
       clientes,
       movimentos,
     };
