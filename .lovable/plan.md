@@ -9,7 +9,7 @@ Na tela interna de Fechamento Mensal, cada fechamento já gerado ganha um botão
 Na área do parceiro passa a existir:
 
 - Menu lateral próprio com **Clientes** e **Financeiro** (Financeiro só aparece com o controle ligado).
-- Barra superior com **Site**, **Elora App** e **Treinamento** (este último abre um aviso de "página em construção").
+- Barra superior com **Site** (o site do próprio parceiro — ex.: rabbitagency.com.br), **Elora App** (login real do app, `https://app.eloracrm.com.br/`) e **Treinamento** (aviso "página em construção"). O endereço do site passa a ser um campo editável por você no cadastro do parceiro; quando estiver vazio, o botão Site simplesmente não aparece.
 - Em Clientes: busca por nome, filtro de período personalizável, filtro ativos/inativos e blocos-resumo do período escolhido — clientes ativos, entradas, saídas, LTV média e LTV mediana — mais um gráfico de barras de entradas x saídas por mês.
 - Em Financeiro: a lista dos fechamentos que você enviou, e dentro de cada um apenas as linhas dos clientes daquele parceiro, com composição cobrada, valor bruto, desconto e valor líquido.
 
@@ -22,6 +22,7 @@ Nada de fechamento, cliente ou lançamento existente é alterado — só é acre
 Uma migração, só colunas novas:
 
 - `elora_parceiros.pode_ver_fechamentos boolean not null default false`
+- `elora_parceiros.site_url text null` (endereço do site do parceiro, editável por admin)
 - `elora_fechamentos.enviado_parceiro_em timestamptz null`
 - `elora_fechamentos.enviado_parceiro_por uuid null`
 
@@ -42,9 +43,9 @@ Marcar/desmarcar o envio é outra função de servidor, `alternarEnvioFechamento
 
 ## Telas
 
-- `src/routes/gestao-parceiros.tsx`: terceiro switch "Pode ver fechamentos", mesmo padrão dos dois atuais (`updateParceiro`), com `pode_ver_fechamentos` mapeado em `src/lib/types.ts` e `src/lib/mappers.ts`.
+- `src/routes/gestao-parceiros.tsx`: terceiro switch "Pode ver fechamentos" e campo de texto "Site do parceiro", ambos no padrão atual (`updateParceiro`), com `pode_ver_fechamentos` e `site_url` mapeados em `src/lib/types.ts` e `src/lib/mappers.ts`. A Rabbit Agency recebe `rabbitagency.com.br`.
 - `src/routes/resumo.tsx`: botão "Enviar para parceiro" em cada fechamento da lista, com badge de data de envio e ação de desfazer. Nenhuma alteração de cálculo nem de gravação de fechamento.
-- `src/routes/parceiro.tsx`: passa a ter layout próprio com menu lateral (`Clientes` / `Financeiro`, via search param `aba`) e barra superior (Site → `/`, Elora App → `/`, Treinamento → aviso em construção). A aba Clientes recebe busca, filtros de período e status, blocos-resumo (ativos, entradas, saídas, LTV média e mediana no período) e o gráfico de barras entradas x saídas por mês (recharts, já usado no painel). A aba Financeiro consome `getFinanceiroParceiro`.
+- `src/routes/parceiro.tsx`: passa a ter layout próprio com menu lateral (`Clientes` / `Financeiro`, via search param `aba`) e barra superior — Site → `site_url` do parceiro (nova aba, oculto se vazio), Elora App → `https://app.eloracrm.com.br/` (mesmo destino do botão da home), Treinamento → aviso "página em construção". O `site_url` vem no retorno de `getPainelParceiro`. A aba Clientes recebe busca, filtros de período e status, blocos-resumo (ativos, entradas, saídas, LTV média e mediana no período) e o gráfico de barras entradas x saídas por mês (recharts, já usado no painel). A aba Financeiro consome `getFinanceiroParceiro`.
 - O banner de "visualizando como" do modo admin continua igual, agora também na aba Financeiro.
 
 LTV é calculado a partir do que o parceiro já pode ver: meses ativos x mensalidade cobrada. Se o controle de valores estiver desligado, os blocos de LTV não são calculados nem enviados.
