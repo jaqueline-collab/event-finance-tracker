@@ -116,6 +116,36 @@ function GestaoParceiros() {
     }
   };
 
+  const alternarFechamentos = async (id: string, valor: boolean) => {
+    setOcupado(id);
+    try {
+      await updateParceiro(id, { podeVerFechamentos: valor });
+      toast.success(
+        valor
+          ? "Aba Financeiro liberada para este parceiro."
+          : "Aba Financeiro ocultada para este parceiro.",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao alterar o acesso ao financeiro.");
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  const salvarSite = async (id: string, valor: string, atual: string) => {
+    const novo = valor.trim();
+    if (novo === (atual ?? "").trim()) return;
+    setOcupado(id);
+    try {
+      await updateParceiro(id, { siteUrl: novo || null });
+      toast.success(novo ? "Site do parceiro atualizado." : "Site do parceiro removido.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao salvar o site do parceiro.");
+    } finally {
+      setOcupado(null);
+    }
+  };
+
   const conceder = async (parceiroId: string) => {
     const form = novoAcesso[parceiroId] ?? { nome: "", email: "" };
     if (!form.nome.trim() || !form.email.trim()) {
