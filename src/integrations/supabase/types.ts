@@ -409,6 +409,8 @@ export type Database = {
           criado_por: string | null
           deletado_em: string | null
           descricao: string | null
+          enviado_parceiro_em: string | null
+          enviado_parceiro_por: string | null
           id: string
           observacao: string | null
           status: string
@@ -424,6 +426,8 @@ export type Database = {
           criado_por?: string | null
           deletado_em?: string | null
           descricao?: string | null
+          enviado_parceiro_em?: string | null
+          enviado_parceiro_por?: string | null
           id?: string
           observacao?: string | null
           status?: string
@@ -439,6 +443,8 @@ export type Database = {
           criado_por?: string | null
           deletado_em?: string | null
           descricao?: string | null
+          enviado_parceiro_em?: string | null
+          enviado_parceiro_por?: string | null
           id?: string
           observacao?: string | null
           status?: string
@@ -746,6 +752,8 @@ export type Database = {
           nome: string
           observacao: string | null
           planos_vinculados: Json | null
+          pode_ver_fechamentos: boolean
+          site_url: string | null
           user_id: string
         }
         Insert: {
@@ -758,6 +766,8 @@ export type Database = {
           nome: string
           observacao?: string | null
           planos_vinculados?: Json | null
+          pode_ver_fechamentos?: boolean
+          site_url?: string | null
           user_id?: string
         }
         Update: {
@@ -770,6 +780,8 @@ export type Database = {
           nome?: string
           observacao?: string | null
           planos_vinculados?: Json | null
+          pode_ver_fechamentos?: boolean
+          site_url?: string | null
           user_id?: string
         }
         Relationships: []

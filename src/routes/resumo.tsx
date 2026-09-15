@@ -39,7 +39,8 @@ import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/
 import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2 } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2, Share2, Undo2 } from "lucide-react";
+import { alternarEnvioFechamentoParceiro } from "@/lib/parceiro.functions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -199,6 +200,22 @@ function ResumoPage() {
   };
   const [expandedMes, setExpandedMes] = useState<string | null>(null);
   const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
+  // Sobreposição local do envio ao parceiro (o valor base vem do banco em f.enviadoParceiroEm).
+  const [enviosParceiro, setEnviosParceiro] = useState<Record<string, string | null>>({});
+  const [enviandoParceiro, setEnviandoParceiro] = useState<string | null>(null);
+
+  const alternarEnvioParceiro = async (fechamentoId: string, enviar: boolean) => {
+    setEnviandoParceiro(fechamentoId);
+    try {
+      const r = await alternarEnvioFechamentoParceiro({ data: { fechamentoId, enviar } });
+      setEnviosParceiro((s) => ({ ...s, [fechamentoId]: r.enviadoEm }));
+      toast.success(enviar ? "Fechamento liberado para o parceiro." : "Envio ao parceiro desfeito.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao alterar o envio ao parceiro.");
+    } finally {
+      setEnviandoParceiro(null);
+    }
+  };
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const [confirmPurgeFech, setConfirmPurgeFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
@@ -1559,6 +1576,42 @@ function ResumoPage() {
                                     <Badge variant="outline" className="text-[10px] ml-1">{itens.length} conta(s)</Badge>
                                     <span className="ml-auto flex items-center gap-3">
                                       <span className="text-xs text-muted-foreground">{criadoEmLabel}</span>
+                                      {!f.legacyFinanceiroId && (() => {
+                                        const enviadoEm = f.id in enviosParceiro
+                                          ? enviosParceiro[f.id]
+                                          : (f as any).enviadoParceiroEm ?? null;
+                                        const ocupado = enviandoParceiro === f.id;
+                                        return enviadoEm ? (
+                                          <span className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-[10px] border-fin/40 text-fin">
+                                              enviado ao parceiro em {new Date(enviadoEm).toLocaleDateString("pt-BR")}
+                                            </Badge>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 gap-1.5 text-xs"
+                                              disabled={ocupado}
+                                              title="Desfazer o envio ao parceiro"
+                                              onClick={(e) => { e.stopPropagation(); alternarEnvioParceiro(f.id, false); }}
+                                            >
+                                              {ocupado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                                              Desfazer envio
+                                            </Button>
+                                          </span>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 gap-1.5 text-xs"
+                                            disabled={ocupado}
+                                            title="Liberar este fechamento para consulta dos parceiros"
+                                            onClick={(e) => { e.stopPropagation(); alternarEnvioParceiro(f.id, true); }}
+                                          >
+                                            {ocupado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                                            Enviar para parceiro
+                                          </Button>
+                                        );
+                                      })()}
                                       <Button
                                         size="sm"
                                         variant="outline"

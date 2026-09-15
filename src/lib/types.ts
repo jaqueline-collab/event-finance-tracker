@@ -83,6 +83,10 @@ export interface Parceiro {
   mostrarValoresCliente?: boolean;
   /** Se true, o parceiro pode abrir o painel (Área do Cliente) dos clientes vinculados a ele. */
   acessoPainelClientes?: boolean;
+  /** Se true, a aba Financeiro aparece na área do parceiro (só fechamentos explicitamente enviados). */
+  podeVerFechamentos?: boolean;
+  /** Endereço do site do parceiro, usado no botão "Site" da área dele. */
+  siteUrl?: string | null;
 }
 
 export interface ParceiroUsuario {
@@ -214,6 +218,8 @@ export interface Fechamento {
   observacao?: string | null;
   criadoEm?: string;
   deletadoEm?: string | null;
+  /** Preenchido quando o admin libera este fechamento para consulta do parceiro. */
+  enviadoParceiroEm?: string | null;
 }
 
 export interface FechamentoItem {

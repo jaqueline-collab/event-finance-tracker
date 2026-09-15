@@ -6,6 +6,11 @@ export const painelParceiroSchema = z
   .optional()
   .default({});
 
+export const envioFechamentoSchema = z.object({
+  fechamentoId: z.string().uuid(),
+  enviar: z.boolean(),
+});
+
 export const concederAcessoSchema = z.object({
   parceiroId: z.string().min(1, "Parceiro obrigatório"),
   nome: z.string().min(1, "Nome obrigatório"),
