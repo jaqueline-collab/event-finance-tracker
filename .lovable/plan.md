@@ -62,6 +62,8 @@ Não, e por três barreiras somadas:
 - a leitura administrativa acontece só em função de servidor, e o retorno para a tela é **mascarado** (`••••últimos 4`) — a chave em claro nunca entra em nenhum payload;
 - a tela de cadastro é campo de escrita apenas: grava a chave nova, nunca recebe a existente.
 
+**O mascaramento tem atalho sem trava?** Não. Não existe endpoint separado para isso: a versão mascarada (`••••últimos 4`) é devolvida pela **mesma** função de servidor que gerencia a integração, e essa função passa primeiro por `requireSupabaseAuth` + `is_equipe_interna()` — a mesma trava descrita para todo o módulo. A credencial de serviço só é carregada depois dessa checagem; quem não é equipe interna é recusado antes de qualquer acesso à tabela. Não há outro caminho de leitura, porque a tabela não tem GRANT para logins comuns — todo retorno ao navegador sai necessariamente dessa função protegida.
+
 Ou seja: para a chave vazar seria preciso alguém adicionar, de propósito, um GRANT e uma policy novos — não há caminho acidental.
 
 **3) Com que permissão roda a função de leitura**
