@@ -94,7 +94,7 @@ Se você já tiver a documentação da API (endereços e campos de resposta), me
 
 - `src/routes/parceiro.tsx`: histórico migra para `Dialog` (shadcn), coluna `dataVencimento` sai da tabela, coluna LTV calculada com o mesmo cálculo em dias já usado nos cartões de resumo; `serieMensal` ganha `ativos` acumulados por mês (entradas acumuladas − saídas acumuladas até o mês) e o modo do gráfico entra no `searchSchema` como `grafico: "fluxo" | "ativos"`.
 - Sem mudança nas funções de servidor do parceiro para os itens 1–3; nenhum dado financeiro é tocado.
-- API Elora: migração com `elora_integracao_contas` (cliente_id, base_url, api_key, ativo, ultima_sync) e `elora_uso_snapshots` (cliente_id, data, uso jsonb, indicadores jsonb), ambas com GRANT e RLS somente para equipe interna; leitura via `createServerFn` em `src/lib/integracao-elora.functions.ts`, chave lida apenas dentro do handler.
+- API Elora: migração com `elora_integracao_contas` (cliente_id, base_url, api_key, ativo, ultima_sync) e `elora_uso_snapshots` (cliente_id, data, uso jsonb, indicadores jsonb), com os GRANTs e as policies nomeadas acima; leitura via `createServerFn` em `src/lib/integracao-elora.functions.ts`, com `requireSupabaseAuth` + `is_equipe_interna()` antes de qualquer uso de `supabaseAdmin`, e chave lida apenas dentro do handler.
 
 ## Validação
 
