@@ -82,6 +82,8 @@ Em dois passos, nunca um só:
   - `uso_snapshots_select_parceiro` — `FOR SELECT TO authenticated USING (public.parceiro_pode_ver_painel(cliente_id))`, ou seja, o parceiro só enxerga quando o cliente é dele **e** o controle "pode abrir o painel dos clientes" está ligado — mesma regra do painel.
 - Nenhuma policy de INSERT/UPDATE/DELETE para `authenticated`: gravação é exclusiva do processo de sincronização.
 
+**`cliente_do_usuario()` é nova ou já existe?** Já existe no banco, é `SECURITY DEFINER` e já é a peça oficial de vínculo: ela é usada hoje pela função `painel_cliente_dados` (a mesma que protege o painel do cliente) e por regras de acesso já em produção. Nada de novo é criado aqui — e o comportamento dela já está coberto indiretamente pelos testes de `painel-cliente-rls.test.ts`, que provam que um login de cliente só abre o próprio painel e é recusado nos demais. O teste novo desta etapa reaproveita a mesma massa descartável e cobre explicitamente: o cliente vê só os snapshots do próprio vínculo resolvido por `cliente_do_usuario()` e não vê os de outro cliente.
+
 Um teste automatizado, no mesmo formato do `painel-cliente-rls.test.ts`, confirma: parceiro com controle desligado não lê snapshot; com controle ligado lê só os clientes dele; cliente lê só os próprios; e a chave de API não aparece em nenhum retorno.
 
 ### O que fica para as próximas etapas
