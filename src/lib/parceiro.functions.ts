@@ -12,6 +12,7 @@ import {
   montarFechamentosParceiro,
   type FechamentoParceiro,
 } from "@/lib/parceiro.financeiro";
+import type { PlanoCalculadoraParceiro } from "@/lib/parceiro.calculadora";
 
 /**
  * Papel do usuário logado: equipe interna (admin/operacional) ou pessoa de parceiro.
@@ -198,6 +199,74 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
       clientes: clientesComValor,
       totalCarteira: clientesComValor.reduce((s, c) => s + (c.mensalidade || 0), 0),
     };
+  });
+
+/** Catálogo comercial da calculadora, restrito aos planos vinculados ao parceiro. */
+export const getPlanosCalculadoraParceiro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => painelParceiroSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const verComo = (data as { verComoParceiroId?: string } | undefined)?.verComoParceiroId;
+    let parceiroId: string;
+
+    if (verComo) {
+      const { data: interno } = await db.rpc("is_equipe_interna");
+      if (!interno) throw new Error("acesso-negado: modo de visualização é exclusivo da equipe interna.");
+      const { data: alvo, error: alvoErr } = await db
+        .from("elora_parceiros")
+        .select("id")
+        .eq("id", verComo)
+        .maybeSingle();
+      if (alvoErr) throw new Error(`parceiro: ${alvoErr.message}`);
+      if (!alvo?.id) throw new Error("calculadora: parceiro não encontrado.");
+      parceiroId = alvo.id as string;
+    } else {
+      await db.rpc("link_parceiro_usuario");
+      const { data: proprio } = await db.rpc("parceiro_do_usuario");
+      if (!proprio) throw new Error("acesso-parceiro: este login não está vinculado a nenhum parceiro.");
+      parceiroId = proprio as string;
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin as any)
+      .from("elora_planos")
+      .select(
+        "id, nome, cobranca, valor_mensal, valor_setup, canais_whats_inclusos, canais_insta_inclusos, canais_messenger_inclusos, usuarios_inclusos, contatos_inclusos, inclui_ia, inclui_asaas, inclui_zapi, inclui_transcricao, valor_canal_whats_exc, valor_canal_insta_exc, valor_canal_messenger_exc, valor_usuarios_exc, valor_contatos_exc, valor_ia, valor_asaas, valor_zapi, valor_transcricao_user, parceiro_ids",
+      )
+      .order("nome");
+    if (error) throw new Error(`calculadora-planos: ${error.message}`);
+
+    const vinculados = ((rows ?? []) as any[]).filter(
+      (r) => Array.isArray(r.parceiro_ids) && r.parceiro_ids.includes(parceiroId),
+    );
+    const planos: PlanoCalculadoraParceiro[] = vinculados.map((r) => ({
+      id: String(r.id),
+      nome: String(r.nome),
+      cobranca: r.cobranca === "unica" ? "unica" : "recorrente",
+      valorMensal: Number(r.valor_mensal ?? 0),
+      valorSetup: Number(r.valor_setup ?? 0),
+      canaisWhatsInclusos: Number(r.canais_whats_inclusos ?? 0),
+      canaisInstaInclusos: Number(r.canais_insta_inclusos ?? 0),
+      canaisMessengerInclusos: Number(r.canais_messenger_inclusos ?? 0),
+      usuariosInclusos: Number(r.usuarios_inclusos ?? 0),
+      contatosInclusos: Number(r.contatos_inclusos ?? 0),
+      incluiIA: Boolean(r.inclui_ia),
+      incluiAsaas: Boolean(r.inclui_asaas),
+      incluiZapi: Number(r.inclui_zapi ?? 0),
+      incluiTranscricao: Boolean(r.inclui_transcricao),
+      valorCanalWhatsExc: Number(r.valor_canal_whats_exc ?? 0),
+      valorCanalInstaExc: Number(r.valor_canal_insta_exc ?? 0),
+      valorCanalMessengerExc: Number(r.valor_canal_messenger_exc ?? 0),
+      valorUsuariosExc: Number(r.valor_usuarios_exc ?? 0),
+      valorContatosExc: Number(r.valor_contatos_exc ?? 0),
+      valorIA: Number(r.valor_ia ?? 0),
+      valorAsaas: Number(r.valor_asaas ?? 0),
+      valorZapi: Number(r.valor_zapi ?? 0),
+      valorTranscricaoUser: Number(r.valor_transcricao_user ?? 0),
+    }));
+
+    return { parceiroId, planos };
   });
 
 /** Lista de pessoas com acesso de parceiro (somente admin). */
