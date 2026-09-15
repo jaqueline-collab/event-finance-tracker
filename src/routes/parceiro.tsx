@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   getFinanceiroParceiro,
   getPainelParceiro,
@@ -130,6 +131,11 @@ function AreaParceiro() {
   const [status, setStatus] = useState<"todos" | "ativos" | "inativos">("todos");
   const [de, setDe] = useState(umAnoAtrasIso());
   const [ate, setAte] = useState(hojeIso());
+  const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHeaderActionsTarget(document.getElementById("app-header-actions"));
+  }, []);
 
   useEffect(() => {
     let cancelado = false;
@@ -259,36 +265,38 @@ function AreaParceiro() {
   const irPara = (proxima: "clientes" | "financeiro" | "calculadora") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
 
-  const topo = (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-      <span className="text-sm font-semibold">Elora Parceiros</span>
-      <div className="flex flex-wrap items-center justify-end gap-1">
+  const atalhosTopo = headerActionsTarget
+    ? createPortal(
+      <div className="flex items-center gap-1">
         {siteUrl && (
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" title="Site do parceiro" aria-label="Site do parceiro">
             <a
               href={siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Globe className="mr-2 h-4 w-4" /> Site
+              <Globe className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Site</span>
             </a>
           </Button>
         )}
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm" title="Elora App" aria-label="Elora App">
           <a href={APP_LOGIN_URL} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="mr-2 h-4 w-4" /> Elora App
+            <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Elora App</span>
           </a>
         </Button>
         <Button
           variant="ghost"
           size="sm"
+          title="Treinamento"
+          aria-label="Treinamento"
           onClick={() => toast.info("Treinamento: página em construção.")}
         >
-          <GraduationCap className="mr-2 h-4 w-4" /> Treinamento
+          <GraduationCap className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Treinamento</span>
         </Button>
-      </div>
-    </div>
-  );
+      </div>,
+      headerActionsTarget,
+    )
+    : null;
 
   const menu = (
     <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-label="Navegação da área do parceiro">
@@ -347,8 +355,8 @@ function AreaParceiro() {
 
   return (
     <div className="space-y-6">
+      {atalhosTopo}
       {banner}
-      {topo}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{dados?.parceiro.nome}</h1>
