@@ -285,6 +285,31 @@ export const alterarAcessoParceiro = createServerFn({ method: "POST" })
  * - a projeção é por LISTA BRANCA: custo, margem, lucro, WTS e desconto de escala
  *   nunca são lidos nem devolvidos.
  */
+type LinhaFechamentoParceiro = {
+  id: string;
+  clienteId: string;
+  clienteNome: string;
+  planoNome: string | null;
+  cicloInicio: string | null;
+  cicloFim: string | null;
+  vencimento: string | null;
+  valorBruto: number;
+  valorDesconto: number;
+  valorLiquido: number;
+  composicao: { label: string; total: number }[];
+};
+
+type FechamentoParceiro = {
+  id: string;
+  competencia: string;
+  titulo: string;
+  enviadoEm: string;
+  linhas: LinhaFechamentoParceiro[];
+  totalBruto: number;
+  totalDesconto: number;
+  totalLiquido: number;
+};
+
 export const getFinanceiroParceiro = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => painelParceiroSchema.parse(input ?? {}))
