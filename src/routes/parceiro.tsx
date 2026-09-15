@@ -466,7 +466,7 @@ function AreaParceiro() {
                         }}
                       />
                       <Legend />
-                      <Bar dataKey="entradas" name="Entradas" fill="var(--success)" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="entradas" name="Entradas" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
                       <Bar dataKey="saidas" name="Saídas" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -613,6 +613,190 @@ function AreaParceiro() {
             />
           )}
       </div>
+    </div>
+  );
+}
+
+const configuracaoInicial = (plano?: PlanoCalculadoraParceiro): ConfiguracaoCalculadoraParceiro => ({
+  usuarios: plano?.usuariosInclusos ?? 1,
+  contatos: plano?.contatosInclusos ?? 0,
+  canaisWhats: plano?.canaisWhatsInclusos ?? 0,
+  canaisInsta: plano?.canaisInstaInclusos ?? 0,
+  canaisMessenger: plano?.canaisMessengerInclusos ?? 0,
+  canaisZapi: plano?.incluiZapi ?? 0,
+  agentesIA: Boolean(plano?.incluiIA),
+  asaas: Boolean(plano?.incluiAsaas),
+  transcricaoIA: Boolean(plano?.incluiTranscricao),
+  acompanhamento: 0,
+});
+
+function CalculadoraParceiro({
+  carregando,
+  erro,
+  planos,
+}: {
+  carregando: boolean;
+  erro: string | null;
+  planos: PlanoCalculadoraParceiro[];
+}) {
+  const [planoId, setPlanoId] = useState("");
+  const plano = planos.find((p) => p.id === planoId) ?? planos[0];
+  const [config, setConfig] = useState<ConfiguracaoCalculadoraParceiro>(() => configuracaoInicial());
+
+  useEffect(() => {
+    if (!plano) return;
+    setPlanoId(plano.id);
+    setConfig(configuracaoInicial(plano));
+  }, [plano?.id]);
+
+  if (carregando) return <Skeleton className="h-96 w-full" />;
+  if (erro) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Não foi possível carregar a calculadora</AlertTitle>
+        <AlertDescription>{erro}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (!plano) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+          Nenhum plano está vinculado a este parceiro.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const resultado = calcularOrcamentoParceiro(plano, config);
+  const alterarNumero = (campo: keyof ConfiguracaoCalculadoraParceiro, valor: string) => {
+    const numero = Math.max(0, Number(valor) || 0);
+    setConfig((atual) => ({ ...atual, [campo]: numero }));
+  };
+
+  const camposQuantidade: { campo: keyof ConfiguracaoCalculadoraParceiro; label: string }[] = [
+    { campo: "usuarios", label: "Usuários" },
+    { campo: "contatos", label: "Contatos" },
+    { campo: "canaisWhats", label: "Canais WhatsApp" },
+    { campo: "canaisInsta", label: "Canais Instagram" },
+    { campo: "canaisMessenger", label: "Canais Messenger" },
+    { campo: "canaisZapi", label: "Canais Z-API" },
+  ];
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <Card>
+        <CardHeader>
+          <CardTitle>Calculadora de proposta</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Plano</Label>
+            <Select
+              value={plano.id}
+              onValueChange={(id) => {
+                const escolhido = planos.find((p) => p.id === id);
+                if (!escolhido) return;
+                setPlanoId(escolhido.id);
+                setConfig(configuracaoInicial(escolhido));
+              }}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {camposQuantidade.map(({ campo, label }) => (
+              <div key={campo} className="space-y-2">
+                <Label htmlFor={`calc-${campo}`}>{label}</Label>
+                <Input
+                  id={`calc-${campo}`}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={String(config[campo])}
+                  onChange={(e) => alterarNumero(campo, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([
+              ["agentesIA", "Agentes de IA"],
+              ["asaas", "Integração Asaas"],
+              ["transcricaoIA", "Transcrição IA"],
+            ] as const).map(([campo, label]) => (
+              <label key={campo} className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm">
+                <span>{label}</span>
+                <Switch
+                  checked={config[campo]}
+                  onCheckedChange={(checked) => setConfig((atual) => ({ ...atual, [campo]: checked }))}
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="max-w-xs space-y-2">
+            <Label htmlFor="calc-acompanhamento">Acompanhamento mensal</Label>
+            <Input
+              id="calc-acompanhamento"
+              type="number"
+              min="0"
+              step="0.01"
+              value={String(config.acompanhamento)}
+              onChange={(e) => alterarNumero("acompanhamento", e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="h-fit lg:sticky lg:top-6">
+        <CardHeader>
+          <CardTitle className="text-base">Resumo da proposta</CardTitle>
+          <p className="text-sm text-muted-foreground">{plano.nome}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md bg-muted p-3">
+              <p className="text-xs text-muted-foreground">Setup</p>
+              <p className="mt-1 font-semibold tabular-nums">{brl(plano.valorSetup)}</p>
+            </div>
+            <div className="rounded-md bg-muted p-3">
+              <p className="text-xs text-muted-foreground">Mensalidade base</p>
+              <p className="mt-1 font-semibold tabular-nums">{brl(plano.valorMensal)}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-sm">
+            {resultado.itens.map((item, indice) => (
+              <div key={`${item.label}-${indice}`} className="flex items-start justify-between gap-4 border-b border-border/60 pb-2">
+                <div>
+                  <p>{item.label.startsWith("Licença base") ? "Mensalidade base" : item.label}</p>
+                  {item.incluso && <p className="text-xs text-muted-foreground">{item.incluso}</p>}
+                  {item.qtd > 1 && <p className="text-xs text-muted-foreground">{item.qtd} × {brl(item.unit)}</p>}
+                </div>
+                <span className="shrink-0 tabular-nums">{brl(item.total)}</span>
+              </div>
+            ))}
+            {resultado.acompanhamento > 0 && (
+              <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+                <span>Acompanhamento</span>
+                <span className="tabular-nums">{brl(resultado.acompanhamento)}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-end justify-between gap-4 border-t border-border pt-4">
+            <span className="font-medium">Total mensal estimado</span>
+            <span className="text-2xl font-semibold tabular-nums">{brl(resultado.total)}</span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
