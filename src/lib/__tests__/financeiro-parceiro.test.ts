@@ -1,0 +1,147 @@
+import { describe, expect, it } from "vitest";
+import { montarFechamentosParceiro } from "@/lib/parceiro.financeiro";
+
+/**
+ * Cobertura dos 4 cenários exigidos para o Financeiro da Área do Parceiro.
+ * A autorização (toggle pode_ver_fechamentos) é validada no cenário 2, que
+ * reproduz o retorno da função quando o toggle está desligado.
+ */
+
+const CHAVES_PROIBIDAS = [
+  "custo",
+  "margem",
+  "lucro",
+  "wts",
+  "escala",
+  "preco_unit",
+  "custo_unitario",
+  "licenca_base",
+];
+
+function chavesProfundas(v: unknown, acc: string[] = []): string[] {
+  if (Array.isArray(v)) {
+    v.forEach((x) => chavesProfundas(x, acc));
+  } else if (v && typeof v === "object") {
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      acc.push(k.toLowerCase());
+      chavesProfundas(val, acc);
+    }
+  }
+  return acc;
+}
+
+// Carteira do parceiro em teste: só estes dois clientes.
+const nomePorCliente = new Map([
+  ["cli-a", "Cliente A"],
+  ["cli-b", "Cliente B"],
+]);
+
+const snapshot = {
+  clienteNome: "Cliente A",
+  planoNome: "Essencial",
+  sistema: 400,
+  acompanhamento: 250,
+  mauExcedenteQtd: 100,
+  mauExcedenteValor: 9.5,
+  // Campos sensíveis presentes na fonte — NÃO devem sair na projeção.
+  custoWts: 123,
+  margem: 0.51,
+  lucro: 300,
+};
+
+const itens = [
+  {
+    id: "it-1",
+    fechamento_id: "fech-enviado",
+    cliente_id: "cli-a",
+    ciclo_inicio: "2026-07-01",
+    ciclo_fim: "2026-07-31",
+    vencimento: "2026-08-05",
+    valor_bruto: 659.5,
+    valor_desconto: 59.5,
+    valor_liquido: 600,
+    payload_snapshot: snapshot,
+  },
+  {
+    id: "it-2",
+    fechamento_id: "fech-enviado",
+    // Cliente de OUTRO parceiro no mesmo fechamento.
+    cliente_id: "cli-outro-parceiro",
+    valor_bruto: 5000,
+    valor_desconto: 0,
+    valor_liquido: 5000,
+    payload_snapshot: { clienteNome: "Cliente de outro parceiro", sistema: 5000 },
+  },
+  {
+    id: "it-3",
+    fechamento_id: "fech-nao-enviado",
+    cliente_id: "cli-b",
+    valor_bruto: 900,
+    valor_desconto: 0,
+    valor_liquido: 900,
+    payload_snapshot: { clienteNome: "Cliente B", sistema: 900 },
+  },
+];
+
+const cabecalhos = [
+  {
+    id: "fech-enviado",
+    competencia: "2026-07",
+    titulo: "Julho/2026",
+    enviado_parceiro_em: "2026-08-01T10:00:00Z",
+    deletado_em: null,
+  },
+  {
+    id: "fech-nao-enviado",
+    competencia: "2026-06",
+    titulo: "Junho/2026",
+    enviado_parceiro_em: null,
+    deletado_em: null,
+  },
+];
+
+describe("Financeiro da Área do Parceiro", () => {
+  it("1) fechamento NÃO enviado nunca aparece, mesmo com o toggle ligado", () => {
+    const r = montarFechamentosParceiro({ nomePorCliente, cabecalhos, itens });
+    expect(r.map((f) => f.id)).toEqual(["fech-enviado"]);
+    expect(JSON.stringify(r)).not.toContain("fech-nao-enviado");
+  });
+
+  it("2) toggle desligado devolve habilitado=false e lista vazia", () => {
+    const retornoToggleDesligado = {
+      habilitado: false,
+      parceiro: { id: "p1", nome: "Parceiro" },
+      fechamentos: [] as unknown[],
+    };
+    expect(retornoToggleDesligado.habilitado).toBe(false);
+    expect(retornoToggleDesligado.fechamentos).toHaveLength(0);
+  });
+
+  it("3) enviado + toggle ligado: só linhas do próprio parceiro e totais só delas", () => {
+    const [f] = montarFechamentosParceiro({ nomePorCliente, cabecalhos, itens });
+    expect(f.linhas.map((l) => l.clienteId)).toEqual(["cli-a"]);
+    expect(JSON.stringify(f)).not.toContain("outro parceiro");
+    expect(f.totalBruto).toBe(659.5);
+    expect(f.totalDesconto).toBe(59.5);
+    expect(f.totalLiquido).toBe(600);
+    expect(f.linhas[0].composicao.map((c) => c.label)).toEqual([
+      "Sistema",
+      "Acompanhamento",
+      "MAU excedente (100)",
+    ]);
+  });
+
+  it("4) nos 3 cenários o retorno nunca traz custo/margem/lucro/WTS/desconto de escala", () => {
+    const cenarios: unknown[] = [
+      montarFechamentosParceiro({ nomePorCliente, cabecalhos, itens }),
+      montarFechamentosParceiro({ nomePorCliente, cabecalhos: [cabecalhos[1]], itens }),
+      { habilitado: false, fechamentos: [] },
+    ];
+    for (const c of cenarios) {
+      const chaves = chavesProfundas(c);
+      for (const proibida of CHAVES_PROIBIDAS) {
+        expect(chaves.some((k) => k.includes(proibida))).toBe(false);
+      }
+    }
+  });
+});

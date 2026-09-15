@@ -8,6 +8,10 @@ import {
   painelParceiroSchema,
   toggleAcessoSchema,
 } from "@/lib/parceiro.schemas";
+import {
+  montarFechamentosParceiro,
+  type FechamentoParceiro,
+} from "@/lib/parceiro.financeiro";
 
 /**
  * Papel do usuário logado: equipe interna (admin/operacional) ou pessoa de parceiro.
