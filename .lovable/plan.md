@@ -62,6 +62,8 @@ Não, e por três barreiras somadas:
 - a leitura administrativa acontece só em função de servidor, e o retorno para a tela é **mascarado** (`••••últimos 4`) — a chave em claro nunca entra em nenhum payload;
 - a tela de cadastro é campo de escrita apenas: grava a chave nova, nunca recebe a existente.
 
+**O mascaramento tem atalho sem trava?** Não. Não existe endpoint separado para isso: a versão mascarada (`••••últimos 4`) é devolvida pela **mesma** função de servidor que gerencia a integração, e essa função passa primeiro por `requireSupabaseAuth` + `is_equipe_interna()` — a mesma trava descrita para todo o módulo. A credencial de serviço só é carregada depois dessa checagem; quem não é equipe interna é recusado antes de qualquer acesso à tabela. Não há outro caminho de leitura, porque a tabela não tem GRANT para logins comuns — todo retorno ao navegador sai necessariamente dessa função protegida.
+
 Ou seja: para a chave vazar seria preciso alguém adicionar, de propósito, um GRANT e uma policy novos — não há caminho acidental.
 
 **3) Com que permissão roda a função de leitura**
@@ -79,6 +81,8 @@ Em dois passos, nunca um só:
   - `uso_snapshots_select_cliente` — `FOR SELECT TO authenticated USING (cliente_id = public.cliente_do_usuario())`
   - `uso_snapshots_select_parceiro` — `FOR SELECT TO authenticated USING (public.parceiro_pode_ver_painel(cliente_id))`, ou seja, o parceiro só enxerga quando o cliente é dele **e** o controle "pode abrir o painel dos clientes" está ligado — mesma regra do painel.
 - Nenhuma policy de INSERT/UPDATE/DELETE para `authenticated`: gravação é exclusiva do processo de sincronização.
+
+**`cliente_do_usuario()` é nova ou já existe?** Já existe no banco, é `SECURITY DEFINER` e já é a peça oficial de vínculo: ela é usada hoje pela função `painel_cliente_dados` (a mesma que protege o painel do cliente) e por regras de acesso já em produção. Nada de novo é criado aqui — e o comportamento dela já está coberto indiretamente pelos testes de `painel-cliente-rls.test.ts`, que provam que um login de cliente só abre o próprio painel e é recusado nos demais. O teste novo desta etapa reaproveita a mesma massa descartável e cobre explicitamente: o cliente vê só os snapshots do próprio vínculo resolvido por `cliente_do_usuario()` e não vê os de outro cliente.
 
 Um teste automatizado, no mesmo formato do `painel-cliente-rls.test.ts`, confirma: parceiro com controle desligado não lê snapshot; com controle ligado lê só os clientes dele; cliente lê só os próprios; e a chave de API não aparece em nenhum retorno.
 
