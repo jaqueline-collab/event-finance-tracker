@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { IntegracaoElora } from "@/components/integracao-elora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1185,6 +1186,7 @@ function ClientesPage() {
                 
                 <div className="space-y-6 py-6">
                   <AcessosCliente clienteId={cliente.id} />
+                  <IntegracaoElora clienteId={cliente.id} />
 
                   {/* Resumo do Cliente */}
                   <div>
