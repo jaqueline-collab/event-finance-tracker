@@ -259,6 +259,11 @@ function RootComponent() {
                     ? "Elora · Área do parceiro"
                     : "Elora · Controle financeiro"}
               </div>
+              <div
+                id="app-header-actions"
+                className="flex shrink-0 items-center gap-1"
+                aria-label="Atalhos da área atual"
+              />
               <ThemeToggle />
               <NotificationBell />
               <HeaderUserMenu email={session.user.email ?? null} />
