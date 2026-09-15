@@ -377,57 +377,12 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
     if (fechRes.error) throw new Error(`fechamentos: ${fechRes.error.message}`);
 
     const cabecalhos = (fechRes.data ?? []) as any[];
-    const permitidos = new Set(cabecalhos.map((f) => f.id as string));
 
-    const composicaoDe = (snapshot: unknown) => {
-      const s = (snapshot ?? {}) as Record<string, unknown>;
-      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-      const linhas: { label: string; total: number }[] = [];
-      const sistema = num(s["sistema"]);
-      const acompanhamento = num(s["acompanhamento"]);
-      const mauQtd = num(s["mauExcedenteQtd"]);
-      const mauValor = num(s["mauExcedenteValor"]);
-      if (sistema) linhas.push({ label: "Sistema", total: sistema });
-      if (acompanhamento) linhas.push({ label: "Acompanhamento", total: acompanhamento });
-      if (mauValor) linhas.push({ label: `MAU excedente (${mauQtd})`, total: mauValor });
-      return linhas;
-    };
-
-    const fechamentos = cabecalhos
-      .map((f) => {
-        const linhas = itensRows
-          .filter((i) => i.fechamento_id === f.id && nomePorCliente.has(i.cliente_id as string))
-          .map((i) => {
-            const snap = (i.payload_snapshot ?? {}) as Record<string, unknown>;
-            return {
-              id: i.id as string,
-              clienteId: i.cliente_id as string,
-              clienteNome: nomePorCliente.get(i.cliente_id as string) ?? "—",
-              planoNome: (snap["planoNome"] as string | null) ?? null,
-              cicloInicio: (i.ciclo_inicio as string | null) ?? null,
-              cicloFim: (i.ciclo_fim as string | null) ?? null,
-              vencimento: (i.vencimento as string | null) ?? null,
-              valorBruto: Number(i.valor_bruto ?? 0),
-              valorDesconto: Number(i.valor_desconto ?? 0),
-              valorLiquido: Number(i.valor_liquido ?? 0),
-              composicao: composicaoDe(snap),
-            };
-          })
-          .sort((a, b) => a.clienteNome.localeCompare(b.clienteNome, "pt-BR"));
-        return {
-          id: f.id as string,
-          competencia: f.competencia as string,
-          titulo: f.titulo as string,
-          enviadoEm: f.enviado_parceiro_em as string,
-          linhas,
-          // Totais somados SÓ sobre as linhas deste parceiro.
-          totalBruto: linhas.reduce((s, l) => s + l.valorBruto, 0),
-          totalDesconto: linhas.reduce((s, l) => s + l.valorDesconto, 0),
-          totalLiquido: linhas.reduce((s, l) => s + l.valorLiquido, 0),
-        };
-      })
-      .filter((f) => permitidos.has(f.id) && f.linhas.length > 0)
-      .sort((a, b) => b.competencia.localeCompare(a.competencia));
+    const fechamentos = montarFechamentosParceiro({
+      nomePorCliente,
+      cabecalhos,
+      itens: itensRows as Record<string, unknown>[],
+    });
 
     return {
       habilitado: true,
