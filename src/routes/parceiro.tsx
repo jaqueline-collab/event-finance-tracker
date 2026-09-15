@@ -29,6 +29,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -61,6 +67,7 @@ import {
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
   aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
+  grafico: fallback(z.enum(["fluxo", "ativos"]), "fluxo").default("fluxo"),
 });
 
 export const Route = createFileRoute("/parceiro")({
@@ -106,12 +113,20 @@ const mediana = (valores: number[]) => {
   return ord.length % 2 === 0 ? (ord[meio - 1] + ord[meio]) / 2 : ord[meio];
 };
 
+/** Tempo de vida em dias: do setup até hoje (ativo) ou até o churn. */
+const ltvDias = (c: { dataInicio?: string | null; dataChurn?: string | null }) => {
+  if (!c.dataInicio) return null;
+  const inicio = new Date(`${c.dataInicio}T12:00:00`).getTime();
+  const fim = new Date(`${c.dataChurn ?? hojeIso()}T12:00:00`).getTime();
+  return Math.max(0, Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)));
+};
+
 type PainelData = Awaited<ReturnType<typeof getPainelParceiro>>;
 type FinanceiroData = Awaited<ReturnType<typeof getFinanceiroParceiro>>;
 type CalculadoraData = Awaited<ReturnType<typeof getPlanosCalculadoraParceiro>>;
 
 function AreaParceiro() {
-  const { como, aba } = Route.useSearch();
+  const { como, aba, grafico } = Route.useSearch();
   const navigate = Route.useNavigate();
   const modoAdmin = como.trim().length > 0;
   const [dados, setDados] = useState<PainelData | null>(null);
@@ -221,12 +236,7 @@ function AreaParceiro() {
     const saidas = base.filter((c) => noPeriodo(c.dataChurn)).length;
 
     const ltvs = base
-      .map((c) => {
-        if (!c.dataInicio) return null;
-        const inicio = new Date(`${c.dataInicio}T12:00:00`).getTime();
-        const fim = new Date(`${c.dataChurn ?? hojeIso()}T12:00:00`).getTime();
-        return Math.max(0, Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)));
-      })
+      .map((c) => ltvDias(c))
       .filter((v): v is number => v !== null);
 
     return {
@@ -240,15 +250,20 @@ function AreaParceiro() {
   }, [clientesFiltrados, de, ate]);
 
   const serieMensal = useMemo(() => {
-    if (!de || !ate || de > ate) return [] as { mes: string; entradas: number; saidas: number }[];
-    const mapa = new Map<string, { mes: string; entradas: number; saidas: number }>();
+    if (!de || !ate || de > ate)
+      return [] as { mes: string; entradas: number; saidas: number; ativos: number }[];
+    const mapa = new Map<string, { mes: string; entradas: number; saidas: number; ativos: number }>();
     const cursor = new Date(`${de.slice(0, 7)}-01T12:00:00`);
     const limite = new Date(`${ate.slice(0, 7)}-01T12:00:00`);
     while (cursor <= limite) {
       const chave = cursor.toISOString().slice(0, 7);
-      mapa.set(chave, { mes: mesLabel(chave), entradas: 0, saidas: 0 });
+      mapa.set(chave, { mes: mesLabel(chave), entradas: 0, saidas: 0, ativos: 0 });
       cursor.setMonth(cursor.getMonth() + 1);
     }
+    // Clientes que já existiam antes do início do período abrem o acumulado.
+    let acumulado = clientesFiltrados.filter(
+      (c) => c.dataInicio && c.dataInicio.slice(0, 7) < de.slice(0, 7),
+    ).length;
     for (const c of clientesFiltrados) {
       if (noPeriodo(c.dataInicio)) {
         const k = mapa.get((c.dataInicio ?? "").slice(0, 7));
@@ -258,6 +273,15 @@ function AreaParceiro() {
         const k = mapa.get((c.dataChurn ?? "").slice(0, 7));
         if (k) k.saidas += 1;
       }
+      // Desconta do acumulado inicial quem já tinha saído antes do período.
+      if (c.dataInicio && c.dataInicio.slice(0, 7) < de.slice(0, 7) && c.dataChurn && c.dataChurn.slice(0, 7) < de.slice(0, 7)) {
+        acumulado -= 1;
+      }
+    }
+    acumulado = Math.max(0, acumulado);
+    for (const mes of mapa.values()) {
+      acumulado += mes.entradas - mes.saidas;
+      mes.ativos = acumulado;
     }
     return [...mapa.values()];
   }, [clientesFiltrados, de, ate]);
@@ -457,7 +481,24 @@ function AreaParceiro() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Entradas e saídas por mês</CardTitle>
+                  <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Visão do gráfico">
+                    {([
+                      ["fluxo", "Entradas e saídas"],
+                      ["ativos", "Ativos no mês"],
+                    ] as const).map(([modo, rotulo]) => (
+                      <Button
+                        key={modo}
+                        size="sm"
+                        role="tab"
+                        aria-selected={grafico === modo}
+                        variant={grafico === modo ? "secondary" : "ghost"}
+                        onClick={() => navigate({ search: (s: any) => ({ ...s, grafico: modo }) })}
+                      >
+                        {rotulo}
+                      </Button>
+                    ))}
+                    <span className="ml-auto text-xs text-muted-foreground">por mês</span>
+                  </div>
                 </CardHeader>
                 <CardContent className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
@@ -474,8 +515,17 @@ function AreaParceiro() {
                         }}
                       />
                       <Legend />
-                      <Bar dataKey="entradas" name="Entradas" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
-                      <Bar dataKey="saidas" name="Saídas" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
+                      {grafico === "fluxo" ? (
+                        <>
+                          <Bar dataKey="entradas" name="Entradas" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="saidas" name="Saídas" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
+                        </>
+                      ) : (
+                        <>
+                          <Bar dataKey="ativos" name="Clientes ativos" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="saidas" name="Saídas no mês" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
+                        </>
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -493,7 +543,7 @@ function AreaParceiro() {
                         <TableHead>Plano</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Setup</TableHead>
-                        <TableHead>Vencimento</TableHead>
+                        <TableHead>LTV</TableHead>
                         <TableHead>Churn</TableHead>
                         {veValores && <TableHead className="text-right">Mensalidade</TableHead>}
                         {podeVerPainel && <TableHead className="text-right">Painel</TableHead>}
@@ -514,7 +564,7 @@ function AreaParceiro() {
                         <TableRow
                           key={c.id}
                           className="cursor-pointer"
-                          onClick={() => setAberto(aberto === c.id ? null : c.id)}
+                          onClick={() => setAberto(c.id)}
                         >
                           <TableCell className="font-medium">{c.nome}</TableCell>
                           <TableCell>{c.plano}</TableCell>
@@ -524,7 +574,7 @@ function AreaParceiro() {
                             </Badge>
                           </TableCell>
                           <TableCell>{dataBr(c.dataInicio)}</TableCell>
-                          <TableCell>{dataBr(c.dataVencimento)}</TableCell>
+                          <TableCell>{(() => { const d = ltvDias(c); return d === null ? "—" : `${d} dias`; })()}</TableCell>
                           <TableCell>{dataBr(c.dataChurn)}</TableCell>
                           {veValores && (
                             <TableCell className="text-right">
@@ -547,16 +597,16 @@ function AreaParceiro() {
                 </CardContent>
               </Card>
 
-              {aberto && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">
+              <Dialog open={!!aberto} onOpenChange={(open) => !open && setAberto(null)}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">
                       Histórico · {clientes.find((c) => c.id === aberto)?.nome}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
                     <ol className="space-y-2 text-sm">
-                      {movimentos.filter((m) => m.clienteId === aberto).length === 0 && (
+                      {aberto && movimentos.filter((m) => m.clienteId === aberto).length === 0 && (
                         <li className="text-muted-foreground">Sem movimentos registrados.</li>
                       )}
                       {movimentos
@@ -582,7 +632,7 @@ function AreaParceiro() {
                         ))}
                     </ol>
 
-                    {veValores && (
+                    {veValores && aberto && (
                       <div className="rounded-md border border-border/60 p-3">
                         <p className="text-xs font-medium text-muted-foreground mb-2">Composição cobrada</p>
                         <ul className="space-y-1 text-sm">
@@ -601,9 +651,9 @@ function AreaParceiro() {
                         </ul>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              )}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </>
           ) : aba === "financeiro" ? (
             <FinanceiroParceiro

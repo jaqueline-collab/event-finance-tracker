@@ -43,6 +43,13 @@
       "when": 1789430007091,
       "tag": "0005_parceiro_financeiro_acesso",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789510531201,
+      "tag": "0006_integracao_elora_contas_e_snapshots",
+      "breakpoints": true
     }
   ]
 }

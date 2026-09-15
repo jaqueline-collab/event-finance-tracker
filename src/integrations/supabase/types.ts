@@ -503,6 +503,53 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_integracao_contas: {
+        Row: {
+          api_key: string
+          ativo: boolean
+          base_url: string
+          cliente_id: string
+          created_at: string
+          criado_por: string | null
+          id: string
+          ultima_sync: string | null
+          ultimo_erro: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_key: string
+          ativo?: boolean
+          base_url: string
+          cliente_id: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          ultima_sync?: string | null
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string
+          ativo?: boolean
+          base_url?: string
+          cliente_id?: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          ultima_sync?: string | null
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_integracao_contas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_kanban_cards: {
         Row: {
           cliente: string | null
@@ -1013,6 +1060,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      elora_uso_snapshots: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          data: string
+          id: string
+          indicadores: Json
+          uso: Json
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          data: string
+          id?: string
+          indicadores?: Json
+          uso?: Json
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          data?: string
+          id?: string
+          indicadores?: Json
+          uso?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_uso_snapshots_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       perfis: {
         Row: {
