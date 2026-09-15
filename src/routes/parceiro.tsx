@@ -2,13 +2,24 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useEffect, useMemo, useState } from "react";
-import { getFinanceiroParceiro, getPainelParceiro } from "@/lib/parceiro.functions";
+import {
+  getFinanceiroParceiro,
+  getPainelParceiro,
+  getPlanosCalculadoraParceiro,
+} from "@/lib/parceiro.functions";
+import {
+  calcularOrcamentoParceiro,
+  type ConfiguracaoCalculadoraParceiro,
+  type PlanoCalculadoraParceiro,
+} from "@/lib/parceiro.calculadora";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -39,6 +50,7 @@ import {
   Eye,
   GraduationCap,
   Globe,
+  Calculator,
   LayoutGrid,
   Receipt,
   Users,
@@ -47,7 +59,7 @@ import {
 
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
-  aba: fallback(z.enum(["clientes", "financeiro"]), "clientes").default("clientes"),
+  aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
 });
 
 export const Route = createFileRoute("/parceiro")({
@@ -95,6 +107,7 @@ const mediana = (valores: number[]) => {
 
 type PainelData = Awaited<ReturnType<typeof getPainelParceiro>>;
 type FinanceiroData = Awaited<ReturnType<typeof getFinanceiroParceiro>>;
+type CalculadoraData = Awaited<ReturnType<typeof getPlanosCalculadoraParceiro>>;
 
 function AreaParceiro() {
   const { como, aba } = Route.useSearch();
@@ -109,6 +122,9 @@ function AreaParceiro() {
   const [carregandoFin, setCarregandoFin] = useState(false);
   const [erroFin, setErroFin] = useState<string | null>(null);
   const [fechAberto, setFechAberto] = useState<string | null>(null);
+  const [calculadora, setCalculadora] = useState<CalculadoraData | null>(null);
+  const [carregandoCalc, setCarregandoCalc] = useState(false);
+  const [erroCalc, setErroCalc] = useState<string | null>(null);
 
   const [busca, setBusca] = useState("");
   const [status, setStatus] = useState<"todos" | "ativos" | "inativos">("todos");
@@ -143,6 +159,20 @@ function AreaParceiro() {
       cancelado = true;
     };
   }, [aba, como, modoAdmin, podeVerFechamentos]);
+
+  useEffect(() => {
+    if (aba !== "calculadora") return;
+    let cancelado = false;
+    setCarregandoCalc(true);
+    setErroCalc(null);
+    getPlanosCalculadoraParceiro({ data: modoAdmin ? { verComoParceiroId: como.trim() } : {} })
+      .then((r) => !cancelado && setCalculadora(r))
+      .catch((e) => !cancelado && setErroCalc(e instanceof Error ? e.message : String(e)))
+      .finally(() => !cancelado && setCarregandoCalc(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [aba, como, modoAdmin]);
 
   const banner = modoAdmin ? (
     <div className="sticky top-0 z-40 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-3 backdrop-blur">
@@ -184,18 +214,14 @@ function AreaParceiro() {
     const entradas = base.filter((c) => noPeriodo(c.dataInicio)).length;
     const saidas = base.filter((c) => noPeriodo(c.dataChurn)).length;
 
-    const ltvs = veValores
-      ? base
-          .map((c) => {
-            const mensal = Number((c as any).mensalidade ?? 0);
-            if (!mensal || !c.dataInicio) return null;
-            const inicio = new Date(`${c.dataInicio}T12:00:00`).getTime();
-            const fim = new Date(`${c.dataChurn ?? hojeIso()}T12:00:00`).getTime();
-            const meses = Math.max(1, (fim - inicio) / (1000 * 60 * 60 * 24 * 30.44));
-            return mensal * meses;
-          })
-          .filter((v): v is number => v !== null)
-      : [];
+    const ltvs = base
+      .map((c) => {
+        if (!c.dataInicio) return null;
+        const inicio = new Date(`${c.dataInicio}T12:00:00`).getTime();
+        const fim = new Date(`${c.dataChurn ?? hojeIso()}T12:00:00`).getTime();
+        return Math.max(0, Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)));
+      })
+      .filter((v): v is number => v !== null);
 
     return {
       ativos,
@@ -205,7 +231,7 @@ function AreaParceiro() {
       ltvMediana: mediana(ltvs),
       temLtv: ltvs.length > 0,
     };
-  }, [clientesFiltrados, de, ate, veValores]);
+  }, [clientesFiltrados, de, ate]);
 
   const serieMensal = useMemo(() => {
     if (!de || !ate || de > ate) return [] as { mes: string; entradas: number; saidas: number }[];
@@ -230,39 +256,42 @@ function AreaParceiro() {
     return [...mapa.values()];
   }, [clientesFiltrados, de, ate]);
 
-  const irPara = (proxima: "clientes" | "financeiro") =>
+  const irPara = (proxima: "clientes" | "financeiro" | "calculadora") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
 
   const topo = (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border/60 pb-3">
-      {siteUrl && (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+      <span className="text-sm font-semibold">Elora Parceiros</span>
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        {siteUrl && (
+          <Button asChild variant="ghost" size="sm">
+            <a
+              href={siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Globe className="mr-2 h-4 w-4" /> Site
+            </a>
+          </Button>
+        )}
         <Button asChild variant="ghost" size="sm">
-          <a
-            href={siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Globe className="mr-2 h-4 w-4" /> Site
+          <a href={APP_LOGIN_URL} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="mr-2 h-4 w-4" /> Elora App
           </a>
         </Button>
-      )}
-      <Button asChild variant="ghost" size="sm">
-        <a href={APP_LOGIN_URL} target="_blank" rel="noopener noreferrer">
-          <ExternalLink className="mr-2 h-4 w-4" /> Elora App
-        </a>
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => toast.info("Treinamento: página em construção.")}
-      >
-        <GraduationCap className="mr-2 h-4 w-4" /> Treinamento
-      </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => toast.info("Treinamento: página em construção.")}
+        >
+          <GraduationCap className="mr-2 h-4 w-4" /> Treinamento
+        </Button>
+      </div>
     </div>
   );
 
   const menu = (
-    <nav className="flex gap-2 sm:w-48 sm:flex-col sm:gap-1">
+    <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-label="Navegação da área do parceiro">
       <Button
         variant={aba === "clientes" ? "secondary" : "ghost"}
         size="sm"
@@ -281,6 +310,14 @@ function AreaParceiro() {
           <Receipt className="mr-2 h-4 w-4" /> Financeiro
         </Button>
       )}
+      <Button
+        variant={aba === "calculadora" ? "secondary" : "ghost"}
+        size="sm"
+        className="justify-start"
+        onClick={() => irPara("calculadora")}
+      >
+        <Calculator className="mr-2 h-4 w-4" /> Calculadora
+      </Button>
     </nav>
   );
 
@@ -312,17 +349,17 @@ function AreaParceiro() {
     <div className="space-y-6">
       {banner}
       {topo}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{dados?.parceiro.nome}</h1>
-        <p className="text-sm text-muted-foreground">
-          {modoAdmin ? "Clientes vinculados a este parceiro" : "Clientes vinculados à sua parceria"}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{dados?.parceiro.nome}</h1>
+          <p className="text-sm text-muted-foreground">
+            {modoAdmin ? "Visualização administrativa somente leitura" : "Gestão da sua parceria"}
+          </p>
+        </div>
+        {menu}
       </div>
 
-      <div className="flex flex-col gap-6 sm:flex-row">
-        {menu}
-
-        <div className="min-w-0 flex-1 space-y-6">
+      <div className="min-w-0 space-y-6">
           {aba === "clientes" ? (
             <>
               <Card>
@@ -379,19 +416,19 @@ function AreaParceiro() {
                   </CardHeader>
                   <CardContent className="text-2xl font-semibold">{resumo.saidas}</CardContent>
                 </Card>
-                {veValores && resumo.temLtv && (
+                {resumo.temLtv && (
                   <>
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xs font-medium text-muted-foreground">LTV média</CardTitle>
                       </CardHeader>
-                      <CardContent className="text-2xl font-semibold">{brl(resumo.ltvMedia)}</CardContent>
+                      <CardContent className="text-2xl font-semibold">{Math.round(resumo.ltvMedia)} dias</CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xs font-medium text-muted-foreground">LTV mediana</CardTitle>
                       </CardHeader>
-                      <CardContent className="text-2xl font-semibold">{brl(resumo.ltvMediana)}</CardContent>
+                      <CardContent className="text-2xl font-semibold">{Math.round(resumo.ltvMediana)} dias</CardContent>
                     </Card>
                   </>
                 )}
@@ -414,16 +451,23 @@ function AreaParceiro() {
                 <CardHeader>
                   <CardTitle className="text-base">Entradas e saídas por mês</CardTitle>
                 </CardHeader>
-                <CardContent className="h-64">
+                <CardContent className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={serieMensal}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-                      <XAxis dataKey="mes" fontSize={11} />
-                      <YAxis allowDecimals={false} fontSize={11} />
-                      <Tooltip />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
+                      <YAxis allowDecimals={false} stroke="var(--muted-foreground)" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--popover)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          color: "var(--foreground)",
+                        }}
+                      />
                       <Legend />
-                      <Bar dataKey="entradas" name="Entradas" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-                      <Bar dataKey="saidas" name="Saídas" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="entradas" name="Entradas" fill="var(--success)" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="saidas" name="Saídas" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -553,7 +597,7 @@ function AreaParceiro() {
                 </Card>
               )}
             </>
-          ) : (
+          ) : aba === "financeiro" ? (
             <FinanceiroParceiro
               carregando={carregandoFin}
               erro={erroFin}
@@ -561,8 +605,13 @@ function AreaParceiro() {
               fechAberto={fechAberto}
               setFechAberto={setFechAberto}
             />
+          ) : (
+            <CalculadoraParceiro
+              carregando={carregandoCalc}
+              erro={erroCalc}
+              planos={calculadora?.planos ?? []}
+            />
           )}
-        </div>
       </div>
     </div>
   );
