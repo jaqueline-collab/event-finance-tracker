@@ -315,7 +315,7 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
     const vazio = {
       habilitado: false as boolean,
       parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
-      fechamentos: [] as unknown[],
+      fechamentos: [] as FechamentoParceiro[],
     };
     if (!parc.pode_ver_fechamentos) return vazio;
 
