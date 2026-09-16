@@ -31,8 +31,6 @@ type IntegracaoVisivel = {
   chaveMascarada: string | null;
   campoProcedimentoKey: string | null;
   campoDataConsultaKey: string | null;
-  classificacaoConsultaAgendada: string | null;
-  classificacaoProcedimentoVendido: string | null;
   filtros: FiltrosElora;
   retomadaPendente: boolean;
   ultimaSync: string | null;
@@ -83,8 +81,6 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
         chaveMascarada: null,
         campoProcedimentoKey: null,
         campoDataConsultaKey: null,
-        classificacaoConsultaAgendada: null,
-        classificacaoProcedimentoVendido: null,
         filtros: semFiltros,
         retomadaPendente: false,
         ultimaSync: null,
@@ -104,12 +100,6 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       chaveMascarada: mascaraChave(String(c.api_key)),
       campoProcedimentoKey: c.campo_procedimento_key ? String(c.campo_procedimento_key) : null,
       campoDataConsultaKey: c.campo_data_consulta_key ? String(c.campo_data_consulta_key) : null,
-      classificacaoConsultaAgendada: c.classificacao_consulta_agendada
-        ? String(c.classificacao_consulta_agendada)
-        : null,
-      classificacaoProcedimentoVendido: c.classificacao_procedimento_vendido
-        ? String(c.classificacao_procedimento_vendido)
-        : null,
       filtros: {
         usuarios: listaTexto(c.filtro_usuarios),
         etiquetas: listaTexto(c.filtro_etiquetas),
