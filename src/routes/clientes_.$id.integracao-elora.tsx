@@ -780,14 +780,16 @@ function MapeamentoIntegracao() {
               <div key={campo} className="space-y-1">
                 <Label>{rotuloUi}</Label>
                 <Select
-                  value={config[campo] ?? ""}
-                  onValueChange={(v) => setConfig((c) => ({ ...c, [campo]: v || null }))}
+                  value={config[campo] ?? "__nenhum__"}
+                  onValueChange={(v) =>
+                    setConfig((c) => ({ ...c, [campo]: v === "__nenhum__" ? null : v }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sem rótulo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem rótulo</SelectItem>
+                    <SelectItem value="__nenhum__">Sem rótulo</SelectItem>
                     {rotulos.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
                         {r.nome}
