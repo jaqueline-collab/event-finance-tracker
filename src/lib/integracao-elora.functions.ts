@@ -62,11 +62,17 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
 
     const { data: conta } = await supabaseAdmin
       .from("elora_integracao_contas")
-      .select(
-        "cliente_id, base_url, api_key, ativo, campo_procedimento_key, campo_data_consulta_key, sync_janela_inicio, ultima_sync, ultimo_erro",
-      )
+      .select("*")
       .eq("cliente_id", data.clienteId)
       .maybeSingle();
+
+    const semFiltros: FiltrosElora = {
+      usuarios: [],
+      etiquetas: [],
+      campoPersonalizado: null,
+      etapasFunil: [],
+      campanha: null,
+    };
 
     if (!conta) {
       return {
@@ -77,24 +83,49 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
         chaveMascarada: null,
         campoProcedimentoKey: null,
         campoDataConsultaKey: null,
+        classificacaoConsultaAgendada: null,
+        classificacaoProcedimentoVendido: null,
+        filtros: semFiltros,
         retomadaPendente: false,
         ultimaSync: null,
+        ultimaSyncConversas: null,
         ultimoErro: null,
       };
     }
 
+    const c = conta as any;
+    const campo = c.filtro_campo_personalizado as any;
+
     return {
-      clienteId: conta.cliente_id,
+      clienteId: c.cliente_id,
       configurada: true,
-      ativo: Boolean(conta.ativo),
-      baseUrl: conta.base_url,
-      chaveMascarada: mascaraChave(String(conta.api_key)),
-      campoProcedimentoKey: conta.campo_procedimento_key ? String(conta.campo_procedimento_key) : null,
-      campoDataConsultaKey: conta.campo_data_consulta_key ? String(conta.campo_data_consulta_key) : null,
-      retomadaPendente: Boolean(conta.sync_janela_inicio),
-      ultimaSync: conta.ultima_sync ? String(conta.ultima_sync) : null,
-      ultimoErro: conta.ultimo_erro ? String(conta.ultimo_erro) : null,
+      ativo: Boolean(c.ativo),
+      baseUrl: c.base_url,
+      chaveMascarada: mascaraChave(String(c.api_key)),
+      campoProcedimentoKey: c.campo_procedimento_key ? String(c.campo_procedimento_key) : null,
+      campoDataConsultaKey: c.campo_data_consulta_key ? String(c.campo_data_consulta_key) : null,
+      classificacaoConsultaAgendada: c.classificacao_consulta_agendada
+        ? String(c.classificacao_consulta_agendada)
+        : null,
+      classificacaoProcedimentoVendido: c.classificacao_procedimento_vendido
+        ? String(c.classificacao_procedimento_vendido)
+        : null,
+      filtros: {
+        usuarios: listaTexto(c.filtro_usuarios),
+        etiquetas: listaTexto(c.filtro_etiquetas),
+        campoPersonalizado:
+          campo && typeof campo === "object" && campo.chave
+            ? { chave: String(campo.chave), valor: String(campo.valor ?? "") }
+            : null,
+        etapasFunil: listaTexto(c.filtro_etapas_funil),
+        campanha: c.filtro_campanha ? String(c.filtro_campanha) : null,
+      },
+      retomadaPendente: Boolean(c.sync_janela_inicio),
+      ultimaSync: c.ultima_sync ? String(c.ultima_sync) : null,
+      ultimaSyncConversas: c.sync_conversas_ultima ? String(c.sync_conversas_ultima) : null,
+      ultimoErro: c.ultimo_erro ? String(c.ultimo_erro) : null,
     };
+
   });
 
 const salvarSchema = z.object({
