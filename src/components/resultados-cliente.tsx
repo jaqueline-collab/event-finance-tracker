@@ -263,8 +263,8 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
                           <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                           <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                           <Tooltip
-                            formatter={(valor: number, nome: string) => [
-                              valor,
+                            formatter={(valor, nome) => [
+                              Number(valor ?? 0),
                               nome === "s1" ? (g.s1.rotulo ?? "Série 1") : (g.s2.rotulo ?? "Série 2"),
                             ]}
                           />
