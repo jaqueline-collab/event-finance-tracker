@@ -197,6 +197,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
             </TableBody>
           </Table>
         </div>
+        )}
 
         {dados && dados.totalPaginas > 1 && (
           <div className="flex items-center justify-end gap-2">
