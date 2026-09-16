@@ -295,6 +295,7 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
       await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "core",
         "/v1/contact/custom-field?NestedList=false",
       );
 
