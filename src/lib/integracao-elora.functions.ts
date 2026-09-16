@@ -147,7 +147,7 @@ export const salvarIntegracaoCliente = createServerFn({ method: "POST" })
       .upsert(
         {
           cliente_id: data.clienteId,
-          base_url: data.baseUrl.replace(/\/+$/, ""),
+          base_url: data.baseUrl.replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, ""),
           api_key: data.apiKey,
           ativo: true,
           ultimo_erro: null,
@@ -193,13 +193,25 @@ async function chamadaComTempo(url: string, init: RequestInit): Promise<Response
   }
 }
 
+type ServicoElora = "core" | "crm" | "chat";
+
+/**
+ * O "Endereço da conta" guarda só o domínio raiz (ex.: https://api.wts.chat).
+ * Contatos/campos/etiquetas vivem em /core, painéis em /crm, sequências e
+ * conversas em /chat. Contas antigas podem ter um sufixo residual salvo —
+ * removemos aqui para nada quebrar antes da normalização.
+ */
+const normalizarRaiz = (baseUrl: string) =>
+  baseUrl.replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, "");
+
 async function lerApiElora(
   baseUrl: string,
   apiKey: string,
+  servico: ServicoElora,
   caminho: string,
   opts: { metodo?: "GET" | "POST"; corpo?: unknown } = {},
 ): Promise<Record<string, unknown>> {
-  const url = `${baseUrl}${caminho}`;
+  const url = `${normalizarRaiz(baseUrl)}/${servico}${caminho}`;
   const init: RequestInit = {
     method: opts.metodo ?? "GET",
     headers: {
