@@ -285,7 +285,7 @@ function MapeamentoIntegracao() {
       setEditando(null);
       await recarregarRotulosEConfig();
     } catch (e) {
-      toast.error(friendlyError(e));
+      toast.error(msg(e));
     } finally {
       setSalvandoRotulo(false);
     }
@@ -297,7 +297,7 @@ function MapeamentoIntegracao() {
       toast.success("Rótulo excluído. As peças do painel que usavam ele ficaram sem rótulo.");
       await recarregarRotulosEConfig();
     } catch (e) {
-      toast.error(friendlyError(e));
+      toast.error(msg(e));
     }
   };
 
@@ -307,7 +307,7 @@ function MapeamentoIntegracao() {
       await salvarConfigDashboardCliente({ data: { clienteId, ...config } });
       toast.success("Painel de resultados configurado.");
     } catch (e) {
-      toast.error(friendlyError(e));
+      toast.error(msg(e));
     } finally {
       setSalvandoConfig(false);
     }
