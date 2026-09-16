@@ -194,16 +194,40 @@ function AreaCliente() {
         </div>
       </div>
 
-      <Tabs defaultValue="conta">
+      {headerTarget &&
+        createPortal(
+          <div className="flex items-center gap-1">
+            {(
+              [
+                { v: "conta", l: "Conta" },
+                { v: "novidades", l: "Novidades" },
+                { v: "equipe", l: "Minha equipe" },
+              ] as const
+            ).map((o) => (
+              <Button
+                key={o.v}
+                size="sm"
+                variant={aba === o.v ? "secondary" : "ghost"}
+                onClick={() => setAba(o.v)}
+              >
+                {o.l}
+              </Button>
+            ))}
+          </div>,
+          headerTarget,
+        )}
+
+      <Tabs value={aba} onValueChange={setAba}>
         <TabsList className="flex-wrap">
-          <TabsTrigger value="conta">Minha conta</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
-          <TabsTrigger value="novidades">Novidades</TabsTrigger>
-          <TabsTrigger value="equipe">Minha equipe</TabsTrigger>
           <TabsTrigger value="resultados">Resultados</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="resultados" className="mt-4">
+          <ResultadosCliente clienteId={cliente.id} />
+        </TabsContent>
+
         <TabsContent value="conta" className="mt-4 grid gap-4 md:grid-cols-2">
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">O que está na sua conta</CardTitle>
