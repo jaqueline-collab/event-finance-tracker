@@ -123,6 +123,36 @@ beforeAll(async () => {
   ] as never);
   if (contatos.error) throw contatos.error;
 
+  const paineis = await admin.from("elora_paineis_sincronizados" as never).insert([
+    { cliente_id: CLI_A, painel_id: `p1-${sufixo}`, titulo: "Vendas", tipo: "Vendas", etapas: [] },
+    { cliente_id: CLI_B, painel_id: `p2-${sufixo}`, titulo: "Gestão", tipo: "Gestao", etapas: [] },
+  ] as never);
+  if (paineis.error) throw paineis.error;
+
+  const seqs = await admin.from("elora_sequencias_sincronizadas" as never).insert([
+    { cliente_id: CLI_A, sequencia_id: `s1-${sufixo}`, nome: "Boas-vindas" },
+    { cliente_id: CLI_B, sequencia_id: `s2-${sufixo}`, nome: "Reativação" },
+  ] as never);
+  if (seqs.error) throw seqs.error;
+
+  const conversas = await admin.from("elora_conversas_classificadas" as never).insert([
+    {
+      cliente_id: CLI_A,
+      sessao_id: `ses1-${sufixo}`,
+      category_name: "Consulta Agendada",
+      criado_em: "2026-09-05T12:00:00Z",
+      teve_resposta: true,
+    },
+    {
+      cliente_id: CLI_B,
+      sessao_id: `ses2-${sufixo}`,
+      category_name: "Procedimento Vendido",
+      criado_em: "2026-09-06T12:00:00Z",
+      teve_resposta: false,
+    },
+  ] as never);
+  if (conversas.error) throw conversas.error;
+
   const vincParceiro = await admin
     .from("elora_parceiro_usuarios")
     .insert({ parceiro_id: PARC, email: emailParceiro, nome: "Parceiro Teste", ativo: true });
