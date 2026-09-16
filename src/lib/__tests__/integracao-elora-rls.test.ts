@@ -280,3 +280,39 @@ describe("integração Elora — contatos sincronizados (elora_contatos_sincroni
     );
   }, 60_000);
 });
+
+describe.each([
+  ["elora_paineis_sincronizados"],
+  ["elora_sequencias_sincronizadas"],
+  ["elora_conversas_classificadas"],
+])("integração Elora — %s", (tabela) => {
+  it("o cliente logado lê apenas as próprias linhas", async () => {
+    const cli = await logar(emailCliente);
+    await cli.rpc("link_cliente_usuario" as never);
+    const { data, error } = await cli.from(tabela as never).select("cliente_id");
+    expect(error).toBeNull();
+    const linhas = (data ?? []) as { cliente_id: string }[];
+    expect(linhas.length).toBe(1);
+    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
+  }, 60_000);
+
+  it("o parceiro com painel liberado lê só os clientes dele", async () => {
+    const cli = await logar(emailParceiro);
+    await cli.rpc("link_parceiro_usuario" as never);
+    const { data, error } = await cli.from(tabela as never).select("cliente_id");
+    expect(error).toBeNull();
+    const linhas = (data ?? []) as { cliente_id: string }[];
+    expect(linhas.length).toBe(1);
+    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
+  }, 60_000);
+
+  it("usuário sem vínculo não lê nada e não consegue gravar", async () => {
+    const cli = await logar(emailIntruso);
+    const { data, error } = await cli.from(tabela as never).select("cliente_id");
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const r = await cli.from(tabela as never).insert({ cliente_id: CLI_A } as never);
+    expect(r.error).not.toBeNull();
+  }, 60_000);
+});
