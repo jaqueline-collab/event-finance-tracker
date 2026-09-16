@@ -334,6 +334,7 @@ export const listarCamposPersonalizados = createServerFn({ method: "POST" })
     const resp = await lerApiElora(
       String(conta.base_url),
       String(conta.api_key),
+      "core",
       "/v1/contact/custom-field?NestedList=false",
     );
 
@@ -437,7 +438,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
       let gravados = 0;
       for (;;) {
         pagina += 1;
-        const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/contact/filter", {
+        const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/contact/filter", {
           metodo: "POST",
           corpo: {
             pageNumber: pagina,
@@ -730,6 +731,7 @@ export const listarPaineisCliente = createServerFn({ method: "POST" })
       const resp = await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "crm",
         `/v2/panel?PageNumber=${pagina}&PageSize=50&IncludeDetails=Steps`,
       );
       const itens = listaDe(resp);
@@ -779,6 +781,7 @@ export const listarCamposDoPainel = createServerFn({ method: "POST" })
     const resp = await lerApiElora(
       String(conta.base_url),
       String(conta.api_key),
+      "crm",
       `/v1/panel/${encodeURIComponent(data.painelId)}/custom-fields`,
     );
     const campos = listaDe(resp)
@@ -810,6 +813,7 @@ export const listarSequenciasCliente = createServerFn({ method: "POST" })
       const resp = await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "chat",
         `/v1/sequence?PageNumber=${pagina}&PageSize=50`,
       );
       const itens = listaDe(resp);
@@ -843,7 +847,7 @@ export const listarUsuariosCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ usuarios: { id: string; nome: string }[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { conta } = await contaDoCliente(data.clienteId);
-    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/user?PageSize=200");
+    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/user?PageSize=200");
     const usuarios = listaDe(resp)
       .map((u: any) => ({
         id: String(u.id ?? ""),
@@ -860,7 +864,7 @@ export const listarEtiquetasCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ etiquetas: { id: string; nome: string }[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { conta } = await contaDoCliente(data.clienteId);
-    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/tag?PageSize=200");
+    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/tag?PageSize=200");
     const etiquetas = listaDe(resp)
       .map((t: any) => ({ id: String(t.id ?? ""), nome: String(t.name ?? t.title ?? t.id ?? "") }))
       .filter((t) => t.id.length > 0);
