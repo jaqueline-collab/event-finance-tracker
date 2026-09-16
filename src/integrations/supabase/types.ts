@@ -273,6 +273,50 @@ export type Database = {
           },
         ]
       }
+      elora_conversas_classificadas: {
+        Row: {
+          atualizado_em: string | null
+          category: string | null
+          category_name: string | null
+          cliente_id: string
+          criado_em: string | null
+          id: string
+          sessao_id: string
+          sincronizado_em: string
+          teve_resposta: boolean
+        }
+        Insert: {
+          atualizado_em?: string | null
+          category?: string | null
+          category_name?: string | null
+          cliente_id: string
+          criado_em?: string | null
+          id?: string
+          sessao_id: string
+          sincronizado_em?: string
+          teve_resposta?: boolean
+        }
+        Update: {
+          atualizado_em?: string | null
+          category?: string | null
+          category_name?: string | null
+          cliente_id?: string
+          criado_em?: string | null
+          id?: string
+          sessao_id?: string
+          sincronizado_em?: string
+          teve_resposta?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_conversas_classificadas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_custos: {
         Row: {
           created_at: string
@@ -563,10 +607,18 @@ export type Database = {
           base_url: string
           campo_data_consulta_key: string | null
           campo_procedimento_key: string | null
+          classificacao_consulta_agendada: string | null
+          classificacao_procedimento_vendido: string | null
           cliente_id: string
           created_at: string
           criado_por: string | null
+          filtro_campanha: string | null
+          filtro_campo_personalizado: Json | null
+          filtro_etapas_funil: Json | null
+          filtro_etiquetas: Json | null
+          filtro_usuarios: Json | null
           id: string
+          sync_conversas_ultima: string | null
           sync_janela_inicio: string | null
           sync_paginas_ok: number
           ultima_sync: string | null
@@ -579,10 +631,18 @@ export type Database = {
           base_url: string
           campo_data_consulta_key?: string | null
           campo_procedimento_key?: string | null
+          classificacao_consulta_agendada?: string | null
+          classificacao_procedimento_vendido?: string | null
           cliente_id: string
           created_at?: string
           criado_por?: string | null
+          filtro_campanha?: string | null
+          filtro_campo_personalizado?: Json | null
+          filtro_etapas_funil?: Json | null
+          filtro_etiquetas?: Json | null
+          filtro_usuarios?: Json | null
           id?: string
+          sync_conversas_ultima?: string | null
           sync_janela_inicio?: string | null
           sync_paginas_ok?: number
           ultima_sync?: string | null
@@ -595,10 +655,18 @@ export type Database = {
           base_url?: string
           campo_data_consulta_key?: string | null
           campo_procedimento_key?: string | null
+          classificacao_consulta_agendada?: string | null
+          classificacao_procedimento_vendido?: string | null
           cliente_id?: string
           created_at?: string
           criado_por?: string | null
+          filtro_campanha?: string | null
+          filtro_campo_personalizado?: Json | null
+          filtro_etapas_funil?: Json | null
+          filtro_etiquetas?: Json | null
+          filtro_usuarios?: Json | null
           id?: string
+          sync_conversas_ultima?: string | null
           sync_janela_inicio?: string | null
           sync_paginas_ok?: number
           ultima_sync?: string | null
@@ -805,6 +873,47 @@ export type Database = {
             columns: ["notificacao_id"]
             isOneToOne: false
             referencedRelation: "elora_notificacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_paineis_sincronizados: {
+        Row: {
+          campos_personalizados: Json
+          cliente_id: string
+          etapas: Json
+          id: string
+          painel_id: string
+          sincronizado_em: string
+          tipo: string | null
+          titulo: string | null
+        }
+        Insert: {
+          campos_personalizados?: Json
+          cliente_id: string
+          etapas?: Json
+          id?: string
+          painel_id: string
+          sincronizado_em?: string
+          tipo?: string | null
+          titulo?: string | null
+        }
+        Update: {
+          campos_personalizados?: Json
+          cliente_id?: string
+          etapas?: Json
+          id?: string
+          painel_id?: string
+          sincronizado_em?: string
+          tipo?: string | null
+          titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_paineis_sincronizados_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
             referencedColumns: ["id"]
           },
         ]
@@ -1125,6 +1234,38 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      elora_sequencias_sincronizadas: {
+        Row: {
+          cliente_id: string
+          id: string
+          nome: string | null
+          sequencia_id: string
+          sincronizado_em: string
+        }
+        Insert: {
+          cliente_id: string
+          id?: string
+          nome?: string | null
+          sequencia_id: string
+          sincronizado_em?: string
+        }
+        Update: {
+          cliente_id?: string
+          id?: string
+          nome?: string | null
+          sequencia_id?: string
+          sincronizado_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_sequencias_sincronizadas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       elora_uso_snapshots: {
         Row: {
