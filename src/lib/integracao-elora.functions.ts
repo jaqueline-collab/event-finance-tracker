@@ -385,11 +385,10 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
 
     const { data: conta } = await supabaseAdmin
       .from("elora_integracao_contas")
-      .select(
-        "base_url, api_key, ativo, campo_procedimento_key, campo_data_consulta_key, ultima_sync, sync_janela_inicio, sync_paginas_ok",
-      )
+      .select("*")
       .eq("cliente_id", data.clienteId)
       .maybeSingle();
+
     if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
     if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
     if (!conta.campo_procedimento_key || !conta.campo_data_consulta_key) {
