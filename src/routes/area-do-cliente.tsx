@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   adicionarPessoaEquipe,
   getPainelCliente,
@@ -177,7 +177,7 @@ function AreaCliente() {
             Visualizando como <span className="font-semibold">{cliente.nome}</span> — modo administrador,
             somente leitura.
           </p>
-          <Button size="sm" variant="outline" onClick={() => navigate({ to: "/perfil" })}>
+          <Button size="sm" variant="outline" onClick={() => navigate({ to: "/dashboard" })}>
             Sair da visualização
           </Button>
         </div>
