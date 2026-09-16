@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
 import { toast } from "sonner";
 import {
   AlertTriangle,
