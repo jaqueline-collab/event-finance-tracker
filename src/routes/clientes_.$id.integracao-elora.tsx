@@ -260,6 +260,60 @@ function MapeamentoIntegracao() {
     }
   };
 
+  const recarregarRotulosEConfig = async () => {
+    const [r, c] = await Promise.all([
+      listarRotulosCliente({ data: { clienteId } }),
+      getConfigDashboardCliente({ data: { clienteId } }),
+    ]);
+    setRotulos(r.rotulos);
+    setConfig(c);
+  };
+
+  const salvarRotulo = async () => {
+    if (!rotuloNome.trim()) { toast.error("Dê um nome ao rótulo."); return; }
+    if (rotuloValores.length === 0) { toast.error("Marque ao menos uma classificação para o rótulo."); return; }
+    setSalvandoRotulo(true);
+    try {
+      await salvarRotuloCliente({
+        data: {
+          clienteId,
+          rotuloId: editando && editando !== "novo" ? editando : null,
+          nome: rotuloNome.trim(),
+          valores: rotuloValores,
+        },
+      });
+      toast.success("Rótulo salvo.");
+      setEditando(null);
+      await recarregarRotulosEConfig();
+    } catch (e) {
+      toast.error(friendlyError(e));
+    } finally {
+      setSalvandoRotulo(false);
+    }
+  };
+
+  const excluirRotulo = async (id: string) => {
+    try {
+      await excluirRotuloCliente({ data: { clienteId, rotuloId: id } });
+      toast.success("Rótulo excluído. As peças do painel que usavam ele ficaram sem rótulo.");
+      await recarregarRotulosEConfig();
+    } catch (e) {
+      toast.error(friendlyError(e));
+    }
+  };
+
+  const salvarConfig = async () => {
+    setSalvandoConfig(true);
+    try {
+      await salvarConfigDashboardCliente({ data: { clienteId, ...config } });
+      toast.success("Painel de resultados configurado.");
+    } catch (e) {
+      toast.error(friendlyError(e));
+    } finally {
+      setSalvandoConfig(false);
+    }
+  };
+
   const buscarSequencias = async () => {
     setBuscandoSeq(true);
     try {
