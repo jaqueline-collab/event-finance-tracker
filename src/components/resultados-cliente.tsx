@@ -149,6 +149,17 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
           </div>
         </div>
 
+        {carregando && (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {!carregando && (dados?.contatos.length ?? 0) === 0 && (
+          <p className="rounded-lg border border-border/60 py-6 text-center text-sm text-muted-foreground">
+            Nenhum contato sincronizado neste período ainda.
+          </p>
+        )}
+        {!carregando && (dados?.contatos.length ?? 0) > 0 && (
         <div className="overflow-x-auto rounded-lg border border-border/60">
           <Table>
             <TableHeader>
@@ -162,22 +173,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {carregando && (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center">
-                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              )}
-              {!carregando && (dados?.contatos.length ?? 0) === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
-                    Nenhum contato sincronizado neste período ainda.
-                  </TableCell>
-                </TableRow>
-              )}
-              {!carregando &&
-                dados?.contatos.map((c) => (
+              {dados?.contatos.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.nome ?? "—"}</TableCell>
                     <TableCell>{c.telefone ?? "—"}</TableCell>
