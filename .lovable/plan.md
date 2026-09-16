@@ -78,8 +78,11 @@ Conteúdo, somado ao que já existe (Novos contatos, % vindos de anúncio, tabel
 
 - Contatos: continua como está, agora respeitando os filtros salvos.
 - Conversas/classificações: sincronização separada e opcional, com botão próprio, mesmo controle de ritmo já aprovado (pausa entre chamadas, espera e nova tentativa em caso de bloqueio, retomada do ponto onde parou).
+- **Incremental**: busca só conversas criadas ou atualizadas desde a última sincronização de conversas bem-sucedida, com marcador próprio (independente do de contatos). A janela de 90 dias vale apenas para a primeira varredura e para a amostra de classificações da seção 5 — não se repete a cada vez.
+- **Sem duplicar**: `elora_conversas_classificadas` tem chave única por (cliente_id, sessao_id) e a gravação é upsert por essa chave, igual aos contatos. Sincronizar duas vezes não infla "consulta agendada" nem "procedimento vendido". O mesmo vale para painéis (cliente_id, painel_id) e sequências (cliente_id, sequencia_id).
 - "Conversas com resposta" exige uma chamada por conversa; roda em lote menor, dentro dessa sincronização separada, nunca acoplada à de contatos.
 - O dashboard lê sempre do banco, nunca chama a API ao carregar.
+
 
 ## 10. Modelo de dados
 
