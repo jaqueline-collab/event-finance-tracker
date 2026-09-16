@@ -82,8 +82,6 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
     setPagina(1);
   };
 
-  const pct = dados && dados.total > 0 ? Math.round((dados.anuncio / dados.total) * 100) : 0;
-
   return (
     <Card>
       <CardHeader>
