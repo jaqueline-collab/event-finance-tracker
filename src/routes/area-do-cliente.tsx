@@ -370,10 +370,6 @@ function AreaCliente() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="resultados" className="mt-4">
-          <ResultadosCliente clienteId={cliente.id} />
-        </TabsContent>
       </Tabs>
     </div>
   );
