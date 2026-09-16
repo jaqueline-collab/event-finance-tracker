@@ -30,6 +30,7 @@ import {
   removerPessoaEquipe,
 } from "@/lib/cliente.functions";
 import { ResultadosCliente } from "@/components/resultados-cliente";
+import { usePerfil } from "@/hooks/use-perfil";
 
 const searchSchema = z.object({ como: fallback(z.string(), "").default("") });
 
@@ -58,6 +59,7 @@ const APP_URL = "https://app.eloracrm.com.br/";
 function AreaCliente() {
   const { como } = Route.useSearch();
   const navigate = useNavigate();
+  const perfilLogado = usePerfil();
   const [dados, setDados] = useState<Painel | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -162,6 +164,9 @@ function AreaCliente() {
 
   const d = dados as Required<Painel>;
   const { cliente, plano, contratado, recursos, historico, equipe } = d;
+  const primeiroNome = (perfilLogado.nome?.trim().split(/\s+/)[0]
+    ?? perfilLogado.email?.split("@")[0]
+    ?? "").trim();
 
 
   return (
@@ -195,19 +200,20 @@ function AreaCliente() {
               )}
             </p>
           </div>
-          <Button asChild>
-            <a href={APP_URL} target="_blank" rel="noopener noreferrer">
-              Acessar o aplicativo <ArrowUpRight className="ml-1.5 h-4 w-4" />
-            </a>
-          </Button>
+          {primeiroNome && (
+            <p className="self-center text-lg font-semibold text-foreground sm:text-xl">
+              Olá, {primeiroNome}
+            </p>
+          )}
         </div>
       </div>
 
       {headerTarget &&
         createPortal(
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
             {(
               [
+                { v: "resultados", l: "Dash" },
                 { v: "conta", l: "Conta" },
                 { v: "novidades", l: "Novidades" },
                 { v: "equipe", l: "Minha equipe" },
@@ -217,22 +223,26 @@ function AreaCliente() {
                 key={o.v}
                 size="sm"
                 variant={aba === o.v ? "secondary" : "ghost"}
-                className="px-2 text-xs sm:px-3 sm:text-sm"
+                className="px-1.5 text-[11px] sm:px-3 sm:text-sm"
                 onClick={() => setAba(o.v)}
               >
-                {o.l}
+                {o.v === "equipe" ? (
+                  <><span className="hidden sm:inline">Minha&nbsp;</span>equipe</>
+                ) : o.l}
               </Button>
             ))}
+            <Button asChild size="sm" className="px-2 sm:px-3">
+              <a href={APP_URL} target="_blank" rel="noopener noreferrer" aria-label="Acessar o aplicativo">
+                <span className="hidden lg:inline">Acessar o aplicativo</span>
+                <ArrowUpRight className="h-4 w-4 lg:ml-1.5" />
+              </a>
+            </Button>
           </div>,
           headerTarget,
         )}
 
       <Tabs value={aba} onValueChange={setAba}>
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="resultados">Resultados</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="resultados" className="mt-4">
+        <TabsContent value="resultados" className="mt-0">
           <ResultadosCliente clienteId={cliente.id} />
         </TabsContent>
 
