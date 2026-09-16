@@ -8,9 +8,17 @@ Os três botões usam a mesma camada de chamada (mesma base, mesmo cabeçalho `A
 - "Buscar campos personalizados" → `GET /v1/contact/custom-field?NestedList=false`
 - "Sincronizar" → `POST /v1/contact/filter`
 
-`/v1/status` não faz parte da documentação da API do app Elora — foi escolhido como um "ping" genérico. Para uma rota que a conta não reconhece, a API responde com um código de recusa, e o nosso tratamento traduz qualquer 401/403 como "A chave de API foi recusada pelo app Elora". Ou seja: a chave está correta; o endereço testado é que não existe.
+Diagnóstico já confirmado na conta real (cliente com integração funcionando):
 
-Confirmação antes de corrigir: primeira etapa da implementação é uma chamada de verificação registrando o código exato devolvido por `/v1/status` na conta real. Se confirmar, o teste passa a usar uma chamada real e barata (`GET /v1/contact/custom-field?NestedList=false`, limitada a leitura) e as mensagens de erro passam a distinguir "rota não encontrada" de "chave recusada".
+- `GET /v1/status` → HTTP 401 na resposta, com o corpo informando `httpStatusCode: 404` — a rota não existe; o gateway devolve recusa de autenticação para caminho desconhecido.
+- `GET /v1/contact/custom-field?NestedList=false` → HTTP 200 com os campos da conta, usando exatamente a mesma chave.
+
+Ou seja: a chave está correta; o endereço testado é que não existe, e o nosso tratamento traduz qualquer 401/403 como "A chave de API foi recusada".
+
+Correção: "Testar conexão" passa a usar uma chamada real e barata de leitura (`GET /v1/contact/custom-field?NestedList=false`) e as mensagens passam a distinguir "endereço não encontrado" de "chave recusada", com o código real no detalhe do erro.
+
+Achado extra do diagnóstico: um outro cliente está com o endereço da conta apontando para o site (`https://app.eloracrm.com.br`) em vez da API — toda chamada dele devolve HTML da página, não dados. A correção inclui detectar resposta não-JSON e avisar "O endereço informado não é o da API da conta".
+
 
 ## 1. Página dedicada de mapeamento
 
