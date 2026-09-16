@@ -266,7 +266,7 @@ function AreaCliente() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="historico" className="mt-4">
+        <TabsContent value="conta" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Mudanças na conta</CardTitle>
