@@ -624,35 +624,124 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
     }
     const ranking = [...mapa.values()].sort((a, b) => b.leads - a.leads).slice(0, 20);
 
-    // Conversas classificadas do período (já sincronizadas, sem tocar a API).
+    // Conversas do período (já sincronizadas, sem tocar a API) — com tempos e contato.
     const { data: conversas } = await noPeriodo(
-      db.from("elora_conversas_classificadas").select("category_name, teve_resposta"),
+      db
+        .from("elora_conversas_classificadas")
+        .select("category_name, teve_resposta, contato_id, criado_em, time_wait_segundos, time_service_segundos"),
     ).limit(20000);
 
     const linhasConversa = (conversas ?? []) as any[];
-    const contagemPorClassificacao = new Map<string, number>();
+
+    // Contatos com anúncio, para o "% de anúncio" dentro dos blocos de rótulo.
+    const { data: contatosAnuncio } = await db
+      .from("elora_contatos_sincronizados")
+      .select("contact_id")
+      .eq("cliente_id", data.clienteId)
+      .not("utm_source", "is", null)
+      .limit(20000);
+    const setAnuncio = new Set(((contatosAnuncio ?? []) as any[]).map((c) => String(c.contact_id)));
+
     let conversasComResposta = 0;
+    let somaEspera = 0, nEspera = 0, somaAtend = 0, nAtend = 0;
+    const porClassificacao = new Map<string, { qtd: number; anuncio: number }>();
+    const porMesClasse = new Map<string, number>(); // "YYYY-MMclasse"
     for (const s of linhasConversa) {
       if (s.teve_resposta) conversasComResposta += 1;
+      if (typeof s.time_wait_segundos === "number") { somaEspera += s.time_wait_segundos; nEspera += 1; }
+      if (typeof s.time_service_segundos === "number") { somaAtend += s.time_service_segundos; nAtend += 1; }
       const nome = s.category_name ? String(s.category_name) : "";
-      if (nome) contagemPorClassificacao.set(nome, (contagemPorClassificacao.get(nome) ?? 0) + 1);
+      if (!nome) continue;
+      const atual = porClassificacao.get(nome) ?? { qtd: 0, anuncio: 0 };
+      atual.qtd += 1;
+      if (s.contato_id && setAnuncio.has(String(s.contato_id))) atual.anuncio += 1;
+      porClassificacao.set(nome, atual);
+      if (s.criado_em) {
+        const mes = String(s.criado_em).slice(0, 7);
+        porMesClasse.set(`${mes}${nome}`, (porMesClasse.get(`${mes}${nome}`) ?? 0) + 1);
+      }
     }
 
-    // Os rótulos mapeados vivem na tabela restrita da integração; só são lidos
-    // depois da checagem de permissão acima e nunca acompanham chave alguma.
+    // Configuração das peças: quais rótulos alimentam blocos e séries.
+    // Lida só depois da checagem de permissão; rótulos de outro cliente são
+    // ignorados (tratados como "não configurado") mesmo se um dado antigo
+    // estiver incorreto.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: conta } = await supabaseAdmin
       .from("elora_integracao_contas")
-      .select("classificacao_consulta_agendada, classificacao_procedimento_vendido")
+      .select(
+        "bloco2_rotulo_id, bloco3_rotulo_id, grafico1_serie1_rotulo_id, grafico1_serie2_rotulo_id, grafico2_serie1_rotulo_id, grafico2_serie2_rotulo_id",
+      )
       .eq("cliente_id", data.clienteId)
       .maybeSingle();
+    const cfg = (conta as any) ?? {};
+    const idsConfig = [
+      cfg.bloco2_rotulo_id, cfg.bloco3_rotulo_id,
+      cfg.grafico1_serie1_rotulo_id, cfg.grafico1_serie2_rotulo_id,
+      cfg.grafico2_serie1_rotulo_id, cfg.grafico2_serie2_rotulo_id,
+    ].filter((x): x is string => Boolean(x));
 
-    const rotuloAgendada = (conta as any)?.classificacao_consulta_agendada
-      ? String((conta as any).classificacao_consulta_agendada)
-      : null;
-    const rotuloVendido = (conta as any)?.classificacao_procedimento_vendido
-      ? String((conta as any).classificacao_procedimento_vendido)
-      : null;
+    const rotuloInfo = new Map<string, { nome: string; valores: Set<string> }>();
+    if (idsConfig.length > 0) {
+      const { data: rotulos } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .select("id, nome, cliente_id")
+        .in("id", idsConfig)
+        .eq("cliente_id", data.clienteId); // mesma conta ou nada
+      const okIds = ((rotulos ?? []) as any[]).map((r) => String(r.id));
+      const { data: valores } = okIds.length
+        ? await supabaseAdmin
+            .from("elora_classificacoes_rotulo_valores")
+            .select("rotulo_id, valor_bruto")
+            .in("rotulo_id", okIds)
+        : { data: [] as any[] };
+      for (const r of (rotulos ?? []) as any[]) {
+        rotuloInfo.set(String(r.id), {
+          nome: String(r.nome),
+          valores: new Set(
+            ((valores ?? []) as any[])
+              .filter((v) => String(v.rotulo_id) === String(r.id))
+              .map((v) => String(v.valor_bruto)),
+          ),
+        });
+      }
+    }
+
+    const blocoDoRotulo = (rotuloId: string | null | undefined) => {
+      const info = rotuloId ? rotuloInfo.get(String(rotuloId)) : undefined;
+      if (!info) return { rotulo: null as string | null, quantidade: 0, anuncio: 0 };
+      let qtd = 0, anuncioBloco = 0;
+      for (const v of info.valores) {
+        const a = porClassificacao.get(v);
+        if (a) { qtd += a.qtd; anuncioBloco += a.anuncio; }
+      }
+      return { rotulo: info.nome, quantidade: qtd, anuncio: anuncioBloco };
+    };
+
+    // Séries mensais (últimos 12 meses) por rótulo.
+    const meses: string[] = [];
+    {
+      const base = new Date();
+      base.setUTCDate(1);
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() - i, 1));
+        meses.push(d.toISOString().slice(0, 7));
+      }
+    }
+    const serieDoRotulo = (rotuloId: string | null | undefined) => {
+      const info = rotuloId ? rotuloInfo.get(String(rotuloId)) : undefined;
+      return {
+        rotulo: info?.nome ?? null,
+        valores: meses.map((mes) =>
+          info
+            ? [...info.valores].reduce((acc, v) => acc + (porMesClasse.get(`${mes}${v}`) ?? 0), 0)
+            : 0,
+        ),
+      };
+    };
+
+    const medias = (soma: number, n: number) =>
+      n > 0 ? { segundos: Math.round(soma / n), conversas: n } : null;
 
     return {
       total: total ?? 0,
@@ -660,16 +749,19 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
       pagina: data.pagina,
       porPagina: data.porPagina,
       totalPaginas: Math.max(1, Math.ceil((total ?? 0) / data.porPagina)),
-      consultaAgendada: {
-        rotulo: rotuloAgendada,
-        quantidade: rotuloAgendada ? (contagemPorClassificacao.get(rotuloAgendada) ?? 0) : 0,
-      },
-      procedimentoVendido: {
-        rotulo: rotuloVendido,
-        quantidade: rotuloVendido ? (contagemPorClassificacao.get(rotuloVendido) ?? 0) : 0,
-      },
-      conversasComResposta,
+      bloco2: blocoDoRotulo(cfg.bloco2_rotulo_id),
+      bloco3: blocoDoRotulo(cfg.bloco3_rotulo_id),
+      conversasRealizadas: conversasComResposta,
       conversasTotal: linhasConversa.length,
+      tempoPrimeiraResposta: medias(somaEspera, nEspera),
+      tempoAtendimento: medias(somaAtend, nAtend),
+      graficos: {
+        meses,
+        g1s1: serieDoRotulo(cfg.grafico1_serie1_rotulo_id),
+        g1s2: serieDoRotulo(cfg.grafico1_serie2_rotulo_id),
+        g2s1: serieDoRotulo(cfg.grafico2_serie1_rotulo_id),
+        g2s2: serieDoRotulo(cfg.grafico2_serie2_rotulo_id),
+      },
       ranking,
       contatos: ((rows ?? []) as any[]).map((c) => ({
         id: String(c.id),
