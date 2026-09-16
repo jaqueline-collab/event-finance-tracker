@@ -189,16 +189,32 @@ async function lerApiElora(
       continue;
     }
 
-    if (!resposta.ok) {
+    const texto = await resposta.text();
+    let corpo: unknown = null;
+    try {
+      corpo = texto ? JSON.parse(texto) : null;
+    } catch {
       throw new Error(
-        resposta.status === 401 || resposta.status === 403
-          ? "A chave de API foi recusada pelo app Elora. Confira a chave da conta."
-          : `O app Elora respondeu com erro (${resposta.status}). Tente novamente.`,
+        "O endereço informado não é o da API da conta — a resposta veio como página do site, não como dados.",
       );
     }
-    return (await resposta.json()) as Record<string, unknown>;
+
+    if (!resposta.ok) {
+      const chave = String((corpo as any)?.key ?? "");
+      if (chave === "ERROR_UNAUTHORIZED" || resposta.status === 401 || resposta.status === 403) {
+        throw new Error(
+          `A conta recusou o acesso a ${caminho.split("?")[0]}. Verifique se a chave de API tem permissão para esse recurso nas configurações da conta.`,
+        );
+      }
+      if (resposta.status === 404) {
+        throw new Error(`O app Elora não reconheceu o endereço ${caminho.split("?")[0]} nesta conta.`);
+      }
+      throw new Error(`O app Elora respondeu com erro (${resposta.status}). Tente novamente.`);
+    }
+    return corpo as Record<string, unknown>;
   }
 }
+
 
 /** Testa a conexão com a conta do cliente. Não grava nada. */
 export const testarIntegracaoCliente = createServerFn({ method: "POST" })
