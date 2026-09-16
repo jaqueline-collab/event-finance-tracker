@@ -14,6 +14,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BarChart3, ChevronLeft, ChevronRight, Loader2, Megaphone } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { getResultadosCliente } from "@/lib/integracao-elora.functions";
 
@@ -33,6 +42,16 @@ const dataBrFlex = (v?: string | null) => {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString("pt-BR");
 };
+
+/** Segundos → "1h 25min", "47min" ou "40s". */
+const duracaoBr = (segundos: number) => {
+  if (segundos >= 3600) return `${Math.floor(segundos / 3600)}h ${Math.round((segundos % 3600) / 60)}min`;
+  if (segundos >= 60) return `${Math.round(segundos / 60)}min`;
+  return `${segundos}s`;
+};
+
+const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const rotuloMes = (anoMes: string) => MESES_PT[Number(anoMes.slice(5, 7)) - 1] ?? anoMes;
 
 /** Painel "Resultados" da área do cliente, alimentado pelos contatos do app Elora. */
 export function ResultadosCliente({ clienteId }: { clienteId: string }) {
