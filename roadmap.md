@@ -6,6 +6,7 @@
 - [x] API do app Elora: tabelas elora_integracao_contas + elora_uso_snapshots (migração 0006)
 - [x] Funções de servidor com trava is_equipe_interna() (chave nunca sai do backend)
 - [x] Seção "Integração Elora (app)" no cadastro interno do cliente
-- [x] Teste RLS integracao-elora-rls.test.ts (6 cenários) — 17 testes no total, todos passando
-- [ ] Quando a documentação oficial da API do app Elora chegar: ajustar caminhos /v1/uso e /v1/indicadores no cliente de leitura
-- [ ] Agendamento automático de sincronização (hoje é manual, botão "Sincronizar agora")
+- [x] Painel "Resultados" na área do cliente: mapeamento de campos personalizados, sincronização de contatos (rate limit + retomada), tabela elora_contatos_sincronizados (migração 0007) — 21 testes passando
+- [x] Validação visual do painel Resultados e da aba Integração Elora (desktop 1280, celular 390, temas claro/escuro)
+- [ ] Quando a documentação oficial da API do app Elora chegar: ajustar caminhos /v1/uso e /v1/indicadores no cliente de leitura e confirmar a base URL real (api.wts.chat vs api.flw.chat) com o suporte
+- [ ] Agendamento automático de sincronização (hoje é manual, botão "Sincronizar")
