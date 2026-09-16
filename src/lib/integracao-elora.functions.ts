@@ -15,6 +15,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * - a gravação de contatos é exclusiva da sincronização (service role).
  */
 
+export type FiltrosElora = {
+  usuarios: string[];
+  etiquetas: string[];
+  campoPersonalizado: { chave: string; valor: string } | null;
+  etapasFunil: string[];
+  campanha: string | null;
+};
+
 type IntegracaoVisivel = {
   clienteId: string;
   configurada: boolean;
@@ -23,10 +31,18 @@ type IntegracaoVisivel = {
   chaveMascarada: string | null;
   campoProcedimentoKey: string | null;
   campoDataConsultaKey: string | null;
+  classificacaoConsultaAgendada: string | null;
+  classificacaoProcedimentoVendido: string | null;
+  filtros: FiltrosElora;
   retomadaPendente: boolean;
   ultimaSync: string | null;
+  ultimaSyncConversas: string | null;
   ultimoErro: string | null;
 };
+
+const listaTexto = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
 
 const mascaraChave = (chave: string) =>
   chave.length <= 4 ? "••••" : `••••${chave.slice(-4)}`;
