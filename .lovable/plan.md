@@ -90,7 +90,7 @@ Novas tabelas, seguindo exatamente o padrão de acesso já aprovado (GRANT restr
 
 - `elora_paineis_sincronizados` (cliente_id, painel_id, titulo, tipo, etapas, campos_personalizados, sincronizado_em)
 - `elora_sequencias_sincronizadas` (cliente_id, sequencia_id, nome, sincronizado_em)
-- `elora_conversas_classificadas` (cliente_id, sessao_id, category, category_name, criado_em, teve_resposta)
+- `elora_conversas_classificadas` (cliente_id, sessao_id, category, category_name, criado_em, atualizado_em, teve_resposta), único por (cliente_id, sessao_id)
 
 Colunas novas em `elora_integracao_contas` (mesmo nível restrito da chave): `classificacao_consulta_agendada`, `classificacao_procedimento_vendido`, `filtro_usuarios`, `filtro_etiquetas`, `filtro_campo_personalizado`, `filtro_etapas_funil`, `filtro_campanha`.
 
