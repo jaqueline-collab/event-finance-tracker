@@ -232,7 +232,7 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
     }
   });
 
-type CampoElora = { chave: string; nome: string };
+export type CampoElora = { chave: string; nome: string };
 
 /** Lista os campos personalizados da conta, para a pessoa escolher no mapa. */
 export const listarCamposPersonalizados = createServerFn({ method: "POST" })

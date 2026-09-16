@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowUpRight,
-  BarChart3,
   CalendarDays,
   Loader2,
   Package,
