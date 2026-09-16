@@ -10,3 +10,7 @@
 - [x] Validação visual do painel Resultados e da aba Integração Elora (desktop 1280, celular 390, temas claro/escuro)
 - [ ] Quando a documentação oficial da API do app Elora chegar: ajustar caminhos /v1/uso e /v1/indicadores no cliente de leitura e confirmar a base URL real (api.wts.chat vs api.flw.chat) com o suporte
 - [ ] Agendamento automático de sincronização (hoje é manual, botão "Sincronizar")
+- [x] Testar conexão corrigido (usa /v1/contact/custom-field; distingue endereço errado, rota inexistente e falta de permissão)
+- [x] Página dedicada /clientes/{id}/integracao-elora (campos, painéis, sequências, classificações, filtros)
+- [x] Dashboard Resultados como primeira aba da área do cliente (consulta agendada, procedimento vendido, conversas com resposta, ranking de campanhas)
+- [ ] Ampliar as permissões da chave de API nas contas dos clientes (painéis, sequências, usuários e conversas hoje respondem "acesso negado")
