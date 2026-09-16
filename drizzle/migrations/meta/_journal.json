@@ -50,6 +50,13 @@
       "when": 1789510531201,
       "tag": "0006_integracao_elora_contas_e_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789517548934,
+      "tag": "0007_elora_contatos_sincronizados_e_mapeamento",
+      "breakpoints": true
     }
   ]
 }

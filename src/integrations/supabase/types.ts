@@ -220,6 +220,59 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_contatos_sincronizados: {
+        Row: {
+          cliente_id: string
+          contact_id: string
+          criado_em: string | null
+          data_consulta: string | null
+          id: string
+          nome: string | null
+          procedimento_interesse: string | null
+          sincronizado_em: string
+          telefone: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          cliente_id: string
+          contact_id: string
+          criado_em?: string | null
+          data_consulta?: string | null
+          id?: string
+          nome?: string | null
+          procedimento_interesse?: string | null
+          sincronizado_em?: string
+          telefone?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          contact_id?: string
+          criado_em?: string | null
+          data_consulta?: string | null
+          id?: string
+          nome?: string | null
+          procedimento_interesse?: string | null
+          sincronizado_em?: string
+          telefone?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_contatos_sincronizados_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_custos: {
         Row: {
           created_at: string
@@ -508,10 +561,14 @@ export type Database = {
           api_key: string
           ativo: boolean
           base_url: string
+          campo_data_consulta_key: string | null
+          campo_procedimento_key: string | null
           cliente_id: string
           created_at: string
           criado_por: string | null
           id: string
+          sync_janela_inicio: string | null
+          sync_paginas_ok: number
           ultima_sync: string | null
           ultimo_erro: string | null
           updated_at: string
@@ -520,10 +577,14 @@ export type Database = {
           api_key: string
           ativo?: boolean
           base_url: string
+          campo_data_consulta_key?: string | null
+          campo_procedimento_key?: string | null
           cliente_id: string
           created_at?: string
           criado_por?: string | null
           id?: string
+          sync_janela_inicio?: string | null
+          sync_paginas_ok?: number
           ultima_sync?: string | null
           ultimo_erro?: string | null
           updated_at?: string
@@ -532,10 +593,14 @@ export type Database = {
           api_key?: string
           ativo?: boolean
           base_url?: string
+          campo_data_consulta_key?: string | null
+          campo_procedimento_key?: string | null
           cliente_id?: string
           created_at?: string
           criado_por?: string | null
           id?: string
+          sync_janela_inicio?: string | null
+          sync_paginas_ok?: number
           ultima_sync?: string | null
           ultimo_erro?: string | null
           updated_at?: string
