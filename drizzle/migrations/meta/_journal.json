@@ -57,6 +57,13 @@
       "when": 1789517548934,
       "tag": "0007_elora_contatos_sincronizados_e_mapeamento",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789522967942,
+      "tag": "0008_integracao_elora_paineis_sequencias_conversas",
+      "breakpoints": true
     }
   ]
 }

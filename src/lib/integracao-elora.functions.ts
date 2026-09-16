@@ -15,6 +15,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * - a gravação de contatos é exclusiva da sincronização (service role).
  */
 
+export type FiltrosElora = {
+  usuarios: string[];
+  etiquetas: string[];
+  campoPersonalizado: { chave: string; valor: string } | null;
+  etapasFunil: string[];
+  campanha: string | null;
+};
+
 type IntegracaoVisivel = {
   clienteId: string;
   configurada: boolean;
@@ -23,10 +31,18 @@ type IntegracaoVisivel = {
   chaveMascarada: string | null;
   campoProcedimentoKey: string | null;
   campoDataConsultaKey: string | null;
+  classificacaoConsultaAgendada: string | null;
+  classificacaoProcedimentoVendido: string | null;
+  filtros: FiltrosElora;
   retomadaPendente: boolean;
   ultimaSync: string | null;
+  ultimaSyncConversas: string | null;
   ultimoErro: string | null;
 };
+
+const listaTexto = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
 
 const mascaraChave = (chave: string) =>
   chave.length <= 4 ? "••••" : `••••${chave.slice(-4)}`;
@@ -46,11 +62,17 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
 
     const { data: conta } = await supabaseAdmin
       .from("elora_integracao_contas")
-      .select(
-        "cliente_id, base_url, api_key, ativo, campo_procedimento_key, campo_data_consulta_key, sync_janela_inicio, ultima_sync, ultimo_erro",
-      )
+      .select("*")
       .eq("cliente_id", data.clienteId)
       .maybeSingle();
+
+    const semFiltros: FiltrosElora = {
+      usuarios: [],
+      etiquetas: [],
+      campoPersonalizado: null,
+      etapasFunil: [],
+      campanha: null,
+    };
 
     if (!conta) {
       return {
@@ -61,24 +83,49 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
         chaveMascarada: null,
         campoProcedimentoKey: null,
         campoDataConsultaKey: null,
+        classificacaoConsultaAgendada: null,
+        classificacaoProcedimentoVendido: null,
+        filtros: semFiltros,
         retomadaPendente: false,
         ultimaSync: null,
+        ultimaSyncConversas: null,
         ultimoErro: null,
       };
     }
 
+    const c = conta as any;
+    const campo = c.filtro_campo_personalizado as any;
+
     return {
-      clienteId: conta.cliente_id,
+      clienteId: c.cliente_id,
       configurada: true,
-      ativo: Boolean(conta.ativo),
-      baseUrl: conta.base_url,
-      chaveMascarada: mascaraChave(String(conta.api_key)),
-      campoProcedimentoKey: conta.campo_procedimento_key ? String(conta.campo_procedimento_key) : null,
-      campoDataConsultaKey: conta.campo_data_consulta_key ? String(conta.campo_data_consulta_key) : null,
-      retomadaPendente: Boolean(conta.sync_janela_inicio),
-      ultimaSync: conta.ultima_sync ? String(conta.ultima_sync) : null,
-      ultimoErro: conta.ultimo_erro ? String(conta.ultimo_erro) : null,
+      ativo: Boolean(c.ativo),
+      baseUrl: c.base_url,
+      chaveMascarada: mascaraChave(String(c.api_key)),
+      campoProcedimentoKey: c.campo_procedimento_key ? String(c.campo_procedimento_key) : null,
+      campoDataConsultaKey: c.campo_data_consulta_key ? String(c.campo_data_consulta_key) : null,
+      classificacaoConsultaAgendada: c.classificacao_consulta_agendada
+        ? String(c.classificacao_consulta_agendada)
+        : null,
+      classificacaoProcedimentoVendido: c.classificacao_procedimento_vendido
+        ? String(c.classificacao_procedimento_vendido)
+        : null,
+      filtros: {
+        usuarios: listaTexto(c.filtro_usuarios),
+        etiquetas: listaTexto(c.filtro_etiquetas),
+        campoPersonalizado:
+          campo && typeof campo === "object" && campo.chave
+            ? { chave: String(campo.chave), valor: String(campo.valor ?? "") }
+            : null,
+        etapasFunil: listaTexto(c.filtro_etapas_funil),
+        campanha: c.filtro_campanha ? String(c.filtro_campanha) : null,
+      },
+      retomadaPendente: Boolean(c.sync_janela_inicio),
+      ultimaSync: c.ultima_sync ? String(c.ultima_sync) : null,
+      ultimaSyncConversas: c.sync_conversas_ultima ? String(c.sync_conversas_ultima) : null,
+      ultimoErro: c.ultimo_erro ? String(c.ultimo_erro) : null,
     };
+
   });
 
 const salvarSchema = z.object({
@@ -189,16 +236,32 @@ async function lerApiElora(
       continue;
     }
 
-    if (!resposta.ok) {
+    const texto = await resposta.text();
+    let corpo: unknown = null;
+    try {
+      corpo = texto ? JSON.parse(texto) : null;
+    } catch {
       throw new Error(
-        resposta.status === 401 || resposta.status === 403
-          ? "A chave de API foi recusada pelo app Elora. Confira a chave da conta."
-          : `O app Elora respondeu com erro (${resposta.status}). Tente novamente.`,
+        "O endereço informado não é o da API da conta — a resposta veio como página do site, não como dados.",
       );
     }
-    return (await resposta.json()) as Record<string, unknown>;
+
+    if (!resposta.ok) {
+      const chave = String((corpo as any)?.key ?? "");
+      if (chave === "ERROR_UNAUTHORIZED" || resposta.status === 401 || resposta.status === 403) {
+        throw new Error(
+          `A conta recusou o acesso a ${caminho.split("?")[0]}. Verifique se a chave de API tem permissão para esse recurso nas configurações da conta.`,
+        );
+      }
+      if (resposta.status === 404) {
+        throw new Error(`O app Elora não reconheceu o endereço ${caminho.split("?")[0]} nesta conta.`);
+      }
+      throw new Error(`O app Elora respondeu com erro (${resposta.status}). Tente novamente.`);
+    }
+    return corpo as Record<string, unknown>;
   }
 }
+
 
 /** Testa a conexão com a conta do cliente. Não grava nada. */
 export const testarIntegracaoCliente = createServerFn({ method: "POST" })
@@ -216,7 +279,13 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
     if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
 
     try {
-      await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/status");
+      // Chamada real e barata de leitura: confirma endereço + chave de uma vez.
+      await lerApiElora(
+        String(conta.base_url),
+        String(conta.api_key),
+        "/v1/contact/custom-field?NestedList=false",
+      );
+
       await supabaseAdmin
         .from("elora_integracao_contas")
         .update({ ultimo_erro: null })
@@ -316,11 +385,10 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
 
     const { data: conta } = await supabaseAdmin
       .from("elora_integracao_contas")
-      .select(
-        "base_url, api_key, ativo, campo_procedimento_key, campo_data_consulta_key, ultima_sync, sync_janela_inicio, sync_paginas_ok",
-      )
+      .select("*")
       .eq("cliente_id", data.clienteId)
       .maybeSingle();
+
     if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
     if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
     if (!conta.campo_procedimento_key || !conta.campo_data_consulta_key) {
@@ -344,6 +412,13 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
       if (error) throw new Error(`integracao: ${error.message}`);
     }
 
+    // Filtros salvos do cliente: vazio = sem restrição.
+    const fUsuarios = listaTexto((conta as any).filtro_usuarios);
+    const fEtiquetas = listaTexto((conta as any).filtro_etiquetas);
+    const fEtapas = listaTexto((conta as any).filtro_etapas_funil);
+    const fCampanha = (conta as any).filtro_campanha ? String((conta as any).filtro_campanha) : null;
+    const fCampo = (conta as any).filtro_campo_personalizado as any;
+
     try {
       let pagina = 0;
       let gravados = 0;
@@ -356,8 +431,12 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
             pageSize: 100,
             createdAt: { after: janelaInicio, before: null },
             includeDetails: ["CustomFields"],
+            ...(fUsuarios.length > 0 ? { userIds: fUsuarios } : {}),
+            ...(fEtiquetas.length > 0 ? { tagIds: fEtiquetas } : {}),
+            ...(fEtapas.length > 0 ? { stepIds: fEtapas } : {}),
           },
         });
+
 
         const hasMore = Boolean((resp as any)?.hasMorePages);
 
@@ -371,6 +450,19 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
         if (itens.length > 0) {
           const agora = new Date().toISOString();
           const linhas = itens
+            .filter((c: any) => {
+              if (fCampanha) {
+                const camp = String(c?.utm?.campaign ?? "");
+                if (!camp.toLowerCase().includes(fCampanha.toLowerCase())) return false;
+              }
+              if (fCampo?.chave) {
+                const v = (c.customFields ?? {})[fCampo.chave];
+                const alvo = String(fCampo.valor ?? "").trim();
+                if (alvo && String(v ?? "").toLowerCase() !== alvo.toLowerCase()) return false;
+                if (!alvo && (v == null || v === "")) return false;
+              }
+              return true;
+            })
             .map((c: any) => {
               const custom = (c.customFields ?? {}) as Record<string, unknown>;
               const valor = (k: string) => {
@@ -393,6 +485,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
               };
             })
             .filter((l) => l.contact_id.length > 0);
+
 
           if (linhas.length > 0) {
             const { error } = await supabaseAdmin
@@ -455,10 +548,23 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
 
-    const noPeriodo = (q: any) => {
+    // Mesmo trio de permissões de painel_cliente_dados(): equipe interna,
+    // o próprio cliente, ou parceiro com painel liberado.
+    const [{ data: interno }, { data: meuCliente }, { data: parceiroOk }] = await Promise.all([
+      db.rpc("is_equipe_interna"),
+      db.rpc("cliente_do_usuario"),
+      db.rpc("parceiro_pode_ver_painel", { _cliente_id: data.clienteId }),
+    ]);
+    const podeVer = Boolean(interno) || meuCliente === data.clienteId || Boolean(parceiroOk);
+    if (!podeVer) throw new Error("acesso-negado: este painel não está liberado para você.");
+
+    const inicio = data.de ? `${data.de}T00:00:00Z` : null;
+    const fim = data.ate ? `${data.ate}T23:59:59.999Z` : null;
+
+    const noPeriodo = (q: any, coluna = "criado_em") => {
       let x = q.eq("cliente_id", data.clienteId);
-      if (data.de) x = x.gte("criado_em", `${data.de}T00:00:00Z`);
-      if (data.ate) x = x.lte("criado_em", `${data.ate}T23:59:59.999Z`);
+      if (inicio) x = x.gte(coluna, inicio);
+      if (fim) x = x.lte(coluna, fim);
       return x;
     };
 
@@ -481,12 +587,76 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
       .range(de, de + data.porPagina - 1);
     if (error) throw new Error(`resultados: ${error.message}`);
 
+    // Ranking de campanhas: agregado a partir dos contatos já sincronizados.
+    const { data: comCampanha } = await noPeriodo(
+      db
+        .from("elora_contatos_sincronizados")
+        .select("utm_campaign, utm_source, utm_medium")
+        .not("utm_campaign", "is", null),
+    ).limit(5000);
+
+    const mapa = new Map<
+      string,
+      { campanha: string; source: string | null; medium: string | null; leads: number }
+    >();
+    for (const c of (comCampanha ?? []) as any[]) {
+      const nome = String(c.utm_campaign ?? "").trim();
+      if (!nome) continue;
+      const atual = mapa.get(nome) ?? { campanha: nome, source: null, medium: null, leads: 0 };
+      atual.leads += 1;
+      atual.source = atual.source ?? (c.utm_source ? String(c.utm_source) : null);
+      atual.medium = atual.medium ?? (c.utm_medium ? String(c.utm_medium) : null);
+      mapa.set(nome, atual);
+    }
+    const ranking = [...mapa.values()].sort((a, b) => b.leads - a.leads).slice(0, 20);
+
+    // Conversas classificadas do período (já sincronizadas, sem tocar a API).
+    const { data: conversas } = await noPeriodo(
+      db.from("elora_conversas_classificadas").select("category_name, teve_resposta"),
+    ).limit(20000);
+
+    const linhasConversa = (conversas ?? []) as any[];
+    const contagemPorClassificacao = new Map<string, number>();
+    let conversasComResposta = 0;
+    for (const s of linhasConversa) {
+      if (s.teve_resposta) conversasComResposta += 1;
+      const nome = s.category_name ? String(s.category_name) : "";
+      if (nome) contagemPorClassificacao.set(nome, (contagemPorClassificacao.get(nome) ?? 0) + 1);
+    }
+
+    // Os rótulos mapeados vivem na tabela restrita da integração; só são lidos
+    // depois da checagem de permissão acima e nunca acompanham chave alguma.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conta } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .select("classificacao_consulta_agendada, classificacao_procedimento_vendido")
+      .eq("cliente_id", data.clienteId)
+      .maybeSingle();
+
+    const rotuloAgendada = (conta as any)?.classificacao_consulta_agendada
+      ? String((conta as any).classificacao_consulta_agendada)
+      : null;
+    const rotuloVendido = (conta as any)?.classificacao_procedimento_vendido
+      ? String((conta as any).classificacao_procedimento_vendido)
+      : null;
+
     return {
       total: total ?? 0,
       anuncio: anuncio ?? 0,
       pagina: data.pagina,
       porPagina: data.porPagina,
       totalPaginas: Math.max(1, Math.ceil((total ?? 0) / data.porPagina)),
+      consultaAgendada: {
+        rotulo: rotuloAgendada,
+        quantidade: rotuloAgendada ? (contagemPorClassificacao.get(rotuloAgendada) ?? 0) : 0,
+      },
+      procedimentoVendido: {
+        rotulo: rotuloVendido,
+        quantidade: rotuloVendido ? (contagemPorClassificacao.get(rotuloVendido) ?? 0) : 0,
+      },
+      conversasComResposta,
+      conversasTotal: linhasConversa.length,
+      ranking,
       contatos: ((rows ?? []) as any[]).map((c) => ({
         id: String(c.id),
         nome: (c.nome as string) ?? null,
@@ -500,3 +670,358 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
       })),
     };
   });
+
+/* ------------------------------------------------------------------ *
+ * Exploração da conta: painéis, sequências, usuários, etiquetas e
+ * classificações. Tudo passa pela mesma trava de equipe interna.
+ * ------------------------------------------------------------------ */
+
+async function contaDoCliente(clienteId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: conta } = await supabaseAdmin
+    .from("elora_integracao_contas")
+    .select("*")
+    .eq("cliente_id", clienteId)
+    .maybeSingle();
+  if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
+  return { conta: conta as any, supabaseAdmin };
+}
+
+const listaDe = (resp: unknown): any[] => {
+  if (Array.isArray(resp)) return resp;
+  const r = resp as any;
+  if (Array.isArray(r?.items)) return r.items;
+  if (Array.isArray(r?.data)) return r.data;
+  return [];
+};
+
+const soClienteId = z.object({ clienteId: z.string().min(1) });
+
+export type PainelElora = {
+  id: string;
+  titulo: string;
+  tipo: string | null;
+  etapas: { id: string; nome: string }[];
+};
+
+/** Painéis (funis) da conta, com as etapas de cada um. */
+export const listarPaineisCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<{ paineis: PainelElora[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
+
+    const paineis: PainelElora[] = [];
+    for (let pagina = 1; pagina <= 20; pagina++) {
+      const resp = await lerApiElora(
+        String(conta.base_url),
+        String(conta.api_key),
+        `/v2/panel?PageNumber=${pagina}&PageSize=50&IncludeDetails=Steps`,
+      );
+      const itens = listaDe(resp);
+      for (const p of itens) {
+        paineis.push({
+          id: String(p.id ?? ""),
+          titulo: String(p.title ?? p.name ?? "Sem título"),
+          tipo: p.type ? String(p.type) : null,
+          etapas: (Array.isArray(p.steps) ? p.steps : []).map((s: any) => ({
+            id: String(s.id ?? ""),
+            nome: String(s.title ?? s.name ?? s.id ?? ""),
+          })),
+        });
+      }
+      if (!(resp as any)?.hasMorePages || itens.length === 0) break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+
+    if (paineis.length > 0) {
+      const agora = new Date().toISOString();
+      await supabaseAdmin.from("elora_paineis_sincronizados").upsert(
+        paineis.map((p) => ({
+          cliente_id: data.clienteId,
+          painel_id: p.id,
+          titulo: p.titulo,
+          tipo: p.tipo,
+          etapas: p.etapas as never,
+          sincronizado_em: agora,
+        })),
+        { onConflict: "cliente_id,painel_id" },
+      );
+    }
+
+    return { paineis };
+  });
+
+/** Campos personalizados de um painel específico. */
+export const listarCamposDoPainel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ clienteId: z.string().min(1), painelId: z.string().min(1) }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ campos: CampoElora[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
+
+    const resp = await lerApiElora(
+      String(conta.base_url),
+      String(conta.api_key),
+      `/v1/panel/${encodeURIComponent(data.painelId)}/custom-fields`,
+    );
+    const campos = listaDe(resp)
+      .map((c: any) => ({
+        chave: String(c.key ?? c.id ?? ""),
+        nome: String(c.label ?? c.name ?? c.title ?? c.key ?? c.id ?? ""),
+      }))
+      .filter((c) => c.chave.length > 0);
+
+    await supabaseAdmin
+      .from("elora_paineis_sincronizados")
+      .update({ campos_personalizados: campos as never })
+      .eq("cliente_id", data.clienteId)
+      .eq("painel_id", data.painelId);
+
+    return { campos };
+  });
+
+/** Sequências da conta. */
+export const listarSequenciasCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<{ sequencias: { id: string; nome: string }[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
+
+    const sequencias: { id: string; nome: string }[] = [];
+    for (let pagina = 1; pagina <= 20; pagina++) {
+      const resp = await lerApiElora(
+        String(conta.base_url),
+        String(conta.api_key),
+        `/v1/sequence?PageNumber=${pagina}&PageSize=50`,
+      );
+      const itens = listaDe(resp);
+      for (const s of itens) {
+        sequencias.push({ id: String(s.id ?? ""), nome: String(s.name ?? s.title ?? s.id ?? "") });
+      }
+      if (!(resp as any)?.hasMorePages || itens.length === 0) break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+
+    if (sequencias.length > 0) {
+      const agora = new Date().toISOString();
+      await supabaseAdmin.from("elora_sequencias_sincronizadas").upsert(
+        sequencias.map((s) => ({
+          cliente_id: data.clienteId,
+          sequencia_id: s.id,
+          nome: s.nome,
+          sincronizado_em: agora,
+        })),
+        { onConflict: "cliente_id,sequencia_id" },
+      );
+    }
+
+    return { sequencias };
+  });
+
+/** Usuários da conta (para o filtro). */
+export const listarUsuariosCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<{ usuarios: { id: string; nome: string }[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta } = await contaDoCliente(data.clienteId);
+    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/user?PageSize=200");
+    const usuarios = listaDe(resp)
+      .map((u: any) => ({
+        id: String(u.id ?? ""),
+        nome: String(u.name ?? u.displayName ?? u.email ?? u.id ?? ""),
+      }))
+      .filter((u) => u.id.length > 0);
+    return { usuarios };
+  });
+
+/** Etiquetas da conta (para o filtro). */
+export const listarEtiquetasCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<{ etiquetas: { id: string; nome: string }[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta } = await contaDoCliente(data.clienteId);
+    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/tag?PageSize=200");
+    const etiquetas = listaDe(resp)
+      .map((t: any) => ({ id: String(t.id ?? ""), nome: String(t.name ?? t.title ?? t.id ?? "") }))
+      .filter((t) => t.id.length > 0);
+    return { etiquetas };
+  });
+
+/**
+ * Classificações usadas recentemente (amostra dos últimos 90 dias, até 500
+ * conversas). Não existe catálogo de classificações na API — são texto livre.
+ */
+export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<{ classificacoes: string[]; conversas: number }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta } = await contaDoCliente(data.clienteId);
+
+    const desde = new Date(Date.now() - 90 * 86_400_000).toISOString();
+    const nomes = new Set<string>();
+    let vistas = 0;
+
+    for (let pagina = 1; pagina <= 5; pagina++) {
+      const resp = await lerApiElora(
+        String(conta.base_url),
+        String(conta.api_key),
+        `/v2/session?PageNumber=${pagina}&PageSize=100&StartDate=${encodeURIComponent(desde)}&IncludeDetails=ClassificationDetails`,
+      );
+      const itens = listaDe(resp);
+      vistas += itens.length;
+      for (const s of itens) {
+        const nome = s?.classification?.categoryName ?? s?.classificationDetails?.categoryName ?? null;
+        if (nome && String(nome).trim()) nomes.add(String(nome).trim());
+      }
+      if (!(resp as any)?.hasMorePages || itens.length === 0) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    return { classificacoes: [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR")), conversas: vistas };
+  });
+
+/** Salva quais classificações representam consulta agendada e venda. */
+export const salvarClassificacoesCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1),
+        consultaAgendada: z.string().trim().max(200).nullable(),
+        procedimentoVendido: z.string().trim().max(200).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .update({
+        classificacao_consulta_agendada: data.consultaAgendada,
+        classificacao_procedimento_vendido: data.procedimentoVendido,
+      })
+      .eq("cliente_id", data.clienteId);
+    if (error) throw new Error(`classificacoes: ${error.message}`);
+    return { ok: true };
+  });
+
+/** Salva os filtros do cliente (valem para sincronização e painel). */
+export const salvarFiltrosCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1),
+        usuarios: z.array(z.string()).max(200).default([]),
+        etiquetas: z.array(z.string()).max(200).default([]),
+        campoPersonalizado: z
+          .object({ chave: z.string().max(200), valor: z.string().max(400) })
+          .nullable()
+          .default(null),
+        etapasFunil: z.array(z.string()).max(200).default([]),
+        campanha: z.string().trim().max(200).nullable().default(null),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .update({
+        filtro_usuarios: data.usuarios as never,
+        filtro_etiquetas: data.etiquetas as never,
+        filtro_campo_personalizado: (data.campoPersonalizado?.chave
+          ? data.campoPersonalizado
+          : null) as never,
+        filtro_etapas_funil: data.etapasFunil as never,
+        filtro_campanha: data.campanha && data.campanha.length > 0 ? data.campanha : null,
+      })
+      .eq("cliente_id", data.clienteId);
+    if (error) throw new Error(`filtros: ${error.message}`);
+    return { ok: true };
+  });
+
+/**
+ * Sincronização de conversas/classificações — separada e opcional.
+ * Incremental: busca só o que mudou desde a última conclusão (na primeira vez,
+ * os últimos 90 dias). Grava por (cliente, sessão) com upsert, então rodar
+ * duas vezes não infla as contagens.
+ */
+export const sincronizarConversasCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
+    if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
+
+    const desde = conta.sync_conversas_ultima
+      ? new Date(String(conta.sync_conversas_ultima)).toISOString()
+      : new Date(Date.now() - 90 * 86_400_000).toISOString();
+
+    try {
+      let gravadas = 0;
+      for (let pagina = 1; pagina <= 100; pagina++) {
+        const resp = await lerApiElora(
+          String(conta.base_url),
+          String(conta.api_key),
+          `/v2/session?PageNumber=${pagina}&PageSize=100&StartDate=${encodeURIComponent(desde)}&IncludeDetails=ClassificationDetails`,
+        );
+        const itens = listaDe(resp);
+        if (itens.length === 0) break;
+
+        const agora = new Date().toISOString();
+        const linhas = itens
+          .map((s: any) => {
+            const cls = s.classification ?? s.classificationDetails ?? {};
+            return {
+              cliente_id: data.clienteId,
+              sessao_id: String(s.id ?? ""),
+              category: cls.category ? String(cls.category) : null,
+              category_name: cls.categoryName ? String(cls.categoryName) : null,
+              criado_em: s.createdAt ? String(s.createdAt) : null,
+              atualizado_em: s.updatedAt ? String(s.updatedAt) : null,
+              teve_resposta: Boolean(s.hasAnswer ?? s.answered ?? false),
+              sincronizado_em: agora,
+            };
+          })
+          .filter((l) => l.sessao_id.length > 0);
+
+        if (linhas.length > 0) {
+          const { error } = await supabaseAdmin
+            .from("elora_conversas_classificadas")
+            .upsert(linhas as never, { onConflict: "cliente_id,sessao_id" });
+          if (error) throw new Error(`conversas: ${error.message}`);
+          gravadas += linhas.length;
+        }
+
+        if (!(resp as any)?.hasMorePages) break;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+
+      await supabaseAdmin
+        .from("elora_integracao_contas")
+        .update({ sync_conversas_ultima: new Date().toISOString(), ultimo_erro: null })
+        .eq("cliente_id", data.clienteId);
+
+      return { sincronizado: true as const, conversas: gravadas };
+    } catch (e) {
+      const mensagem = `Falha ao sincronizar conversas: ${e instanceof Error ? e.message : "falha desconhecida."}`;
+      await supabaseAdmin
+        .from("elora_integracao_contas")
+        .update({ ultimo_erro: mensagem })
+        .eq("cliente_id", data.clienteId);
+      throw new Error(mensagem);
+    }
+  });
+

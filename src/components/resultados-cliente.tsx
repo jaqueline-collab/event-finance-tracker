@@ -125,7 +125,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-lg border border-border/60 p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Novos contatos</p>
             {carregando ? (
@@ -147,7 +147,82 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
               </>
             )}
           </div>
+          <div className="rounded-lg border border-border/60 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Consulta agendada</p>
+            {carregando ? (
+              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <p className="mt-1 text-2xl font-bold">{dados?.consultaAgendada.quantidade ?? 0}</p>
+                <p className="text-xs text-muted-foreground">
+                  {dados?.consultaAgendada.rotulo
+                    ? `Classificação "${dados.consultaAgendada.rotulo}"`
+                    : "Classificação ainda não escolhida"}
+                </p>
+              </>
+            )}
+          </div>
+          <div className="rounded-lg border border-border/60 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Procedimento vendido</p>
+            {carregando ? (
+              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <p className="mt-1 text-2xl font-bold">{dados?.procedimentoVendido.quantidade ?? 0}</p>
+                <p className="text-xs text-muted-foreground">
+                  {dados?.procedimentoVendido.rotulo
+                    ? `Classificação "${dados.procedimentoVendido.rotulo}"`
+                    : "Classificação ainda não escolhida"}
+                </p>
+              </>
+            )}
+          </div>
+          <div className="rounded-lg border border-border/60 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Conversas com resposta</p>
+            {carregando ? (
+              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <p className="mt-1 text-2xl font-bold">{dados?.conversasComResposta ?? 0}</p>
+                <p className="text-xs text-muted-foreground">
+                  de {dados?.conversasTotal ?? 0} conversas no período
+                </p>
+              </>
+            )}
+          </div>
         </div>
+
+        {!carregando && (dados?.ranking.length ?? 0) > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Ranking de campanhas</p>
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Campanha</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Mídia</TableHead>
+                    <TableHead className="text-right">Leads</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dados?.ranking.map((r) => (
+                    <TableRow key={r.campanha}>
+                      <TableCell className="font-medium">{r.campanha}</TableCell>
+                      <TableCell>{r.source ?? "—"}</TableCell>
+                      <TableCell>{r.medium ?? "—"}</TableCell>
+                      <TableCell className="text-right">{r.leads}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Até 20 campanhas com mais leads. Contatos sem campanha não entram no ranking.
+            </p>
+          </div>
+        )}
+
 
         {carregando && (
           <div className="flex justify-center py-6">

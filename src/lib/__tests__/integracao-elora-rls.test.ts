@@ -123,6 +123,36 @@ beforeAll(async () => {
   ] as never);
   if (contatos.error) throw contatos.error;
 
+  const paineis = await admin.from("elora_paineis_sincronizados" as never).insert([
+    { cliente_id: CLI_A, painel_id: `p1-${sufixo}`, titulo: "Vendas", tipo: "Vendas", etapas: [] },
+    { cliente_id: CLI_B, painel_id: `p2-${sufixo}`, titulo: "Gestão", tipo: "Gestao", etapas: [] },
+  ] as never);
+  if (paineis.error) throw paineis.error;
+
+  const seqs = await admin.from("elora_sequencias_sincronizadas" as never).insert([
+    { cliente_id: CLI_A, sequencia_id: `s1-${sufixo}`, nome: "Boas-vindas" },
+    { cliente_id: CLI_B, sequencia_id: `s2-${sufixo}`, nome: "Reativação" },
+  ] as never);
+  if (seqs.error) throw seqs.error;
+
+  const conversas = await admin.from("elora_conversas_classificadas" as never).insert([
+    {
+      cliente_id: CLI_A,
+      sessao_id: `ses1-${sufixo}`,
+      category_name: "Consulta Agendada",
+      criado_em: "2026-09-05T12:00:00Z",
+      teve_resposta: true,
+    },
+    {
+      cliente_id: CLI_B,
+      sessao_id: `ses2-${sufixo}`,
+      category_name: "Procedimento Vendido",
+      criado_em: "2026-09-06T12:00:00Z",
+      teve_resposta: false,
+    },
+  ] as never);
+  if (conversas.error) throw conversas.error;
+
   const vincParceiro = await admin
     .from("elora_parceiro_usuarios")
     .insert({ parceiro_id: PARC, email: emailParceiro, nome: "Parceiro Teste", ativo: true });
@@ -138,6 +168,10 @@ afterAll(async () => {
   await admin.from("elora_integracao_contas" as never).delete().eq("cliente_id", CLI_A);
   await admin.from("elora_uso_snapshots" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
   await admin.from("elora_contatos_sincronizados" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+  await admin.from("elora_paineis_sincronizados" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+  await admin.from("elora_sequencias_sincronizadas" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+  await admin.from("elora_conversas_classificadas" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+
   await admin.from("elora_cliente_usuarios").delete().eq("cliente_id", CLI_A);
   await admin.from("elora_parceiro_usuarios").delete().eq("parceiro_id", PARC);
   await admin.from("elora_clientes").delete().in("id", [CLI_A, CLI_B]);
@@ -244,5 +278,41 @@ describe("integração Elora — contatos sincronizados (elora_contatos_sincroni
     expect(String(r.error?.message ?? "").toLowerCase()).toMatch(
       /permission|denied|policy|row-level|42501/,
     );
+  }, 60_000);
+});
+
+describe.each([
+  ["elora_paineis_sincronizados"],
+  ["elora_sequencias_sincronizadas"],
+  ["elora_conversas_classificadas"],
+])("integração Elora — %s", (tabela) => {
+  it("o cliente logado lê apenas as próprias linhas", async () => {
+    const cli = await logar(emailCliente);
+    await cli.rpc("link_cliente_usuario" as never);
+    const { data, error } = await cli.from(tabela as never).select("cliente_id");
+    expect(error).toBeNull();
+    const linhas = (data ?? []) as { cliente_id: string }[];
+    expect(linhas.length).toBe(1);
+    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
+  }, 60_000);
+
+  it("o parceiro com painel liberado lê só os clientes dele", async () => {
+    const cli = await logar(emailParceiro);
+    await cli.rpc("link_parceiro_usuario" as never);
+    const { data, error } = await cli.from(tabela as never).select("cliente_id");
+    expect(error).toBeNull();
+    const linhas = (data ?? []) as { cliente_id: string }[];
+    expect(linhas.length).toBe(1);
+    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
+  }, 60_000);
+
+  it("usuário sem vínculo não lê nada e não consegue gravar", async () => {
+    const cli = await logar(emailIntruso);
+    const { data, error } = await cli.from(tabela as never).select("cliente_id");
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const r = await cli.from(tabela as never).insert({ cliente_id: CLI_A } as never);
+    expect(r.error).not.toBeNull();
   }, 60_000);
 });

@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -62,6 +64,13 @@ function AreaCliente() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [aba, setAba] = useState("resultados");
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHeaderTarget(document.getElementById("app-header-actions"));
+  }, []);
+
 
   const carregar = () => {
     setCarregando(true);
@@ -194,16 +203,40 @@ function AreaCliente() {
         </div>
       </div>
 
-      <Tabs defaultValue="conta">
+      {headerTarget &&
+        createPortal(
+          <div className="flex items-center gap-1">
+            {(
+              [
+                { v: "conta", l: "Conta" },
+                { v: "novidades", l: "Novidades" },
+                { v: "equipe", l: "Minha equipe" },
+              ] as const
+            ).map((o) => (
+              <Button
+                key={o.v}
+                size="sm"
+                variant={aba === o.v ? "secondary" : "ghost"}
+                onClick={() => setAba(o.v)}
+              >
+                {o.l}
+              </Button>
+            ))}
+          </div>,
+          headerTarget,
+        )}
+
+      <Tabs value={aba} onValueChange={setAba}>
         <TabsList className="flex-wrap">
-          <TabsTrigger value="conta">Minha conta</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
-          <TabsTrigger value="novidades">Novidades</TabsTrigger>
-          <TabsTrigger value="equipe">Minha equipe</TabsTrigger>
           <TabsTrigger value="resultados">Resultados</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="resultados" className="mt-4">
+          <ResultadosCliente clienteId={cliente.id} />
+        </TabsContent>
+
         <TabsContent value="conta" className="mt-4 grid gap-4 md:grid-cols-2">
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">O que está na sua conta</CardTitle>
@@ -242,7 +275,7 @@ function AreaCliente() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="historico" className="mt-4">
+        <TabsContent value="conta" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Mudanças na conta</CardTitle>
@@ -345,10 +378,6 @@ function AreaCliente() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="resultados" className="mt-4">
-          <ResultadosCliente clienteId={cliente.id} />
         </TabsContent>
       </Tabs>
     </div>
