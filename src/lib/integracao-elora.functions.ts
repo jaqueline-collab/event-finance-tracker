@@ -993,7 +993,21 @@ export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
       );
     }
 
-    return { classificacoes: lista, conversas: vistas };
+    // Une com o que já foi descoberto em sincronizações anteriores — a amostra
+    // ao vivo dos últimos 90 dias pode não trazer valores antigos ainda úteis.
+    const { data: guardadas } = await supabaseAdmin
+      .from("elora_classificacoes_descobertas")
+      .select("valor_bruto")
+      .eq("cliente_id", data.clienteId)
+      .order("valor_bruto");
+    for (const g of (guardadas ?? []) as any[]) {
+      if (g.valor_bruto) nomes.add(String(g.valor_bruto));
+    }
+
+    return {
+      classificacoes: [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR")),
+      conversas: vistas,
+    };
   });
 
 /* ------------------------------------------------------------------ *
