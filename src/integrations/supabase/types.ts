@@ -71,6 +71,87 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_classificacoes_descobertas: {
+        Row: {
+          cliente_id: string
+          id: string
+          sincronizado_em: string
+          valor_bruto: string
+        }
+        Insert: {
+          cliente_id: string
+          id?: string
+          sincronizado_em?: string
+          valor_bruto: string
+        }
+        Update: {
+          cliente_id?: string
+          id?: string
+          sincronizado_em?: string
+          valor_bruto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_classificacoes_descobertas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_classificacoes_rotulo_valores: {
+        Row: {
+          rotulo_id: string
+          valor_bruto: string
+        }
+        Insert: {
+          rotulo_id: string
+          valor_bruto: string
+        }
+        Update: {
+          rotulo_id?: string
+          valor_bruto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_classificacoes_rotulo_valores_rotulo_id_fkey"
+            columns: ["rotulo_id"]
+            isOneToOne: false
+            referencedRelation: "elora_classificacoes_rotulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_classificacoes_rotulos: {
+        Row: {
+          cliente_id: string
+          criado_em: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          cliente_id: string
+          criado_em?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          cliente_id?: string
+          criado_em?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_classificacoes_rotulos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_cliente_usuarios: {
         Row: {
           ativo: boolean
@@ -279,33 +360,45 @@ export type Database = {
           category: string | null
           category_name: string | null
           cliente_id: string
+          contato_id: string | null
           criado_em: string | null
+          first_response_at: string | null
           id: string
           sessao_id: string
           sincronizado_em: string
           teve_resposta: boolean
+          time_service_segundos: number | null
+          time_wait_segundos: number | null
         }
         Insert: {
           atualizado_em?: string | null
           category?: string | null
           category_name?: string | null
           cliente_id: string
+          contato_id?: string | null
           criado_em?: string | null
+          first_response_at?: string | null
           id?: string
           sessao_id: string
           sincronizado_em?: string
           teve_resposta?: boolean
+          time_service_segundos?: number | null
+          time_wait_segundos?: number | null
         }
         Update: {
           atualizado_em?: string | null
           category?: string | null
           category_name?: string | null
           cliente_id?: string
+          contato_id?: string | null
           criado_em?: string | null
+          first_response_at?: string | null
           id?: string
           sessao_id?: string
           sincronizado_em?: string
           teve_resposta?: boolean
+          time_service_segundos?: number | null
+          time_wait_segundos?: number | null
         }
         Relationships: [
           {
@@ -605,6 +698,8 @@ export type Database = {
           api_key: string
           ativo: boolean
           base_url: string
+          bloco2_rotulo_id: string | null
+          bloco3_rotulo_id: string | null
           campo_data_consulta_key: string | null
           campo_procedimento_key: string | null
           classificacao_consulta_agendada: string | null
@@ -617,6 +712,10 @@ export type Database = {
           filtro_etapas_funil: Json | null
           filtro_etiquetas: Json | null
           filtro_usuarios: Json | null
+          grafico1_serie1_rotulo_id: string | null
+          grafico1_serie2_rotulo_id: string | null
+          grafico2_serie1_rotulo_id: string | null
+          grafico2_serie2_rotulo_id: string | null
           id: string
           sync_conversas_ultima: string | null
           sync_janela_inicio: string | null
@@ -629,6 +728,8 @@ export type Database = {
           api_key: string
           ativo?: boolean
           base_url: string
+          bloco2_rotulo_id?: string | null
+          bloco3_rotulo_id?: string | null
           campo_data_consulta_key?: string | null
           campo_procedimento_key?: string | null
           classificacao_consulta_agendada?: string | null
@@ -641,6 +742,10 @@ export type Database = {
           filtro_etapas_funil?: Json | null
           filtro_etiquetas?: Json | null
           filtro_usuarios?: Json | null
+          grafico1_serie1_rotulo_id?: string | null
+          grafico1_serie2_rotulo_id?: string | null
+          grafico2_serie1_rotulo_id?: string | null
+          grafico2_serie2_rotulo_id?: string | null
           id?: string
           sync_conversas_ultima?: string | null
           sync_janela_inicio?: string | null
@@ -653,6 +758,8 @@ export type Database = {
           api_key?: string
           ativo?: boolean
           base_url?: string
+          bloco2_rotulo_id?: string | null
+          bloco3_rotulo_id?: string | null
           campo_data_consulta_key?: string | null
           campo_procedimento_key?: string | null
           classificacao_consulta_agendada?: string | null
@@ -665,6 +772,10 @@ export type Database = {
           filtro_etapas_funil?: Json | null
           filtro_etiquetas?: Json | null
           filtro_usuarios?: Json | null
+          grafico1_serie1_rotulo_id?: string | null
+          grafico1_serie2_rotulo_id?: string | null
+          grafico2_serie1_rotulo_id?: string | null
+          grafico2_serie2_rotulo_id?: string | null
           id?: string
           sync_conversas_ultima?: string | null
           sync_janela_inicio?: string | null
@@ -680,6 +791,48 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "elora_clientes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_int_bloco2_rotulo"
+            columns: ["cliente_id", "bloco2_rotulo_id"]
+            isOneToOne: false
+            referencedRelation: "elora_classificacoes_rotulos"
+            referencedColumns: ["cliente_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_int_bloco3_rotulo"
+            columns: ["cliente_id", "bloco3_rotulo_id"]
+            isOneToOne: false
+            referencedRelation: "elora_classificacoes_rotulos"
+            referencedColumns: ["cliente_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_int_g1s1_rotulo"
+            columns: ["cliente_id", "grafico1_serie1_rotulo_id"]
+            isOneToOne: false
+            referencedRelation: "elora_classificacoes_rotulos"
+            referencedColumns: ["cliente_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_int_g1s2_rotulo"
+            columns: ["cliente_id", "grafico1_serie2_rotulo_id"]
+            isOneToOne: false
+            referencedRelation: "elora_classificacoes_rotulos"
+            referencedColumns: ["cliente_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_int_g2s1_rotulo"
+            columns: ["cliente_id", "grafico2_serie1_rotulo_id"]
+            isOneToOne: false
+            referencedRelation: "elora_classificacoes_rotulos"
+            referencedColumns: ["cliente_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_int_g2s2_rotulo"
+            columns: ["cliente_id", "grafico2_serie2_rotulo_id"]
+            isOneToOne: false
+            referencedRelation: "elora_classificacoes_rotulos"
+            referencedColumns: ["cliente_id", "id"]
           },
         ]
       }

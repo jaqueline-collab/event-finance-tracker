@@ -64,6 +64,13 @@
       "when": 1789522967942,
       "tag": "0008_integracao_elora_paineis_sequencias_conversas",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789526771792,
+      "tag": "0009_elora_rotulos_classificacao_e_config_dashboard",
+      "breakpoints": true
     }
   ]
 }
