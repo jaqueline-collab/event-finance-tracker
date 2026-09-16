@@ -30,20 +30,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  excluirRotuloCliente,
+  getConfigDashboardCliente,
   getIntegracaoCliente,
   listarCamposDoPainel,
   listarCamposPersonalizados,
   listarClassificacoesRecentes,
   listarEtiquetasCliente,
   listarPaineisCliente,
+  listarRotulosCliente,
   listarSequenciasCliente,
   listarUsuariosCliente,
-  salvarClassificacoesCliente,
+  salvarConfigDashboardCliente,
   salvarFiltrosCliente,
   salvarMapeamentoCliente,
+  salvarRotuloCliente,
   sincronizarConversasCliente,
   type CampoElora,
+  type ConfigDashboard,
   type PainelElora,
+  type RotuloClassificacao,
 } from "@/lib/integracao-elora.functions";
 
 export const Route = createFileRoute("/clientes_/$id/integracao-elora")({
@@ -128,13 +134,27 @@ function MapeamentoIntegracao() {
   const [sequencias, setSequencias] = useState<{ id: string; nome: string }[] | null>(null);
   const [buscandoSeq, setBuscandoSeq] = useState(false);
 
-  // 5. classificações
+  // 5. classificações: descoberta + rótulos
   const [classificacoes, setClassificacoes] = useState<string[] | null>(null);
   const [buscandoCls, setBuscandoCls] = useState(false);
-  const [clsAgendada, setClsAgendada] = useState("");
-  const [clsVendido, setClsVendido] = useState("");
-  const [salvandoCls, setSalvandoCls] = useState(false);
   const [sincConversas, setSincConversas] = useState(false);
+  const [rotulos, setRotulos] = useState<RotuloClassificacao[]>([]);
+  const [rotuloAberto, setRotuloAberto] = useState<string | null>(null);
+  const [editando, setEditando] = useState<string | "novo" | null>(null);
+  const [rotuloNome, setRotuloNome] = useState("");
+  const [rotuloValores, setRotuloValores] = useState<string[]>([]);
+  const [salvandoRotulo, setSalvandoRotulo] = useState(false);
+
+  // configuração das peças do painel
+  const [config, setConfig] = useState<ConfigDashboard>({
+    bloco2: null,
+    bloco3: null,
+    grafico1Serie1: null,
+    grafico1Serie2: null,
+    grafico2Serie1: null,
+    grafico2Serie2: null,
+  });
+  const [salvandoConfig, setSalvandoConfig] = useState(false);
 
   // 6. filtros
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
