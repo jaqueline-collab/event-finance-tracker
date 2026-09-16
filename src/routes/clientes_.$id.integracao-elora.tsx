@@ -175,8 +175,6 @@ function MapeamentoIntegracao() {
         setEstado(r);
         setCampoProc(r.campoProcedimentoKey ?? "");
         setCampoData(r.campoDataConsultaKey ?? "");
-        setClsAgendada(r.classificacaoConsultaAgendada ?? "");
-        setClsVendido(r.classificacaoProcedimentoVendido ?? "");
         setFUsuarios(r.filtros.usuarios);
         setFEtiquetas(r.filtros.etiquetas);
         setFEtapas(r.filtros.etapasFunil);
@@ -199,6 +197,7 @@ function MapeamentoIntegracao() {
     listarEtiquetasCliente({ data: { clienteId } })
       .then((r) => setEtiquetas(r.etiquetas))
       .catch(() => setEtiquetas([]));
+    recarregarRotulosEConfig().catch(() => undefined);
   }, [clienteId, estado?.configurada, estado?.ativo]);
 
   const alternar = (lista: string[], set: (v: string[]) => void, id: string) =>
@@ -336,25 +335,6 @@ function MapeamentoIntegracao() {
       toast.error(msg(e));
     } finally {
       setBuscandoCls(false);
-    }
-  };
-
-  const salvarClassificacoes = async () => {
-    setSalvandoCls(true);
-    try {
-      await salvarClassificacoesCliente({
-        data: {
-          clienteId,
-          consultaAgendada: clsAgendada || null,
-          procedimentoVendido: clsVendido || null,
-        },
-      });
-      toast.success("Classificações salvas.");
-      recarregar();
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setSalvandoCls(false);
     }
   };
 
