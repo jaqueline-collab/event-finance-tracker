@@ -217,6 +217,7 @@ function AreaCliente() {
                 key={o.v}
                 size="sm"
                 variant={aba === o.v ? "secondary" : "ghost"}
+                className="px-2 text-xs sm:px-3 sm:text-sm"
                 onClick={() => setAba(o.v)}
               >
                 {o.l}

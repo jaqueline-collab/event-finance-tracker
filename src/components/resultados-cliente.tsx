@@ -14,6 +14,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BarChart3, ChevronLeft, ChevronRight, Loader2, Megaphone } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { getResultadosCliente } from "@/lib/integracao-elora.functions";
 
@@ -33,6 +42,16 @@ const dataBrFlex = (v?: string | null) => {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString("pt-BR");
 };
+
+/** Segundos → "1h 25min", "47min" ou "40s". */
+const duracaoBr = (segundos: number) => {
+  if (segundos >= 3600) return `${Math.floor(segundos / 3600)}h ${Math.round((segundos % 3600) / 60)}min`;
+  if (segundos >= 60) return `${Math.round(segundos / 60)}min`;
+  return `${segundos}s`;
+};
+
+const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const rotuloMes = (anoMes: string) => MESES_PT[Number(anoMes.slice(5, 7)) - 1] ?? anoMes;
 
 /** Painel "Resultados" da área do cliente, alimentado pelos contatos do app Elora. */
 export function ResultadosCliente({ clienteId }: { clienteId: string }) {
@@ -62,8 +81,6 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
     setModo(m);
     setPagina(1);
   };
-
-  const pct = dados && dados.total > 0 ? Math.round((dados.anuncio / dados.total) * 100) : 0;
 
   return (
     <Card>
@@ -125,7 +142,8 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {/* Quatro blocos de largura igual */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-border/60 p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Novos contatos</p>
             {carregando ? (
@@ -134,63 +152,138 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
               <p className="mt-1 text-2xl font-bold">{dados?.total ?? 0}</p>
             )}
           </div>
+          {(
+            [
+              [dados?.bloco2, "Bloco 2"],
+              [dados?.bloco3, "Bloco 3"],
+            ] as const
+          ).map(([bloco, padrao], i) => (
+            <div key={i} className="rounded-lg border border-border/60 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {bloco?.rotulo ?? padrao}
+              </p>
+              {carregando ? (
+                <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
+              ) : bloco?.rotulo ? (
+                <>
+                  <p className="mt-1 text-2xl font-bold">{bloco.quantidade}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {bloco.anuncio} de anúncio
+                    {bloco.quantidade > 0
+                      ? ` (${Math.round((bloco.anuncio / bloco.quantidade) * 100)}%)`
+                      : ""}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">Não configurado</p>
+              )}
+            </div>
+          ))}
           <div className="rounded-lg border border-border/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">% vindos de anúncio</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Conversas realizadas
+            </p>
             {carregando ? (
               <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <p className="mt-1 text-2xl font-bold">{pct}%</p>
+                <p className="mt-1 text-2xl font-bold">{dados?.conversasRealizadas ?? 0}</p>
                 <p className="text-xs text-muted-foreground">
-                  {dados?.anuncio ?? 0} de {dados?.total ?? 0} contatos
-                </p>
-              </>
-            )}
-          </div>
-          <div className="rounded-lg border border-border/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Consulta agendada</p>
-            {carregando ? (
-              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <p className="mt-1 text-2xl font-bold">{dados?.consultaAgendada.quantidade ?? 0}</p>
-                <p className="text-xs text-muted-foreground">
-                  {dados?.consultaAgendada.rotulo
-                    ? `Classificação "${dados.consultaAgendada.rotulo}"`
-                    : "Classificação ainda não escolhida"}
-                </p>
-              </>
-            )}
-          </div>
-          <div className="rounded-lg border border-border/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Procedimento vendido</p>
-            {carregando ? (
-              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <p className="mt-1 text-2xl font-bold">{dados?.procedimentoVendido.quantidade ?? 0}</p>
-                <p className="text-xs text-muted-foreground">
-                  {dados?.procedimentoVendido.rotulo
-                    ? `Classificação "${dados.procedimentoVendido.rotulo}"`
-                    : "Classificação ainda não escolhida"}
-                </p>
-              </>
-            )}
-          </div>
-          <div className="rounded-lg border border-border/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Conversas com resposta</p>
-            {carregando ? (
-              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <p className="mt-1 text-2xl font-bold">{dados?.conversasComResposta ?? 0}</p>
-                <p className="text-xs text-muted-foreground">
-                  de {dados?.conversasTotal ?? 0} conversas no período
+                  com resposta, de {dados?.conversasTotal ?? 0} conversas no período
                 </p>
               </>
             )}
           </div>
         </div>
+
+        {/* Tempos médios */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-border/60 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Tempo médio da 1ª resposta
+            </p>
+            {carregando ? (
+              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
+            ) : dados?.tempoPrimeiraResposta ? (
+              <p className="mt-1 text-2xl font-bold">
+                {duracaoBr(dados.tempoPrimeiraResposta.segundos)}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sem dados suficientes neste período
+              </p>
+            )}
+          </div>
+          <div className="rounded-lg border border-border/60 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Tempo médio de atendimento
+            </p>
+            {carregando ? (
+              <Loader2 className="mt-2 h-6 w-6 animate-spin text-muted-foreground" />
+            ) : dados?.tempoAtendimento ? (
+              <p className="mt-1 text-2xl font-bold">
+                {duracaoBr(dados.tempoAtendimento.segundos)}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sem dados suficientes neste período
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Dois gráficos de coluna, séries configuráveis */}
+        {!carregando && dados && (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {(
+              [
+                { s1: dados.graficos.g1s1, s2: dados.graficos.g1s2, titulo: "Gráfico 1" },
+                { s1: dados.graficos.g2s1, s2: dados.graficos.g2s2, titulo: "Gráfico 2" },
+              ] as const
+            ).map((g, gi) => {
+              const configurado = Boolean(g.s1.rotulo || g.s2.rotulo);
+              const dadosGrafico = dados.graficos.meses.map((mes, i) => ({
+                mes: rotuloMes(mes),
+                s1: g.s1.valores[i] ?? 0,
+                s2: g.s2.valores[i] ?? 0,
+              }));
+              return (
+                <div key={gi} className="rounded-lg border border-border/60 p-4">
+                  <p className="text-sm font-semibold">
+                    {g.s1.rotulo ?? g.s2.rotulo ?? g.titulo}
+                    {g.s1.rotulo && g.s2.rotulo ? ` × ${g.s2.rotulo}` : ""}
+                  </p>
+                  {!configurado ? (
+                    <p className="mt-6 text-sm text-muted-foreground">Não configurado</p>
+                  ) : (
+                    <div className="mt-3 h-56 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={dadosGrafico} margin={{ left: -20, right: 4, top: 4 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <Tooltip
+                            formatter={(valor, nome) => [
+                              Number(valor ?? 0),
+                              nome === "s1" ? (g.s1.rotulo ?? "Série 1") : (g.s2.rotulo ?? "Série 2"),
+                            ]}
+                          />
+                          {g.s1.rotulo && (
+                            <Bar dataKey="s1" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
+                          )}
+                          {g.s2.rotulo && (
+                            <Bar dataKey="s2" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">Últimos 12 meses</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {!carregando && (dados?.ranking.length ?? 0) > 0 && (
           <div className="space-y-2">
@@ -199,6 +292,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">#</TableHead>
                     <TableHead>Campanha</TableHead>
                     <TableHead>Origem</TableHead>
                     <TableHead>Mídia</TableHead>
@@ -206,8 +300,9 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dados?.ranking.map((r) => (
+                  {dados?.ranking.map((r, i) => (
                     <TableRow key={r.campanha}>
+                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-medium">{r.campanha}</TableCell>
                       <TableCell>{r.source ?? "—"}</TableCell>
                       <TableCell>{r.medium ?? "—"}</TableCell>
@@ -222,6 +317,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
             </p>
           </div>
         )}
+
 
 
         {carregando && (

@@ -133,10 +133,14 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
             <Label htmlFor={`int-url-${clienteId}`}>Endereço da conta</Label>
             <Input
               id={`int-url-${clienteId}`}
-              placeholder="https://api.wts.chat/core"
+              placeholder="https://api.wts.chat"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Só o domínio da API, sem caminho (sem /core, /crm ou /chat no final) — o sistema
+              completa sozinho para cada parte da conta.
+            </p>
           </div>
           <div className="space-y-1">
             <Label htmlFor={`int-key-${clienteId}`}>Chave de API da conta</Label>

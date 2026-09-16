@@ -31,8 +31,6 @@ type IntegracaoVisivel = {
   chaveMascarada: string | null;
   campoProcedimentoKey: string | null;
   campoDataConsultaKey: string | null;
-  classificacaoConsultaAgendada: string | null;
-  classificacaoProcedimentoVendido: string | null;
   filtros: FiltrosElora;
   retomadaPendente: boolean;
   ultimaSync: string | null;
@@ -83,8 +81,6 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
         chaveMascarada: null,
         campoProcedimentoKey: null,
         campoDataConsultaKey: null,
-        classificacaoConsultaAgendada: null,
-        classificacaoProcedimentoVendido: null,
         filtros: semFiltros,
         retomadaPendente: false,
         ultimaSync: null,
@@ -104,12 +100,6 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       chaveMascarada: mascaraChave(String(c.api_key)),
       campoProcedimentoKey: c.campo_procedimento_key ? String(c.campo_procedimento_key) : null,
       campoDataConsultaKey: c.campo_data_consulta_key ? String(c.campo_data_consulta_key) : null,
-      classificacaoConsultaAgendada: c.classificacao_consulta_agendada
-        ? String(c.classificacao_consulta_agendada)
-        : null,
-      classificacaoProcedimentoVendido: c.classificacao_procedimento_vendido
-        ? String(c.classificacao_procedimento_vendido)
-        : null,
       filtros: {
         usuarios: listaTexto(c.filtro_usuarios),
         etiquetas: listaTexto(c.filtro_etiquetas),
@@ -147,7 +137,7 @@ export const salvarIntegracaoCliente = createServerFn({ method: "POST" })
       .upsert(
         {
           cliente_id: data.clienteId,
-          base_url: data.baseUrl.replace(/\/+$/, ""),
+          base_url: data.baseUrl.replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, ""),
           api_key: data.apiKey,
           ativo: true,
           ultimo_erro: null,
@@ -193,13 +183,25 @@ async function chamadaComTempo(url: string, init: RequestInit): Promise<Response
   }
 }
 
+type ServicoElora = "core" | "crm" | "chat";
+
+/**
+ * O "Endereço da conta" guarda só o domínio raiz (ex.: https://api.wts.chat).
+ * Contatos/campos/etiquetas vivem em /core, painéis em /crm, sequências e
+ * conversas em /chat. Contas antigas podem ter um sufixo residual salvo —
+ * removemos aqui para nada quebrar antes da normalização.
+ */
+const normalizarRaiz = (baseUrl: string) =>
+  baseUrl.replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, "");
+
 async function lerApiElora(
   baseUrl: string,
   apiKey: string,
+  servico: ServicoElora,
   caminho: string,
   opts: { metodo?: "GET" | "POST"; corpo?: unknown } = {},
 ): Promise<Record<string, unknown>> {
-  const url = `${baseUrl}${caminho}`;
+  const url = `${normalizarRaiz(baseUrl)}/${servico}${caminho}`;
   const init: RequestInit = {
     method: opts.metodo ?? "GET",
     headers: {
@@ -283,6 +285,7 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
       await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "core",
         "/v1/contact/custom-field?NestedList=false",
       );
 
@@ -321,6 +324,7 @@ export const listarCamposPersonalizados = createServerFn({ method: "POST" })
     const resp = await lerApiElora(
       String(conta.base_url),
       String(conta.api_key),
+      "core",
       "/v1/contact/custom-field?NestedList=false",
     );
 
@@ -424,7 +428,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
       let gravados = 0;
       for (;;) {
         pagina += 1;
-        const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/contact/filter", {
+        const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/contact/filter", {
           metodo: "POST",
           corpo: {
             pageNumber: pagina,
@@ -610,35 +614,124 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
     }
     const ranking = [...mapa.values()].sort((a, b) => b.leads - a.leads).slice(0, 20);
 
-    // Conversas classificadas do período (já sincronizadas, sem tocar a API).
+    // Conversas do período (já sincronizadas, sem tocar a API) — com tempos e contato.
     const { data: conversas } = await noPeriodo(
-      db.from("elora_conversas_classificadas").select("category_name, teve_resposta"),
+      db
+        .from("elora_conversas_classificadas")
+        .select("category_name, teve_resposta, contato_id, criado_em, time_wait_segundos, time_service_segundos"),
     ).limit(20000);
 
     const linhasConversa = (conversas ?? []) as any[];
-    const contagemPorClassificacao = new Map<string, number>();
+
+    // Contatos com anúncio, para o "% de anúncio" dentro dos blocos de rótulo.
+    const { data: contatosAnuncio } = await db
+      .from("elora_contatos_sincronizados")
+      .select("contact_id")
+      .eq("cliente_id", data.clienteId)
+      .not("utm_source", "is", null)
+      .limit(20000);
+    const setAnuncio = new Set(((contatosAnuncio ?? []) as any[]).map((c) => String(c.contact_id)));
+
     let conversasComResposta = 0;
+    let somaEspera = 0, nEspera = 0, somaAtend = 0, nAtend = 0;
+    const porClassificacao = new Map<string, { qtd: number; anuncio: number }>();
+    const porMesClasse = new Map<string, number>(); // "YYYY-MMclasse"
     for (const s of linhasConversa) {
       if (s.teve_resposta) conversasComResposta += 1;
+      if (typeof s.time_wait_segundos === "number") { somaEspera += s.time_wait_segundos; nEspera += 1; }
+      if (typeof s.time_service_segundos === "number") { somaAtend += s.time_service_segundos; nAtend += 1; }
       const nome = s.category_name ? String(s.category_name) : "";
-      if (nome) contagemPorClassificacao.set(nome, (contagemPorClassificacao.get(nome) ?? 0) + 1);
+      if (!nome) continue;
+      const atual = porClassificacao.get(nome) ?? { qtd: 0, anuncio: 0 };
+      atual.qtd += 1;
+      if (s.contato_id && setAnuncio.has(String(s.contato_id))) atual.anuncio += 1;
+      porClassificacao.set(nome, atual);
+      if (s.criado_em) {
+        const mes = String(s.criado_em).slice(0, 7);
+        porMesClasse.set(`${mes}${nome}`, (porMesClasse.get(`${mes}${nome}`) ?? 0) + 1);
+      }
     }
 
-    // Os rótulos mapeados vivem na tabela restrita da integração; só são lidos
-    // depois da checagem de permissão acima e nunca acompanham chave alguma.
+    // Configuração das peças: quais rótulos alimentam blocos e séries.
+    // Lida só depois da checagem de permissão; rótulos de outro cliente são
+    // ignorados (tratados como "não configurado") mesmo se um dado antigo
+    // estiver incorreto.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: conta } = await supabaseAdmin
       .from("elora_integracao_contas")
-      .select("classificacao_consulta_agendada, classificacao_procedimento_vendido")
+      .select(
+        "bloco2_rotulo_id, bloco3_rotulo_id, grafico1_serie1_rotulo_id, grafico1_serie2_rotulo_id, grafico2_serie1_rotulo_id, grafico2_serie2_rotulo_id",
+      )
       .eq("cliente_id", data.clienteId)
       .maybeSingle();
+    const cfg = (conta as any) ?? {};
+    const idsConfig = [
+      cfg.bloco2_rotulo_id, cfg.bloco3_rotulo_id,
+      cfg.grafico1_serie1_rotulo_id, cfg.grafico1_serie2_rotulo_id,
+      cfg.grafico2_serie1_rotulo_id, cfg.grafico2_serie2_rotulo_id,
+    ].filter((x): x is string => Boolean(x));
 
-    const rotuloAgendada = (conta as any)?.classificacao_consulta_agendada
-      ? String((conta as any).classificacao_consulta_agendada)
-      : null;
-    const rotuloVendido = (conta as any)?.classificacao_procedimento_vendido
-      ? String((conta as any).classificacao_procedimento_vendido)
-      : null;
+    const rotuloInfo = new Map<string, { nome: string; valores: Set<string> }>();
+    if (idsConfig.length > 0) {
+      const { data: rotulos } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .select("id, nome, cliente_id")
+        .in("id", idsConfig)
+        .eq("cliente_id", data.clienteId); // mesma conta ou nada
+      const okIds = ((rotulos ?? []) as any[]).map((r) => String(r.id));
+      const { data: valores } = okIds.length
+        ? await supabaseAdmin
+            .from("elora_classificacoes_rotulo_valores")
+            .select("rotulo_id, valor_bruto")
+            .in("rotulo_id", okIds)
+        : { data: [] as any[] };
+      for (const r of (rotulos ?? []) as any[]) {
+        rotuloInfo.set(String(r.id), {
+          nome: String(r.nome),
+          valores: new Set(
+            ((valores ?? []) as any[])
+              .filter((v) => String(v.rotulo_id) === String(r.id))
+              .map((v) => String(v.valor_bruto)),
+          ),
+        });
+      }
+    }
+
+    const blocoDoRotulo = (rotuloId: string | null | undefined) => {
+      const info = rotuloId ? rotuloInfo.get(String(rotuloId)) : undefined;
+      if (!info) return { rotulo: null as string | null, quantidade: 0, anuncio: 0 };
+      let qtd = 0, anuncioBloco = 0;
+      for (const v of info.valores) {
+        const a = porClassificacao.get(v);
+        if (a) { qtd += a.qtd; anuncioBloco += a.anuncio; }
+      }
+      return { rotulo: info.nome, quantidade: qtd, anuncio: anuncioBloco };
+    };
+
+    // Séries mensais (últimos 12 meses) por rótulo.
+    const meses: string[] = [];
+    {
+      const base = new Date();
+      base.setUTCDate(1);
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() - i, 1));
+        meses.push(d.toISOString().slice(0, 7));
+      }
+    }
+    const serieDoRotulo = (rotuloId: string | null | undefined) => {
+      const info = rotuloId ? rotuloInfo.get(String(rotuloId)) : undefined;
+      return {
+        rotulo: info?.nome ?? null,
+        valores: meses.map((mes) =>
+          info
+            ? [...info.valores].reduce((acc, v) => acc + (porMesClasse.get(`${mes}${v}`) ?? 0), 0)
+            : 0,
+        ),
+      };
+    };
+
+    const medias = (soma: number, n: number) =>
+      n > 0 ? { segundos: Math.round(soma / n), conversas: n } : null;
 
     return {
       total: total ?? 0,
@@ -646,16 +739,19 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
       pagina: data.pagina,
       porPagina: data.porPagina,
       totalPaginas: Math.max(1, Math.ceil((total ?? 0) / data.porPagina)),
-      consultaAgendada: {
-        rotulo: rotuloAgendada,
-        quantidade: rotuloAgendada ? (contagemPorClassificacao.get(rotuloAgendada) ?? 0) : 0,
-      },
-      procedimentoVendido: {
-        rotulo: rotuloVendido,
-        quantidade: rotuloVendido ? (contagemPorClassificacao.get(rotuloVendido) ?? 0) : 0,
-      },
-      conversasComResposta,
+      bloco2: blocoDoRotulo(cfg.bloco2_rotulo_id),
+      bloco3: blocoDoRotulo(cfg.bloco3_rotulo_id),
+      conversasRealizadas: conversasComResposta,
       conversasTotal: linhasConversa.length,
+      tempoPrimeiraResposta: medias(somaEspera, nEspera),
+      tempoAtendimento: medias(somaAtend, nAtend),
+      graficos: {
+        meses,
+        g1s1: serieDoRotulo(cfg.grafico1_serie1_rotulo_id),
+        g1s2: serieDoRotulo(cfg.grafico1_serie2_rotulo_id),
+        g2s1: serieDoRotulo(cfg.grafico2_serie1_rotulo_id),
+        g2s2: serieDoRotulo(cfg.grafico2_serie2_rotulo_id),
+      },
       ranking,
       contatos: ((rows ?? []) as any[]).map((c) => ({
         id: String(c.id),
@@ -717,6 +813,7 @@ export const listarPaineisCliente = createServerFn({ method: "POST" })
       const resp = await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "crm",
         `/v2/panel?PageNumber=${pagina}&PageSize=50&IncludeDetails=Steps`,
       );
       const itens = listaDe(resp);
@@ -766,6 +863,7 @@ export const listarCamposDoPainel = createServerFn({ method: "POST" })
     const resp = await lerApiElora(
       String(conta.base_url),
       String(conta.api_key),
+      "crm",
       `/v1/panel/${encodeURIComponent(data.painelId)}/custom-fields`,
     );
     const campos = listaDe(resp)
@@ -797,6 +895,7 @@ export const listarSequenciasCliente = createServerFn({ method: "POST" })
       const resp = await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "chat",
         `/v1/sequence?PageNumber=${pagina}&PageSize=50`,
       );
       const itens = listaDe(resp);
@@ -830,7 +929,7 @@ export const listarUsuariosCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ usuarios: { id: string; nome: string }[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { conta } = await contaDoCliente(data.clienteId);
-    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/user?PageSize=200");
+    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/user?PageSize=200");
     const usuarios = listaDe(resp)
       .map((u: any) => ({
         id: String(u.id ?? ""),
@@ -847,7 +946,7 @@ export const listarEtiquetasCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ etiquetas: { id: string; nome: string }[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { conta } = await contaDoCliente(data.clienteId);
-    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/tag?PageSize=200");
+    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/tag?PageSize=200");
     const etiquetas = listaDe(resp)
       .map((t: any) => ({ id: String(t.id ?? ""), nome: String(t.name ?? t.title ?? t.id ?? "") }))
       .filter((t) => t.id.length > 0);
@@ -863,7 +962,7 @@ export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
   .inputValidator((input) => soClienteId.parse(input))
   .handler(async ({ data, context }): Promise<{ classificacoes: string[]; conversas: number }> => {
     await exigirEquipeInterna(context.supabase);
-    const { conta } = await contaDoCliente(data.clienteId);
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
 
     const desde = new Date(Date.now() - 90 * 86_400_000).toISOString();
     const nomes = new Set<string>();
@@ -873,6 +972,7 @@ export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
       const resp = await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "chat",
         `/v2/session?PageNumber=${pagina}&PageSize=100&StartDate=${encodeURIComponent(desde)}&IncludeDetails=ClassificationDetails`,
       );
       const itens = listaDe(resp);
@@ -885,34 +985,259 @@ export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
       await new Promise((r) => setTimeout(r, 500));
     }
 
-    return { classificacoes: [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR")), conversas: vistas };
+    const lista = [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    if (lista.length > 0) {
+      await supabaseAdmin.from("elora_classificacoes_descobertas").upsert(
+        lista.map((valor_bruto) => ({ cliente_id: data.clienteId, valor_bruto })),
+        { onConflict: "cliente_id,valor_bruto" },
+      );
+    }
+
+    // Une com o que já foi descoberto em sincronizações anteriores — a amostra
+    // ao vivo dos últimos 90 dias pode não trazer valores antigos ainda úteis.
+    const { data: guardadas } = await supabaseAdmin
+      .from("elora_classificacoes_descobertas")
+      .select("valor_bruto")
+      .eq("cliente_id", data.clienteId)
+      .order("valor_bruto");
+    for (const g of (guardadas ?? []) as any[]) {
+      if (g.valor_bruto) nomes.add(String(g.valor_bruto));
+    }
+
+    return {
+      classificacoes: [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR")),
+      conversas: vistas,
+    };
   });
 
-/** Salva quais classificações representam consulta agendada e venda. */
-export const salvarClassificacoesCliente = createServerFn({ method: "POST" })
+/* ------------------------------------------------------------------ *
+ * Rótulos de classificação: agrupam valores brutos (texto livre da
+ * equipe) sob um nome próprio. Cada peça do dashboard aponta para um
+ * rótulo — nada de regra fixa.
+ * ------------------------------------------------------------------ */
+
+export type RotuloClassificacao = { id: string; nome: string; valores: string[] };
+
+export const listarRotulosCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<{ rotulos: RotuloClassificacao[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rotulos, error } = await supabaseAdmin
+      .from("elora_classificacoes_rotulos")
+      .select("id, nome")
+      .eq("cliente_id", data.clienteId)
+      .order("nome");
+    if (error) throw new Error(`rotulos: ${error.message}`);
+
+    const ids = (rotulos ?? []).map((r: any) => r.id);
+    const { data: valores } = ids.length
+      ? await supabaseAdmin
+          .from("elora_classificacoes_rotulo_valores")
+          .select("rotulo_id, valor_bruto")
+          .in("rotulo_id", ids)
+      : { data: [] as any[] };
+
+    const porRotulo = new Map<string, string[]>();
+    for (const v of (valores ?? []) as any[]) {
+      const arr = porRotulo.get(String(v.rotulo_id)) ?? [];
+      arr.push(String(v.valor_bruto));
+      porRotulo.set(String(v.rotulo_id), arr);
+    }
+
+    return {
+      rotulos: ((rotulos ?? []) as any[]).map((r) => ({
+        id: String(r.id),
+        nome: String(r.nome),
+        valores: (porRotulo.get(String(r.id)) ?? []).sort((a, b) => a.localeCompare(b, "pt-BR")),
+      })),
+    };
+  });
+
+const rotuloSchema = z.object({
+  clienteId: z.string().min(1),
+  rotuloId: z.string().uuid().nullable().default(null),
+  nome: z.string().trim().min(1).max(120),
+  valores: z.array(z.string().trim().min(1).max(200)).max(200).default([]),
+});
+
+/** Cria ou atualiza um rótulo e os valores brutos associados. */
+export const salvarRotuloCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => rotuloSchema.parse(input))
+  .handler(async ({ data, context }): Promise<{ rotuloId: string }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let rotuloId = data.rotuloId;
+    if (rotuloId) {
+      const { error } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .update({ nome: data.nome })
+        .eq("id", rotuloId)
+        .eq("cliente_id", data.clienteId);
+      if (error) throw new Error(`rotulos: ${error.message}`);
+    } else {
+      const { data: criado, error } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .insert({ cliente_id: data.clienteId, nome: data.nome })
+        .select("id")
+        .single();
+      if (error) throw new Error(`rotulos: ${error.message}`);
+      rotuloId = String(criado.id);
+    }
+
+    const { error: errDel } = await supabaseAdmin
+      .from("elora_classificacoes_rotulo_valores")
+      .delete()
+      .eq("rotulo_id", rotuloId);
+    if (errDel) throw new Error(`rotulos: ${errDel.message}`);
+
+    const unicos = [...new Set(data.valores)];
+    if (unicos.length > 0) {
+      const { error: errIns } = await supabaseAdmin
+        .from("elora_classificacoes_rotulo_valores")
+        .insert(unicos.map((valor_bruto) => ({ rotulo_id: rotuloId, valor_bruto })));
+      if (errIns) throw new Error(`rotulos: ${errIns.message}`);
+    }
+
+    return { rotuloId };
+  });
+
+/** Exclui um rótulo. As peças do dashboard que o usavam ficam sem rótulo. */
+export const excluirRotuloCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z
-      .object({
-        clienteId: z.string().min(1),
-        consultaAgendada: z.string().trim().max(200).nullable(),
-        procedimentoVendido: z.string().trim().max(200).nullable(),
-      })
-      .parse(input),
+    z.object({ clienteId: z.string().min(1), rotuloId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await exigirEquipeInterna(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Limpa antes os seletores que apontam para o rótulo (a chave estrangeira
+    // composta bloqueia a exclusão enquanto houver referência).
+    await supabaseAdmin
+      .from("elora_integracao_contas")
+      .update({
+        bloco2_rotulo_id: null,
+        bloco3_rotulo_id: null,
+        grafico1_serie1_rotulo_id: null,
+        grafico1_serie2_rotulo_id: null,
+        grafico2_serie1_rotulo_id: null,
+        grafico2_serie2_rotulo_id: null,
+      } as never)
+      .eq("cliente_id", data.clienteId)
+      .or(
+        `bloco2_rotulo_id.eq.${data.rotuloId},bloco3_rotulo_id.eq.${data.rotuloId},grafico1_serie1_rotulo_id.eq.${data.rotuloId},grafico1_serie2_rotulo_id.eq.${data.rotuloId},grafico2_serie1_rotulo_id.eq.${data.rotuloId},grafico2_serie2_rotulo_id.eq.${data.rotuloId}`,
+      );
+
+    return { ok: true };
+  });
+
+export type ConfigDashboard = {
+  bloco2: string | null;
+  bloco3: string | null;
+  grafico1Serie1: string | null;
+  grafico1Serie2: string | null;
+  grafico2Serie1: string | null;
+  grafico2Serie2: string | null;
+};
+
+/** Lê a configuração das peças do dashboard (quais rótulos alimentam cada uma). */
+export const getConfigDashboardCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<ConfigDashboard> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conta } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .select(
+        "bloco2_rotulo_id, bloco3_rotulo_id, grafico1_serie1_rotulo_id, grafico1_serie2_rotulo_id, grafico2_serie1_rotulo_id, grafico2_serie2_rotulo_id",
+      )
+      .eq("cliente_id", data.clienteId)
+      .maybeSingle();
+    const c = conta as any;
+    return {
+      bloco2: c?.bloco2_rotulo_id ?? null,
+      bloco3: c?.bloco3_rotulo_id ?? null,
+      grafico1Serie1: c?.grafico1_serie1_rotulo_id ?? null,
+      grafico1Serie2: c?.grafico1_serie2_rotulo_id ?? null,
+      grafico2Serie1: c?.grafico2_serie1_rotulo_id ?? null,
+      grafico2Serie2: c?.grafico2_serie2_rotulo_id ?? null,
+    };
+  });
+
+const configSchema = z.object({
+  clienteId: z.string().min(1),
+  bloco2: z.string().uuid().nullable().default(null),
+  bloco3: z.string().uuid().nullable().default(null),
+  grafico1Serie1: z.string().uuid().nullable().default(null),
+  grafico1Serie2: z.string().uuid().nullable().default(null),
+  grafico2Serie1: z.string().uuid().nullable().default(null),
+  grafico2Serie2: z.string().uuid().nullable().default(null),
+});
+
+/**
+ * Salva quais rótulos alimentam cada peça. Confere no servidor que todo
+ * rótulo informado pertence ao mesmo cliente — e o banco ainda reforça com
+ * chave estrangeira composta (cliente_id + rotulo_id).
+ */
+export const salvarConfigDashboardCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => configSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const ids = [
+      data.bloco2,
+      data.bloco3,
+      data.grafico1Serie1,
+      data.grafico1Serie2,
+      data.grafico2Serie1,
+      data.grafico2Serie2,
+    ].filter((x): x is string => Boolean(x));
+
+    if (ids.length > 0) {
+      const { data: rotulos } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .select("id, cliente_id")
+        .in("id", ids);
+      const pertencem = new Set(
+        ((rotulos ?? []) as any[])
+          .filter((r) => r.cliente_id === data.clienteId)
+          .map((r) => String(r.id)),
+      );
+      if (ids.some((id) => !pertencem.has(id))) {
+        throw new Error("rotulos: um dos rótulos escolhidos não pertence a este cliente.");
+      }
+    }
+
     const { error } = await supabaseAdmin
       .from("elora_integracao_contas")
       .update({
-        classificacao_consulta_agendada: data.consultaAgendada,
-        classificacao_procedimento_vendido: data.procedimentoVendido,
-      })
+        bloco2_rotulo_id: data.bloco2,
+        bloco3_rotulo_id: data.bloco3,
+        grafico1_serie1_rotulo_id: data.grafico1Serie1,
+        grafico1_serie2_rotulo_id: data.grafico1Serie2,
+        grafico2_serie1_rotulo_id: data.grafico2Serie1,
+        grafico2_serie2_rotulo_id: data.grafico2Serie2,
+      } as never)
       .eq("cliente_id", data.clienteId);
-    if (error) throw new Error(`classificacoes: ${error.message}`);
+    if (error) throw new Error(`dashboard: ${error.message}`);
     return { ok: true };
   });
+
+/** "HH:MM:SS" (horas podem passar de 24) → segundos. Formato inesperado vira nulo. */
+const duracaoParaSegundos = (v: unknown): number | null => {
+  if (typeof v !== "string") return null;
+  const m = /^(\d+):(\d{1,2}):(\d{1,2})(?:\.\d+)?$/.exec(v.trim());
+  if (!m) return null;
+  return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
+};
 
 /** Salva os filtros do cliente (valem para sincronização e painel). */
 export const salvarFiltrosCliente = createServerFn({ method: "POST" })
@@ -975,27 +1300,46 @@ export const sincronizarConversasCliente = createServerFn({ method: "POST" })
         const resp = await lerApiElora(
           String(conta.base_url),
           String(conta.api_key),
+          "chat",
           `/v2/session?PageNumber=${pagina}&PageSize=100&StartDate=${encodeURIComponent(desde)}&IncludeDetails=ClassificationDetails`,
         );
         const itens = listaDe(resp);
         if (itens.length === 0) break;
 
         const agora = new Date().toISOString();
+        const nomesNovos = new Set<string>();
         const linhas = itens
           .map((s: any) => {
             const cls = s.classification ?? s.classificationDetails ?? {};
+            const nomeCls = cls.categoryName ? String(cls.categoryName).trim() : "";
+            if (nomeCls) nomesNovos.add(nomeCls);
+            // Conversa com resposta = ao menos uma mensagem do contato e uma
+            // da equipe. Usa os marcadores de última mensagem como referência.
+            const recebeu = Boolean(s.lastMessageIn);
+            const respondeu = Boolean(s.lastMessageOut ?? s.hasAnswer ?? s.answered);
             return {
               cliente_id: data.clienteId,
               sessao_id: String(s.id ?? ""),
+              contato_id: s.contactId ? String(s.contactId) : null,
               category: cls.category ? String(cls.category) : null,
-              category_name: cls.categoryName ? String(cls.categoryName) : null,
+              category_name: nomeCls || null,
               criado_em: s.createdAt ? String(s.createdAt) : null,
               atualizado_em: s.updatedAt ? String(s.updatedAt) : null,
-              teve_resposta: Boolean(s.hasAnswer ?? s.answered ?? false),
+              first_response_at: s.firstResponseAt ? String(s.firstResponseAt) : null,
+              time_wait_segundos: duracaoParaSegundos(s.timeWait),
+              time_service_segundos: duracaoParaSegundos(s.timeService),
+              teve_resposta: recebeu && respondeu,
               sincronizado_em: agora,
             };
           })
           .filter((l) => l.sessao_id.length > 0);
+
+        if (nomesNovos.size > 0) {
+          await supabaseAdmin.from("elora_classificacoes_descobertas").upsert(
+            [...nomesNovos].map((valor_bruto) => ({ cliente_id: data.clienteId, valor_bruto })),
+            { onConflict: "cliente_id,valor_bruto" },
+          );
+        }
 
         if (linhas.length > 0) {
           const { error } = await supabaseAdmin

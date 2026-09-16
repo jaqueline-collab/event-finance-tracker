@@ -30,20 +30,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  excluirRotuloCliente,
+  getConfigDashboardCliente,
   getIntegracaoCliente,
   listarCamposDoPainel,
   listarCamposPersonalizados,
   listarClassificacoesRecentes,
   listarEtiquetasCliente,
   listarPaineisCliente,
+  listarRotulosCliente,
   listarSequenciasCliente,
   listarUsuariosCliente,
-  salvarClassificacoesCliente,
+  salvarConfigDashboardCliente,
   salvarFiltrosCliente,
   salvarMapeamentoCliente,
+  salvarRotuloCliente,
   sincronizarConversasCliente,
   type CampoElora,
+  type ConfigDashboard,
   type PainelElora,
+  type RotuloClassificacao,
 } from "@/lib/integracao-elora.functions";
 
 export const Route = createFileRoute("/clientes_/$id/integracao-elora")({
@@ -128,13 +134,27 @@ function MapeamentoIntegracao() {
   const [sequencias, setSequencias] = useState<{ id: string; nome: string }[] | null>(null);
   const [buscandoSeq, setBuscandoSeq] = useState(false);
 
-  // 5. classificações
+  // 5. classificações: descoberta + rótulos
   const [classificacoes, setClassificacoes] = useState<string[] | null>(null);
   const [buscandoCls, setBuscandoCls] = useState(false);
-  const [clsAgendada, setClsAgendada] = useState("");
-  const [clsVendido, setClsVendido] = useState("");
-  const [salvandoCls, setSalvandoCls] = useState(false);
   const [sincConversas, setSincConversas] = useState(false);
+  const [rotulos, setRotulos] = useState<RotuloClassificacao[]>([]);
+  const [rotuloAberto, setRotuloAberto] = useState<string | null>(null);
+  const [editando, setEditando] = useState<string | "novo" | null>(null);
+  const [rotuloNome, setRotuloNome] = useState("");
+  const [rotuloValores, setRotuloValores] = useState<string[]>([]);
+  const [salvandoRotulo, setSalvandoRotulo] = useState(false);
+
+  // configuração das peças do painel
+  const [config, setConfig] = useState<ConfigDashboard>({
+    bloco2: null,
+    bloco3: null,
+    grafico1Serie1: null,
+    grafico1Serie2: null,
+    grafico2Serie1: null,
+    grafico2Serie2: null,
+  });
+  const [salvandoConfig, setSalvandoConfig] = useState(false);
 
   // 6. filtros
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
@@ -155,8 +175,6 @@ function MapeamentoIntegracao() {
         setEstado(r);
         setCampoProc(r.campoProcedimentoKey ?? "");
         setCampoData(r.campoDataConsultaKey ?? "");
-        setClsAgendada(r.classificacaoConsultaAgendada ?? "");
-        setClsVendido(r.classificacaoProcedimentoVendido ?? "");
         setFUsuarios(r.filtros.usuarios);
         setFEtiquetas(r.filtros.etiquetas);
         setFEtapas(r.filtros.etapasFunil);
@@ -179,6 +197,7 @@ function MapeamentoIntegracao() {
     listarEtiquetasCliente({ data: { clienteId } })
       .then((r) => setEtiquetas(r.etiquetas))
       .catch(() => setEtiquetas([]));
+    recarregarRotulosEConfig().catch(() => undefined);
   }, [clienteId, estado?.configurada, estado?.ativo]);
 
   const alternar = (lista: string[], set: (v: string[]) => void, id: string) =>
@@ -240,6 +259,60 @@ function MapeamentoIntegracao() {
     }
   };
 
+  const recarregarRotulosEConfig = async () => {
+    const [r, c] = await Promise.all([
+      listarRotulosCliente({ data: { clienteId } }),
+      getConfigDashboardCliente({ data: { clienteId } }),
+    ]);
+    setRotulos(r.rotulos);
+    setConfig(c);
+  };
+
+  const salvarRotulo = async () => {
+    if (!rotuloNome.trim()) { toast.error("Dê um nome ao rótulo."); return; }
+    if (rotuloValores.length === 0) { toast.error("Marque ao menos uma classificação para o rótulo."); return; }
+    setSalvandoRotulo(true);
+    try {
+      await salvarRotuloCliente({
+        data: {
+          clienteId,
+          rotuloId: editando && editando !== "novo" ? editando : null,
+          nome: rotuloNome.trim(),
+          valores: rotuloValores,
+        },
+      });
+      toast.success("Rótulo salvo.");
+      setEditando(null);
+      await recarregarRotulosEConfig();
+    } catch (e) {
+      toast.error(msg(e));
+    } finally {
+      setSalvandoRotulo(false);
+    }
+  };
+
+  const excluirRotulo = async (id: string) => {
+    try {
+      await excluirRotuloCliente({ data: { clienteId, rotuloId: id } });
+      toast.success("Rótulo excluído. As peças do painel que usavam ele ficaram sem rótulo.");
+      await recarregarRotulosEConfig();
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
+
+  const salvarConfig = async () => {
+    setSalvandoConfig(true);
+    try {
+      await salvarConfigDashboardCliente({ data: { clienteId, ...config } });
+      toast.success("Painel de resultados configurado.");
+    } catch (e) {
+      toast.error(msg(e));
+    } finally {
+      setSalvandoConfig(false);
+    }
+  };
+
   const buscarSequencias = async () => {
     setBuscandoSeq(true);
     try {
@@ -262,25 +335,6 @@ function MapeamentoIntegracao() {
       toast.error(msg(e));
     } finally {
       setBuscandoCls(false);
-    }
-  };
-
-  const salvarClassificacoes = async () => {
-    setSalvandoCls(true);
-    try {
-      await salvarClassificacoesCliente({
-        data: {
-          clienteId,
-          consultaAgendada: clsAgendada || null,
-          procedimentoVendido: clsVendido || null,
-        },
-      });
-      toast.success("Classificações salvas.");
-      recarregar();
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setSalvandoCls(false);
     }
   };
 
@@ -564,55 +618,195 @@ function MapeamentoIntegracao() {
             </p>
           )}
 
-          {classificacoes !== null && classificacoes.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label>Qual classificação representa consulta agendada?</Label>
-                <Select value={clsAgendada || undefined} onValueChange={setClsAgendada}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha a classificação" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classificacoes.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Qual representa procedimento vendido?</Label>
-                <Select value={clsVendido || undefined} onValueChange={setClsVendido}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha a classificação" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classificacoes.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Rótulos: nome próprio + valores brutos agrupados */}
+          <div className="space-y-2 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Rótulos desta conta</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setEditando("novo");
+                  setRotuloNome("");
+                  setRotuloValores([]);
+                }}
+              >
+                Novo rótulo
+              </Button>
             </div>
-          )}
 
-          <Button size="sm" onClick={salvarClassificacoes} disabled={salvandoCls}>
-            {salvandoCls ? "Salvando…" : "Salvar classificações"}
-          </Button>
+            {rotulos.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nenhum rótulo ainda. Crie um para agrupar classificações (ex.: "Consulta agendada"
+                reunindo "Consulta Agendada" e "Consulta agendou").
+              </p>
+            )}
 
-          <p className="text-xs text-muted-foreground">
-            Se a equipe mudar o texto que usa, a contagem para até o mapeamento ser refeito.
-            {estado?.ultimaSyncConversas
-              ? ` Última sincronização de conversas: ${new Date(estado.ultimaSyncConversas).toLocaleString("pt-BR")}.`
-              : " Conversas ainda não sincronizadas."}
-          </p>
+            {rotulos.map((r) => (
+              <div key={r.id} className="rounded-md border border-border">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                  onClick={() => setRotuloAberto((a) => (a === r.id ? null : r.id))}
+                >
+                  <span className="text-sm font-medium">
+                    {r.nome}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      ({r.valores.length}{" "}
+                      {r.valores.length === 1 ? "classificação" : "classificações"})
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditando(r.id);
+                        setRotuloNome(r.nome);
+                        setRotuloValores(r.valores);
+                      }}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        excluirRotulo(r.id);
+                      }}
+                    >
+                      Excluir
+                    </Button>
+                  </span>
+                </button>
+                {rotuloAberto === r.id && (
+                  <div className="flex flex-wrap gap-1.5 border-t border-border px-3 py-2">
+                    {r.valores.map((v) => (
+                      <Badge key={v} variant="outline">
+                        {v}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {editando !== null && (
+              <div className="space-y-3 rounded-md border border-dashed border-border p-3">
+                <div className="space-y-1">
+                  <Label>Nome do rótulo</Label>
+                  <Input
+                    value={rotuloNome}
+                    onChange={(e) => setRotuloNome(e.target.value)}
+                    placeholder="Ex.: Consulta agendada"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Classificações que entram nesse rótulo</Label>
+                  {classificacoes === null || classificacoes.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Busque as classificações usadas recentemente para escolher os valores.
+                    </p>
+                  ) : (
+                    <div className="grid gap-1.5 sm:grid-cols-2">
+                      {classificacoes.map((c) => (
+                        <label key={c} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={rotuloValores.includes(c)}
+                            onChange={() =>
+                              setRotuloValores((v) =>
+                                v.includes(c) ? v.filter((x) => x !== c) : [...v, c],
+                              )
+                            }
+                          />
+                          {c}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={salvarRotulo} disabled={salvandoRotulo}>
+                    {salvandoRotulo ? "Salvando…" : "Salvar rótulo"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditando(null)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              Se a equipe mudar o texto que usa, a contagem para até o valor novo entrar num rótulo.
+              {estado?.ultimaSyncConversas
+                ? ` Última sincronização de conversas: ${new Date(estado.ultimaSyncConversas).toLocaleString("pt-BR")}.`
+                : " Conversas ainda não sincronizadas."}
+            </p>
+          </div>
         </CardContent>
       </Card>
 
-      {/* 6. Filtros */}
+      {/* 6. Blocos e gráficos do painel de resultados */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MessagesSquare className="h-4 w-4" /> Blocos e gráficos do painel de resultados
+          </CardTitle>
+          <CardDescription>
+            Escolha qual rótulo alimenta cada peça do painel. O que ficar em branco aparece como
+            "não configurado" para o cliente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {rotulos.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Crie ao menos um rótulo acima para configurar o painel.
+            </p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["bloco2", "Bloco 2 (cartão de resultados)"],
+                ["bloco3", "Bloco 3 (cartão de resultados)"],
+                ["grafico1Serie1", "Gráfico 1 · série 1"],
+                ["grafico1Serie2", "Gráfico 1 · série 2"],
+                ["grafico2Serie1", "Gráfico 2 · série 1"],
+                ["grafico2Serie2", "Gráfico 2 · série 2"],
+              ] as [keyof ConfigDashboard, string][]
+            ).map(([campo, rotuloUi]) => (
+              <div key={campo} className="space-y-1">
+                <Label>{rotuloUi}</Label>
+                <Select
+                  value={config[campo] ?? "__nenhum__"}
+                  onValueChange={(v) =>
+                    setConfig((c) => ({ ...c, [campo]: v === "__nenhum__" ? null : v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sem rótulo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__nenhum__">Sem rótulo</SelectItem>
+                    {rotulos.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+          <Button size="sm" onClick={salvarConfig} disabled={salvandoConfig}>
+            {salvandoConfig ? "Salvando…" : "Salvar configuração do painel"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* 7. Filtros */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
