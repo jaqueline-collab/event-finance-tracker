@@ -450,6 +450,19 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
         if (itens.length > 0) {
           const agora = new Date().toISOString();
           const linhas = itens
+            .filter((c: any) => {
+              if (fCampanha) {
+                const camp = String(c?.utm?.campaign ?? "");
+                if (!camp.toLowerCase().includes(fCampanha.toLowerCase())) return false;
+              }
+              if (fCampo?.chave) {
+                const v = (c.customFields ?? {})[fCampo.chave];
+                const alvo = String(fCampo.valor ?? "").trim();
+                if (alvo && String(v ?? "").toLowerCase() !== alvo.toLowerCase()) return false;
+                if (!alvo && (v == null || v === "")) return false;
+              }
+              return true;
+            })
             .map((c: any) => {
               const custom = (c.customFields ?? {}) as Record<string, unknown>;
               const valor = (k: string) => {
@@ -472,6 +485,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
               };
             })
             .filter((l) => l.contact_id.length > 0);
+
 
           if (linhas.length > 0) {
             const { error } = await supabaseAdmin
