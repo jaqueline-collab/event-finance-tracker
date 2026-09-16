@@ -1141,31 +1141,13 @@ export const salvarConfigDashboardCliente = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Salva quais classificações representam consulta agendada e venda. */
-export const salvarClassificacoesCliente = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        clienteId: z.string().min(1),
-        consultaAgendada: z.string().trim().max(200).nullable(),
-        procedimentoVendido: z.string().trim().max(200).nullable(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .update({
-        classificacao_consulta_agendada: data.consultaAgendada,
-        classificacao_procedimento_vendido: data.procedimentoVendido,
-      })
-      .eq("cliente_id", data.clienteId);
-    if (error) throw new Error(`classificacoes: ${error.message}`);
-    return { ok: true };
-  });
+/** "HH:MM:SS" (horas podem passar de 24) → segundos. Formato inesperado vira nulo. */
+const duracaoParaSegundos = (v: unknown): number | null => {
+  if (typeof v !== "string") return null;
+  const m = /^(\d+):(\d{1,2}):(\d{1,2})(?:\.\d+)?$/.exec(v.trim());
+  if (!m) return null;
+  return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
+};
 
 /** Salva os filtros do cliente (valem para sincronização e painel). */
 export const salvarFiltrosCliente = createServerFn({ method: "POST" })
