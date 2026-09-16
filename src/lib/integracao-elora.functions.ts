@@ -880,7 +880,7 @@ export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
   .inputValidator((input) => soClienteId.parse(input))
   .handler(async ({ data, context }): Promise<{ classificacoes: string[]; conversas: number }> => {
     await exigirEquipeInterna(context.supabase);
-    const { conta } = await contaDoCliente(data.clienteId);
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
 
     const desde = new Date(Date.now() - 90 * 86_400_000).toISOString();
     const nomes = new Set<string>();
@@ -890,6 +890,7 @@ export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
       const resp = await lerApiElora(
         String(conta.base_url),
         String(conta.api_key),
+        "chat",
         `/v2/session?PageNumber=${pagina}&PageSize=100&StartDate=${encodeURIComponent(desde)}&IncludeDetails=ClassificationDetails`,
       );
       const itens = listaDe(resp);
@@ -902,7 +903,242 @@ export const listarClassificacoesRecentes = createServerFn({ method: "POST" })
       await new Promise((r) => setTimeout(r, 500));
     }
 
-    return { classificacoes: [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR")), conversas: vistas };
+    const lista = [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    if (lista.length > 0) {
+      await supabaseAdmin.from("elora_classificacoes_descobertas").upsert(
+        lista.map((valor_bruto) => ({ cliente_id: data.clienteId, valor_bruto })),
+        { onConflict: "cliente_id,valor_bruto" },
+      );
+    }
+
+    return { classificacoes: lista, conversas: vistas };
+  });
+
+/* ------------------------------------------------------------------ *
+ * Rótulos de classificação: agrupam valores brutos (texto livre da
+ * equipe) sob um nome próprio. Cada peça do dashboard aponta para um
+ * rótulo — nada de regra fixa.
+ * ------------------------------------------------------------------ */
+
+export type RotuloClassificacao = { id: string; nome: string; valores: string[] };
+
+export const listarRotulosCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<{ rotulos: RotuloClassificacao[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rotulos, error } = await supabaseAdmin
+      .from("elora_classificacoes_rotulos")
+      .select("id, nome")
+      .eq("cliente_id", data.clienteId)
+      .order("nome");
+    if (error) throw new Error(`rotulos: ${error.message}`);
+
+    const ids = (rotulos ?? []).map((r: any) => r.id);
+    const { data: valores } = ids.length
+      ? await supabaseAdmin
+          .from("elora_classificacoes_rotulo_valores")
+          .select("rotulo_id, valor_bruto")
+          .in("rotulo_id", ids)
+      : { data: [] as any[] };
+
+    const porRotulo = new Map<string, string[]>();
+    for (const v of (valores ?? []) as any[]) {
+      const arr = porRotulo.get(String(v.rotulo_id)) ?? [];
+      arr.push(String(v.valor_bruto));
+      porRotulo.set(String(v.rotulo_id), arr);
+    }
+
+    return {
+      rotulos: ((rotulos ?? []) as any[]).map((r) => ({
+        id: String(r.id),
+        nome: String(r.nome),
+        valores: (porRotulo.get(String(r.id)) ?? []).sort((a, b) => a.localeCompare(b, "pt-BR")),
+      })),
+    };
+  });
+
+const rotuloSchema = z.object({
+  clienteId: z.string().min(1),
+  rotuloId: z.string().uuid().nullable().default(null),
+  nome: z.string().trim().min(1).max(120),
+  valores: z.array(z.string().trim().min(1).max(200)).max(200).default([]),
+});
+
+/** Cria ou atualiza um rótulo e os valores brutos associados. */
+export const salvarRotuloCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => rotuloSchema.parse(input))
+  .handler(async ({ data, context }): Promise<{ rotuloId: string }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let rotuloId = data.rotuloId;
+    if (rotuloId) {
+      const { error } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .update({ nome: data.nome })
+        .eq("id", rotuloId)
+        .eq("cliente_id", data.clienteId);
+      if (error) throw new Error(`rotulos: ${error.message}`);
+    } else {
+      const { data: criado, error } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .insert({ cliente_id: data.clienteId, nome: data.nome })
+        .select("id")
+        .single();
+      if (error) throw new Error(`rotulos: ${error.message}`);
+      rotuloId = String(criado.id);
+    }
+
+    const { error: errDel } = await supabaseAdmin
+      .from("elora_classificacoes_rotulo_valores")
+      .delete()
+      .eq("rotulo_id", rotuloId);
+    if (errDel) throw new Error(`rotulos: ${errDel.message}`);
+
+    const unicos = [...new Set(data.valores)];
+    if (unicos.length > 0) {
+      const { error: errIns } = await supabaseAdmin
+        .from("elora_classificacoes_rotulo_valores")
+        .insert(unicos.map((valor_bruto) => ({ rotulo_id: rotuloId, valor_bruto })));
+      if (errIns) throw new Error(`rotulos: ${errIns.message}`);
+    }
+
+    return { rotuloId };
+  });
+
+/** Exclui um rótulo. As peças do dashboard que o usavam ficam sem rótulo. */
+export const excluirRotuloCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ clienteId: z.string().min(1), rotuloId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { error } = await supabaseAdmin
+      .from("elora_classificacoes_rotulos")
+      .delete()
+      .eq("id", data.rotuloId)
+      .eq("cliente_id", data.clienteId);
+    if (error) throw new Error(`rotulos: ${error.message}`);
+
+    // Limpa os seletores que apontavam para o rótulo excluído.
+    await supabaseAdmin
+      .from("elora_integracao_contas")
+      .update({
+        bloco2_rotulo_id: null,
+        bloco3_rotulo_id: null,
+        grafico1_serie1_rotulo_id: null,
+        grafico1_serie2_rotulo_id: null,
+        grafico2_serie1_rotulo_id: null,
+        grafico2_serie2_rotulo_id: null,
+      } as never)
+      .eq("cliente_id", data.clienteId)
+      .or(
+        `bloco2_rotulo_id.eq.${data.rotuloId},bloco3_rotulo_id.eq.${data.rotuloId},grafico1_serie1_rotulo_id.eq.${data.rotuloId},grafico1_serie2_rotulo_id.eq.${data.rotuloId},grafico2_serie1_rotulo_id.eq.${data.rotuloId},grafico2_serie2_rotulo_id.eq.${data.rotuloId}`,
+      );
+
+    return { ok: true };
+  });
+
+export type ConfigDashboard = {
+  bloco2: string | null;
+  bloco3: string | null;
+  grafico1Serie1: string | null;
+  grafico1Serie2: string | null;
+  grafico2Serie1: string | null;
+  grafico2Serie2: string | null;
+};
+
+/** Lê a configuração das peças do dashboard (quais rótulos alimentam cada uma). */
+export const getConfigDashboardCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }): Promise<ConfigDashboard> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conta } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .select(
+        "bloco2_rotulo_id, bloco3_rotulo_id, grafico1_serie1_rotulo_id, grafico1_serie2_rotulo_id, grafico2_serie1_rotulo_id, grafico2_serie2_rotulo_id",
+      )
+      .eq("cliente_id", data.clienteId)
+      .maybeSingle();
+    const c = conta as any;
+    return {
+      bloco2: c?.bloco2_rotulo_id ?? null,
+      bloco3: c?.bloco3_rotulo_id ?? null,
+      grafico1Serie1: c?.grafico1_serie1_rotulo_id ?? null,
+      grafico1Serie2: c?.grafico1_serie2_rotulo_id ?? null,
+      grafico2Serie1: c?.grafico2_serie1_rotulo_id ?? null,
+      grafico2Serie2: c?.grafico2_serie2_rotulo_id ?? null,
+    };
+  });
+
+const configSchema = z.object({
+  clienteId: z.string().min(1),
+  bloco2: z.string().uuid().nullable().default(null),
+  bloco3: z.string().uuid().nullable().default(null),
+  grafico1Serie1: z.string().uuid().nullable().default(null),
+  grafico1Serie2: z.string().uuid().nullable().default(null),
+  grafico2Serie1: z.string().uuid().nullable().default(null),
+  grafico2Serie2: z.string().uuid().nullable().default(null),
+});
+
+/**
+ * Salva quais rótulos alimentam cada peça. Confere no servidor que todo
+ * rótulo informado pertence ao mesmo cliente — e o banco ainda reforça com
+ * chave estrangeira composta (cliente_id + rotulo_id).
+ */
+export const salvarConfigDashboardCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => configSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const ids = [
+      data.bloco2,
+      data.bloco3,
+      data.grafico1Serie1,
+      data.grafico1Serie2,
+      data.grafico2Serie1,
+      data.grafico2Serie2,
+    ].filter((x): x is string => Boolean(x));
+
+    if (ids.length > 0) {
+      const { data: rotulos } = await supabaseAdmin
+        .from("elora_classificacoes_rotulos")
+        .select("id, cliente_id")
+        .in("id", ids);
+      const pertencem = new Set(
+        ((rotulos ?? []) as any[])
+          .filter((r) => r.cliente_id === data.clienteId)
+          .map((r) => String(r.id)),
+      );
+      if (ids.some((id) => !pertencem.has(id))) {
+        throw new Error("rotulos: um dos rótulos escolhidos não pertence a este cliente.");
+      }
+    }
+
+    const { error } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .update({
+        bloco2_rotulo_id: data.bloco2,
+        bloco3_rotulo_id: data.bloco3,
+        grafico1_serie1_rotulo_id: data.grafico1Serie1,
+        grafico1_serie2_rotulo_id: data.grafico1Serie2,
+        grafico2_serie1_rotulo_id: data.grafico2Serie1,
+        grafico2_serie2_rotulo_id: data.grafico2Serie2,
+      } as never)
+      .eq("cliente_id", data.clienteId);
+    if (error) throw new Error(`dashboard: ${error.message}`);
+    return { ok: true };
   });
 
 /** Salva quais classificações representam consulta agendada e venda. */
