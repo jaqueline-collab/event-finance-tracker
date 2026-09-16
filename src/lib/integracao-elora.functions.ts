@@ -232,7 +232,13 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
     if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
 
     try {
-      await lerApiElora(String(conta.base_url), String(conta.api_key), "/v1/status");
+      // Chamada real e barata de leitura: confirma endereço + chave de uma vez.
+      await lerApiElora(
+        String(conta.base_url),
+        String(conta.api_key),
+        "/v1/contact/custom-field?NestedList=false",
+      );
+
       await supabaseAdmin
         .from("elora_integracao_contas")
         .update({ ultimo_erro: null })
