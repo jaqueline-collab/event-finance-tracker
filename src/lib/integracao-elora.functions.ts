@@ -1116,14 +1116,8 @@ export const excluirRotuloCliente = createServerFn({ method: "POST" })
     await exigirEquipeInterna(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error } = await supabaseAdmin
-      .from("elora_classificacoes_rotulos")
-      .delete()
-      .eq("id", data.rotuloId)
-      .eq("cliente_id", data.clienteId);
-    if (error) throw new Error(`rotulos: ${error.message}`);
-
-    // Limpa os seletores que apontavam para o rótulo excluído.
+    // Limpa antes os seletores que apontam para o rótulo (a chave estrangeira
+    // composta bloqueia a exclusão enquanto houver referência).
     await supabaseAdmin
       .from("elora_integracao_contas")
       .update({
