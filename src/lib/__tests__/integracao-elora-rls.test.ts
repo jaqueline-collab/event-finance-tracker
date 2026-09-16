@@ -92,6 +92,37 @@ beforeAll(async () => {
   ] as never);
   if (snap.error) throw snap.error;
 
+  const contatos = await admin.from("elora_contatos_sincronizados" as never).insert([
+    {
+      cliente_id: CLI_A,
+      contact_id: `c1-${sufixo}`,
+      nome: "Contato A1",
+      telefone: "+5511999999001",
+      criado_em: "2026-09-05T12:00:00Z",
+      utm_source: "google",
+      utm_medium: "cpc",
+      utm_campaign: "laser",
+      procedimento_interesse: "Harmonização",
+      data_consulta: "2026-09-20",
+    },
+    {
+      cliente_id: CLI_A,
+      contact_id: `c2-${sufixo}`,
+      nome: "Contato A2",
+      telefone: "+5511999999002",
+      criado_em: "2026-09-06T12:00:00Z",
+      procedimento_interesse: "Botox",
+    },
+    {
+      cliente_id: CLI_B,
+      contact_id: `c3-${sufixo}`,
+      nome: "Contato B1",
+      telefone: "+5511999999003",
+      criado_em: "2026-09-07T12:00:00Z",
+    },
+  ] as never);
+  if (contatos.error) throw contatos.error;
+
   const vincParceiro = await admin
     .from("elora_parceiro_usuarios")
     .insert({ parceiro_id: PARC, email: emailParceiro, nome: "Parceiro Teste", ativo: true });
@@ -106,6 +137,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await admin.from("elora_integracao_contas" as never).delete().eq("cliente_id", CLI_A);
   await admin.from("elora_uso_snapshots" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+  await admin.from("elora_contatos_sincronizados" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
   await admin.from("elora_cliente_usuarios").delete().eq("cliente_id", CLI_A);
   await admin.from("elora_parceiro_usuarios").delete().eq("parceiro_id", PARC);
   await admin.from("elora_clientes").delete().in("id", [CLI_A, CLI_B]);
@@ -164,5 +196,53 @@ describe("integração Elora — snapshots de uso (elora_uso_snapshots)", () => 
       .select("cliente_id");
     expect(error).toBeNull();
     expect(data).toEqual([]);
+  }, 60_000);
+});
+
+describe("integração Elora — contatos sincronizados (elora_contatos_sincronizados)", () => {
+  it("o cliente logado lê apenas os próprios contatos", async () => {
+    const cli = await logar(emailCliente);
+    await cli.rpc("link_cliente_usuario" as never);
+    const { data, error } = await cli
+      .from("elora_contatos_sincronizados" as never)
+      .select("cliente_id, contact_id");
+    expect(error).toBeNull();
+    const linhas = (data ?? []) as { cliente_id: string }[];
+    expect(linhas.length).toBe(2);
+    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
+  }, 60_000);
+
+  it("o parceiro com painel liberado lê contatos dos clientes dele, não de outros", async () => {
+    const cli = await logar(emailParceiro);
+    await cli.rpc("link_parceiro_usuario" as never);
+    const { data, error } = await cli
+      .from("elora_contatos_sincronizados" as never)
+      .select("cliente_id");
+    expect(error).toBeNull();
+    const linhas = (data ?? []) as { cliente_id: string }[];
+    expect(linhas.length).toBe(2);
+    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
+  }, 60_000);
+
+  it("usuário sem vínculo não lê nenhum contato", async () => {
+    const cli = await logar(emailIntruso);
+    const { data, error } = await cli
+      .from("elora_contatos_sincronizados" as never)
+      .select("cliente_id");
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  }, 60_000);
+
+  it("o cliente não consegue gravar contatos — só a sincronização grava", async () => {
+    const cli = await logar(emailCliente);
+    await cli.rpc("link_cliente_usuario" as never);
+    const r = await cli.from("elora_contatos_sincronizados" as never).insert({
+      cliente_id: CLI_A,
+      contact_id: `hack-${sufixo}`,
+    } as never);
+    expect(r.error).not.toBeNull();
+    expect(String(r.error?.message ?? "").toLowerCase()).toMatch(
+      /permission|denied|policy|row-level|42501/,
+    );
   }, 60_000);
 });

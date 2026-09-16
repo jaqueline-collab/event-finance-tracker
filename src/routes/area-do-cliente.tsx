@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowUpRight,
-  BarChart3,
   CalendarDays,
   Loader2,
   Package,
@@ -28,6 +27,7 @@ import {
   getPainelCliente,
   removerPessoaEquipe,
 } from "@/lib/cliente.functions";
+import { ResultadosCliente } from "@/components/resultados-cliente";
 
 const searchSchema = z.object({ como: fallback(z.string(), "").default("") });
 
@@ -348,27 +348,7 @@ function AreaCliente() {
         </TabsContent>
 
         <TabsContent value="resultados" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <BarChart3 className="h-4 w-4" /> Resultados da conta
-              </CardTitle>
-              <CardDescription>Indicadores de atendimento e vendas.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {["Atendimentos", "Tempo de 1ª resposta", "Conversões"].map((t) => (
-                  <div key={t} className="rounded-lg border border-dashed border-border/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">{t}</p>
-                    <p className="mt-1 text-2xl font-bold text-muted-foreground/50">—</p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-sm text-muted-foreground">
-                Em breve: estes números virão direto da sua operação no aplicativo.
-              </p>
-            </CardContent>
-          </Card>
+          <ResultadosCliente clienteId={cliente.id} />
         </TabsContent>
       </Tabs>
     </div>
