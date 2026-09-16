@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,24 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plug, RefreshCw, Search, Zap } from "lucide-react";
+import { Plug, RefreshCw, Settings2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import {
   alternarIntegracaoCliente,
   getIntegracaoCliente,
-  listarCamposPersonalizados,
   salvarIntegracaoCliente,
-  salvarMapeamentoCliente,
   sincronizarIntegracaoCliente,
   testarIntegracaoCliente,
-  type CampoElora,
 } from "@/lib/integracao-elora.functions";
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
@@ -40,11 +31,6 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
   const [salvando, setSalvando] = useState(false);
   const [testando, setTestando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
-  const [campos, setCampos] = useState<CampoElora[] | null>(null);
-  const [buscando, setBuscando] = useState(false);
-  const [campoProc, setCampoProc] = useState("");
-  const [campoData, setCampoData] = useState("");
-  const [salvandoMap, setSalvandoMap] = useState(false);
 
   const recarregar = useCallback(() => {
     setCarregando(true);
@@ -52,8 +38,6 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
       .then((r) => {
         setEstado(r);
         setBaseUrl(r.baseUrl ?? "");
-        setCampoProc(r.campoProcedimentoKey ?? "");
-        setCampoData(r.campoDataConsultaKey ?? "");
       })
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)))
       .finally(() => setCarregando(false));
@@ -111,40 +95,6 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
     }
   };
 
-  const buscarCampos = async () => {
-    setBuscando(true);
-    try {
-      const r = await listarCamposPersonalizados({ data: { clienteId } });
-      setCampos(r.campos);
-      if (r.campos.length === 0) {
-        toast.error("Nenhum campo personalizado encontrado nessa conta.");
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBuscando(false);
-    }
-  };
-
-  const salvarMapeamento = async () => {
-    if (!campoProc || !campoData) {
-      toast.error("Escolha os dois campos antes de salvar.");
-      return;
-    }
-    setSalvandoMap(true);
-    try {
-      await salvarMapeamentoCliente({
-        data: { clienteId, campoProcedimentoKey: campoProc, campoDataConsultaKey: campoData },
-      });
-      toast.success("Mapeamento salvo. A sincronização já pode rodar.");
-      recarregar();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSalvandoMap(false);
-    }
-  };
-
   const sincronizar = async () => {
     setSincronizando(true);
     try {
@@ -183,7 +133,7 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
             <Label htmlFor={`int-url-${clienteId}`}>Endereço da conta</Label>
             <Input
               id={`int-url-${clienteId}`}
-              placeholder="https://conta.app.eloracrm.com.br"
+              placeholder="https://api.wts.chat/core"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
             />
@@ -216,70 +166,30 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
           )}
         </div>
 
-        <div className="space-y-3 rounded-lg border border-border/60 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-medium">Mapeamento de campos personalizados</p>
-              <p className="text-xs text-muted-foreground">
-                Diz onde encontrar o procedimento de interesse e a data da consulta nos contatos da conta.
-              </p>
-            </div>
-            {mapeado && <Badge variant="secondary">Mapeamento salvo</Badge>}
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Mapeamento e filtros</p>
+            <p className="text-xs text-muted-foreground">
+              Campos personalizados, painéis, sequências, classificações e filtros da conta.
+            </p>
           </div>
-
           <Button
             size="sm"
             variant="outline"
-            onClick={buscarCampos}
-            disabled={!estado.configurada || !estado.ativo || buscando}
+            className="ml-auto"
+            disabled={!estado.configurada || !estado.ativo}
+            asChild={estado.configurada && estado.ativo}
           >
-            <Search className="mr-2 h-4 w-4" />
-            {buscando ? "Buscando…" : "Buscar campos personalizados da conta"}
+            {estado.configurada && estado.ativo ? (
+              <Link to="/clientes/$id/integracao-elora" params={{ id: clienteId }}>
+                <Settings2 className="mr-2 h-4 w-4" /> Configurar mapeamento e filtros
+              </Link>
+            ) : (
+              <span>
+                <Settings2 className="mr-2 h-4 w-4" /> Configurar mapeamento e filtros
+              </span>
+            )}
           </Button>
-
-          {campos !== null && campos.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhum campo personalizado encontrado na conta.</p>
-          )}
-
-          {campos !== null && campos.length > 0 && (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label>Qual campo é Procedimento de interesse?</Label>
-                  <Select value={campoProc || undefined} onValueChange={setCampoProc}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Escolha o campo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campos.map((c) => (
-                        <SelectItem key={c.chave} value={c.chave}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Qual campo é Data da consulta?</Label>
-                  <Select value={campoData || undefined} onValueChange={setCampoData}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Escolha o campo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campos.map((c) => (
-                        <SelectItem key={c.chave} value={c.chave}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button size="sm" onClick={salvarMapeamento} disabled={salvandoMap || !campoProc || !campoData}>
-                {salvandoMap ? "Salvando…" : "Salvar mapeamento"}
-              </Button>
-            </>
-          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -290,7 +200,7 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
             disabled={!estado.configurada || !estado.ativo || !mapeado || sincronizando}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            {sincronizando ? "Sincronizando…" : "Sincronizar"}
+            {sincronizando ? "Sincronizando…" : "Sincronizar contatos"}
           </Button>
           {!mapeado && (
             <p className="text-xs text-muted-foreground">Configure o mapeamento de campos primeiro.</p>
