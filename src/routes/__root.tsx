@@ -250,7 +250,7 @@ function RootComponent() {
         <div className="min-h-screen flex w-full bg-background text-foreground">
           {!semMenuLateral && <AppSidebar />}
           <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 flex items-center gap-2 sm:gap-3 border-b border-border/60 px-3 sm:px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
+            <header className="h-14 flex items-center gap-1 sm:gap-3 border-b border-border/60 px-2 sm:px-4 sticky top-0 bg-background/80 backdrop-blur z-10">
               {!semMenuLateral && <SidebarTrigger />}
               <div className="text-sm text-muted-foreground flex-1 min-w-0 truncate">
                 {isCliente || pathname === "/area-do-cliente" || pathname === "/cliente"
