@@ -412,6 +412,13 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
       if (error) throw new Error(`integracao: ${error.message}`);
     }
 
+    // Filtros salvos do cliente: vazio = sem restrição.
+    const fUsuarios = listaTexto((conta as any).filtro_usuarios);
+    const fEtiquetas = listaTexto((conta as any).filtro_etiquetas);
+    const fEtapas = listaTexto((conta as any).filtro_etapas_funil);
+    const fCampanha = (conta as any).filtro_campanha ? String((conta as any).filtro_campanha) : null;
+    const fCampo = (conta as any).filtro_campo_personalizado as any;
+
     try {
       let pagina = 0;
       let gravados = 0;
@@ -424,8 +431,12 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
             pageSize: 100,
             createdAt: { after: janelaInicio, before: null },
             includeDetails: ["CustomFields"],
+            ...(fUsuarios.length > 0 ? { userIds: fUsuarios } : {}),
+            ...(fEtiquetas.length > 0 ? { tagIds: fEtiquetas } : {}),
+            ...(fEtapas.length > 0 ? { stepIds: fEtapas } : {}),
           },
         });
+
 
         const hasMore = Boolean((resp as any)?.hasMorePages);
 
