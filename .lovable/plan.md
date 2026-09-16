@@ -60,6 +60,13 @@ Mesmo padrão de acesso já aprovado (GRANT `SELECT` para `authenticated`, `ALL`
 - `elora_conversas_classificadas` ganha colunas novas e nulas: `contato_id`, `first_response_at`, `time_wait_segundos`, `time_service_segundos` (duração já convertida em segundos na gravação, para média correta acima de 24h)
 - `elora_integracao_contas` ganha `bloco2_rotulo_id`, `bloco3_rotulo_id`, `grafico1_serie1_rotulo_id`, `grafico1_serie2_rotulo_id`, `grafico2_serie1_rotulo_id`, `grafico2_serie2_rotulo_id`
 
+### Trava de mesma conta nos seletores
+
+Respondendo à sua pergunta: hoje não existe essa trava — ela entra neste trabalho, em duas camadas:
+
+1. **No banco:** em vez de uma foreign key simples por coluna (que não garante o mesmo cliente), cada seletor compõe chave com o cliente da integração: a referência é o par `(cliente_id, *_rotulo_id)` contra `elora_classificacoes_rotulos`, que passa a ter chave única por `(cliente_id, id)`. Ou seja, um `rotulo_id` de outro cliente nem grava — o banco recusa.
+2. **No servidor:** antes de salvar a configuração das peças, a função confere que cada `rotulo_id` informado pertence ao mesmo `cliente_id` da integração e rejeita com erro claro caso contrário. E na leitura do dashboard, rótulos que não sejam do cliente são ignorados (tratados como "não configurado"), então mesmo um dado antigo incorreto nunca exibiria contagem de outra conta.
+
 Migração aditiva única, sem remover nada; as duas colunas de classificação antigas (`classificacao_consulta_agendada`, `classificacao_procedimento_vendido`) deixam de ser usadas mas permanecem.
 
 ## Detalhes técnicos
