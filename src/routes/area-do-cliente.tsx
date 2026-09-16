@@ -62,6 +62,13 @@ function AreaCliente() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [aba, setAba] = useState("resultados");
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHeaderTarget(document.getElementById("app-header-actions"));
+  }, []);
+
 
   const carregar = () => {
     setCarregando(true);
