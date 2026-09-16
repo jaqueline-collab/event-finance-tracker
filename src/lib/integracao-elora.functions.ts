@@ -1210,27 +1210,46 @@ export const sincronizarConversasCliente = createServerFn({ method: "POST" })
         const resp = await lerApiElora(
           String(conta.base_url),
           String(conta.api_key),
+          "chat",
           `/v2/session?PageNumber=${pagina}&PageSize=100&StartDate=${encodeURIComponent(desde)}&IncludeDetails=ClassificationDetails`,
         );
         const itens = listaDe(resp);
         if (itens.length === 0) break;
 
         const agora = new Date().toISOString();
+        const nomesNovos = new Set<string>();
         const linhas = itens
           .map((s: any) => {
             const cls = s.classification ?? s.classificationDetails ?? {};
+            const nomeCls = cls.categoryName ? String(cls.categoryName).trim() : "";
+            if (nomeCls) nomesNovos.add(nomeCls);
+            // Conversa com resposta = ao menos uma mensagem do contato e uma
+            // da equipe. Usa os marcadores de última mensagem como referência.
+            const recebeu = Boolean(s.lastMessageIn);
+            const respondeu = Boolean(s.lastMessageOut ?? s.hasAnswer ?? s.answered);
             return {
               cliente_id: data.clienteId,
               sessao_id: String(s.id ?? ""),
+              contato_id: s.contactId ? String(s.contactId) : null,
               category: cls.category ? String(cls.category) : null,
-              category_name: cls.categoryName ? String(cls.categoryName) : null,
+              category_name: nomeCls || null,
               criado_em: s.createdAt ? String(s.createdAt) : null,
               atualizado_em: s.updatedAt ? String(s.updatedAt) : null,
-              teve_resposta: Boolean(s.hasAnswer ?? s.answered ?? false),
+              first_response_at: s.firstResponseAt ? String(s.firstResponseAt) : null,
+              time_wait_segundos: duracaoParaSegundos(s.timeWait),
+              time_service_segundos: duracaoParaSegundos(s.timeService),
+              teve_resposta: recebeu && respondeu,
               sincronizado_em: agora,
             };
           })
           .filter((l) => l.sessao_id.length > 0);
+
+        if (nomesNovos.size > 0) {
+          await supabaseAdmin.from("elora_classificacoes_descobertas").upsert(
+            [...nomesNovos].map((valor_bruto) => ({ cliente_id: data.clienteId, valor_bruto })),
+            { onConflict: "cliente_id,valor_bruto" },
+          );
+        }
 
         if (linhas.length > 0) {
           const { error } = await supabaseAdmin
