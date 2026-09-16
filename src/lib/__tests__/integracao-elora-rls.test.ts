@@ -168,6 +168,10 @@ afterAll(async () => {
   await admin.from("elora_integracao_contas" as never).delete().eq("cliente_id", CLI_A);
   await admin.from("elora_uso_snapshots" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
   await admin.from("elora_contatos_sincronizados" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+  await admin.from("elora_paineis_sincronizados" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+  await admin.from("elora_sequencias_sincronizadas" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+  await admin.from("elora_conversas_classificadas" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
+
   await admin.from("elora_cliente_usuarios").delete().eq("cliente_id", CLI_A);
   await admin.from("elora_parceiro_usuarios").delete().eq("parceiro_id", PARC);
   await admin.from("elora_clientes").delete().in("id", [CLI_A, CLI_B]);
