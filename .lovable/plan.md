@@ -36,6 +36,13 @@ Substitui o bloco reservado de hoje:
 - Ordenada da mais recente para a mais antiga, com paginação.
 - Mesma tela para o cliente logado, para o parceiro com painel liberado e para a visão interna "Ver como cliente".
 
+## Limites de requisição da API (1.000 req/5 min, pico de 200/5s, por conta)
+
+- **429 (Too Many Requests):** espera e tenta de novo automaticamente. Respeita o tempo indicado pela API (Retry-After); sem indicação, espera crescente de 5s, 15s e 45s, até 3 tentativas por chamada. Persistindo o bloqueio, para com "Falha ao sincronizar: limite de requisições do app Elora atingido, tente novamente em alguns minutos" — sem perder progresso.
+- **Pausa entre páginas:** 500ms entre chamadas da paginação (~2 páginas/s, muito abaixo do pico). Conta com 10.000 contatos (100 páginas) leva ~1 minuto.
+- **Retomada após interrupção:** dois marcadores separados. O "ponto de busca" avança conforme cada página é gravada (contato gravado por código único, sem duplicar); a "última sincronização" exibida na tela só atualiza quando a varredura completa termina. Se parar no meio, a próxima tentativa retoma do ponto salvo — nunca recomeça do zero nem fica presa sem atualizar a data.
+- A chamada de campos personalizados é uma requisição única, irrelevante para o limite.
+
 ## Regras de acesso
 
 Mesmo padrão já aprovado para os snapshots de uso:
