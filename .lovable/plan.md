@@ -53,6 +53,14 @@ Para cada cliente com integração configurada, a migração cria os widgets equ
 - Widget novo com campo novo: a partir da próxima sincronização o campo passa a ser gravado (não retroage, salvo ressincronização completa).
 - UTM continua sempre gravado, por ser campo nativo do contato — o ranking de campanhas como widget não depende de seleção.
 
+### Filtros passam a ser por widget (confirmação)
+
+Sim: com filtros por widget, a sincronização deixa de aplicar um filtro único.
+
+- A busca na API passa a trazer tudo do período, sem recorte por usuário, etiqueta, etapa ou campanha — ou, quando houver filtros que a própria API aceita e todos os widgets ativos usarem o mesmo tipo, a **união** deles, nunca a interseção. Assim nenhum widget fica sem os dados de que precisa.
+- Cada widget aplica o próprio filtro apenas na hora de ler e exibir, sobre o que já está no banco. Mudar um filtro tem efeito imediato no painel, sem ressincronizar.
+- Os filtros salvos hoje por cliente viram os filtros do widget correspondente na migração, para nada mudar de comportamento para quem já usa.
+
 ## 6. Modelo de dados
 
 - `elora_contatos_sincronizados`: nova coluna `campos_personalizados jsonb` (`{"chave": "valor"}`), com backfill das duas colunas antigas. As colunas `procedimento_interesse` e `data_consulta` permanecem no banco, sem uso.
