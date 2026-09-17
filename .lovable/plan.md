@@ -32,6 +32,13 @@ Seção na tela Configurar API, com "Adicionar widget" e os tipos:
 
 Cada widget tem: título livre, tipo, fonte de dados (contatos, conversas ou classificações), campo(s) usados, filtros próprios (usuários, etiquetas, campo personalizado, etapa do funil, campanha) e posição.
 
+### Segurança das referências dentro do widget
+
+Como a configuração do widget é um bloco livre de dados, o banco sozinho não consegue garantir que um painel, sequência ou rótulo citado ali pertence ao mesmo cliente. Então a garantia fica em duas camadas:
+
+- **Ao salvar:** o servidor percorre toda a configuração e confere que cada identificador citado (rótulo de classificação, painel, etapa de painel, sequência, etiqueta, usuário) pertence ao mesmo cliente do widget. Qualquer referência de outro cliente faz a gravação ser recusada com mensagem clara, sem salvar nada.
+- **Ao exibir:** na montagem do painel, qualquer referência que não bata com o cliente é ignorada e tratada como "não configurado" — exatamente o comportamento já adotado para os rótulos. Nunca aparece dado de outro cliente, mesmo que algo estranho chegue ao banco.
+
 Adicionar, editar, reordenar (subir/descer e arrastar) e remover, sem widget obrigatório. Prévia do widget na própria tela de configuração.
 
 O Dash da área do cliente renderiza exatamente esses widgets, na ordem definida.
