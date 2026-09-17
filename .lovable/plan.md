@@ -32,6 +32,13 @@ Seção na tela Configurar API, com "Adicionar widget" e os tipos:
 
 Cada widget tem: título livre, tipo, fonte de dados (contatos, conversas ou classificações), campo(s) usados, filtros próprios (usuários, etiquetas, campo personalizado, etapa do funil, campanha) e posição.
 
+### Segurança das referências dentro do widget
+
+Como a configuração do widget é um bloco livre de dados, o banco sozinho não consegue garantir que um painel, sequência ou rótulo citado ali pertence ao mesmo cliente. Então a garantia fica em duas camadas:
+
+- **Ao salvar:** o servidor percorre toda a configuração e confere que cada identificador citado (rótulo de classificação, painel, etapa de painel, sequência, etiqueta, usuário) pertence ao mesmo cliente do widget. Qualquer referência de outro cliente faz a gravação ser recusada com mensagem clara, sem salvar nada.
+- **Ao exibir:** na montagem do painel, qualquer referência que não bata com o cliente é ignorada e tratada como "não configurado" — exatamente o comportamento já adotado para os rótulos. Nunca aparece dado de outro cliente, mesmo que algo estranho chegue ao banco.
+
 Adicionar, editar, reordenar (subir/descer e arrastar) e remover, sem widget obrigatório. Prévia do widget na própria tela de configuração.
 
 O Dash da área do cliente renderiza exatamente esses widgets, na ordem definida.
@@ -45,6 +52,14 @@ Para cada cliente com integração configurada, a migração cria os widgets equ
 - Antes de cada sincronização o sistema resolve quais chaves de campo personalizado são usadas por algum widget **daquele cliente** e grava apenas essas.
 - Widget novo com campo novo: a partir da próxima sincronização o campo passa a ser gravado (não retroage, salvo ressincronização completa).
 - UTM continua sempre gravado, por ser campo nativo do contato — o ranking de campanhas como widget não depende de seleção.
+
+### Filtros passam a ser por widget (confirmação)
+
+Sim: com filtros por widget, a sincronização deixa de aplicar um filtro único.
+
+- A busca na API passa a trazer tudo do período, sem recorte por usuário, etiqueta, etapa ou campanha — ou, quando houver filtros que a própria API aceita e todos os widgets ativos usarem o mesmo tipo, a **união** deles, nunca a interseção. Assim nenhum widget fica sem os dados de que precisa.
+- Cada widget aplica o próprio filtro apenas na hora de ler e exibir, sobre o que já está no banco. Mudar um filtro tem efeito imediato no painel, sem ressincronizar.
+- Os filtros salvos hoje por cliente viram os filtros do widget correspondente na migração, para nada mudar de comportamento para quem já usa.
 
 ## 6. Modelo de dados
 
