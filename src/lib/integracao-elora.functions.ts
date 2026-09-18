@@ -461,25 +461,13 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
         if (itens.length > 0) {
           const agora = new Date().toISOString();
           const linhas = itens
-            .filter((c: any) => {
-              if (fCampanha) {
-                const camp = String(c?.utm?.campaign ?? "");
-                if (!camp.toLowerCase().includes(fCampanha.toLowerCase())) return false;
-              }
-              if (fCampo?.chave) {
-                const v = (c.customFields ?? {})[fCampo.chave];
-                const alvo = String(fCampo.valor ?? "").trim();
-                if (alvo && String(v ?? "").toLowerCase() !== alvo.toLowerCase()) return false;
-                if (!alvo && (v == null || v === "")) return false;
-              }
-              return true;
-            })
             .map((c: any) => {
               const custom = (c.customFields ?? {}) as Record<string, unknown>;
-              const valor = (k: string) => {
+              const selecionados: Record<string, string> = {};
+              for (const k of chavesUsadas) {
                 const v = custom[k];
-                return v == null || v === "" ? null : String(v);
-              };
+                if (v != null && v !== "") selecionados[k] = String(v);
+              }
               const utm = (c.utm ?? {}) as Record<string, unknown>;
               return {
                 cliente_id: data.clienteId,
@@ -490,8 +478,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
                 utm_source: utm.source ? String(utm.source) : null,
                 utm_medium: utm.medium ? String(utm.medium) : null,
                 utm_campaign: utm.campaign ? String(utm.campaign) : null,
-                procedimento_interesse: valor(String(conta.campo_procedimento_key)),
-                data_consulta: valor(String(conta.campo_data_consulta_key)),
+                campos_personalizados: selecionados,
                 sincronizado_em: agora,
               };
             })
