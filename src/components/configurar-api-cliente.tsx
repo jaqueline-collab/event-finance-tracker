@@ -40,13 +40,10 @@ import {
   listarRotulosCliente,
   listarSequenciasCliente,
   listarUsuariosCliente,
-  salvarConfigDashboardCliente,
   salvarFiltrosCliente,
-  salvarMapeamentoCliente,
   salvarRotuloCliente,
   sincronizarConversasCliente,
   type CampoElora,
-  type ConfigDashboard,
   type PainelElora,
   type RotuloClassificacao,
 } from "@/lib/integracao-elora.functions";
