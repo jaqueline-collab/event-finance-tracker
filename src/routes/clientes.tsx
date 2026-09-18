@@ -50,6 +50,8 @@ function ClientesPage() {
   const [acaoClienteId, setAcaoClienteId] = useState<string | null>(null);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
+  // Após marcar churn: exportar / apagar os dados da integração
+  const [churnDados, setChurnDados] = useState<{ id: string; nome: string } | null>(null);
   const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
   const [savingCliente, setSavingCliente] = useState(false);
   const [savingMovimento, setSavingMovimento] = useState(false);
