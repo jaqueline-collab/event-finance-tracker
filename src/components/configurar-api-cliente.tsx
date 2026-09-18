@@ -370,7 +370,8 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
             <ListChecks className="h-4 w-4" /> Campos personalizados de contato
           </CardTitle>
           <CardDescription>
-            Diz onde encontrar o procedimento de interesse e a data da consulta nos contatos.
+            Todos os campos da conta ficam disponíveis como fonte de dados para os widgets do
+            painel. Nada fica preso a um lugar fixo.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -384,43 +385,13 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
           )}
 
           {campos !== null && campos.length > 0 && (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label>Qual campo é Procedimento de interesse?</Label>
-                  <Select value={campoProc || undefined} onValueChange={setCampoProc}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Escolha o campo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campos.map((c) => (
-                        <SelectItem key={c.chave} value={c.chave}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Qual campo é Data da consulta?</Label>
-                  <Select value={campoData || undefined} onValueChange={setCampoData}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Escolha o campo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campos.map((c) => (
-                        <SelectItem key={c.chave} value={c.chave}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button size="sm" onClick={salvarMapeamento} disabled={salvandoMap || !campoProc || !campoData}>
-                {salvandoMap ? "Salvando…" : "Salvar mapeamento"}
-              </Button>
-            </>
+            <div className="flex flex-wrap gap-1.5">
+              {campos.map((c) => (
+                <Badge key={c.chave} variant="outline" title={c.chave}>
+                  {c.nome}
+                </Badge>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
