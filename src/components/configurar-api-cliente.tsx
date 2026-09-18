@@ -198,24 +198,6 @@ function MapeamentoIntegracao() {
     }
   };
 
-  const salvarMapeamento = async () => {
-    if (!campoProc || !campoData) {
-      toast.error("Escolha os dois campos antes de salvar.");
-      return;
-    }
-    setSalvandoMap(true);
-    try {
-      await salvarMapeamentoCliente({
-        data: { clienteId, campoProcedimentoKey: campoProc, campoDataConsultaKey: campoData },
-      });
-      toast.success("Mapeamento salvo. A sincronização de contatos já pode rodar.");
-      recarregar();
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setSalvandoMap(false);
-    }
-  };
 
   const buscarPaineis = async () => {
     setBuscandoPaineis(true);
