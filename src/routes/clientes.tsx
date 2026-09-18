@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AcessosCliente } from "@/components/acessos-cliente";
+import { ChurnDadosDialog } from "@/components/churn-dados-dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente, mensagemErroPersistencia } from "@/lib/store";
 import { toast } from "sonner";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2 } from "lucide-react";
