@@ -102,9 +102,6 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
   // 2. campos personalizados de contato
   const [campos, setCampos] = useState<CampoElora[] | null>(null);
   const [buscandoCampos, setBuscandoCampos] = useState(false);
-  const [campoProc, setCampoProc] = useState("");
-  const [campoData, setCampoData] = useState("");
-  const [salvandoMap, setSalvandoMap] = useState(false);
 
   // 3. painéis
   const [paineis, setPaineis] = useState<PainelElora[] | null>(null);
