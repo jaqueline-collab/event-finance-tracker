@@ -686,62 +686,13 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
         </CardContent>
       </Card>
 
-      {/* 6. Blocos e gráficos do painel de resultados */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <MessagesSquare className="h-4 w-4" /> Blocos e gráficos do painel de resultados
-          </CardTitle>
-          <CardDescription>
-            Escolha qual rótulo alimenta cada peça do painel. O que ficar em branco aparece como
-            "não configurado" para o cliente.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {rotulos.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Crie ao menos um rótulo acima para configurar o painel.
-            </p>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(
-              [
-                ["bloco2", "Bloco 2 (cartão de resultados)"],
-                ["bloco3", "Bloco 3 (cartão de resultados)"],
-                ["grafico1Serie1", "Gráfico 1 · série 1"],
-                ["grafico1Serie2", "Gráfico 1 · série 2"],
-                ["grafico2Serie1", "Gráfico 2 · série 1"],
-                ["grafico2Serie2", "Gráfico 2 · série 2"],
-              ] as [keyof ConfigDashboard, string][]
-            ).map(([campo, rotuloUi]) => (
-              <div key={campo} className="space-y-1">
-                <Label>{rotuloUi}</Label>
-                <Select
-                  value={config[campo] ?? "__nenhum__"}
-                  onValueChange={(v) =>
-                    setConfig((c) => ({ ...c, [campo]: v === "__nenhum__" ? null : v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sem rótulo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__nenhum__">Sem rótulo</SelectItem>
-                    {rotulos.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
-          <Button size="sm" onClick={salvarConfig} disabled={salvandoConfig}>
-            {salvandoConfig ? "Salvando…" : "Salvar configuração do painel"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* 6. Meu Dash: construtor de widgets */}
+      <WidgetBuilder
+        clienteId={clienteId}
+        rotulos={rotulos.map((r) => ({ id: r.id, nome: r.nome }))}
+        campos={campos ?? []}
+      />
+
 
       {/* 7. Filtros */}
       <Card>
