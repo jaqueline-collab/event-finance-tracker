@@ -395,8 +395,22 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
 
     if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
     if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
-    if (!conta.campo_procedimento_key || !conta.campo_data_consulta_key) {
-      throw new Error("sincronizar: configure o mapeamento de campos primeiro.");
+
+    // Sincronização seletiva: só as chaves de campo personalizado usadas por
+    // algum widget deste cliente são extraídas e gravadas.
+    const { data: widgetsCliente } = await supabaseAdmin
+      .from("elora_dashboard_widgets")
+      .select("configuracao")
+      .eq("cliente_id", data.clienteId);
+    const chavesUsadas = new Set<string>();
+    for (const w of (widgetsCliente ?? []) as any[]) {
+      const cfgW = (w.configuracao ?? {}) as any;
+      for (const k of listaTexto(cfgW.camposUsados)) chavesUsadas.add(k);
+      for (const c of Array.isArray(cfgW.camadas) ? cfgW.camadas : []) {
+        if (c?.campoChave) chavesUsadas.add(String(c.campoChave));
+      }
+      const fCampoW = cfgW?.filtros?.campoPersonalizado;
+      if (fCampoW?.chave) chavesUsadas.add(String(fCampoW.chave));
     }
 
     const epoca = new Date(0).toISOString();
@@ -416,13 +430,9 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
       if (error) throw new Error(`integracao: ${error.message}`);
     }
 
-    // Filtros salvos do cliente: vazio = sem restrição.
-    const fUsuarios = listaTexto((conta as any).filtro_usuarios);
-    const fEtiquetas = listaTexto((conta as any).filtro_etiquetas);
-    const fEtapas = listaTexto((conta as any).filtro_etapas_funil);
-    const fCampanha = (conta as any).filtro_campanha ? String((conta as any).filtro_campanha) : null;
-    const fCampo = (conta as any).filtro_campo_personalizado as any;
-
+    // Sem recorte na origem: a API combina filtros com E, então qualquer
+    // filtro aqui tiraria dados de que algum widget precisa. Cada widget
+    // filtra na hora de exibir.
     try {
       let pagina = 0;
       let gravados = 0;
@@ -435,9 +445,6 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
             pageSize: 100,
             createdAt: { after: janelaInicio, before: null },
             includeDetails: ["CustomFields"],
-            ...(fUsuarios.length > 0 ? { userIds: fUsuarios } : {}),
-            ...(fEtiquetas.length > 0 ? { tagIds: fEtiquetas } : {}),
-            ...(fEtapas.length > 0 ? { stepIds: fEtapas } : {}),
           },
         });
 
@@ -454,25 +461,13 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
         if (itens.length > 0) {
           const agora = new Date().toISOString();
           const linhas = itens
-            .filter((c: any) => {
-              if (fCampanha) {
-                const camp = String(c?.utm?.campaign ?? "");
-                if (!camp.toLowerCase().includes(fCampanha.toLowerCase())) return false;
-              }
-              if (fCampo?.chave) {
-                const v = (c.customFields ?? {})[fCampo.chave];
-                const alvo = String(fCampo.valor ?? "").trim();
-                if (alvo && String(v ?? "").toLowerCase() !== alvo.toLowerCase()) return false;
-                if (!alvo && (v == null || v === "")) return false;
-              }
-              return true;
-            })
             .map((c: any) => {
               const custom = (c.customFields ?? {}) as Record<string, unknown>;
-              const valor = (k: string) => {
+              const selecionados: Record<string, string> = {};
+              for (const k of chavesUsadas) {
                 const v = custom[k];
-                return v == null || v === "" ? null : String(v);
-              };
+                if (v != null && v !== "") selecionados[k] = String(v);
+              }
               const utm = (c.utm ?? {}) as Record<string, unknown>;
               return {
                 cliente_id: data.clienteId,
@@ -483,8 +478,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
                 utm_source: utm.source ? String(utm.source) : null,
                 utm_medium: utm.medium ? String(utm.medium) : null,
                 utm_campaign: utm.campaign ? String(utm.campaign) : null,
-                procedimento_interesse: valor(String(conta.campo_procedimento_key)),
-                data_consulta: valor(String(conta.campo_data_consulta_key)),
+                campos_personalizados: selecionados,
                 sincronizado_em: agora,
               };
             })
@@ -541,10 +535,19 @@ const resultadosSchema = z.object({
   porPagina: z.number().int().min(10).max(100).default(20),
 });
 
+export type WidgetRenderizado = {
+  id: string;
+  tipo: string;
+  titulo: string;
+  ordem: number;
+  dados: any;
+};
+
 /**
- * Painel "Resultados": contatos do período, lidos com a sessão do usuário —
- * a RLS da tabela permite só equipe interna, o próprio cliente ou o parceiro
- * com painel liberado. Nenhum custo, margem ou chave passa por aqui.
+ * Painel "Resultados": montado pelos widgets configurados do cliente.
+ * Leitura com a sessão do usuário (RLS): equipe interna, o próprio cliente
+ * ou parceiro com painel liberado. Referências a rótulos de outro cliente
+ * são ignoradas (tratadas como "não configurado").
  */
 export const getResultadosCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -552,8 +555,6 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
 
-    // Mesmo trio de permissões de painel_cliente_dados(): equipe interna,
-    // o próprio cliente, ou parceiro com painel liberado.
     const [{ data: interno }, { data: meuCliente }, { data: parceiroOk }] = await Promise.all([
       db.rpc("is_equipe_interna"),
       db.rpc("cliente_do_usuario"),
@@ -572,143 +573,55 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
       return x;
     };
 
-    const { count: total, error: errTotal } = await noPeriodo(
-      db.from("elora_contatos_sincronizados").select("*", { count: "exact", head: true }),
-    );
-    if (errTotal) throw new Error(`resultados: ${errTotal.message}`);
-
-    const { count: anuncio, error: errAnuncio } = await noPeriodo(
+    const [{ data: widgetsRaw }, { data: contatosRaw }, { data: conversasRaw }] = await Promise.all([
       db
-        .from("elora_contatos_sincronizados")
-        .select("*", { count: "exact", head: true })
-        .not("utm_source", "is", null),
-    );
-    if (errAnuncio) throw new Error(`resultados: ${errAnuncio.message}`);
-
-    const de = (data.pagina - 1) * data.porPagina;
-    const { data: rows, error } = await noPeriodo(db.from("elora_contatos_sincronizados").select("*"))
-      .order("criado_em", { ascending: false, nullsFirst: false })
-      .range(de, de + data.porPagina - 1);
-    if (error) throw new Error(`resultados: ${error.message}`);
-
-    // Ranking de campanhas: agregado a partir dos contatos já sincronizados.
-    const { data: comCampanha } = await noPeriodo(
-      db
-        .from("elora_contatos_sincronizados")
-        .select("utm_campaign, utm_source, utm_medium")
-        .not("utm_campaign", "is", null),
-    ).limit(5000);
-
-    const mapa = new Map<
-      string,
-      { campanha: string; source: string | null; medium: string | null; leads: number }
-    >();
-    for (const c of (comCampanha ?? []) as any[]) {
-      const nome = String(c.utm_campaign ?? "").trim();
-      if (!nome) continue;
-      const atual = mapa.get(nome) ?? { campanha: nome, source: null, medium: null, leads: 0 };
-      atual.leads += 1;
-      atual.source = atual.source ?? (c.utm_source ? String(c.utm_source) : null);
-      atual.medium = atual.medium ?? (c.utm_medium ? String(c.utm_medium) : null);
-      mapa.set(nome, atual);
-    }
-    const ranking = [...mapa.values()].sort((a, b) => b.leads - a.leads).slice(0, 20);
-
-    // Conversas do período (já sincronizadas, sem tocar a API) — com tempos e contato.
-    const { data: conversas } = await noPeriodo(
-      db
-        .from("elora_conversas_classificadas")
-        .select("category_name, teve_resposta, contato_id, criado_em, time_wait_segundos, time_service_segundos"),
-    ).limit(20000);
-
-    const linhasConversa = (conversas ?? []) as any[];
-
-    // Contatos com anúncio, para o "% de anúncio" dentro dos blocos de rótulo.
-    const { data: contatosAnuncio } = await db
-      .from("elora_contatos_sincronizados")
-      .select("contact_id")
-      .eq("cliente_id", data.clienteId)
-      .not("utm_source", "is", null)
-      .limit(20000);
-    const setAnuncio = new Set(((contatosAnuncio ?? []) as any[]).map((c) => String(c.contact_id)));
-
-    let conversasComResposta = 0;
-    let somaEspera = 0, nEspera = 0, somaAtend = 0, nAtend = 0;
-    const porClassificacao = new Map<string, { qtd: number; anuncio: number }>();
-    const porMesClasse = new Map<string, number>(); // "YYYY-MMclasse"
-    for (const s of linhasConversa) {
-      if (s.teve_resposta) conversasComResposta += 1;
-      if (typeof s.time_wait_segundos === "number") { somaEspera += s.time_wait_segundos; nEspera += 1; }
-      if (typeof s.time_service_segundos === "number") { somaAtend += s.time_service_segundos; nAtend += 1; }
-      const nome = s.category_name ? String(s.category_name) : "";
-      if (!nome) continue;
-      const atual = porClassificacao.get(nome) ?? { qtd: 0, anuncio: 0 };
-      atual.qtd += 1;
-      if (s.contato_id && setAnuncio.has(String(s.contato_id))) atual.anuncio += 1;
-      porClassificacao.set(nome, atual);
-      if (s.criado_em) {
-        const mes = String(s.criado_em).slice(0, 7);
-        porMesClasse.set(`${mes}${nome}`, (porMesClasse.get(`${mes}${nome}`) ?? 0) + 1);
-      }
-    }
-
-    // Configuração das peças: quais rótulos alimentam blocos e séries.
-    // Lida só depois da checagem de permissão; rótulos de outro cliente são
-    // ignorados (tratados como "não configurado") mesmo se um dado antigo
-    // estiver incorreto.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select(
-        "bloco2_rotulo_id, bloco3_rotulo_id, grafico1_serie1_rotulo_id, grafico1_serie2_rotulo_id, grafico2_serie1_rotulo_id, grafico2_serie2_rotulo_id",
-      )
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
-    const cfg = (conta as any) ?? {};
-    const idsConfig = [
-      cfg.bloco2_rotulo_id, cfg.bloco3_rotulo_id,
-      cfg.grafico1_serie1_rotulo_id, cfg.grafico1_serie2_rotulo_id,
-      cfg.grafico2_serie1_rotulo_id, cfg.grafico2_serie2_rotulo_id,
-    ].filter((x): x is string => Boolean(x));
-
-    const rotuloInfo = new Map<string, { nome: string; valores: Set<string> }>();
-    if (idsConfig.length > 0) {
-      const { data: rotulos } = await supabaseAdmin
-        .from("elora_classificacoes_rotulos")
-        .select("id, nome, cliente_id")
-        .in("id", idsConfig)
-        .eq("cliente_id", data.clienteId); // mesma conta ou nada
-      const okIds = ((rotulos ?? []) as any[]).map((r) => String(r.id));
-      const { data: valores } = okIds.length
-        ? await supabaseAdmin
-            .from("elora_classificacoes_rotulo_valores")
-            .select("rotulo_id, valor_bruto")
-            .in("rotulo_id", okIds)
-        : { data: [] as any[] };
-      for (const r of (rotulos ?? []) as any[]) {
-        rotuloInfo.set(String(r.id), {
-          nome: String(r.nome),
-          valores: new Set(
-            ((valores ?? []) as any[])
-              .filter((v) => String(v.rotulo_id) === String(r.id))
-              .map((v) => String(v.valor_bruto)),
+        .from("elora_dashboard_widgets")
+        .select("id, tipo, titulo, configuracao, ordem")
+        .eq("cliente_id", data.clienteId)
+        .order("ordem", { ascending: true }),
+      noPeriodo(db.from("elora_contatos_sincronizados").select("*")).limit(20000),
+      noPeriodo(
+        db
+          .from("elora_conversas_classificadas")
+          .select(
+            "category_name, teve_resposta, contato_id, criado_em, time_wait_segundos, time_service_segundos",
           ),
-        });
-      }
+      ).limit(20000),
+    ]);
+
+    const widgets = (widgetsRaw ?? []) as any[];
+    const contatos = (contatosRaw ?? []) as any[];
+    const conversas = (conversasRaw ?? []) as any[];
+
+    // Rótulos válidos deste cliente (qualquer id de outro cliente é ignorado).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rotulos } = await supabaseAdmin
+      .from("elora_classificacoes_rotulos")
+      .select("id, nome")
+      .eq("cliente_id", data.clienteId);
+    const idsRotulos = ((rotulos ?? []) as any[]).map((r) => String(r.id));
+    const { data: valoresRotulo } = idsRotulos.length
+      ? await supabaseAdmin
+          .from("elora_classificacoes_rotulo_valores")
+          .select("rotulo_id, valor_bruto")
+          .in("rotulo_id", idsRotulos)
+      : { data: [] as any[] };
+    const rotuloInfo = new Map<string, { nome: string; valores: Set<string> }>();
+    for (const r of (rotulos ?? []) as any[]) {
+      rotuloInfo.set(String(r.id), {
+        nome: String(r.nome),
+        valores: new Set(
+          ((valoresRotulo ?? []) as any[])
+            .filter((v) => String(v.rotulo_id) === String(r.id))
+            .map((v) => String(v.valor_bruto)),
+        ),
+      });
     }
 
-    const blocoDoRotulo = (rotuloId: string | null | undefined) => {
-      const info = rotuloId ? rotuloInfo.get(String(rotuloId)) : undefined;
-      if (!info) return { rotulo: null as string | null, quantidade: 0, anuncio: 0 };
-      let qtd = 0, anuncioBloco = 0;
-      for (const v of info.valores) {
-        const a = porClassificacao.get(v);
-        if (a) { qtd += a.qtd; anuncioBloco += a.anuncio; }
-      }
-      return { rotulo: info.nome, quantidade: qtd, anuncio: anuncioBloco };
-    };
+    const setAnuncio = new Set(
+      contatos.filter((c) => c.utm_source).map((c) => String(c.contact_id)),
+    );
 
-    // Séries mensais (últimos 12 meses) por rótulo.
     const meses: string[] = [];
     {
       const base = new Date();
@@ -718,52 +631,211 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
         meses.push(d.toISOString().slice(0, 7));
       }
     }
-    const serieDoRotulo = (rotuloId: string | null | undefined) => {
-      const info = rotuloId ? rotuloInfo.get(String(rotuloId)) : undefined;
-      return {
-        rotulo: info?.nome ?? null,
-        valores: meses.map((mes) =>
-          info
-            ? [...info.valores].reduce((acc, v) => acc + (porMesClasse.get(`${mes}${v}`) ?? 0), 0)
-            : 0,
-        ),
-      };
+
+    /** Filtros do widget aplicados na leitura (nunca na sincronização). */
+    const contatosDoWidget = (cfg: any) => {
+      const f = (cfg?.filtros ?? {}) as any;
+      const campanha = f.campanha ? String(f.campanha).toLowerCase() : null;
+      const campo = f.campoPersonalizado?.chave ? f.campoPersonalizado : null;
+      return contatos.filter((c) => {
+        if (campanha && !String(c.utm_campaign ?? "").toLowerCase().includes(campanha)) return false;
+        if (campo) {
+          const mapa = (c.campos_personalizados ?? {}) as Record<string, unknown>;
+          const v = mapa[String(campo.chave)];
+          const alvo = String(campo.valor ?? "").trim();
+          if (alvo && String(v ?? "").toLowerCase() !== alvo.toLowerCase()) return false;
+          if (!alvo && (v == null || v === "")) return false;
+        }
+        return true;
+      });
     };
 
-    const medias = (soma: number, n: number) =>
-      n > 0 ? { segundos: Math.round(soma / n), conversas: n } : null;
+    const conversasDoRotulo = (rotuloId: string | null | undefined) => {
+      const info = rotuloId ? rotuloInfo.get(String(rotuloId)) : undefined;
+      if (!info) return null;
+      const lista = conversas.filter((s) => s.category_name && info.valores.has(String(s.category_name)));
+      return { nome: info.nome, lista };
+    };
+
+    const montar = (w: any): WidgetRenderizado => {
+      const cfg = (w.configuracao ?? {}) as any;
+      const base = { id: String(w.id), tipo: String(w.tipo), titulo: String(w.titulo), ordem: Number(w.ordem ?? 0) };
+
+      if (w.tipo === "metrico") {
+        const criterio = String(cfg.criterio ?? "total_contatos");
+        if (criterio === "rotulo") {
+          const r = conversasDoRotulo(cfg.rotuloId);
+          if (!r) return { ...base, dados: { valor: 0, formato: "numero", configurado: false } };
+          const anuncio = r.lista.filter((s) => s.contato_id && setAnuncio.has(String(s.contato_id))).length;
+          return {
+            ...base,
+            titulo: base.titulo || r.nome,
+            dados: {
+              valor: r.lista.length,
+              formato: "numero",
+              configurado: true,
+              secundario: cfg.secundario === "anuncio" ? { rotulo: "de anúncio", quantidade: anuncio } : null,
+            },
+          };
+        }
+        if (criterio === "conversas_resposta") {
+          return {
+            ...base,
+            dados: {
+              valor: conversas.filter((s) => s.teve_resposta).length,
+              formato: "numero",
+              configurado: true,
+              secundario: { rotulo: "conversas no período", quantidade: conversas.length },
+            },
+          };
+        }
+        if (criterio === "tempo_espera" || criterio === "tempo_atendimento") {
+          const col = criterio === "tempo_espera" ? "time_wait_segundos" : "time_service_segundos";
+          const vals = conversas
+            .map((s) => s[col])
+            .filter((v): v is number => typeof v === "number");
+          const media = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+          return {
+            ...base,
+            dados: {
+              valor: media,
+              formato: "duracao",
+              configurado: vals.length > 0,
+              secundario: { rotulo: "conversas medidas", quantidade: vals.length },
+            },
+          };
+        }
+        const lista = contatosDoWidget(cfg);
+        const anuncio = lista.filter((c) => c.utm_source).length;
+        return {
+          ...base,
+          dados: {
+            valor: lista.length,
+            formato: "numero",
+            configurado: true,
+            secundario: cfg.secundario === "anuncio" ? { rotulo: "de anúncio", quantidade: anuncio } : null,
+          },
+        };
+      }
+
+      if (w.tipo === "pizza") {
+        const dimensao = String(cfg.dimensao ?? "origem");
+        const mapa = new Map<string, number>();
+        if (dimensao === "classificacao") {
+          for (const s of conversas) {
+            const nome = s.category_name ? String(s.category_name) : "Sem classificação";
+            mapa.set(nome, (mapa.get(nome) ?? 0) + 1);
+          }
+        } else {
+          for (const c of contatosDoWidget(cfg)) {
+            const nome =
+              dimensao === "campanha"
+                ? (c.utm_campaign ? String(c.utm_campaign) : "Sem campanha")
+                : c.utm_source
+                  ? "Anúncio"
+                  : "Orgânico";
+            mapa.set(nome, (mapa.get(nome) ?? 0) + 1);
+          }
+        }
+        return {
+          ...base,
+          dados: {
+            fatias: [...mapa.entries()]
+              .map(([nome, valor]) => ({ nome, valor }))
+              .sort((a, b) => b.valor - a.valor)
+              .slice(0, 12),
+          },
+        };
+      }
+
+      if (w.tipo === "barras") {
+        const series = (Array.isArray(cfg.series) ? cfg.series : [])
+          .map((s: any) => {
+            const r = conversasDoRotulo(s?.rotuloId);
+            if (!r) return null;
+            const porMes = new Map<string, number>();
+            for (const item of r.lista) {
+              if (!item.criado_em) continue;
+              const mes = String(item.criado_em).slice(0, 7);
+              porMes.set(mes, (porMes.get(mes) ?? 0) + 1);
+            }
+            return { nome: s?.titulo ? String(s.titulo) : r.nome, valores: meses.map((m) => porMes.get(m) ?? 0) };
+          })
+          .filter(Boolean);
+        return { ...base, dados: { meses, modo: cfg.modo === "empilhado" ? "empilhado" : "lado", series } };
+      }
+
+      if (w.tipo === "calendario") {
+        const camadas = (Array.isArray(cfg.camadas) ? cfg.camadas : []).map((c: any, i: number) => ({
+          chave: String(c?.campoChave ?? ""),
+          rotulo: String(c?.rotulo ?? c?.campoChave ?? `Camada ${i + 1}`),
+          cor: String(c?.cor ?? `var(--chart-${(i % 5) + 1})`),
+        }));
+        const eventos: { data: string; camada: string; titulo: string }[] = [];
+        for (const c of contatosDoWidget(cfg)) {
+          const mapa = (c.campos_personalizados ?? {}) as Record<string, unknown>;
+          for (const cam of camadas) {
+            const bruto = cam.chave ? mapa[cam.chave] : null;
+            if (bruto == null || bruto === "") continue;
+            const dia = String(bruto).slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) continue;
+            eventos.push({ data: dia, camada: cam.rotulo, titulo: c.nome ? String(c.nome) : "Contato" });
+          }
+        }
+        return { ...base, dados: { camadas, eventos: eventos.slice(0, 2000) } };
+      }
+
+      if (w.tipo === "ranking") {
+        const mapa = new Map<string, { campanha: string; source: string | null; medium: string | null; leads: number }>();
+        for (const c of contatosDoWidget(cfg)) {
+          const nome = String(c.utm_campaign ?? "").trim();
+          if (!nome) continue;
+          const atual = mapa.get(nome) ?? { campanha: nome, source: null, medium: null, leads: 0 };
+          atual.leads += 1;
+          atual.source = atual.source ?? (c.utm_source ? String(c.utm_source) : null);
+          atual.medium = atual.medium ?? (c.utm_medium ? String(c.utm_medium) : null);
+          mapa.set(nome, atual);
+        }
+        return {
+          ...base,
+          dados: { linhas: [...mapa.values()].sort((a, b) => b.leads - a.leads).slice(0, 20) },
+        };
+      }
+
+      if (w.tipo === "tabela") {
+        const lista = contatosDoWidget(cfg).sort((a, b) =>
+          String(b.criado_em ?? "").localeCompare(String(a.criado_em ?? "")),
+        );
+        const de = (data.pagina - 1) * data.porPagina;
+        return {
+          ...base,
+          dados: {
+            total: lista.length,
+            pagina: data.pagina,
+            porPagina: data.porPagina,
+            totalPaginas: Math.max(1, Math.ceil(lista.length / data.porPagina)),
+            colunas: listaTexto(cfg.camposUsados),
+            linhas: lista.slice(de, de + data.porPagina).map((c) => ({
+              id: String(c.id),
+              nome: (c.nome as string) ?? null,
+              telefone: (c.telefone as string) ?? null,
+              criadoEm: c.criado_em ? String(c.criado_em) : null,
+              utmSource: (c.utm_source as string) ?? null,
+              utmMedium: (c.utm_medium as string) ?? null,
+              utmCampaign: (c.utm_campaign as string) ?? null,
+              campos: (c.campos_personalizados ?? {}) as Record<string, string>,
+            })),
+          },
+        };
+      }
+
+      return { ...base, dados: null };
+    };
 
     return {
-      total: total ?? 0,
-      anuncio: anuncio ?? 0,
-      pagina: data.pagina,
-      porPagina: data.porPagina,
-      totalPaginas: Math.max(1, Math.ceil((total ?? 0) / data.porPagina)),
-      bloco2: blocoDoRotulo(cfg.bloco2_rotulo_id),
-      bloco3: blocoDoRotulo(cfg.bloco3_rotulo_id),
-      conversasRealizadas: conversasComResposta,
-      conversasTotal: linhasConversa.length,
-      tempoPrimeiraResposta: medias(somaEspera, nEspera),
-      tempoAtendimento: medias(somaAtend, nAtend),
-      graficos: {
-        meses,
-        g1s1: serieDoRotulo(cfg.grafico1_serie1_rotulo_id),
-        g1s2: serieDoRotulo(cfg.grafico1_serie2_rotulo_id),
-        g2s1: serieDoRotulo(cfg.grafico2_serie1_rotulo_id),
-        g2s2: serieDoRotulo(cfg.grafico2_serie2_rotulo_id),
-      },
-      ranking,
-      contatos: ((rows ?? []) as any[]).map((c) => ({
-        id: String(c.id),
-        nome: (c.nome as string) ?? null,
-        telefone: (c.telefone as string) ?? null,
-        criadoEm: c.criado_em ? String(c.criado_em) : null,
-        utmSource: (c.utm_source as string) ?? null,
-        utmMedium: (c.utm_medium as string) ?? null,
-        utmCampaign: (c.utm_campaign as string) ?? null,
-        procedimento: (c.procedimento_interesse as string) ?? null,
-        dataConsulta: (c.data_consulta as string) ?? null,
-      })),
+      widgets: widgets.map(montar),
+      meses,
+      totalContatos: contatos.length,
     };
   });
 
