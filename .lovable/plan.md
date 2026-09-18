@@ -113,3 +113,8 @@ Conteúdo: contatos, conversas classificadas, classificações descobertas e seu
 - Reordenar e confirmar que a ordem persiste na área do cliente.
 - Celular, tablet e computador, temas claro e escuro.
 - Testes de segurança da tabela nova (cliente vê só os próprios widgets, parceiro só com vínculo e painel liberado, ninguém de fora lê ou grava), somados aos 30 já existentes.
+- Conferir no plano de execução que a consulta por cliente e período usa o índice, com volume alto simulado.
+- Marcar Data Churn num cliente de teste, exportar nos três formatos e conferir os dados contra o banco.
+- Apagar e confirmar que pagamentos e fechamentos seguem intactos.
+- Reativar o cliente e confirmar que a integração pede configuração do zero, sem resíduo.
+- Pular a etapa e confirmar que o cadastro salva normalmente, com a opção de apagar disponível em Configurar API.
