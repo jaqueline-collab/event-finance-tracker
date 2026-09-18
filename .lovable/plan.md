@@ -57,7 +57,7 @@ Para cada cliente com integração configurada, a migração cria os widgets equ
 
 Sim: com filtros por widget, a sincronização deixa de aplicar um filtro único.
 
-- A busca na API passa a trazer tudo do período, sem recorte por usuário, etiqueta, etapa ou campanha — ou, quando houver filtros que a própria API aceita e todos os widgets ativos usarem o mesmo tipo, a **união** deles, nunca a interseção. Assim nenhum widget fica sem os dados de que precisa.
+- A busca na API passa a trazer tudo do período, sem recorte por usuário, etiqueta, etapa ou campanha. Não há caminho alternativo de "união de filtros": a API combina filtros com E, então qualquer recorte na origem tiraria dados de que algum widget precisa.
 - Cada widget aplica o próprio filtro apenas na hora de ler e exibir, sobre o que já está no banco. Mudar um filtro tem efeito imediato no painel, sem ressincronizar.
 - Os filtros salvos hoje por cliente viram os filtros do widget correspondente na migração, para nada mudar de comportamento para quem já usa.
 
