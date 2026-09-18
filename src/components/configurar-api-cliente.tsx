@@ -125,16 +125,6 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
   const [rotuloValores, setRotuloValores] = useState<string[]>([]);
   const [salvandoRotulo, setSalvandoRotulo] = useState(false);
 
-  // configuração das peças do painel
-  const [config, setConfig] = useState<ConfigDashboard>({
-    bloco2: null,
-    bloco3: null,
-    grafico1Serie1: null,
-    grafico1Serie2: null,
-    grafico2Serie1: null,
-    grafico2Serie2: null,
-  });
-  const [salvandoConfig, setSalvandoConfig] = useState(false);
 
   // 6. filtros
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
