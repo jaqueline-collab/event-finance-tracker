@@ -242,12 +242,8 @@ function MapeamentoIntegracao() {
   };
 
   const recarregarRotulosEConfig = async () => {
-    const [r, c] = await Promise.all([
-      listarRotulosCliente({ data: { clienteId } }),
-      getConfigDashboardCliente({ data: { clienteId } }),
-    ]);
+    const r = await listarRotulosCliente({ data: { clienteId } });
     setRotulos(r.rotulos);
-    setConfig(c);
   };
 
   const salvarRotulo = async () => {
