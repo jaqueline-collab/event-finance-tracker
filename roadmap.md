@@ -16,3 +16,8 @@
 - [x] Área do cliente: Dash e acesso ao aplicativo no cabeçalho, saudação pelo perfil autenticado e saída da visualização para o Dashboard
 - [ ] Ampliar permissões da chave de API nas contas (filtro de usuários /v1/user responde "acesso negado" em todos os prefixos)
 - [ ] Agendamento automático de sincronização (hoje é manual, botão "Sincronizar")
+- [x] Configurar API: tela própria (/configurar-api) com busca de cliente, campos/painéis/sequências/classificações como fontes de dados
+- [x] Meu Dash: construtor de widgets (métrico, pizza, barras, calendário, ranking, tabela) com filtros por widget e ordenação
+- [x] Migração 0011: campos_personalizados, elora_dashboard_widgets com RLS/grants, índices por cliente/data e widgets padrão
+- [x] Sincronização seletiva (só campos referenciados por widgets) e filtros aplicados apenas na leitura
+- [x] Churn: diálogo de exportar (CSV/XLSX/Google Sheets) e apagar apenas dados da integração, preservando o financeiro

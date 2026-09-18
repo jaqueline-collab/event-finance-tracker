@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AcessosCliente } from "@/components/acessos-cliente";
+import { ChurnDadosDialog } from "@/components/churn-dados-dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente, mensagemErroPersistencia } from "@/lib/store";
 import { toast } from "sonner";
 import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2 } from "lucide-react";
@@ -49,6 +50,8 @@ function ClientesPage() {
   const [acaoClienteId, setAcaoClienteId] = useState<string | null>(null);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
+  // Após marcar churn: exportar / apagar os dados da integração
+  const [churnDados, setChurnDados] = useState<{ id: string; nome: string } | null>(null);
   const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
   const [savingCliente, setSavingCliente] = useState(false);
   const [savingMovimento, setSavingMovimento] = useState(false);
@@ -356,6 +359,12 @@ function ClientesPage() {
       observacao: movForm.observacao || undefined,
       });
       toast.success("Movimentação salva com sucesso.");
+      if (movForm.tipo === "churn") {
+        const alvo = clientes.find((c) => c.id === acaoClienteId);
+        if (!alvo?.dataChurn) {
+          setChurnDados({ id: acaoClienteId, nome: alvo?.nome ?? acaoClienteId });
+        }
+      }
     } catch (err) {
       toast.error(mensagemErroPersistencia(err, "Movimentação"));
       return;
@@ -1636,6 +1645,13 @@ function ClientesPage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      <ChurnDadosDialog
+        clienteId={churnDados?.id ?? null}
+        nomeCliente={churnDados?.nome ?? ""}
+        aberto={churnDados !== null}
+        aoFechar={() => setChurnDados(null)}
+      />
     </div>
   );
 }
