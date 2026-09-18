@@ -52,26 +52,8 @@ import {
   type RotuloClassificacao,
 } from "@/lib/integracao-elora.functions";
 
-export const Route = createFileRoute("/clientes_/$id/integracao-elora")({
-  head: () => ({
-    meta: [
-      { title: "Mapeamento da integração Elora · Elora" },
-      {
-        name: "description",
-        content:
-          "Configure campos personalizados, painéis, sequências, classificações e filtros da conta do cliente no app Elora.",
-      },
-      { property: "og:title", content: "Mapeamento da integração Elora" },
-      {
-        property: "og:description",
-        content: "Campos, painéis, sequências, classificações e filtros da conta do cliente.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
-  component: MapeamentoIntegracao,
-});
+import { WidgetBuilder } from "@/components/widget-builder";
+import { DadosIntegracaoCliente } from "@/components/dados-integracao-cliente";
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
