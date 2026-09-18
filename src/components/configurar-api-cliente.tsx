@@ -91,8 +91,9 @@ function CaixaMulti({
   );
 }
 
-function MapeamentoIntegracao() {
-  const { id: clienteId } = Route.useParams();
+/** Conteúdo da tela "Configurar API" de um cliente. */
+export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
+
 
   const [estado, setEstado] = useState<Estado | null>(null);
   const [carregando, setCarregando] = useState(true);
