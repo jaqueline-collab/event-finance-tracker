@@ -303,6 +303,7 @@ export type Database = {
       }
       elora_contatos_sincronizados: {
         Row: {
+          campos_personalizados: Json
           cliente_id: string
           contact_id: string
           criado_em: string | null
@@ -317,6 +318,7 @@ export type Database = {
           utm_source: string | null
         }
         Insert: {
+          campos_personalizados?: Json
           cliente_id: string
           contact_id: string
           criado_em?: string | null
@@ -331,6 +333,7 @@ export type Database = {
           utm_source?: string | null
         }
         Update: {
+          campos_personalizados?: Json
           cliente_id?: string
           contact_id?: string
           criado_em?: string | null
@@ -481,6 +484,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      elora_dashboard_widgets: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string
+          configuracao: Json
+          criado_em: string
+          id: string
+          ordem: number
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id: string
+          configuracao?: Json
+          criado_em?: string
+          id?: string
+          ordem?: number
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string
+          configuracao?: Json
+          criado_em?: string
+          id?: string
+          ordem?: number
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_dashboard_widgets_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       elora_descontos: {
         Row: {
