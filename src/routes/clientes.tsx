@@ -356,6 +356,9 @@ function ClientesPage() {
       observacao: movForm.observacao || undefined,
       });
       toast.success("Movimentação salva com sucesso.");
+      if (movForm.tipo === "churn" && !clienteDaAcao?.dataChurn) {
+        setChurnDados({ id: acaoClienteId, nome: clienteDaAcao?.nome ?? acaoClienteId });
+      }
     } catch (err) {
       toast.error(mensagemErroPersistencia(err, "Movimentação"));
       return;
