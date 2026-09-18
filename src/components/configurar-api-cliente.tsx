@@ -756,6 +756,8 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
         </CardContent>
       </Card>
 
+      <DadosIntegracaoCliente clienteId={clienteId} nomeCliente={clienteId} />
+
       <Alert>
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Limites da API do app Elora</AlertTitle>
