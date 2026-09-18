@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Sparkles,
   Globe,
+  Plug,
 } from "lucide-react";
 import {
   Sidebar,
@@ -43,6 +44,7 @@ import { EloraMark } from "@/components/landing/EloraMark";
 const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
   { title: "Clientes", url: "/clientes", icon: Users, moduleKey: "clientes" },
+  { title: "Configurar API", url: "/configurar-api", icon: Plug, moduleKey: "clientes" },
   { title: "Fechamento Mensal", url: "/resumo", icon: CalendarRange, moduleKey: "resumo" },
   { title: "Financeiro", url: "/financeiro", icon: Wallet, moduleKey: "financeiro" },
   { title: "Funil", url: "/orcamentos", icon: Kanban, moduleKey: "orcamentos" },

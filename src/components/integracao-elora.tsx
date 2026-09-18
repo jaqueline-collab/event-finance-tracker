@@ -185,12 +185,12 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
             asChild={estado.configurada && estado.ativo}
           >
             {estado.configurada && estado.ativo ? (
-              <Link to="/clientes/$id/integracao-elora" params={{ id: clienteId }}>
-                <Settings2 className="mr-2 h-4 w-4" /> Configurar mapeamento e filtros
+              <Link to="/configurar-api" search={{ cliente: clienteId }}>
+                <Settings2 className="mr-2 h-4 w-4" /> Configurar API e painel
               </Link>
             ) : (
               <span>
-                <Settings2 className="mr-2 h-4 w-4" /> Configurar mapeamento e filtros
+                <Settings2 className="mr-2 h-4 w-4" /> Configurar API e painel
               </span>
             )}
           </Button>
