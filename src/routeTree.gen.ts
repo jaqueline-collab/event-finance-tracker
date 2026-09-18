@@ -23,6 +23,7 @@ import { Route as GestaoParceirosRouteImport } from './routes/gestao-parceiros'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ConfigurarApiRouteImport } from './routes/configurar-api'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -108,6 +109,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfigurarApiRoute = ConfigurarApiRouteImport.update({
+  id: '/configurar-api',
+  path: '/configurar-api',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesRoute = ClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
+  '/configurar-api': typeof ConfigurarApiRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
+  '/configurar-api': typeof ConfigurarApiRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
@@ -250,6 +258,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
+  '/configurar-api': typeof ConfigurarApiRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
   '/financeiro': typeof FinanceiroRoute
@@ -282,6 +291,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cliente'
     | '/clientes'
+    | '/configurar-api'
     | '/dashboard'
     | '/faq'
     | '/financeiro'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cliente'
     | '/clientes'
+    | '/configurar-api'
     | '/dashboard'
     | '/faq'
     | '/financeiro'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cliente'
     | '/clientes'
+    | '/configurar-api'
     | '/dashboard'
     | '/faq'
     | '/financeiro'
@@ -373,6 +385,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ClienteRoute: typeof ClienteRoute
   ClientesRoute: typeof ClientesRoute
+  ConfigurarApiRoute: typeof ConfigurarApiRoute
   DashboardRoute: typeof DashboardRoute
   FaqRoute: typeof FaqRoute
   FinanceiroRoute: typeof FinanceiroRoute
@@ -497,6 +510,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/configurar-api': {
+      id: '/configurar-api'
+      path: '/configurar-api'
+      fullPath: '/configurar-api'
+      preLoaderRoute: typeof ConfigurarApiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes': {
       id: '/clientes'
       path: '/clientes'
@@ -614,6 +634,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ClienteRoute: ClienteRoute,
   ClientesRoute: ClientesRoute,
+  ConfigurarApiRoute: ConfigurarApiRoute,
   DashboardRoute: DashboardRoute,
   FaqRoute: FaqRoute,
   FinanceiroRoute: FinanceiroRoute,
