@@ -143,8 +143,6 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
     getIntegracaoCliente({ data: { clienteId } })
       .then((r) => {
         setEstado(r);
-        setCampoProc(r.campoProcedimentoKey ?? "");
-        setCampoData(r.campoDataConsultaKey ?? "");
         setFUsuarios(r.filtros.usuarios);
         setFEtiquetas(r.filtros.etiquetas);
         setFEtapas(r.filtros.etapasFunil);
