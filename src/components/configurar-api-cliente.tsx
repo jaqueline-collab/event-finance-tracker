@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/select";
 import {
   excluirRotuloCliente,
-  getConfigDashboardCliente,
   getIntegracaoCliente,
   listarCamposDoPainel,
   listarCamposPersonalizados,
