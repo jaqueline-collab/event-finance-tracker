@@ -1645,6 +1645,13 @@ function ClientesPage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      <ChurnDadosDialog
+        clienteId={churnDados?.id ?? null}
+        nomeCliente={churnDados?.nome ?? ""}
+        aberto={churnDados !== null}
+        aoFechar={() => setChurnDados(null)}
+      />
     </div>
   );
 }
