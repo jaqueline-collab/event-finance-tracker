@@ -395,8 +395,22 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
 
     if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
     if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
-    if (!conta.campo_procedimento_key || !conta.campo_data_consulta_key) {
-      throw new Error("sincronizar: configure o mapeamento de campos primeiro.");
+
+    // Sincronização seletiva: só as chaves de campo personalizado usadas por
+    // algum widget deste cliente são extraídas e gravadas.
+    const { data: widgetsCliente } = await supabaseAdmin
+      .from("elora_dashboard_widgets")
+      .select("configuracao")
+      .eq("cliente_id", data.clienteId);
+    const chavesUsadas = new Set<string>();
+    for (const w of (widgetsCliente ?? []) as any[]) {
+      const cfgW = (w.configuracao ?? {}) as any;
+      for (const k of listaTexto(cfgW.camposUsados)) chavesUsadas.add(k);
+      for (const c of Array.isArray(cfgW.camadas) ? cfgW.camadas : []) {
+        if (c?.campoChave) chavesUsadas.add(String(c.campoChave));
+      }
+      const fCampoW = cfgW?.filtros?.campoPersonalizado;
+      if (fCampoW?.chave) chavesUsadas.add(String(fCampoW.chave));
     }
 
     const epoca = new Date(0).toISOString();
