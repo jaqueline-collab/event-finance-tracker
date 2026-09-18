@@ -288,8 +288,9 @@ export function WidgetBuilder({
           <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Título</Label>
+                <Label htmlFor="widget-titulo">Título</Label>
                 <Input
+                  id="widget-titulo"
                   value={rascunho.titulo}
                   onChange={(e) => setRascunho({ ...rascunho, titulo: e.target.value })}
                   placeholder="Ex.: Consultas agendadas"
