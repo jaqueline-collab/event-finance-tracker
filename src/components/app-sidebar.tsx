@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Sparkles,
   Globe,
+  Plug,
 } from "lucide-react";
 import {
   Sidebar,
