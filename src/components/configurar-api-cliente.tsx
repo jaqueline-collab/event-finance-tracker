@@ -283,17 +283,6 @@ function MapeamentoIntegracao() {
     }
   };
 
-  const salvarConfig = async () => {
-    setSalvandoConfig(true);
-    try {
-      await salvarConfigDashboardCliente({ data: { clienteId, ...config } });
-      toast.success("Painel de resultados configurado.");
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setSalvandoConfig(false);
-    }
-  };
 
   const buscarSequencias = async () => {
     setBuscandoSeq(true);
