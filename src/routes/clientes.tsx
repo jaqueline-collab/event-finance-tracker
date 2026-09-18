@@ -359,8 +359,11 @@ function ClientesPage() {
       observacao: movForm.observacao || undefined,
       });
       toast.success("Movimentação salva com sucesso.");
-      if (movForm.tipo === "churn" && !clienteDaAcao?.dataChurn) {
-        setChurnDados({ id: acaoClienteId, nome: clienteDaAcao?.nome ?? acaoClienteId });
+      if (movForm.tipo === "churn") {
+        const alvo = clientes.find((c) => c.id === acaoClienteId);
+        if (!alvo?.dataChurn) {
+          setChurnDados({ id: acaoClienteId, nome: alvo?.nome ?? acaoClienteId });
+        }
       }
     } catch (err) {
       toast.error(mensagemErroPersistencia(err, "Movimentação"));
