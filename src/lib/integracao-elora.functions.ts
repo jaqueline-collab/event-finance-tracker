@@ -445,9 +445,6 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
             pageSize: 100,
             createdAt: { after: janelaInicio, before: null },
             includeDetails: ["CustomFields"],
-            ...(fUsuarios.length > 0 ? { userIds: fUsuarios } : {}),
-            ...(fEtiquetas.length > 0 ? { tagIds: fEtiquetas } : {}),
-            ...(fEtapas.length > 0 ? { stepIds: fEtapas } : {}),
           },
         });
 
