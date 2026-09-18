@@ -659,14 +659,15 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
       />
 
 
-      {/* 7. Filtros */}
+      {/* 7. Listas da conta (alimentam os filtros dos widgets) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Filter className="h-4 w-4" /> Filtros
+            <Filter className="h-4 w-4" /> Listas e filtros padrão da conta
           </CardTitle>
           <CardDescription>
-            Valem para a sincronização de contatos e para o painel do cliente. Em branco = sem restrição.
+            A sincronização traz a base inteira; cada widget aplica o próprio filtro na exibição.
+            O que você marcar aqui vale como sugestão inicial para novos widgets.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
