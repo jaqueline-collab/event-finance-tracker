@@ -68,6 +68,35 @@ Sim: com filtros por widget, a sincronização deixa de aplicar um filtro único
 - `elora_classificacoes_rotulos`, painéis e sequências continuam como estão, agora referenciados pelo `configuracao` dos widgets.
 - As colunas fixas de dashboard em `elora_integracao_contas` (`bloco2_rotulo_id`, `bloco3_rotulo_id`, as quatro de série e as duas de mapeamento) deixam de ser lidas após a migração e ficam no banco sem uso.
 
+## 7. Índices (na mesma migração)
+
+Como a sincronização passa a trazer a base inteira de cada cliente, consultar por cliente e período sem índice varreria a tabela toda. Entram na mesma migração, por cliente e data:
+
+- `elora_contatos_sincronizados` (cliente_id, criado_em)
+- `elora_conversas_classificadas` (cliente_id, criado_em)
+- `elora_classificacoes_descobertas` (cliente_id, sincronizado_em)
+- `elora_paineis_sincronizados` (cliente_id, sincronizado_em)
+- `elora_sequencias_sincronizadas` (cliente_id, sincronizado_em)
+- `elora_dashboard_widgets` (cliente_id, ordem)
+
+Onde a tabela não tem coluna de criação própria, o índice usa a data de sincronização, que é a que os widgets filtram.
+
+## 8. Cancelamento: exportar e apagar dados da integração
+
+**Gatilho:** salvar o cadastro com "Data Churn" preenchida pela primeira vez (antes vazia, agora preenchida) e havendo dados sincronizados do cliente.
+
+**Passo 1 — exportar.** Aviso: "Este cliente tem dados sincronizados da integração com o app Elora. Deseja exportar antes de continuar?" Formatos: CSV (um arquivo por entidade, baixados juntos), XLSX (uma aba por entidade) e Google Sheets (planilha nova pela conta já conectada, uma aba por entidade, nomeada com o cliente e a data; ao final o link aparece na tela). Dá para exportar em mais de um formato antes de seguir.
+
+Conteúdo: contatos, conversas classificadas, classificações descobertas e seus rótulos, painéis e sequências sincronizados.
+
+**Passo 2 — apagar.** Pergunta "Deseja apagar os dados sincronizados deste cliente agora?". Quem pula a exportação passa por uma confirmação extra ("isso não pode ser desfeito"). Confirmado, apaga só o que veio da integração: as cinco tabelas sincronizadas, os widgets do painel, os rótulos de classificação e suas associações, e o registro da integração (endereço, chave, filtros).
+
+**Nunca apaga** histórico de pagamento, fechamentos mensais ou qualquer dado financeiro — ficam intactos em qualquer caminho escolhido.
+
+**Pular tudo:** o cadastro salva normalmente com a Data Churn e os dados continuam no banco. A mesma opção de exportar e apagar fica sempre disponível na tela "Configurar API" daquele cliente.
+
+**Reativação:** se a Data Churn for removida depois, a integração é configurada do zero — nada é restaurado.
+
 ## Detalhes técnicos
 
 - Migração aditiva única: coluna jsonb + backfill + tabela de widgets (GRANTs antes de RLS/policies) + inserção dos widgets padrão derivados da configuração atual de cada integração.
