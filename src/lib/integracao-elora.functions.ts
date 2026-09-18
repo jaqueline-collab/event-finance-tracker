@@ -430,13 +430,9 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
       if (error) throw new Error(`integracao: ${error.message}`);
     }
 
-    // Filtros salvos do cliente: vazio = sem restrição.
-    const fUsuarios = listaTexto((conta as any).filtro_usuarios);
-    const fEtiquetas = listaTexto((conta as any).filtro_etiquetas);
-    const fEtapas = listaTexto((conta as any).filtro_etapas_funil);
-    const fCampanha = (conta as any).filtro_campanha ? String((conta as any).filtro_campanha) : null;
-    const fCampo = (conta as any).filtro_campo_personalizado as any;
-
+    // Sem recorte na origem: a API combina filtros com E, então qualquer
+    // filtro aqui tiraria dados de que algum widget precisa. Cada widget
+    // filtra na hora de exibir.
     try {
       let pagina = 0;
       let gravados = 0;
