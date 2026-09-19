@@ -935,6 +935,8 @@ export type Database = {
           id: string
           mau: number | null
           observacao: string | null
+          parceiro_anterior_id: string | null
+          parceiro_novo_id: string | null
           plano_id: string | null
           tipo: string
           transcricao_ia: boolean | null
@@ -963,6 +965,8 @@ export type Database = {
           id: string
           mau?: number | null
           observacao?: string | null
+          parceiro_anterior_id?: string | null
+          parceiro_novo_id?: string | null
           plano_id?: string | null
           tipo: string
           transcricao_ia?: boolean | null
@@ -991,6 +995,8 @@ export type Database = {
           id?: string
           mau?: number | null
           observacao?: string | null
+          parceiro_anterior_id?: string | null
+          parceiro_novo_id?: string | null
           plano_id?: string | null
           tipo?: string
           transcricao_ia?: boolean | null
