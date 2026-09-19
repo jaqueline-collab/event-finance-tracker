@@ -315,8 +315,8 @@ function PlanosPage() {
                   <Input type="number" step="0.01" value={form.valorSetup} onChange={(e) => setForm({ ...form, valorSetup: e.target.value })} />
                 </div>
                 <div>
-                  <Label className="mb-1 block">Acompanhamento mensal padrão (R$)</Label>
-                  <Input type="number" step="0.01" min={0} placeholder="Ex: 150" value={form.valorAcompanhamento} onChange={(e) => setForm({ ...form, valorAcompanhamento: e.target.value })} />
+                  <Label htmlFor="plano-acompanhamento" className="mb-1 block">Acompanhamento mensal padrão (R$)</Label>
+                  <Input id="plano-acompanhamento" type="number" step="0.01" min={0} placeholder="Ex: 150" value={form.valorAcompanhamento} onChange={(e) => setForm({ ...form, valorAcompanhamento: e.target.value })} />
                   <p className="text-[10px] text-muted-foreground mt-1">Sugerido ao cadastrar um cliente neste plano. Cada cliente pode alterar.</p>
                 </div>
                 <div>
