@@ -272,42 +272,33 @@ function AreaParceiro() {
     };
   }, [clientesFiltrados, de, ate]);
 
+  // Gráfico: independente do filtro De/Até — sempre janeiro a dezembro do ano escolhido.
   const serieMensal = useMemo(() => {
-    if (!de || !ate || de > ate)
-      return [] as { mes: string; entradas: number; saidas: number; ativos: number }[];
-    const mapa = new Map<string, { mes: string; entradas: number; saidas: number; ativos: number }>();
-    const cursor = new Date(`${de.slice(0, 7)}-01T12:00:00`);
-    const limite = new Date(`${ate.slice(0, 7)}-01T12:00:00`);
-    while (cursor <= limite) {
-      const chave = cursor.toISOString().slice(0, 7);
-      mapa.set(chave, { mes: mesLabel(chave), entradas: 0, saidas: 0, ativos: 0 });
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
-    // Clientes que já existiam antes do início do período abrem o acumulado.
-    let acumulado = clientesFiltrados.filter(
-      (c) => c.dataInicio && c.dataInicio.slice(0, 7) < de.slice(0, 7),
-    ).length;
+    const prefixo = String(anoGrafico);
+    const meses = Array.from({ length: 12 }, (_, i) => {
+      const chave = `${prefixo}-${String(i + 1).padStart(2, "0")}`;
+      return { chave, mes: mesLabel(chave), entradas: 0, saidas: 0, ativos: 0 };
+    });
+    const mapa = new Map(meses.map((m) => [m.chave, m]));
+    let acumulado = 0;
     for (const c of clientesFiltrados) {
-      if (noPeriodo(c.dataInicio)) {
-        const k = mapa.get((c.dataInicio ?? "").slice(0, 7));
-        if (k) k.entradas += 1;
+      const ini = (c.dataInicio ?? "").slice(0, 7);
+      const fim = (c.dataChurn ?? "").slice(0, 7);
+      if (ini && ini < `${prefixo}-01`) {
+        if (!fim || fim >= `${prefixo}-01`) acumulado += 1;
       }
-      if (noPeriodo(c.dataChurn)) {
-        const k = mapa.get((c.dataChurn ?? "").slice(0, 7));
-        if (k) k.saidas += 1;
-      }
-      // Desconta do acumulado inicial quem já tinha saído antes do período.
-      if (c.dataInicio && c.dataInicio.slice(0, 7) < de.slice(0, 7) && c.dataChurn && c.dataChurn.slice(0, 7) < de.slice(0, 7)) {
-        acumulado -= 1;
-      }
+      const kIni = mapa.get(ini);
+      if (kIni) kIni.entradas += 1;
+      const kFim = mapa.get(fim);
+      if (kFim) kFim.saidas += 1;
     }
-    acumulado = Math.max(0, acumulado);
-    for (const mes of mapa.values()) {
+    for (const mes of meses) {
       acumulado += mes.entradas - mes.saidas;
-      mes.ativos = acumulado;
+      mes.ativos = Math.max(0, acumulado);
     }
-    return [...mapa.values()];
-  }, [clientesFiltrados, de, ate]);
+    return meses;
+  }, [clientesFiltrados, anoGrafico]);
+
 
   const irPara = (proxima: "clientes" | "financeiro" | "calculadora") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
