@@ -42,6 +42,8 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
   { value: "setup", label: "Setup / Ativação", color: "bg-primary/20 text-primary" },
   { value: "upgrade", label: "Upgrade", color: "bg-fin/20 text-fin" },
   { value: "downgrade", label: "Downgrade", color: "bg-sky-500/20 text-sky-400" },
+  // Troca neutra de plano: nunca contabilizada como upgrade nem como downgrade.
+  { value: "alterar_plano", label: "Alterar plano", color: "bg-muted text-muted-foreground" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
   { value: "acompanhamento", label: "Ajustar acompanhamento", color: "bg-fin/20 text-fin" },
