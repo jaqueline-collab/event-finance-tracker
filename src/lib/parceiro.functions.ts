@@ -106,7 +106,7 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
     const movimentosRes = ids.length
       ? await db
           .from("elora_movimentos")
-          .select("id, cliente_id, data, tipo, plano_id, canais, canais_whats, canais_insta, canais_messenger, canais_zapi, usuarios_ativos, contatos_ativos, agentes_ia, asaas, zapi, transcricao_ia, apps, mau, observacao")
+          .select("id, cliente_id, data, tipo, plano_id, canais, canais_whats, canais_insta, canais_messenger, canais_zapi, usuarios_ativos, contatos_ativos, agentes_ia, asaas, zapi, transcricao_ia, apps, mau, observacao, vigencia_plano, cobranca_troca")
           .in("cliente_id", ids)
           .order("data", { ascending: true })
       : { data: [], error: null };
@@ -116,9 +116,29 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
       ((planosRes.data ?? []) as any[]).map((p) => [p.id as string, p.nome as string]),
     );
 
+    // Preços do plano lidos com credencial de serviço apenas para calcular o que o
+    // CLIENTE paga. Nenhum custo, margem, lucro, WTS ou desconto de escala é derivado aqui.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const planosRaw = await (supabaseAdmin as any).from("elora_planos").select("*");
+    if (planosRaw.error) throw new Error(`planos: ${planosRaw.error.message}`);
+    const planos = ((planosRaw.data ?? []) as any[]).map(mapDbToPlano);
+    const planoPorId = new Map(planos.map((p) => [p.id, p]));
+
+    const movimentosModel = ((movimentosRes.data ?? []) as any[]).map(mapDbToMovimento);
+
     const clientes = clientesDb.map((row) => {
       const c = mapDbToCliente(row);
-      return {
+      const plano = c.planoId ? planoPorId.get(c.planoId) : undefined;
+      const explicacao = explicarReceitaCliente(c, planos);
+      const linhaLicenca = explicacao.itens[0];
+      const excedentes = explicacao.itens.slice(1).map((i) => ({
+        label: i.label,
+        qtd: i.qtd,
+        unit: i.unit,
+        total: i.total,
+      }));
+
+      const publico = {
         id: c.id,
         nome: c.nome,
         planoId: c.planoId,
@@ -127,6 +147,64 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
         dataInicio: c.dataInicio,
         dataVencimento: c.dataVencimento,
         dataChurn: c.dataChurn,
+        // Pacote de recursos: quantidades contratadas e franquias do plano (não é preço).
+        recursos: {
+          canaisWhats: c.canaisWhats ?? 0,
+          canaisInsta: c.canaisInsta ?? 0,
+          canaisMessenger: c.canaisMessenger ?? 0,
+          canaisZapi: c.canaisZapi ?? 0,
+          usuariosAtivos: c.usuariosAtivos ?? 0,
+          contatosAtivos: c.contatosAtivos ?? 0,
+          agentesIA: Boolean(c.agentesIA),
+          asaas: Boolean(c.asaas),
+          transcricaoIA: Boolean(c.transcricaoIA),
+          canaisWhatsInclusos: plano?.canaisWhatsInclusos ?? 0,
+          canaisInstaInclusos: plano?.canaisInstaInclusos ?? 0,
+          canaisMessengerInclusos: plano?.canaisMessengerInclusos ?? 0,
+          zapiInclusos:
+            typeof plano?.incluiZapi === "number" ? plano.incluiZapi : plano?.incluiZapi ? 1 : 0,
+          usuariosInclusos: plano?.usuariosInclusos ?? 0,
+          contatosInclusos: plano?.contatosInclusos ?? 0,
+          incluiIA: Boolean(plano?.incluiIA),
+          incluiAsaas: Boolean(plano?.incluiAsaas),
+          incluiTranscricao: Boolean(plano?.incluiTranscricao),
+        },
+      };
+
+      if (veValores) {
+        // Com permissão de composição: licença base e acompanhamento discriminados.
+        const itens = [
+          ...(linhaLicenca
+            ? [{ label: linhaLicenca.label, qtd: 1, unit: linhaLicenca.unit, total: linhaLicenca.total }]
+            : []),
+          ...(explicacao.acompanhamento > 0
+            ? [
+                {
+                  label: "Acompanhamento mensal",
+                  qtd: 1,
+                  unit: explicacao.acompanhamento,
+                  total: explicacao.acompanhamento,
+                },
+              ]
+            : []),
+          ...excedentes,
+        ];
+        return {
+          ...publico,
+          mensalidade: explicacao.total,
+          licenca: linhaLicenca?.total ?? 0,
+          acompanhamento: explicacao.acompanhamento,
+          excedentes,
+          itens,
+        };
+      }
+
+      // Sem permissão: licença base e acompanhamento somados e indivisíveis.
+      return {
+        ...publico,
+        mensalidade: explicacao.total,
+        totalPlano: (linhaLicenca?.total ?? 0) + explicacao.acompanhamento,
+        excedentes,
       };
     });
 
@@ -154,6 +232,26 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
       };
     });
 
+    // Previsão da competência em curso: mesma máquina de cálculo do fechamento
+    // mensal, em modo somente leitura (nada é gravado em fechamentos/financeiro).
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = agora.getMonth();
+    let totalCarteira = 0;
+    let totalLicenca = 0;
+    let totalAcompanhamento = 0;
+    let totalExcedentes = 0;
+    for (const row of clientesDb) {
+      const c = mapDbToCliente(row);
+      totalCarteira += detalharCicloCliente(c, planos, [], movimentosModel, ano, mes).total;
+      if (veValores) {
+        const e = explicarReceitaCliente(c, planos);
+        totalLicenca += e.itens[0]?.total ?? 0;
+        totalAcompanhamento += e.acompanhamento;
+        totalExcedentes += e.itens.slice(1).reduce((s, i) => s + i.total, 0);
+      }
+    }
+
     const base = {
       parceiro: {
         id: parceiroId as string,
@@ -166,40 +264,14 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
       podeVerFechamentos: Boolean(parceiroRes.data?.pode_ver_fechamentos),
       clientes,
       movimentos,
+      totalCarteira,
     };
 
     if (!veValores) return base;
 
-    // Toggle ligado: preços do plano são lidos com credencial de serviço apenas
-    // para calcular o que o CLIENTE paga. Nenhum custo/margem é derivado aqui.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const planosRaw = await (supabaseAdmin as any).from("elora_planos").select("*");
-    if (planosRaw.error) throw new Error(`planos: ${planosRaw.error.message}`);
-    const planos = ((planosRaw.data ?? []) as any[]).map(mapDbToPlano);
-
-    const clientesComValor = clientesDb.map((row) => {
-      const c = mapDbToCliente(row);
-      const explicacao = explicarReceitaCliente(c, planos);
-      const publico = clientes.find((x) => x.id === c.id)!;
-      return {
-        ...publico,
-        mensalidade: receitaMensalCliente(c, planos, []),
-        acompanhamento: explicacao.acompanhamento,
-        itens: explicacao.itens.map((i) => ({
-          label: i.label,
-          qtd: i.qtd,
-          unit: i.unit,
-          total: i.total,
-        })),
-      };
-    });
-
-    return {
-      ...base,
-      clientes: clientesComValor,
-      totalCarteira: clientesComValor.reduce((s, c) => s + (c.mensalidade || 0), 0),
-    };
+    return { ...base, totalLicenca, totalAcompanhamento, totalExcedentes };
   });
+
 
 /** Catálogo comercial da calculadora, restrito aos planos vinculados ao parceiro. */
 export const getPlanosCalculadoraParceiro = createServerFn({ method: "POST" })
