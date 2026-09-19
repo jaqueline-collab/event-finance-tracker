@@ -614,7 +614,9 @@ function AreaParceiro() {
                         .map((m) => (
                           <li key={m.id} className="flex flex-wrap items-center gap-2 border-b border-border/50 pb-2">
                             <span className="text-muted-foreground w-24">{dataBr(m.data)}</span>
-                            <Badge variant="outline" className="uppercase">{m.tipo}</Badge>
+                            <Badge variant="outline" className="uppercase">
+                              {m.tipo === "acompanhamento" ? "Ajuste de acompanhamento" : m.tipo}
+                            </Badge>
                             <span className="text-muted-foreground">
                               {[
                                 m.plano ? `Plano: ${m.plano}` : null,
