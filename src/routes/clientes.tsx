@@ -432,21 +432,24 @@ function ClientesPage() {
       clienteId: acaoClienteId,
       data: movForm.data,
       tipo: movForm.tipo,
-      planoId: movForm.planoId || undefined,
+      planoId: soAcomp ? undefined : movForm.planoId || undefined,
       // Regra escolhida para a troca de plano (só faz sentido quando há plano novo)
-      vigenciaPlano: movForm.planoId ? movForm.vigenciaPlano : undefined,
+      vigenciaPlano: !soAcomp && movForm.planoId ? movForm.vigenciaPlano : undefined,
       cobrancaTroca:
-        movForm.planoId && movForm.vigenciaPlano === "este_ciclo" ? movForm.cobrancaTroca : undefined,
-      canaisWhats: parseNum(movForm.canaisWhats),
-      canaisInsta: parseNum(movForm.canaisInsta),
-      canaisMessenger: parseNum(movForm.canaisMessenger),
-      canaisZapi: parseNum(movForm.canaisZapi),
-      usuariosAtivos: parseNum(movForm.usuariosAtivos),
-      contatosAtivos: parseNum(movForm.contatosAtivos),
-      agentesIA: movForm.agentesIA,
-      asaas: movForm.asaas,
-      zapi: movForm.zapi,
-      transcricaoIA: movForm.transcricaoIA,
+        !soAcomp && movForm.planoId && movForm.vigenciaPlano === "este_ciclo"
+          ? movForm.cobrancaTroca
+          : undefined,
+      canaisWhats: soAcomp ? undefined : parseNum(movForm.canaisWhats),
+      canaisInsta: soAcomp ? undefined : parseNum(movForm.canaisInsta),
+      canaisMessenger: soAcomp ? undefined : parseNum(movForm.canaisMessenger),
+      canaisZapi: soAcomp ? undefined : parseNum(movForm.canaisZapi),
+      usuariosAtivos: soAcomp ? undefined : parseNum(movForm.usuariosAtivos),
+      contatosAtivos: soAcomp ? undefined : parseNum(movForm.contatosAtivos),
+      agentesIA: soAcomp ? undefined : movForm.agentesIA,
+      asaas: soAcomp ? undefined : movForm.asaas,
+      zapi: soAcomp ? undefined : movForm.zapi,
+      transcricaoIA: soAcomp ? undefined : movForm.transcricaoIA,
+      valorAcompanhamento: acompValor,
       observacao: movForm.observacao || undefined,
       });
       toast.success("Movimentação salva com sucesso.");
@@ -492,6 +495,7 @@ function ClientesPage() {
           planoId: movForm.planoId,
           vigenciaPlano: movForm.vigenciaPlano,
           cobrancaTroca: movForm.vigenciaPlano === "este_ciclo" ? movForm.cobrancaTroca : undefined,
+          valorAcompanhamento: alvo ? acompanhamentoDoMovimento(alvo) : undefined,
           observacao: movForm.observacao || undefined,
         });
         ok += 1;
