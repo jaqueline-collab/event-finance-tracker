@@ -107,9 +107,11 @@ export type TipoMovimento =
   | "setup"
   | "upgrade"
   | "downgrade"
+  | "alterar_plano"
   | "churn"
   | "servico"
-  | "acompanhamento";
+  | "acompanhamento"
+  | "parceiro";
 
 export interface Cliente {
   id: string;
