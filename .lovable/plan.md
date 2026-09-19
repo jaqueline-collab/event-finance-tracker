@@ -1,10 +1,8 @@
 # Área do Parceiro: Histórico e Plano Atual separados, permissão em dois níveis
 
-## Parte 3 — resposta primeiro: como o "Total mensal da carteira" funciona hoje
+## Como o "Total mensal da carteira" funciona hoje (resposta)
 
-Confirmado, sem alterar nada: **é uma fotografia estática de preço de tabela de hoje**, não uma prévia do ciclo.
-
-A fórmula atual é, para cada cliente da carteira do parceiro:
+Hoje é uma **fotografia estática de preço de tabela**, não uma prévia do ciclo. Para cada cliente:
 
 ```text
 mensalidade = valor mensal do plano atual
@@ -17,15 +15,20 @@ mensalidade = valor mensal do plano atual
 Total mensal da carteira = soma dessas mensalidades
 ```
 
-Características importantes:
+- Usa sempre o preço atual do plano e os números atuais do cadastro.
+- Ignora o ciclo, o vencimento e o ciclo personalizado.
+- Ignora movimentações do ciclo em curso (troca de plano, rateio proporcional, ajuste de acompanhamento).
+- Soma todos os clientes da carteira, sem os filtros visuais da tela.
 
-- Usa **sempre o preço atual do plano** e os números atuais do cadastro do cliente (canais, usuários, MAU). Se o preço do plano mudar hoje, o número muda hoje.
-- **Não olha o ciclo**: ignora em que dia da competência estamos, data de vencimento e ciclo personalizado.
-- **Não olha movimentações do ciclo em curso**: troca de plano no meio do mês, cobrança proporcional e ajustes de acompanhamento feitos durante a competência não entram — só o estado final do cadastro entra.
-- **Não usa consumo incremental acumulado**: o excedente é calculado sobre o número que está no cadastro agora, não sobre o que foi consumido ao longo do mês.
-- Soma **todos os clientes da carteira**, sem filtrar por status na conta (o filtro da tela é só visual).
+## Parte 3 — o indicador passa a usar o cálculo por ciclo
 
-O que você quer (prévia real da fatura que vai fechar, com proporcionalidade e movimentações do ciclo) é diferente disso. O sistema **já tem** a máquina de cálculo por ciclo — a mesma usada no fechamento mensal, que respeita ciclo, troca de plano no meio do período e rateio proporcional —, ela simplesmente não é usada nesse indicador. Trocar o cálculo do indicador por essa máquina é viável, mas fica para uma etapa seguinte, depois da sua confirmação.
+O card deixa de usar essa fórmula estática e passa a usar a mesma máquina de cálculo do fechamento mensal, que respeita ciclo, vencimento, troca de plano no meio do período e rateio proporcional — em modo somente leitura, simulando o fechamento da competência em curso sem gravar nada.
+
+- Para cada cliente da carteira: valor projetado da competência atual considerando os movimentos já registrados dentro do ciclo.
+- Cliente sem movimento no ciclo: valor igual à mensalidade vigente, como hoje.
+- Rótulo do card passa a deixar claro que é uma prévia: **"Previsão da próxima fatura"**, com a legenda "competência em curso, atualizada em tempo real".
+- Continua somando os clientes ativos da carteira, sujeito aos filtros já existentes na tela (Todos/Ativos/Inativos e o período De/Até).
+
 
 ## Parte 1 — dois botões por cliente
 
@@ -64,17 +67,21 @@ O pacote de recursos (canais, usuários, MAU, módulos) aparece nos dois níveis
   - `veValores = false`: `totalPlano` (licença base + acompanhamento somados, indivisíveis), `excedentes` (só as linhas de consumo além do contratado e módulos à parte) e `total`.
 - A montagem continua vindo de `explicarReceitaCliente`; o acompanhamento, que já é devolvido separado por essa função, passa a virar linha própria de `itens` quando há permissão, e a ser embutido em `totalPlano` quando não há.
 - A lista branca de campos por cliente (`clientes.map`) ganha os campos de recurso — canais whats/insta/messenger/zapi, usuários, contatos/MAU, flags de IA/ASAAS/Z-API/Transcrição — e as franquias do plano, para montar o pacote. Nenhum campo de custo, margem, lucro, WTS ou scale discount entra, com ou sem permissão.
+- O total da carteira passa a somar `detalharCicloCliente` (`src/lib/calc/receita.ts`) — a mesma função que alimenta o fechamento mensal — para a competência em curso de cada cliente, usando os movimentos já carregados. Nada é gravado: é só leitura, sem criar fechamento nem tocar em `elora_fechamentos`/`elora_financeiro`.
 - Nenhuma mudança de schema, RLS ou dado financeiro.
 
 **Interface (`src/routes/parceiro.tsx`)**
 - Cada linha ganha dois botões com rótulo/ícone distintos; o diálogo atual perde o bloco "Composição cobrada".
 - Novo diálogo "Plano atual do cliente" com: cabeçalho com nome do cliente e plano, grade do pacote de recursos (reaproveitando a apresentação do bloco do cadastro interno), badges dos módulos ativos e a composição de valores conforme o nível de permissão.
-- Sem alteração no indicador "Total mensal da carteira" nesta etapa.
+- Card do total com o novo cálculo e o rótulo "Previsão da próxima fatura".
 
 ## Validação
 
 - "Histórico de movimentação" e "Plano atual do cliente" abertos separadamente em Cirurgiões Staffs - Fischer, cada um mostrando só o seu conteúdo.
 - Um parceiro com permissão de composição e outro sem: licença e acompanhamento discriminados no primeiro, só o total no segundo, com os excedentes aparecendo nos dois.
 - "Acompanhamento" como linha própria da composição quando a permissão está ligada.
+- Cliente sem movimento no ciclo atual: o card bate com a mensalidade vigente.
+- Cliente com troca de plano ou ajuste de acompanhamento no ciclo: o card reflete a mudança/proporcionalidade.
+- Conferir que a simulação não gera nenhum fechamento nem altera dados existentes.
 - Celular, tablet e computador, temas claro e escuro.
 - Testes e verificação de tipos rodando limpos; nenhum dado financeiro alterado.
