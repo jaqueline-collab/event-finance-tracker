@@ -92,6 +92,13 @@
       "when": 1789850622314,
       "tag": "0012_movimento_vigencia_plano",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789852115391,
+      "tag": "0013_plano_acompanhamento_e_modulos",
+      "breakpoints": true
     }
   ]
 }

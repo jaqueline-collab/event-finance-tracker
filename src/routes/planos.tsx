@@ -27,6 +27,8 @@ type PlanoForm = {
   duracaoUnidade: "" | "dias" | "meses" | "anos";
   valorMensal: string;
   valorSetup: string;
+  valorAcompanhamento: string;
+  permiteModulosOpcionais: boolean;
   diaVencimento: string;
   cicloDiaInicial: string;
   cicloDiaFinal: string;
@@ -70,6 +72,8 @@ const defaultForm = (): PlanoForm => ({
   duracaoUnidade: "",
   valorMensal: "",
   valorSetup: "",
+  valorAcompanhamento: "",
+  permiteModulosOpcionais: true,
   diaVencimento: "",
   cicloDiaInicial: "1",
   cicloDiaFinal: "31",
@@ -137,6 +141,8 @@ function PlanosPage() {
       duracaoUnidade: form.duracaoUnidade || null,
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
+      valorAcompanhamento: Number(form.valorAcompanhamento) || 0,
+      permiteModulosOpcionais: form.permiteModulosOpcionais,
       diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
       cicloDiaInicial: form.cicloDiaInicial ? Math.max(1, Math.min(31, Number(form.cicloDiaInicial))) : 1,
       cicloDiaFinal: form.cicloDiaFinal ? Math.max(1, Math.min(31, Number(form.cicloDiaFinal))) : 31,
@@ -202,6 +208,8 @@ function PlanosPage() {
       duracaoUnidade: p.duracaoUnidade ?? "",
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
+      valorAcompanhamento: p.valorAcompanhamento ? String(p.valorAcompanhamento) : "",
+      permiteModulosOpcionais: p.permiteModulosOpcionais !== false,
       diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
       cicloDiaInicial: String(p.cicloDiaInicial ?? 1),
       cicloDiaFinal: String(p.cicloDiaFinal ?? 31),
@@ -307,6 +315,11 @@ function PlanosPage() {
                   <Input type="number" step="0.01" value={form.valorSetup} onChange={(e) => setForm({ ...form, valorSetup: e.target.value })} />
                 </div>
                 <div>
+                  <Label htmlFor="plano-acompanhamento" className="mb-1 block">Acompanhamento mensal padrão (R$)</Label>
+                  <Input id="plano-acompanhamento" type="number" step="0.01" min={0} placeholder="Ex: 150" value={form.valorAcompanhamento} onChange={(e) => setForm({ ...form, valorAcompanhamento: e.target.value })} />
+                  <p className="text-[10px] text-muted-foreground mt-1">Sugerido ao cadastrar um cliente neste plano. Cada cliente pode alterar.</p>
+                </div>
+                <div>
                   <Label className="mb-1 block">Dia de vencimento padrão</Label>
                   <Input
                     type="number"
@@ -399,7 +412,16 @@ function PlanosPage() {
             {/* Módulos opcionais */}
             <div className="space-y-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Módulos Opcionais Incluídos</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+              <div className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${!form.permiteModulosOpcionais ? "border-destructive/60 bg-destructive/10" : "border-border/60"}`}>
+                <div>
+                  <Label htmlFor="sem-modulos" className="text-sm cursor-pointer">Este plano não permite módulos opcionais</Label>
+                  <p className="text-[10px] text-muted-foreground">Clientes deste plano não poderão ativar novos módulos. O que já estiver ativo continua valendo.</p>
+                </div>
+                <Switch id="sem-modulos" checked={!form.permiteModulosOpcionais} onCheckedChange={(v) => setForm({ ...form, permiteModulosOpcionais: !v })} />
+              </div>
+
+              <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${!form.permiteModulosOpcionais ? "opacity-50 pointer-events-none" : ""}`}>
                 {/* 3 switches normais */}
                 <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
@@ -407,8 +429,8 @@ function PlanosPage() {
                     { key: "incluiAsaas" as const, label: "ASAAS", icon: CreditCard },
                     { key: "incluiTranscricao" as const, label: "Transcrição", icon: AudioLines },
                   ].map(({ key, label, icon: Icon }) => (
-                    <div key={key} className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${form[key] ? "border-primary bg-primary/10" : "border-border/60"}`} onClick={() => setForm({ ...form, [key]: !form[key] })}>
-                      <Switch checked={form[key] as boolean} onCheckedChange={(v) => setForm({ ...form, [key]: v })} />
+                    <div key={key} className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${form[key] ? "border-primary bg-primary/10" : "border-border/60"}`} onClick={() => { if (form.permiteModulosOpcionais) setForm({ ...form, [key]: !form[key] }); }}>
+                      <Switch disabled={!form.permiteModulosOpcionais} checked={form[key] as boolean} onCheckedChange={(v) => setForm({ ...form, [key]: v })} />
                       <Label className="flex items-center gap-1.5 cursor-pointer flex-1"><Icon className="h-3.5 w-3.5 text-muted-foreground" /> {label}</Label>
                     </div>
                   ))}
@@ -423,6 +445,7 @@ function PlanosPage() {
                   <Input
                     type="number"
                     min={0}
+                    disabled={!form.permiteModulosOpcionais}
                     className="w-16 h-8 text-center"
                     value={form.incluiZapi}
                     onChange={(e) => setForm({ ...form, incluiZapi: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
