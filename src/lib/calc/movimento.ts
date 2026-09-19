@@ -29,6 +29,7 @@ export function calcularPatchMovimento(
       patch.valorAcompanhamento = planoNovo?.valorAcompanhamento ?? 0;
     }
   }
+  if (acompExplicito !== null) patch.valorAcompanhamento = acompExplicito;
 
   // Upgrade/Downgrade: campos numéricos são DELTAS (ex.: -1, +2),
   // somados ao valor atual do cliente. Booleanos representam o estado final.
