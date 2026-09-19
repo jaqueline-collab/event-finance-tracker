@@ -272,6 +272,8 @@ export const mapDbToMovimento = (r: any): Movimento => ({
   data: r.data,
   tipo: r.tipo as TipoMovimento,
   planoId: r.plano_id,
+  vigenciaPlano: r.vigencia_plano ?? null,
+  cobrancaTroca: r.cobranca_troca ?? null,
   apps: r.apps,
   mau: r.mau,
   canais: r.canais,

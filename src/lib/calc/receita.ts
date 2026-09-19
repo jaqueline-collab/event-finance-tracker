@@ -219,36 +219,124 @@ export function receitaMensalClienteEm(
   return receitaMensalCliente(snap, planos, custos);
 }
 
+export type RegraTrocaPlano = "sem_troca" | "proximo_ciclo" | "integral" | "proporcional";
+
+export interface DetalheCicloCliente {
+  total: number;
+  regraTroca: RegraTrocaPlano;
+  planoAnteriorId?: string | null;
+  planoNovoId?: string | null;
+  dataTroca?: string | null;
+  diasTotal?: number;
+  diasAntes?: number;
+  diasDepois?: number;
+  valorTrechoAntigo?: number;
+  valorTrechoNovo?: number;
+}
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
 /**
- * Receita do cliente no ciclo (mês y/m): snapshot SEMPRE no último dia do ciclo,
- * de modo que upgrades/downgrades feitos durante o mês sejam incorporados
- * (a cobrança subsequente já reflete o novo estado). Esta é a função usada
- * pelo fechamento mensal e deve ser preferida na maioria dos relatórios.
+ * Receita do ciclo (mês y/m) com o detalhamento da regra usada quando houve
+ * troca de plano dentro do ciclo. É a fonte única do valor do fechamento:
+ * `receitaCicloCliente` apenas devolve o total desta função.
+ *
+ * Regras de troca (gravadas no movimento que troca o plano):
+ *  - proximo_ciclo: o ciclo inteiro é cobrado no plano antigo.
+ *  - integral: o ciclo inteiro é cobrado no plano novo.
+ *  - proporcional: rateio por dias corridos — do início do ciclo até o dia
+ *    anterior à troca no plano antigo, do dia da troca até o fim no plano novo.
+ *
+ * Sem troca registrada, o comportamento é exatamente o de antes: snapshot no
+ * fim do ciclo (ou rateio por movimentos quando o plano é proporcional).
  */
-export function receitaCicloCliente(
+export function detalharCicloCliente(
   cliente: Cliente,
   planos: Plano[],
   custos: CustoBase[],
   movimentos: Movimento[],
   year: number,
   month: number,
-): number {
+): DetalheCicloCliente {
   const plano = planos.find((p) => p.id === cliente.planoId);
   const ciclo = getCicloCliente(cliente, plano, year, month);
-  if (!ativoNoCiclo(cliente, ciclo)) return 0;
+  if (!ativoNoCiclo(cliente, ciclo)) return { total: 0, regraTroca: "sem_troca" };
 
   // Limites efetivos: respeita data de início do cliente e churn
   const inicioCliente = new Date(cliente.dataInicio);
   const churn = cliente.dataChurn ? new Date(cliente.dataChurn) : null;
   const segInicio = inicioCliente > ciclo.inicio ? inicioCliente : ciclo.inicio;
   const segFim = churn && churn < ciclo.fim ? churn : ciclo.fim;
-  if (segFim < segInicio) return 0;
+  if (segFim < segInicio) return { total: 0, regraTroca: "sem_troca" };
+
+  const snapFim = clienteSnapshotAt(cliente, movimentos, isoFromDate(ciclo.fim));
+
+  // Troca de plano com vigência escolhida dentro deste ciclo (a última vale).
+  const trocas = movimentos
+    .filter((m) => {
+      if (m.clienteId !== cliente.id) return false;
+      if (!m.planoId || !m.vigenciaPlano) return false;
+      const d = new Date(m.data);
+      return d >= segInicio && d <= segFim;
+    })
+    .sort((a, b) => a.data.localeCompare(b.data));
+  const troca = trocas.length > 0 ? trocas[trocas.length - 1] : null;
+
+  if (troca) {
+    const diaAnterior = new Date(new Date(troca.data).getTime() - DIA_MS);
+    const planoAnteriorId =
+      clienteSnapshotAt(cliente, movimentos, isoFromDate(diaAnterior)).planoId ?? null;
+    const planoNovoId = troca.planoId ?? null;
+    const valorNovo = receitaMensalCliente(snapFim, planos, custos);
+    const valorAntigo = receitaMensalCliente(
+      { ...snapFim, planoId: planoAnteriorId },
+      planos,
+      custos,
+    );
+
+    if (troca.vigenciaPlano === "proximo_ciclo") {
+      return {
+        total: valorAntigo,
+        regraTroca: "proximo_ciclo",
+        planoAnteriorId,
+        planoNovoId,
+        dataTroca: troca.data,
+        diasTotal: ciclo.diasTotal,
+      };
+    }
+    if (troca.cobrancaTroca === "proporcional") {
+      const brutoAntes = Math.round((new Date(troca.data).getTime() - ciclo.inicio.getTime()) / DIA_MS);
+      const diasAntes = Math.max(0, Math.min(ciclo.diasTotal, brutoAntes));
+      const diasDepois = Math.max(0, ciclo.diasTotal - diasAntes);
+      const trechoAntigo = valorAntigo * (diasAntes / ciclo.diasTotal);
+      const trechoNovo = valorNovo * (diasDepois / ciclo.diasTotal);
+      return {
+        total: trechoAntigo + trechoNovo,
+        regraTroca: "proporcional",
+        planoAnteriorId,
+        planoNovoId,
+        dataTroca: troca.data,
+        diasTotal: ciclo.diasTotal,
+        diasAntes,
+        diasDepois,
+        valorTrechoAntigo: trechoAntigo,
+        valorTrechoNovo: trechoNovo,
+      };
+    }
+    return {
+      total: valorNovo,
+      regraTroca: "integral",
+      planoAnteriorId,
+      planoNovoId,
+      dataTroca: troca.data,
+      diasTotal: ciclo.diasTotal,
+    };
+  }
 
   // Sem proporcionalidade: snapshot no fim do ciclo (cobrança cheia mesmo
   // com churn ou início no meio do ciclo — alinhado ao comportamento do Monday).
   if (!ciclo.proporcional) {
-    const snap = clienteSnapshotAt(cliente, movimentos, isoFromDate(ciclo.fim));
-    return receitaMensalCliente(snap, planos, custos);
+    return { total: receitaMensalCliente(snapFim, planos, custos), regraTroca: "sem_troca" };
   }
 
   // Com proporcionalidade: soma segmentos entre cada movimento do ciclo
@@ -265,20 +353,35 @@ export function receitaCicloCliente(
   // Breakpoints: [segInicio, ...mov.data, segFim+1dia]
   const breakpoints: Date[] = [segInicio];
   for (const m of movsCiclo) breakpoints.push(new Date(m.data));
-  const fimExclusivo = new Date(segFim.getTime() + 24 * 60 * 60 * 1000);
+  const fimExclusivo = new Date(segFim.getTime() + DIA_MS);
   breakpoints.push(fimExclusivo);
 
   let total = 0;
   for (let i = 0; i < breakpoints.length - 1; i++) {
     const s = breakpoints[i];
     const e = breakpoints[i + 1];
-    const dias = Math.round((e.getTime() - s.getTime()) / (24 * 60 * 60 * 1000));
+    const dias = Math.round((e.getTime() - s.getTime()) / DIA_MS);
     if (dias <= 0) continue;
     const snap = clienteSnapshotAt(cliente, movimentos, isoFromDate(s));
     const valor = receitaMensalCliente(snap, planos, custos);
     total += valor * (dias / ciclo.diasTotal);
   }
-  return total;
+  return { total, regraTroca: "sem_troca" };
+}
+
+/**
+ * Receita do cliente no ciclo (mês y/m). Ver `detalharCicloCliente` para a
+ * regra completa (inclusive troca de plano no meio do ciclo).
+ */
+export function receitaCicloCliente(
+  cliente: Cliente,
+  planos: Plano[],
+  custos: CustoBase[],
+  movimentos: Movimento[],
+  year: number,
+  month: number,
+): number {
+  return detalharCicloCliente(cliente, planos, custos, movimentos, year, month).total;
 }
 
 export function clienteFaturaEm(

@@ -927,6 +927,7 @@ export type Database = {
           canais_whats: number | null
           canais_zapi: number | null
           cliente_id: string
+          cobranca_troca: string | null
           contatos_ativos: number | null
           created_at: string
           data: string
@@ -940,6 +941,7 @@ export type Database = {
           user_id: string
           usuarios_ativos: number | null
           valor_servico: number | null
+          vigencia_plano: string | null
           zapi: boolean | null
         }
         Insert: {
@@ -952,6 +954,7 @@ export type Database = {
           canais_whats?: number | null
           canais_zapi?: number | null
           cliente_id: string
+          cobranca_troca?: string | null
           contatos_ativos?: number | null
           created_at?: string
           data: string
@@ -965,6 +968,7 @@ export type Database = {
           user_id?: string
           usuarios_ativos?: number | null
           valor_servico?: number | null
+          vigencia_plano?: string | null
           zapi?: boolean | null
         }
         Update: {
@@ -977,6 +981,7 @@ export type Database = {
           canais_whats?: number | null
           canais_zapi?: number | null
           cliente_id?: string
+          cobranca_troca?: string | null
           contatos_ativos?: number | null
           created_at?: string
           data?: string
@@ -990,6 +995,7 @@ export type Database = {
           user_id?: string
           usuarios_ativos?: number | null
           valor_servico?: number | null
+          vigencia_plano?: string | null
           zapi?: boolean | null
         }
         Relationships: []

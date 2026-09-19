@@ -86,6 +86,8 @@ function ClientesPage() {
     data: new Date().toISOString().slice(0, 10),
     tipo: "upgrade" as TipoMovimento,
     planoId: "",
+    vigenciaPlano: "proximo_ciclo" as "este_ciclo" | "proximo_ciclo",
+    cobrancaTroca: "proporcional" as "integral" | "proporcional",
     canaisWhats: "",
     canaisInsta: "",
     canaisMessenger: "",
@@ -256,6 +258,8 @@ function ClientesPage() {
       data: new Date().toISOString().slice(0, 10),
       tipo,
       planoId: isDelta ? "" : (c.planoId || ""),
+      vigenciaPlano: "proximo_ciclo",
+      cobrancaTroca: "proporcional",
       // Upgrade/Downgrade: campos começam vazios (entram apenas as diferenças).
       // Setup: pré-preenche com a configuração atual do cliente.
       canaisWhats: isDelta ? "" : String(c.canaisWhats ?? 0),
@@ -346,6 +350,10 @@ function ClientesPage() {
       data: movForm.data,
       tipo: movForm.tipo,
       planoId: movForm.planoId || undefined,
+      // Regra escolhida para a troca de plano (só faz sentido quando há plano novo)
+      vigenciaPlano: movForm.planoId ? movForm.vigenciaPlano : undefined,
+      cobrancaTroca:
+        movForm.planoId && movForm.vigenciaPlano === "este_ciclo" ? movForm.cobrancaTroca : undefined,
       canaisWhats: parseNum(movForm.canaisWhats),
       canaisInsta: parseNum(movForm.canaisInsta),
       canaisMessenger: parseNum(movForm.canaisMessenger),
@@ -396,6 +404,8 @@ function ClientesPage() {
       data: mv.data,
       tipo: mv.tipo,
       planoId: mv.planoId || "",
+      vigenciaPlano: mv.vigenciaPlano ?? "proximo_ciclo",
+      cobrancaTroca: mv.cobrancaTroca ?? "proporcional",
       canaisWhats: mv.canaisWhats !== undefined && mv.canaisWhats !== null ? String(mv.canaisWhats) : "",
       canaisInsta: mv.canaisInsta !== undefined && mv.canaisInsta !== null ? String(mv.canaisInsta) : "",
       canaisMessenger: mv.canaisMessenger !== undefined && mv.canaisMessenger !== null ? String(mv.canaisMessenger) : "",
@@ -1399,6 +1409,41 @@ function ClientesPage() {
                 </SelectContent>
               </Select>
             </div>
+            {movForm.planoId && (
+              <div>
+                <Label className="mb-1 block">Quando a mudança de plano entra em vigor?</Label>
+                <Select
+                  value={movForm.vigenciaPlano}
+                  onValueChange={(v: "este_ciclo" | "proximo_ciclo") => setMovForm({ ...movForm, vigenciaPlano: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="este_ciclo">Este ciclo (o que está em andamento agora)</SelectItem>
+                    <SelectItem value="proximo_ciclo">Próximo ciclo (a partir do próximo fechamento)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {movForm.planoId && movForm.vigenciaPlano === "este_ciclo" && (
+              <div className="md:col-span-2">
+                <Label className="mb-1 block">Como cobrar neste ciclo?</Label>
+                <Select
+                  value={movForm.cobrancaTroca}
+                  onValueChange={(v: "integral" | "proporcional") => setMovForm({ ...movForm, cobrancaTroca: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="integral">Valor integral do plano novo — ciclo inteiro no preço novo</SelectItem>
+                    <SelectItem value="proporcional">Proporcional — dias no plano antigo + dias no plano novo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {movForm.cobrancaTroca === "proporcional"
+                    ? "Do início do ciclo até a data da troca no preço antigo; da data da troca até o fim do ciclo no preço novo. Os dois valores são somados."
+                    : "O ciclo inteiro é calculado com o preço do plano novo, mesmo que parte do período tenha rodado no plano antigo."}
+                </p>
+              </div>
+            )}
             
             {/* Atualização de Recursos */}
             <div>

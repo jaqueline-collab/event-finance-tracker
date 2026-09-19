@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStore, formatBRL } from "@/lib/store";
 import type { Plano } from "@/lib/types";
-import { Plus, Trash2, Pencil, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/planos")({
@@ -238,6 +238,15 @@ function PlanosPage() {
     });
     setOpen(true);
   };
+
+  // Duplicar: abre o formulário preenchido com os valores do plano de origem,
+  // mas como um plano NOVO (sem editId) — o plano original não é alterado.
+  const startDuplicate = (p: Plano) => {
+    startEdit(p);
+    setEditId(null);
+    setForm((prev) => ({ ...prev, nome: `${p.nome} (cópia)` }));
+  };
+
 
   return (
     <div className="space-y-6">
@@ -516,7 +525,8 @@ function PlanosPage() {
                     {p.valorSetup > 0 && <p className="text-xs text-muted-foreground">Setup: {formatBRL(p.valorSetup)}</p>}
                   </div>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => startEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" title="Editar plano" onClick={() => startEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" title="Duplicar plano" onClick={() => startDuplicate(p)}><Copy className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => { void removePlano(p.id).catch(() => {}); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </div>
