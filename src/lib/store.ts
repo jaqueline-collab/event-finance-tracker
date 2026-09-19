@@ -495,7 +495,7 @@ export const useStore = create<State>()(
         const patch: Partial<Cliente> = {};
         if (cliente) {
           // Regra compartilhada com a prévia financeira da tela de Clientes.
-          Object.assign(patch, calcularPatchMovimento(cliente, m));
+          Object.assign(patch, calcularPatchMovimento(cliente, m, get().planos));
           if (Object.keys(patch).length) {
             updatedCliente = { ...cliente, ...patch };
           }

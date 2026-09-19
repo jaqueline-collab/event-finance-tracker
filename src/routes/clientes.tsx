@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,9 @@ export const Route = createFileRoute("/clientes")({
   component: ClientesPage,
 });
 
+/** Valor sentinela do filtro "Parceiro" para clientes sem parceiro vinculado. */
+const SEM_PARCEIRO = "__sem_parceiro__";
+
 const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] = [
   { value: "setup", label: "Setup / Ativação", color: "bg-primary/20 text-primary" },
   { value: "upgrade", label: "Upgrade", color: "bg-fin/20 text-fin" },
@@ -48,6 +52,9 @@ function ClientesPage() {
   
   // Modal de Ação (Movimento)
   const [acaoClienteId, setAcaoClienteId] = useState<string | null>(null);
+  // Troca de plano em massa: lista de clientes selecionados na tabela.
+  const [acaoLoteIds, setAcaoLoteIds] = useState<string[] | null>(null);
+  const [selecionados, setSelecionados] = useState<string[]>([]);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
   // Após marcar churn: exportar / apagar os dados da integração
@@ -291,12 +298,7 @@ function ClientesPage() {
   };
 
   // Prévia do impacto financeiro do movimento (simulação em memória, nada é gravado).
-  const previaMovimento = useMemo(() => {
-    const cliente = clientes.find((c) => c.id === acaoClienteId);
-    if (!cliente) return null;
-    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn"];
-    if (!tiposComImpacto.includes(movForm.tipo)) return null;
-
+  const simularMovimentoCliente = (cliente: Cliente) => {
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
     const movimento: Omit<Movimento, "id"> = {
       clienteId: cliente.id,
@@ -320,25 +322,63 @@ function ClientesPage() {
       return { churn: true, atual, depois: 0, delta: -atual, mudancas: [] as string[] };
     }
 
-    const simulado = aplicarMovimentoNoCliente(cliente, movimento);
+    const simulado = aplicarMovimentoNoCliente(cliente, movimento, planos);
     const depois = receitaMensalCliente(simulado, planos, custos);
 
-    const antesItens = explicarReceitaCliente(cliente, planos).itens;
-    const depoisItens = explicarReceitaCliente(simulado, planos).itens;
-    const labels = Array.from(new Set([...antesItens, ...depoisItens].map((i) => i.label)));
+    const antes = explicarReceitaCliente(cliente, planos);
+    const dep = explicarReceitaCliente(simulado, planos);
+    const labels = Array.from(new Set([...antes.itens, ...dep.itens].map((i) => i.label)));
     const mudancas: string[] = [];
     for (const label of labels) {
-      const a = antesItens.find((i) => i.label === label);
-      const d = depoisItens.find((i) => i.label === label);
+      const a = antes.itens.find((i) => i.label === label);
+      const d = dep.itens.find((i) => i.label === label);
       const va = a?.total ?? 0;
       const vd = d?.total ?? 0;
       if (Math.abs(vd - va) < 0.005) continue;
       const sinal = vd > va ? "+" : "−";
       mudancas.push(`${label}: ${sinal} ${formatBRL(Math.abs(vd - va))}`);
     }
+    // Acompanhamento mensal recorrente: mostra sempre que houver troca de plano,
+    // inclusive com diferença zero (deixa claro que o valor próprio foi mantido).
+    if (movForm.planoId && movForm.planoId !== cliente.planoId) {
+      const diff = dep.acompanhamento - antes.acompanhamento;
+      mudancas.push(
+        Math.abs(diff) < 0.005
+          ? `Acompanhamento: sem alteração (${formatBRL(antes.acompanhamento)})`
+          : `Acompanhamento: ${diff > 0 ? "+" : "−"} ${formatBRL(Math.abs(diff))} (${formatBRL(antes.acompanhamento)} → ${formatBRL(dep.acompanhamento)})`,
+      );
+    }
 
     return { churn: false, atual, depois, delta: depois - atual, mudancas };
+  };
+
+  const previaMovimento = useMemo(() => {
+    const cliente = clientes.find((c) => c.id === acaoClienteId);
+    if (!cliente) return null;
+    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn"];
+    if (!tiposComImpacto.includes(movForm.tipo)) return null;
+    return simularMovimentoCliente(cliente);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acaoClienteId, clientes, planos, custos, movForm]);
+
+  // Prévia por cliente no modo lote (o impacto varia conforme os recursos de cada um).
+  const previaLote = useMemo(() => {
+    if (!acaoLoteIds || acaoLoteIds.length === 0) return null;
+    const linhas = acaoLoteIds
+      .map((id) => clientes.find((c) => c.id === id))
+      .filter((c): c is Cliente => !!c)
+      .map((c) => {
+        const p = simularMovimentoCliente(c);
+        return { id: c.id, nome: c.nome, atual: p.atual, depois: p.depois, delta: p.delta, mudancas: p.mudancas };
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    return {
+      linhas,
+      totalAtual: linhas.reduce((s, l) => s + l.atual, 0),
+      totalDepois: linhas.reduce((s, l) => s + l.depois, 0),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acaoLoteIds, clientes, planos, custos, movForm]);
 
 
   const handleSaveMovimento = async () => {
@@ -393,6 +433,50 @@ function ClientesPage() {
     }
     setAcaoClienteId(null);
     setEditMovId(null);
+  };
+
+  // Troca de plano em massa: grava um movimento por cliente, um de cada vez.
+  const handleSaveLote = async () => {
+    if (!acaoLoteIds || acaoLoteIds.length === 0) return;
+    if (!movForm.data) {
+      toast.error("Informe a data da movimentação antes de salvar.");
+      return;
+    }
+    if (!movForm.planoId) {
+      toast.error("Escolha o plano novo antes de aplicar a troca em massa.");
+      return;
+    }
+    if (!window.confirm(`Confirmar troca de plano para ${acaoLoteIds.length} cliente(s)?`)) return;
+
+    setSavingMovimento(true);
+    const falhas: string[] = [];
+    let ok = 0;
+    for (const id of acaoLoteIds) {
+      const alvo = clientes.find((c) => c.id === id);
+      try {
+        await addMovimento({
+          clienteId: id,
+          data: movForm.data,
+          tipo: movForm.tipo,
+          planoId: movForm.planoId,
+          vigenciaPlano: movForm.vigenciaPlano,
+          cobrancaTroca: movForm.vigenciaPlano === "este_ciclo" ? movForm.cobrancaTroca : undefined,
+          observacao: movForm.observacao || undefined,
+        });
+        ok += 1;
+      } catch {
+        falhas.push(alvo?.nome ?? id);
+      }
+    }
+    setSavingMovimento(false);
+
+    if (falhas.length === 0) {
+      toast.success(`Plano trocado para ${ok} cliente(s).`);
+    } else {
+      toast.error(`${ok} cliente(s) atualizados. Falharam: ${falhas.join(", ")}.`);
+    }
+    setAcaoLoteIds(null);
+    setSelecionados([]);
   };
 
   const confirmarRemocaoCliente = (c: Cliente) => {
@@ -452,7 +536,7 @@ function ClientesPage() {
   const clientesFiltrados = useMemo(() => {
     return clientes.filter((c) => {
       if (!c.nome.toLowerCase().includes(search.trim().toLowerCase())) return false;
-      if (parceiroSel.length > 0 && !parceiroSel.includes(c.parceiroId || "")) return false;
+      if (parceiroSel.length > 0 && !parceiroSel.includes(c.parceiroId || SEM_PARCEIRO)) return false;
       if (planoSel.length > 0 && !planoSel.includes(c.planoId || "")) return false;
       if (setupRange?.from && (c.dataInicio || "") < setupRange.from) return false;
       if (setupRange?.to && (c.dataInicio || "") > setupRange.to) return false;
@@ -480,6 +564,15 @@ function ClientesPage() {
       return (b.dataInicio || "").localeCompare(a.dataInicio || "");
     });
   }, [clientesFiltrados]);
+
+  // Seleção em massa: só vale para o que está visível com os filtros atuais.
+  const selecionadosVisiveis = useMemo(
+    () => clientesOrdenados.filter((c) => selecionados.includes(c.id)).map((c) => c.id),
+    [clientesOrdenados, selecionados],
+  );
+  const todosVisiveisSelecionados =
+    clientesOrdenados.length > 0 && selecionadosVisiveis.length === clientesOrdenados.length;
+
 
   // Faturamento acumulado da carteira (respeita filtros)
   const faturamentoCarteira = useMemo(() => {
@@ -510,7 +603,7 @@ function ClientesPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground text-sm">Situação atual de cada cliente e histórico</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-64">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar cliente..." className="pl-8 h-9" />
@@ -528,7 +621,10 @@ function ClientesPage() {
       <FilterBar
         fields={[
           { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
-          { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "parceiro", label: "Parceiro", type: "multi", options: [
+            ...parceiros.map((p) => ({ value: p.id, label: p.nome })),
+            { value: SEM_PARCEIRO, label: "Sem parceiro (N/A)" },
+          ] },
           { key: "situacao", label: "Situação", type: "multi", options: [
             { value: "ativo", label: "Ativo" },
             { value: "trial", label: "Trial" },
@@ -991,6 +1087,47 @@ function ClientesPage() {
         </Card>
       )}
 
+      {/* Barra de ações em massa */}
+      {selecionadosVisiveis.length > 0 && (
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-lg border border-primary/40 bg-card px-4 py-3 shadow-sm">
+          <span className="text-sm font-semibold">
+            {selecionadosVisiveis.length} cliente(s) selecionado(s)
+          </span>
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditMovId(null);
+              setMovForm({
+                data: new Date().toISOString().slice(0, 10),
+                tipo: "upgrade",
+                planoId: "",
+                vigenciaPlano: "proximo_ciclo",
+                cobrancaTroca: "proporcional",
+                canaisWhats: "",
+                canaisInsta: "",
+                canaisMessenger: "",
+                canaisZapi: "",
+                usuariosAtivos: "",
+                contatosAtivos: "",
+                agentesIA: false,
+                asaas: false,
+                zapi: false,
+                transcricaoIA: false,
+                observacao: "",
+                valorSetupPago: "0",
+                valorAcompanhamento: "0",
+              });
+              setAcaoLoteIds(selecionadosVisiveis);
+            }}
+          >
+            Trocar plano
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelecionados([])}>
+            Limpar seleção
+          </Button>
+        </div>
+      )}
+
       {/* Carteira Ativa */}
       <Card className="border-border/60">
         <CardHeader>
@@ -998,9 +1135,19 @@ function ClientesPage() {
           <CardDescription>Visualização em tempo real das mensalidades, custos calculados e lucratividade por cliente.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    aria-label="Selecionar todos os clientes visíveis"
+                    checked={todosVisiveisSelecionados}
+                    onCheckedChange={(v) =>
+                      setSelecionados(v === true ? clientesOrdenados.map((c) => c.id) : [])
+                    }
+                  />
+                </TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Plano</TableHead>
                 <TableHead>Data Setup</TableHead>
@@ -1032,6 +1179,17 @@ function ClientesPage() {
                 
                 return (
                   <TableRow key={c.id}>
+                    <TableCell>
+                      <Checkbox
+                        aria-label={`Selecionar ${c.nome}`}
+                        checked={selecionados.includes(c.id)}
+                        onCheckedChange={(v) =>
+                          setSelecionados((prev) =>
+                            v === true ? [...prev, c.id] : prev.filter((x) => x !== c.id),
+                          )
+                        }
+                      />
+                    </TableCell>
                     <TableCell className="font-semibold">
                       <div className="flex flex-col">
                         <span
@@ -1093,13 +1251,14 @@ function ClientesPage() {
                 );
               })}
               {clientes.length === 0 && (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum cliente cadastrado ainda.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhum cliente cadastrado ainda.</TableCell></TableRow>
               )}
               {clientes.length > 0 && clientesOrdenados.length === 0 && (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum cliente corresponde à pesquisa.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhum cliente corresponde à pesquisa.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
       {/* Modal de Detalhes do Cliente com Histórico e Linha de Tempo */}
@@ -1392,12 +1551,24 @@ function ClientesPage() {
 
 
       {/* Modal para Registrar Upgrade/Ajuste/Recursos */}
-      <Dialog open={!!acaoClienteId} onOpenChange={(isOpen) => { if (!isOpen) { setAcaoClienteId(null); setEditMovId(null); } }}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={!!acaoClienteId || !!acaoLoteIds} onOpenChange={(isOpen) => { if (!isOpen) { setAcaoClienteId(null); setAcaoLoteIds(null); setEditMovId(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editMovId ? "Editar Movimento" : "Registrar Movimento"}</DialogTitle>
+            <DialogTitle>
+              {acaoLoteIds
+                ? `Trocar plano de ${acaoLoteIds.length} cliente(s)`
+                : editMovId
+                  ? "Editar Movimento"
+                  : "Registrar Movimento"}
+            </DialogTitle>
           </DialogHeader>
-          {(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
+          {acaoLoteIds && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              A mesma escolha é aplicada a todos os clientes selecionados. Cada cliente recebe o
+              seu próprio registro de movimento e o seu próprio cálculo.
+            </p>
+          )}
+          {!acaoLoteIds && (movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
             <p className="text-xs text-muted-foreground -mt-2">
               Informe apenas o que <strong>mudou</strong>. Use números positivos para adicionar
               e negativos para reduzir (ex.: <code>-1</code> em Canais WhatsApp). Campos em branco permanecem inalterados.
@@ -1464,6 +1635,7 @@ function ClientesPage() {
             )}
             
             {/* Atualização de Recursos */}
+            {!acaoLoteIds && (<>
             <div>
               <Label className="mb-1 block">Canais WhatsApp</Label>
               <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
@@ -1488,7 +1660,32 @@ function ClientesPage() {
               <Label className="mb-1 block font-medium">Contatos / MAU</Label>
               <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
             </div>
-            {previaMovimento && (
+            </>)}
+            {acaoLoteIds && previaLote && (
+              <div className="md:col-span-3 rounded-lg border border-border bg-muted/30 p-4">
+                <div className="text-sm font-medium mb-2">Impacto na mensalidade por cliente</div>
+                <div className="max-h-56 overflow-y-auto divide-y divide-border/60">
+                  {previaLote.linhas.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between gap-3 py-1.5 text-xs">
+                      <span className="truncate font-medium">{l.nome}</span>
+                      <span className="whitespace-nowrap text-muted-foreground">
+                        {formatBRL(l.atual)} → <span className="font-semibold text-foreground">{formatBRL(l.depois)}</span>
+                        {Math.abs(l.delta) >= 0.005 && (
+                          <span className={l.delta > 0 ? " text-fin" : " text-destructive"}>
+                            {" "}({l.delta > 0 ? "+" : "−"} {formatBRL(Math.abs(l.delta))})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-xs font-semibold">
+                  <span>Total</span>
+                  <span>{formatBRL(previaLote.totalAtual)} → {formatBRL(previaLote.totalDepois)}</span>
+                </div>
+              </div>
+            )}
+            {!acaoLoteIds && previaMovimento && (
               <div className="md:col-span-3 rounded-lg border border-border bg-muted/30 p-4">
                 <div className="text-sm font-medium mb-2">Impacto na mensalidade</div>
                 <div className="grid grid-cols-3 gap-3 text-sm">
@@ -1521,6 +1718,7 @@ function ClientesPage() {
               <Input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} placeholder="Detalhe opcional do movimento" />
             </div>
             
+            {!acaoLoteIds && (
             <div className="grid grid-cols-2 md:col-span-3 gap-4 border-t border-border pt-4 mt-2">
               {!movPermiteModulos && (
                 <p className="col-span-2 text-xs text-muted-foreground">
@@ -1540,11 +1738,16 @@ function ClientesPage() {
                 <Label>Transcrição IA</Label>
               </div>
             </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setAcaoClienteId(null); setEditMovId(null); }}>Cancelar</Button>
-            <Button onClick={handleSaveMovimento} disabled={savingMovimento}>
-              {savingMovimento ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : (editMovId ? "Salvar Alteração" : "Registrar Ação")}
+            <Button variant="outline" onClick={() => { setAcaoClienteId(null); setAcaoLoteIds(null); setEditMovId(null); }}>Cancelar</Button>
+            <Button onClick={acaoLoteIds ? handleSaveLote : handleSaveMovimento} disabled={savingMovimento}>
+              {savingMovimento
+                ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>)
+                : acaoLoteIds
+                  ? `Aplicar a ${acaoLoteIds.length} cliente(s)`
+                  : (editMovId ? "Salvar Alteração" : "Registrar Ação")}
             </Button>
           </DialogFooter>
         </DialogContent>
