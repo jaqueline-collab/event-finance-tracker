@@ -243,14 +243,18 @@ export const getPainelParceiro = createServerFn({ method: "POST" })
     let totalExcedentes = 0;
     for (const row of clientesDb) {
       const c = mapDbToCliente(row);
-      totalCarteira += detalharCicloCliente(c, planos, [], movimentosModel, ano, mes).total;
-      if (veValores) {
-        const e = explicarReceitaCliente(c, planos);
-        totalLicenca += e.itens[0]?.total ?? 0;
-        totalAcompanhamento += e.acompanhamento;
-        totalExcedentes += e.itens.slice(1).reduce((s, i) => s + i.total, 0);
-      }
+      const doCiclo = detalharCicloCliente(c, planos, [], movimentosModel, ano, mes).total;
+      totalCarteira += doCiclo;
+      if (!veValores || doCiclo <= 0) continue;
+      // Composição do mesmo valor projetado: a mensalidade vigente é rateada na
+      // proporção do que o ciclo realmente cobra (troca de plano, proporcionalidade).
+      const e = explicarReceitaCliente(c, planos);
+      const fator = e.total > 0 ? doCiclo / e.total : 0;
+      totalLicenca += (e.itens[0]?.total ?? 0) * fator;
+      totalAcompanhamento += e.acompanhamento * fator;
+      totalExcedentes += e.itens.slice(1).reduce((s, i) => s + i.total, 0) * fator;
     }
+
 
     const base = {
       parceiro: {
