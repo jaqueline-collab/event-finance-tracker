@@ -548,6 +548,57 @@ function ClientesPage() {
     setSelecionados([]);
   };
 
+  const openAtribuirParceiro = (c: Cliente) => {
+    setParceiroClienteId(c.id);
+    setParceiroForm({
+      parceiroId: c.parceiroId || "_",
+      data: new Date().toISOString().slice(0, 10),
+      observacao: "",
+    });
+  };
+
+  /**
+   * Troca de parceiro: grava o movimento no histórico e atualiza o cadastro.
+   * Não altera nenhum valor cobrado nem fechamentos já gerados.
+   */
+  const handleSaveParceiro = async () => {
+    const cliente = clientes.find((c) => c.id === parceiroClienteId);
+    if (!cliente) return;
+    if (!parceiroForm.data) {
+      toast.error("Informe a data da alteração de parceiro.");
+      return;
+    }
+    const novo = parceiroForm.parceiroId === "_" ? null : parceiroForm.parceiroId;
+    const anterior = cliente.parceiroId || null;
+    if (novo === anterior) {
+      toast.error("O parceiro escolhido é o mesmo que já está vinculado.");
+      return;
+    }
+    const nomeDe = (id: string | null) =>
+      id ? (parceiros.find((p) => p.id === id)?.nome ?? id) : "Sem parceiro";
+
+    setSavingParceiro(true);
+    try {
+      await addMovimento({
+        clienteId: cliente.id,
+        data: parceiroForm.data,
+        tipo: "parceiro",
+        parceiroAnteriorId: anterior,
+        parceiroNovoId: novo,
+        observacao:
+          parceiroForm.observacao ||
+          `Parceiro alterado de ${nomeDe(anterior)} para ${nomeDe(novo)}`,
+      });
+      await updateCliente(cliente.id, { parceiroId: novo });
+      toast.success(`Parceiro atualizado para ${nomeDe(novo)}.`);
+      setParceiroClienteId(null);
+    } catch (err) {
+      toast.error(mensagemErroPersistencia(err, "Alteração de parceiro"));
+    } finally {
+      setSavingParceiro(false);
+    }
+  };
+
   const confirmarRemocaoCliente = (c: Cliente) => {
     const texto = `Excluir o cliente ${c.nome}?\n\nEsta ação remove o cadastro e pode esconder lançamentos/histórico ligados a ele. Só confirme se isso foi solicitado explicitamente.`;
     if (window.confirm(texto)) {
