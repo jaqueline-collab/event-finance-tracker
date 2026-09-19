@@ -59,7 +59,26 @@ A mesma regra vale em qualquer lugar do painel que mostre valores, não só na t
 
 O pacote de recursos (canais, usuários, MAU, módulos) aparece nos dois níveis — não é preço.
 
+## Parte 4 — gráfico anual independente dos filtros do topo
+
+O gráfico "Entradas e saídas / Ativos no mês" deixa de seguir o filtro De/Até do topo. Busca, Todos/Ativos/Inativos e De/Até continuam controlando os cards de resumo e a tabela; só o gráfico sai dessa regra.
+
+- Seletor de ano próprio, acima do gráfico, sempre com as 12 barras de janeiro a dezembro do ano escolhido.
+- Lista de anos começa em 2026 e vai até o ano atual; o padrão ao abrir é o ano corrente.
+- O alternador entre "Entradas e saídas" e "Ativos no mês" continua funcionando dentro do ano escolhido.
+
+## Parte 5 — três blocos de composição da carteira
+
+Ao lado do card "Previsão da próxima fatura", somando os mesmos clientes já considerados por ele (com os filtros do topo aplicados):
+
+- **Total cobrado pelo sistema** — soma da licença base.
+- **Total de acompanhamento** — soma do acompanhamento.
+- **Total de excedentes** — canais, usuários e MAU acima da franquia, mais módulos cobrados à parte (ASAAS, Agentes IA, Transcrição, Z-API).
+
+Só aparecem quando o parceiro tem permissão de composição. Sem essa permissão, a tela mostra apenas o card de previsão — nem no cliente individual nem no agregado da carteira há separação entre licença base e acompanhamento.
+
 ## Detalhes técnicos
+
 
 **Servidor (`src/lib/parceiro.functions.ts`)**
 - Hoje, quando o parceiro não pode ver valores, a função devolve o painel sem nenhum campo de valor (retorno antecipado). Passa a sempre calcular a composição e devolver dois formatos:
