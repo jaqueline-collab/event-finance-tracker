@@ -563,9 +563,29 @@ function AreaParceiro() {
                         {rotulo}
                       </Button>
                     ))}
-                    <span className="ml-auto text-xs text-muted-foreground">por mês</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Label htmlFor="grafico-ano" className="text-xs text-muted-foreground">
+                        Ano
+                      </Label>
+                      <Select
+                        value={String(anoGrafico)}
+                        onValueChange={(v) => navigate({ search: (s: any) => ({ ...s, ano: Number(v) }) })}
+                      >
+                        <SelectTrigger id="grafico-ano" className="h-8 w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {anosDisponiveis.map((a) => (
+                            <SelectItem key={a} value={String(a)}>
+                              {a}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardHeader>
+
                 <CardContent className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={serieMensal}>
