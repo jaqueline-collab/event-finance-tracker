@@ -302,23 +302,47 @@ function ClientesPage() {
   };
 
   // Prévia do impacto financeiro do movimento (simulação em memória, nada é gravado).
+  /**
+   * Valor de acompanhamento que este movimento aplica ao cliente.
+   * - Ajuste direto: o valor digitado no campo.
+   * - Troca de plano com acompanhamento próprio: depende da escolha "manter/padrão".
+   * - Demais casos: undefined (a herança automática do plano continua valendo).
+   */
+  const acompanhamentoDoMovimento = (cliente: Cliente): number | undefined => {
+    if (movForm.tipo === "acompanhamento") {
+      const v = Number(movForm.valorAcompanhamento);
+      return Number.isFinite(v) && movForm.valorAcompanhamento.trim() !== ""
+        ? Math.max(0, v)
+        : (cliente.valorAcompanhamento || 0);
+    }
+    if (movForm.planoId && movForm.planoId !== cliente.planoId && (cliente.valorAcompanhamento || 0) > 0) {
+      if (movForm.acompanhamentoRegra === "padrao") {
+        return planos.find((p) => p.id === movForm.planoId)?.valorAcompanhamento ?? 0;
+      }
+      return cliente.valorAcompanhamento || 0;
+    }
+    return undefined;
+  };
+
   const simularMovimentoCliente = (cliente: Cliente) => {
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
+    const soAcomp = movForm.tipo === "acompanhamento";
     const movimento: Omit<Movimento, "id"> = {
       clienteId: cliente.id,
       data: movForm.data,
       tipo: movForm.tipo,
-      planoId: movForm.planoId || undefined,
-      canaisWhats: parseNum(movForm.canaisWhats),
-      canaisInsta: parseNum(movForm.canaisInsta),
-      canaisMessenger: parseNum(movForm.canaisMessenger),
-      canaisZapi: parseNum(movForm.canaisZapi),
-      usuariosAtivos: parseNum(movForm.usuariosAtivos),
-      contatosAtivos: parseNum(movForm.contatosAtivos),
-      agentesIA: movForm.agentesIA,
-      asaas: movForm.asaas,
-      zapi: movForm.zapi,
-      transcricaoIA: movForm.transcricaoIA,
+      planoId: soAcomp ? undefined : movForm.planoId || undefined,
+      canaisWhats: soAcomp ? undefined : parseNum(movForm.canaisWhats),
+      canaisInsta: soAcomp ? undefined : parseNum(movForm.canaisInsta),
+      canaisMessenger: soAcomp ? undefined : parseNum(movForm.canaisMessenger),
+      canaisZapi: soAcomp ? undefined : parseNum(movForm.canaisZapi),
+      usuariosAtivos: soAcomp ? undefined : parseNum(movForm.usuariosAtivos),
+      contatosAtivos: soAcomp ? undefined : parseNum(movForm.contatosAtivos),
+      agentesIA: soAcomp ? undefined : movForm.agentesIA,
+      asaas: soAcomp ? undefined : movForm.asaas,
+      zapi: soAcomp ? undefined : movForm.zapi,
+      transcricaoIA: soAcomp ? undefined : movForm.transcricaoIA,
+      valorAcompanhamento: acompanhamentoDoMovimento(cliente),
     };
 
     const atual = receitaMensalCliente(cliente, planos, custos);
@@ -344,7 +368,7 @@ function ClientesPage() {
     }
     // Acompanhamento mensal recorrente: mostra sempre que houver troca de plano,
     // inclusive com diferença zero (deixa claro que o valor próprio foi mantido).
-    if (movForm.planoId && movForm.planoId !== cliente.planoId) {
+    if (movForm.tipo === "acompanhamento" || (movForm.planoId && movForm.planoId !== cliente.planoId)) {
       const diff = dep.acompanhamento - antes.acompanhamento;
       mudancas.push(
         Math.abs(diff) < 0.005
@@ -359,7 +383,7 @@ function ClientesPage() {
   const previaMovimento = useMemo(() => {
     const cliente = clientes.find((c) => c.id === acaoClienteId);
     if (!cliente) return null;
-    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn"];
+    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn", "acompanhamento"];
     if (!tiposComImpacto.includes(movForm.tipo)) return null;
     return simularMovimentoCliente(cliente);
     // eslint-disable-next-line react-hooks/exhaustive-deps
