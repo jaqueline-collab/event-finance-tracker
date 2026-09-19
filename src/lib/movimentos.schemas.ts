@@ -24,6 +24,8 @@ const movimentoRowSchema = z.object({
   extras: z.unknown().optional(),
   valor_servico: z.number().nullable().optional(),
   valor_acompanhamento: z.number().nullable().optional(),
+  parceiro_anterior_id: z.string().max(100).nullable().optional(),
+  parceiro_novo_id: z.string().max(100).nullable().optional(),
   observacao: z.string().nullable().optional(),
 });
 
