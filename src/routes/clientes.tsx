@@ -44,6 +44,7 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
   { value: "downgrade", label: "Downgrade", color: "bg-sky-500/20 text-sky-400" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
+  { value: "acompanhamento", label: "Ajustar acompanhamento", color: "bg-fin/20 text-fin" },
 ];
 
 function ClientesPage() {
@@ -108,6 +109,8 @@ function ClientesPage() {
     observacao: "",
     valorSetupPago: "",
     valorAcompanhamento: "",
+    // Na troca de plano, o que fazer com quem já tem acompanhamento próprio.
+    acompanhamentoRegra: "manter" as "manter" | "padrao",
   });
 
   // Real-time pricing calculations for the chosen form state
@@ -120,6 +123,24 @@ function ClientesPage() {
     const planoMov = planos.find((p) => p.id === (movForm.planoId || clienteAcao?.planoId));
     return planoMov?.permiteModulosOpcionais !== false;
   }, [clientes, planos, acaoClienteId, movForm.planoId]);
+
+  // Ajuste isolado de acompanhamento: o diálogo fica só com data, valor e observação.
+  const soAcompanhamento = movForm.tipo === "acompanhamento";
+  const clienteAcaoAtual = clientes.find((c) => c.id === acaoClienteId) ?? null;
+  const planoNovoMov = planos.find((p) => p.id === movForm.planoId) ?? null;
+  // Pergunta de acompanhamento próprio (individual e em lote).
+  const perguntaAcompIndividual =
+    !acaoLoteIds &&
+    !soAcompanhamento &&
+    !!movForm.planoId &&
+    !!clienteAcaoAtual &&
+    movForm.planoId !== clienteAcaoAtual.planoId &&
+    (clienteAcaoAtual.valorAcompanhamento || 0) > 0;
+  const loteComAcompProprio = (acaoLoteIds ?? [])
+    .map((id) => clientes.find((c) => c.id === id))
+    .filter((c): c is Cliente => !!c && (c.valorAcompanhamento || 0) > 0);
+  const perguntaAcompLote = !!acaoLoteIds && !!movForm.planoId && loteComAcompProprio.length > 0;
+
 
   const realTimePricing = useMemo(() => {
     if (!selectedPlano) return { base: 0, extraCanais: 0, extraCanaisQtd: 0, extraUsers: 0, extraContatos: 0, zapi: 0, ia: 0, asaas: 0, transcricao: 0, custoTotal: 0, receitaTotal: 0, lucroTotal: 0, faturamentoBase: 0, faturamentoCanaisExc: 0, faturamentoUsersExc: 0, faturamentoContatosExc: 0, faturamentoZapi: 0, faturamentoIA: 0, faturamentoAsaas: 0, faturamentoTranscricao: 0 };
@@ -294,27 +315,52 @@ function ClientesPage() {
       observacao: "",
       valorSetupPago: String(c.valorSetupPago || 0),
       valorAcompanhamento: String(c.valorAcompanhamento || 0),
+      acompanhamentoRegra: "manter",
     });
   };
 
   // Prévia do impacto financeiro do movimento (simulação em memória, nada é gravado).
+  /**
+   * Valor de acompanhamento que este movimento aplica ao cliente.
+   * - Ajuste direto: o valor digitado no campo.
+   * - Troca de plano com acompanhamento próprio: depende da escolha "manter/padrão".
+   * - Demais casos: undefined (a herança automática do plano continua valendo).
+   */
+  const acompanhamentoDoMovimento = (cliente: Cliente): number | undefined => {
+    if (movForm.tipo === "acompanhamento") {
+      const v = Number(movForm.valorAcompanhamento);
+      return Number.isFinite(v) && movForm.valorAcompanhamento.trim() !== ""
+        ? Math.max(0, v)
+        : (cliente.valorAcompanhamento || 0);
+    }
+    if (movForm.planoId && movForm.planoId !== cliente.planoId && (cliente.valorAcompanhamento || 0) > 0) {
+      if (movForm.acompanhamentoRegra === "padrao") {
+        return planos.find((p) => p.id === movForm.planoId)?.valorAcompanhamento ?? 0;
+      }
+      return cliente.valorAcompanhamento || 0;
+    }
+    return undefined;
+  };
+
   const simularMovimentoCliente = (cliente: Cliente) => {
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
+    const soAcomp = movForm.tipo === "acompanhamento";
     const movimento: Omit<Movimento, "id"> = {
       clienteId: cliente.id,
       data: movForm.data,
       tipo: movForm.tipo,
-      planoId: movForm.planoId || undefined,
-      canaisWhats: parseNum(movForm.canaisWhats),
-      canaisInsta: parseNum(movForm.canaisInsta),
-      canaisMessenger: parseNum(movForm.canaisMessenger),
-      canaisZapi: parseNum(movForm.canaisZapi),
-      usuariosAtivos: parseNum(movForm.usuariosAtivos),
-      contatosAtivos: parseNum(movForm.contatosAtivos),
-      agentesIA: movForm.agentesIA,
-      asaas: movForm.asaas,
-      zapi: movForm.zapi,
-      transcricaoIA: movForm.transcricaoIA,
+      planoId: soAcomp ? undefined : movForm.planoId || undefined,
+      canaisWhats: soAcomp ? undefined : parseNum(movForm.canaisWhats),
+      canaisInsta: soAcomp ? undefined : parseNum(movForm.canaisInsta),
+      canaisMessenger: soAcomp ? undefined : parseNum(movForm.canaisMessenger),
+      canaisZapi: soAcomp ? undefined : parseNum(movForm.canaisZapi),
+      usuariosAtivos: soAcomp ? undefined : parseNum(movForm.usuariosAtivos),
+      contatosAtivos: soAcomp ? undefined : parseNum(movForm.contatosAtivos),
+      agentesIA: soAcomp ? undefined : movForm.agentesIA,
+      asaas: soAcomp ? undefined : movForm.asaas,
+      zapi: soAcomp ? undefined : movForm.zapi,
+      transcricaoIA: soAcomp ? undefined : movForm.transcricaoIA,
+      valorAcompanhamento: acompanhamentoDoMovimento(cliente),
     };
 
     const atual = receitaMensalCliente(cliente, planos, custos);
@@ -340,7 +386,7 @@ function ClientesPage() {
     }
     // Acompanhamento mensal recorrente: mostra sempre que houver troca de plano,
     // inclusive com diferença zero (deixa claro que o valor próprio foi mantido).
-    if (movForm.planoId && movForm.planoId !== cliente.planoId) {
+    if (movForm.tipo === "acompanhamento" || (movForm.planoId && movForm.planoId !== cliente.planoId)) {
       const diff = dep.acompanhamento - antes.acompanhamento;
       mudancas.push(
         Math.abs(diff) < 0.005
@@ -355,7 +401,7 @@ function ClientesPage() {
   const previaMovimento = useMemo(() => {
     const cliente = clientes.find((c) => c.id === acaoClienteId);
     if (!cliente) return null;
-    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn"];
+    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn", "acompanhamento"];
     if (!tiposComImpacto.includes(movForm.tipo)) return null;
     return simularMovimentoCliente(cliente);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -391,6 +437,9 @@ function ClientesPage() {
       return;
     }
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
+    const clienteAlvo = clientes.find((c) => c.id === acaoClienteId);
+    const soAcomp = movForm.tipo === "acompanhamento";
+    const acompValor = clienteAlvo ? acompanhamentoDoMovimento(clienteAlvo) : undefined;
     // Editing: remove old (revertendo deltas) e recria com novos valores
     setSavingMovimento(true);
     try {
@@ -401,21 +450,24 @@ function ClientesPage() {
       clienteId: acaoClienteId,
       data: movForm.data,
       tipo: movForm.tipo,
-      planoId: movForm.planoId || undefined,
+      planoId: soAcomp ? undefined : movForm.planoId || undefined,
       // Regra escolhida para a troca de plano (só faz sentido quando há plano novo)
-      vigenciaPlano: movForm.planoId ? movForm.vigenciaPlano : undefined,
+      vigenciaPlano: !soAcomp && movForm.planoId ? movForm.vigenciaPlano : undefined,
       cobrancaTroca:
-        movForm.planoId && movForm.vigenciaPlano === "este_ciclo" ? movForm.cobrancaTroca : undefined,
-      canaisWhats: parseNum(movForm.canaisWhats),
-      canaisInsta: parseNum(movForm.canaisInsta),
-      canaisMessenger: parseNum(movForm.canaisMessenger),
-      canaisZapi: parseNum(movForm.canaisZapi),
-      usuariosAtivos: parseNum(movForm.usuariosAtivos),
-      contatosAtivos: parseNum(movForm.contatosAtivos),
-      agentesIA: movForm.agentesIA,
-      asaas: movForm.asaas,
-      zapi: movForm.zapi,
-      transcricaoIA: movForm.transcricaoIA,
+        !soAcomp && movForm.planoId && movForm.vigenciaPlano === "este_ciclo"
+          ? movForm.cobrancaTroca
+          : undefined,
+      canaisWhats: soAcomp ? undefined : parseNum(movForm.canaisWhats),
+      canaisInsta: soAcomp ? undefined : parseNum(movForm.canaisInsta),
+      canaisMessenger: soAcomp ? undefined : parseNum(movForm.canaisMessenger),
+      canaisZapi: soAcomp ? undefined : parseNum(movForm.canaisZapi),
+      usuariosAtivos: soAcomp ? undefined : parseNum(movForm.usuariosAtivos),
+      contatosAtivos: soAcomp ? undefined : parseNum(movForm.contatosAtivos),
+      agentesIA: soAcomp ? undefined : movForm.agentesIA,
+      asaas: soAcomp ? undefined : movForm.asaas,
+      zapi: soAcomp ? undefined : movForm.zapi,
+      transcricaoIA: soAcomp ? undefined : movForm.transcricaoIA,
+      valorAcompanhamento: acompValor,
       observacao: movForm.observacao || undefined,
       });
       toast.success("Movimentação salva com sucesso.");
@@ -461,6 +513,7 @@ function ClientesPage() {
           planoId: movForm.planoId,
           vigenciaPlano: movForm.vigenciaPlano,
           cobrancaTroca: movForm.vigenciaPlano === "este_ciclo" ? movForm.cobrancaTroca : undefined,
+          valorAcompanhamento: alvo ? acompanhamentoDoMovimento(alvo) : undefined,
           observacao: movForm.observacao || undefined,
         });
         ok += 1;
@@ -514,7 +567,11 @@ function ClientesPage() {
       transcricaoIA: mv.transcricaoIA ?? false,
       observacao: mv.observacao || "",
       valorSetupPago: "",
-      valorAcompanhamento: "",
+      valorAcompanhamento:
+        mv.valorAcompanhamento !== undefined && mv.valorAcompanhamento !== null
+          ? String(mv.valorAcompanhamento)
+          : "",
+      acompanhamentoRegra: "manter",
     });
   };
 
@@ -1113,6 +1170,7 @@ function ClientesPage() {
                 asaas: false,
                 zapi: false,
                 transcricaoIA: false,
+                acompanhamentoRegra: "manter",
                 observacao: "",
                 valorSetupPago: "0",
                 valorAcompanhamento: "0",
@@ -1589,6 +1647,7 @@ function ClientesPage() {
               <Label className="mb-1 block">Data da Ação</Label>
               <Input type="date" value={movForm.data} onChange={(e) => setMovForm({ ...movForm, data: e.target.value })} />
             </div>
+            {!soAcompanhamento && (
             <div>
               <Label className="mb-1 block">Novo Plano</Label>
               <Select value={movForm.planoId} onValueChange={(v) => setMovForm({ ...movForm, planoId: v })}>
@@ -1598,7 +1657,70 @@ function ClientesPage() {
                 </SelectContent>
               </Select>
             </div>
-            {movForm.planoId && (
+            )}
+            {soAcompanhamento && (
+              <div>
+                <Label className="mb-1 block" htmlFor="mov-acompanhamento">
+                  Novo valor de acompanhamento (R$)
+                </Label>
+                <Input
+                  id="mov-acompanhamento"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={movForm.valorAcompanhamento}
+                  onChange={(e) => setMovForm({ ...movForm, valorAcompanhamento: e.target.value })}
+                  placeholder="Ex: 250"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Ajusta apenas o acompanhamento mensal recorrente deste cliente. O plano não muda.
+                </p>
+              </div>
+            )}
+            {perguntaAcompIndividual && (
+              <div className="md:col-span-3">
+                <Label className="mb-1 block">
+                  Este cliente tem acompanhamento próprio ({formatBRL(clienteAcaoAtual?.valorAcompanhamento || 0)}). O que fazer?
+                </Label>
+                <Select
+                  value={movForm.acompanhamentoRegra}
+                  onValueChange={(v: "manter" | "padrao") => setMovForm({ ...movForm, acompanhamentoRegra: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manter">
+                      Manter o valor atual ({formatBRL(clienteAcaoAtual?.valorAcompanhamento || 0)})
+                    </SelectItem>
+                    <SelectItem value="padrao">
+                      Atualizar para o padrão do plano novo ({formatBRL(planoNovoMov?.valorAcompanhamento ?? 0)})
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {perguntaAcompLote && (
+              <div className="md:col-span-3">
+                <Label className="mb-1 block">
+                  {loteComAcompProprio.length} cliente(s) selecionado(s) têm acompanhamento próprio. O que fazer com esses valores?
+                </Label>
+                <Select
+                  value={movForm.acompanhamentoRegra}
+                  onValueChange={(v: "manter" | "padrao") => setMovForm({ ...movForm, acompanhamentoRegra: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manter">Manter o valor de cada cliente</SelectItem>
+                    <SelectItem value="padrao">
+                      Atualizar todos para o padrão do plano novo ({formatBRL(planoNovoMov?.valorAcompanhamento ?? 0)})
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Quem não tem valor próprio recebe o padrão do plano novo nos dois casos.
+                </p>
+              </div>
+            )}
+            {!soAcompanhamento && movForm.planoId && (
               <div>
                 <Label className="mb-1 block">Quando a mudança de plano entra em vigor?</Label>
                 <Select
@@ -1613,7 +1735,7 @@ function ClientesPage() {
                 </Select>
               </div>
             )}
-            {movForm.planoId && movForm.vigenciaPlano === "este_ciclo" && (
+            {!soAcompanhamento && movForm.planoId && movForm.vigenciaPlano === "este_ciclo" && (
               <div className="md:col-span-2">
                 <Label className="mb-1 block">Como cobrar neste ciclo?</Label>
                 <Select
@@ -1635,7 +1757,7 @@ function ClientesPage() {
             )}
             
             {/* Atualização de Recursos */}
-            {!acaoLoteIds && (<>
+            {!acaoLoteIds && !soAcompanhamento && (<>
             <div>
               <Label className="mb-1 block">Canais WhatsApp</Label>
               <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
@@ -1718,7 +1840,7 @@ function ClientesPage() {
               <Input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} placeholder="Detalhe opcional do movimento" />
             </div>
             
-            {!acaoLoteIds && (
+            {!acaoLoteIds && !soAcompanhamento && (
             <div className="grid grid-cols-2 md:col-span-3 gap-4 border-t border-border pt-4 mt-2">
               {!movPermiteModulos && (
                 <p className="col-span-2 text-xs text-muted-foreground">
