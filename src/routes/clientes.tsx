@@ -21,7 +21,7 @@ import { AcessosCliente } from "@/components/acessos-cliente";
 import { ChurnDadosDialog } from "@/components/churn-dados-dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente, mensagemErroPersistencia } from "@/lib/store";
 import { toast } from "sonner";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2 } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2, Handshake } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
@@ -1362,6 +1362,9 @@ function ClientesPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openAcaoModal(c, "upgrade")}>
                             <Settings2 className="mr-2 h-4 w-4" /> Mudar Plano / Recursos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openAtribuirParceiro(c)}>
+                            <Handshake className="mr-2 h-4 w-4" /> Atribuir parceiro
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openAcaoModal(c, "churn")} className="text-destructive focus:text-destructive">
                             <XCircle className="mr-2 h-4 w-4" /> Registrar Cancelamento
