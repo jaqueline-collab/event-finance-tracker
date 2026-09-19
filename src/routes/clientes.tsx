@@ -107,6 +107,12 @@ function ClientesPage() {
   const selectedPlano = useMemo(() => planos.find(p => p.id === form.planoId), [planos, form.planoId]);
   // Plano pode bloquear a ativação de novos módulos opcionais (o que já está ativo permanece).
   const planoPermiteModulos = selectedPlano?.permiteModulosOpcionais !== false;
+  // Mesma trava no modal de movimento (setup/upgrade/downgrade).
+  const movPermiteModulos = useMemo(() => {
+    const clienteAcao = clientes.find((c) => c.id === acaoClienteId);
+    const planoMov = planos.find((p) => p.id === (movForm.planoId || clienteAcao?.planoId));
+    return planoMov?.permiteModulosOpcionais !== false;
+  }, [clientes, planos, acaoClienteId, movForm.planoId]);
 
   const realTimePricing = useMemo(() => {
     if (!selectedPlano) return { base: 0, extraCanais: 0, extraCanaisQtd: 0, extraUsers: 0, extraContatos: 0, zapi: 0, ia: 0, asaas: 0, transcricao: 0, custoTotal: 0, receitaTotal: 0, lucroTotal: 0, faturamentoBase: 0, faturamentoCanaisExc: 0, faturamentoUsersExc: 0, faturamentoContatosExc: 0, faturamentoZapi: 0, faturamentoIA: 0, faturamentoAsaas: 0, faturamentoTranscricao: 0 };
@@ -1516,16 +1522,21 @@ function ClientesPage() {
             </div>
             
             <div className="grid grid-cols-2 md:col-span-3 gap-4 border-t border-border pt-4 mt-2">
+              {!movPermiteModulos && (
+                <p className="col-span-2 text-xs text-muted-foreground">
+                  Este plano não permite módulos opcionais. Só continuam disponíveis os que já estavam ativos.
+                </p>
+              )}
               <div className="flex items-center space-x-2 h-10">
-                <Switch checked={movForm.agentesIA} onCheckedChange={(v) => setMovForm({ ...movForm, agentesIA: v })} />
+                <Switch disabled={!movPermiteModulos && !movForm.agentesIA} checked={movForm.agentesIA} onCheckedChange={(v) => setMovForm({ ...movForm, agentesIA: v })} />
                 <Label>Agentes IA</Label>
               </div>
               <div className="flex items-center space-x-2 h-10">
-                <Switch checked={movForm.asaas} onCheckedChange={(v) => setMovForm({ ...movForm, asaas: v })} />
+                <Switch disabled={!movPermiteModulos && !movForm.asaas} checked={movForm.asaas} onCheckedChange={(v) => setMovForm({ ...movForm, asaas: v })} />
                 <Label>ASAAS</Label>
               </div>
               <div className="flex items-center space-x-2 h-10">
-                <Switch checked={movForm.transcricaoIA} onCheckedChange={(v) => setMovForm({ ...movForm, transcricaoIA: v })} />
+                <Switch disabled={!movPermiteModulos && !movForm.transcricaoIA} checked={movForm.transcricaoIA} onCheckedChange={(v) => setMovForm({ ...movForm, transcricaoIA: v })} />
                 <Label>Transcrição IA</Label>
               </div>
             </div>
