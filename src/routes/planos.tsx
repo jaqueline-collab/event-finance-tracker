@@ -27,6 +27,8 @@ type PlanoForm = {
   duracaoUnidade: "" | "dias" | "meses" | "anos";
   valorMensal: string;
   valorSetup: string;
+  valorAcompanhamento: string;
+  permiteModulosOpcionais: boolean;
   diaVencimento: string;
   cicloDiaInicial: string;
   cicloDiaFinal: string;
@@ -70,6 +72,8 @@ const defaultForm = (): PlanoForm => ({
   duracaoUnidade: "",
   valorMensal: "",
   valorSetup: "",
+  valorAcompanhamento: "",
+  permiteModulosOpcionais: true,
   diaVencimento: "",
   cicloDiaInicial: "1",
   cicloDiaFinal: "31",
@@ -137,6 +141,8 @@ function PlanosPage() {
       duracaoUnidade: form.duracaoUnidade || null,
       valorMensal: Number(form.valorMensal) || 0,
       valorSetup: Number(form.valorSetup) || 0,
+      valorAcompanhamento: Number(form.valorAcompanhamento) || 0,
+      permiteModulosOpcionais: form.permiteModulosOpcionais,
       diaVencimento: form.diaVencimento ? Math.max(1, Math.min(31, Number(form.diaVencimento))) : null,
       cicloDiaInicial: form.cicloDiaInicial ? Math.max(1, Math.min(31, Number(form.cicloDiaInicial))) : 1,
       cicloDiaFinal: form.cicloDiaFinal ? Math.max(1, Math.min(31, Number(form.cicloDiaFinal))) : 31,
@@ -202,6 +208,8 @@ function PlanosPage() {
       duracaoUnidade: p.duracaoUnidade ?? "",
       valorMensal: String(p.valorMensal || ""),
       valorSetup: String(p.valorSetup || ""),
+      valorAcompanhamento: p.valorAcompanhamento ? String(p.valorAcompanhamento) : "",
+      permiteModulosOpcionais: p.permiteModulosOpcionais !== false,
       diaVencimento: p.diaVencimento ? String(p.diaVencimento) : "",
       cicloDiaInicial: String(p.cicloDiaInicial ?? 1),
       cicloDiaFinal: String(p.cicloDiaFinal ?? 31),
