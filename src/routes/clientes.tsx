@@ -1170,6 +1170,7 @@ function ClientesPage() {
                 asaas: false,
                 zapi: false,
                 transcricaoIA: false,
+                acompanhamentoRegra: "manter",
                 observacao: "",
                 valorSetupPago: "0",
                 valorAcompanhamento: "0",
