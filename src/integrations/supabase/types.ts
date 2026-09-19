@@ -1235,6 +1235,7 @@ export type Database = {
           nome: string
           observacao: string | null
           parceiro_ids: Json | null
+          permite_modulos_opcionais: boolean
           preco_asaas: number | null
           preco_canais_exc: number | null
           preco_canal_insta_exc: number
@@ -1247,6 +1248,7 @@ export type Database = {
           preco_zapi: number | null
           user_id: string
           usuarios_inclusos: number | null
+          valor_acompanhamento: number
           valor_asaas: number | null
           valor_canais_exc: number | null
           valor_canal_insta_exc: number
@@ -1284,6 +1286,7 @@ export type Database = {
           nome: string
           observacao?: string | null
           parceiro_ids?: Json | null
+          permite_modulos_opcionais?: boolean
           preco_asaas?: number | null
           preco_canais_exc?: number | null
           preco_canal_insta_exc?: number
@@ -1296,6 +1299,7 @@ export type Database = {
           preco_zapi?: number | null
           user_id?: string
           usuarios_inclusos?: number | null
+          valor_acompanhamento?: number
           valor_asaas?: number | null
           valor_canais_exc?: number | null
           valor_canal_insta_exc?: number
@@ -1333,6 +1337,7 @@ export type Database = {
           nome?: string
           observacao?: string | null
           parceiro_ids?: Json | null
+          permite_modulos_opcionais?: boolean
           preco_asaas?: number | null
           preco_canais_exc?: number | null
           preco_canal_insta_exc?: number
@@ -1345,6 +1350,7 @@ export type Database = {
           preco_zapi?: number | null
           user_id?: string
           usuarios_inclusos?: number | null
+          valor_acompanhamento?: number
           valor_asaas?: number | null
           valor_canais_exc?: number | null
           valor_canal_insta_exc?: number

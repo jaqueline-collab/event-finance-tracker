@@ -1,0 +1,2 @@
+ALTER TABLE public.elora_planos ADD COLUMN IF NOT EXISTS valor_acompanhamento numeric NOT NULL DEFAULT 0;
+ALTER TABLE public.elora_planos ADD COLUMN IF NOT EXISTS permite_modulos_opcionais boolean NOT NULL DEFAULT true;
