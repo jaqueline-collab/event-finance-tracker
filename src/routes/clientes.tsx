@@ -44,6 +44,7 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
   { value: "downgrade", label: "Downgrade", color: "bg-sky-500/20 text-sky-400" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
+  { value: "acompanhamento", label: "Ajustar acompanhamento", color: "bg-fin/20 text-fin" },
 ];
 
 function ClientesPage() {
@@ -108,6 +109,8 @@ function ClientesPage() {
     observacao: "",
     valorSetupPago: "",
     valorAcompanhamento: "",
+    // Na troca de plano, o que fazer com quem já tem acompanhamento próprio.
+    acompanhamentoRegra: "manter" as "manter" | "padrao",
   });
 
   // Real-time pricing calculations for the chosen form state
@@ -294,6 +297,7 @@ function ClientesPage() {
       observacao: "",
       valorSetupPago: String(c.valorSetupPago || 0),
       valorAcompanhamento: String(c.valorAcompanhamento || 0),
+      acompanhamentoRegra: "manter",
     });
   };
 
@@ -514,7 +518,11 @@ function ClientesPage() {
       transcricaoIA: mv.transcricaoIA ?? false,
       observacao: mv.observacao || "",
       valorSetupPago: "",
-      valorAcompanhamento: "",
+      valorAcompanhamento:
+        mv.valorAcompanhamento !== undefined && mv.valorAcompanhamento !== null
+          ? String(mv.valorAcompanhamento)
+          : "",
+      acompanhamentoRegra: "manter",
     });
   };
 
