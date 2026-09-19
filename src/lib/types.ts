@@ -140,12 +140,19 @@ export interface Cliente {
   observacao?: string;
 }
 
+export type VigenciaPlano = "este_ciclo" | "proximo_ciclo";
+export type CobrancaTroca = "integral" | "proporcional";
+
 export interface Movimento {
   id: string;
   clienteId: string;
   data: string;
   tipo: TipoMovimento;
   planoId?: string | null;
+  /** Quando a troca de plano entra em vigor (só para movimentos que trocam de plano). */
+  vigenciaPlano?: VigenciaPlano | null;
+  /** Como cobrar o ciclo da troca quando a vigência é "este_ciclo". */
+  cobrancaTroca?: CobrancaTroca | null;
   apps?: number;
   mau?: number;
   canais?: number;

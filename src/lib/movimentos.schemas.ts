@@ -6,6 +6,8 @@ const movimentoRowSchema = z.object({
   data: z.string().min(1),
   tipo: z.string().min(1).max(50),
   plano_id: z.string().max(100).nullable().optional(),
+  vigencia_plano: z.enum(["este_ciclo", "proximo_ciclo"]).nullable().optional(),
+  cobranca_troca: z.enum(["integral", "proporcional"]).nullable().optional(),
   apps: z.number().nullable().optional(),
   mau: z.number().nullable().optional(),
   canais: z.number().nullable().optional(),

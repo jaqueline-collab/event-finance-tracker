@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  useStore, formatBRL, formatBRLPreciso, receitaCicloCliente, receitaMensalCliente,
+  useStore, formatBRL, formatBRLPreciso, receitaCicloCliente, detalharCicloCliente, receitaMensalCliente,
   calcularCustoLiquidoHelena,
   formatDiaVencimento,
   obterVencimentoDaCompetencia,
@@ -733,7 +733,8 @@ function ResumoPage() {
       const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
       const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
       const snap = clienteSnapshotAt(c, movimentos, refSnap);
-      const subtotal = receitaCicloLocal(c, cy, cm);
+      const detalheCiclo = detalharCicloCliente(c, planos, custos, movimentos, cy, cm);
+      const subtotal = detalheCiclo.total;
       const acomp = snap.valorAcompanhamento || 0;
       const sistema = Math.max(0, subtotal - acomp);
       const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
@@ -748,6 +749,7 @@ function ResumoPage() {
       return {
         cliente: c, plano,
         subtotal,
+        detalheCiclo,
         descontosCliente: descsCliente,
         descontoCliente: resDesc.descontoTotal,
         receita: resDesc.total,
@@ -1345,6 +1347,22 @@ function ResumoPage() {
         mauUnit: d.mauUnit,
         mauExcedenteQtd: d.mauExcedenteQtd,
         mauExcedenteValor: Number(d.mauExcedenteValor.toFixed(2)),
+        // Regra de troca de plano usada neste ciclo (ver detalharCicloCliente)
+        regraTroca: d.detalheCiclo?.regraTroca ?? "sem_troca",
+        trocaPlanoAnterior: d.detalheCiclo?.planoAnteriorId
+          ? (planos.find((p) => p.id === d.detalheCiclo.planoAnteriorId)?.nome ?? d.detalheCiclo.planoAnteriorId)
+          : null,
+        trocaPlanoNovo: d.detalheCiclo?.planoNovoId
+          ? (planos.find((p) => p.id === d.detalheCiclo.planoNovoId)?.nome ?? d.detalheCiclo.planoNovoId)
+          : null,
+        trocaData: d.detalheCiclo?.dataTroca ?? null,
+        trocaDiasTotal: d.detalheCiclo?.diasTotal ?? null,
+        trocaDiasAntes: d.detalheCiclo?.diasAntes ?? null,
+        trocaDiasDepois: d.detalheCiclo?.diasDepois ?? null,
+        trocaValorTrechoAntigo:
+          d.detalheCiclo?.valorTrechoAntigo != null ? Number(d.detalheCiclo.valorTrechoAntigo.toFixed(2)) : null,
+        trocaValorTrechoNovo:
+          d.detalheCiclo?.valorTrechoNovo != null ? Number(d.detalheCiclo.valorTrechoNovo.toFixed(2)) : null,
       } as Record<string, unknown>,
     }));
     // Preenche ciclo por item
@@ -2944,6 +2962,38 @@ function ResumoPage() {
                         </summary>
 
                         <div className="border-t border-border/40 px-3 py-3 space-y-4">
+                          {/* Regra de troca de plano usada neste ciclo (gravada no fechamento) */}
+                          {(() => {
+                            const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                            const regra = snap.regraTroca as string | undefined;
+                            if (!regra || regra === "sem_troca") return null;
+                            const dataTroca = snap.trocaData
+                              ? new Date(`${snap.trocaData}T12:00:00`).toLocaleDateString("pt-BR")
+                              : null;
+                            const titulo =
+                              regra === "proximo_ciclo"
+                                ? "Troca de plano válida só no próximo ciclo"
+                                : regra === "integral"
+                                  ? "Troca de plano cobrada integral no plano novo"
+                                  : "Troca de plano cobrada proporcionalmente";
+                            return (
+                              <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 space-y-1">
+                                <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</h5>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {snap.trocaPlanoAnterior ?? "—"} → {snap.trocaPlanoNovo ?? "—"}
+                                  {dataTroca ? ` · troca em ${dataTroca}` : ""}
+                                </p>
+                                {regra === "proporcional" && (
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {snap.trocaDiasAntes ?? 0} dia(s) no plano antigo = {formatBRL(Number(snap.trocaValorTrechoAntigo ?? 0))}
+                                    {" · "}
+                                    {snap.trocaDiasDepois ?? 0} dia(s) no plano novo = {formatBRL(Number(snap.trocaValorTrechoNovo ?? 0))}
+                                    {snap.trocaDiasTotal ? ` · ciclo de ${snap.trocaDiasTotal} dias` : ""}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {/* MAU do mês */}
                           <MauFechamentoEditor
                             key={`mau-${it.id}`}
