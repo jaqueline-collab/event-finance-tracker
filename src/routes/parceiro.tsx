@@ -56,6 +56,8 @@ import {
   ExternalLink,
   Eye,
   GraduationCap,
+  History,
+  PackageOpen,
   Globe,
   Calculator,
   LayoutGrid,
