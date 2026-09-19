@@ -124,6 +124,24 @@ function ClientesPage() {
     return planoMov?.permiteModulosOpcionais !== false;
   }, [clientes, planos, acaoClienteId, movForm.planoId]);
 
+  // Ajuste isolado de acompanhamento: o diálogo fica só com data, valor e observação.
+  const soAcompanhamento = movForm.tipo === "acompanhamento";
+  const clienteAcaoAtual = clientes.find((c) => c.id === acaoClienteId) ?? null;
+  const planoNovoMov = planos.find((p) => p.id === movForm.planoId) ?? null;
+  // Pergunta de acompanhamento próprio (individual e em lote).
+  const perguntaAcompIndividual =
+    !acaoLoteIds &&
+    !soAcompanhamento &&
+    !!movForm.planoId &&
+    !!clienteAcaoAtual &&
+    movForm.planoId !== clienteAcaoAtual.planoId &&
+    (clienteAcaoAtual.valorAcompanhamento || 0) > 0;
+  const loteComAcompProprio = (acaoLoteIds ?? [])
+    .map((id) => clientes.find((c) => c.id === id))
+    .filter((c): c is Cliente => !!c && (c.valorAcompanhamento || 0) > 0);
+  const perguntaAcompLote = !!acaoLoteIds && !!movForm.planoId && loteComAcompProprio.length > 0;
+
+
   const realTimePricing = useMemo(() => {
     if (!selectedPlano) return { base: 0, extraCanais: 0, extraCanaisQtd: 0, extraUsers: 0, extraContatos: 0, zapi: 0, ia: 0, asaas: 0, transcricao: 0, custoTotal: 0, receitaTotal: 0, lucroTotal: 0, faturamentoBase: 0, faturamentoCanaisExc: 0, faturamentoUsersExc: 0, faturamentoContatosExc: 0, faturamentoZapi: 0, faturamentoIA: 0, faturamentoAsaas: 0, faturamentoTranscricao: 0 };
     
