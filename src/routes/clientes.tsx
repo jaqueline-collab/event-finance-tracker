@@ -21,7 +21,7 @@ import { AcessosCliente } from "@/components/acessos-cliente";
 import { ChurnDadosDialog } from "@/components/churn-dados-dialog";
 import { useStore, formatBRL, receitaMensalCliente, receitaSistemaCliente, custoMensalCliente, calcularCustoExtraUsuariosHelena, calcularCustoExtraContatosHelena, formatDiaVencimento, faturamentoAcumuladoCliente, mensagemErroPersistencia } from "@/lib/store";
 import { toast } from "sonner";
-import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2 } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Settings2, XCircle, Info, TrendingUp, TrendingDown, DollarSign, Zap, Pencil, Search, FileSearch, Download, Loader2, Handshake } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { TipoMovimento, Cliente, Movimento } from "@/lib/types";
@@ -42,10 +42,18 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
   { value: "setup", label: "Setup / Ativação", color: "bg-primary/20 text-primary" },
   { value: "upgrade", label: "Upgrade", color: "bg-fin/20 text-fin" },
   { value: "downgrade", label: "Downgrade", color: "bg-sky-500/20 text-sky-400" },
+  // Troca neutra de plano: nunca contabilizada como upgrade nem como downgrade.
+  { value: "alterar_plano", label: "Alterar plano", color: "bg-muted text-muted-foreground" },
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
   { value: "acompanhamento", label: "Ajustar acompanhamento", color: "bg-fin/20 text-fin" },
+  // Gravado apenas pelo diálogo "Atribuir parceiro" (fora da lista de Tipo de Ação).
+  { value: "parceiro", label: "Alteração de parceiro", color: "bg-muted text-muted-foreground" },
 ];
+
+/** Tipos que trocam plano/recursos por diferença (deltas). */
+const ehTipoDelta = (t: TipoMovimento) =>
+  t === "upgrade" || t === "downgrade" || t === "alterar_plano";
 
 function ClientesPage() {
   const { clientes, planos, custos, movimentos, parceiros, addCliente, updateCliente, removeCliente, addMovimento, removeMovimento } = useStore();
@@ -60,6 +68,14 @@ function ClientesPage() {
   const [editMovId, setEditMovId] = useState<string | null>(null);
   // Após marcar churn: exportar / apagar os dados da integração
   const [churnDados, setChurnDados] = useState<{ id: string; nome: string } | null>(null);
+  // Diálogo "Atribuir parceiro" (troca de parceiro, sem impacto em valores).
+  const [parceiroClienteId, setParceiroClienteId] = useState<string | null>(null);
+  const [parceiroForm, setParceiroForm] = useState({
+    parceiroId: "_",
+    data: new Date().toISOString().slice(0, 10),
+    observacao: "",
+  });
+  const [savingParceiro, setSavingParceiro] = useState(false);
   const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
   const [savingCliente, setSavingCliente] = useState(false);
   const [savingMovimento, setSavingMovimento] = useState(false);
@@ -293,7 +309,7 @@ function ClientesPage() {
 
   const openAcaoModal = (c: Cliente, tipo: TipoMovimento) => {
     setAcaoClienteId(c.id);
-    const isDelta = tipo === "upgrade" || tipo === "downgrade";
+    const isDelta = ehTipoDelta(tipo);
     setMovForm({
       data: new Date().toISOString().slice(0, 10),
       tipo,
@@ -401,7 +417,7 @@ function ClientesPage() {
   const previaMovimento = useMemo(() => {
     const cliente = clientes.find((c) => c.id === acaoClienteId);
     if (!cliente) return null;
-    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn", "acompanhamento"];
+    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "alterar_plano", "churn", "acompanhamento"];
     if (!tiposComImpacto.includes(movForm.tipo)) return null;
     return simularMovimentoCliente(cliente);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -530,6 +546,57 @@ function ClientesPage() {
     }
     setAcaoLoteIds(null);
     setSelecionados([]);
+  };
+
+  const openAtribuirParceiro = (c: Cliente) => {
+    setParceiroClienteId(c.id);
+    setParceiroForm({
+      parceiroId: c.parceiroId || "_",
+      data: new Date().toISOString().slice(0, 10),
+      observacao: "",
+    });
+  };
+
+  /**
+   * Troca de parceiro: grava o movimento no histórico e atualiza o cadastro.
+   * Não altera nenhum valor cobrado nem fechamentos já gerados.
+   */
+  const handleSaveParceiro = async () => {
+    const cliente = clientes.find((c) => c.id === parceiroClienteId);
+    if (!cliente) return;
+    if (!parceiroForm.data) {
+      toast.error("Informe a data da alteração de parceiro.");
+      return;
+    }
+    const novo = parceiroForm.parceiroId === "_" ? null : parceiroForm.parceiroId;
+    const anterior = cliente.parceiroId || null;
+    if (novo === anterior) {
+      toast.error("O parceiro escolhido é o mesmo que já está vinculado.");
+      return;
+    }
+    const nomeDe = (id: string | null) =>
+      id ? (parceiros.find((p) => p.id === id)?.nome ?? id) : "Sem parceiro";
+
+    setSavingParceiro(true);
+    try {
+      await addMovimento({
+        clienteId: cliente.id,
+        data: parceiroForm.data,
+        tipo: "parceiro",
+        parceiroAnteriorId: anterior,
+        parceiroNovoId: novo,
+        observacao:
+          parceiroForm.observacao ||
+          `Parceiro alterado de ${nomeDe(anterior)} para ${nomeDe(novo)}`,
+      });
+      await updateCliente(cliente.id, { parceiroId: novo });
+      toast.success(`Parceiro atualizado para ${nomeDe(novo)}.`);
+      setParceiroClienteId(null);
+    } catch (err) {
+      toast.error(mensagemErroPersistencia(err, "Alteração de parceiro"));
+    } finally {
+      setSavingParceiro(false);
+    }
   };
 
   const confirmarRemocaoCliente = (c: Cliente) => {
@@ -1296,6 +1363,9 @@ function ClientesPage() {
                           <DropdownMenuItem onClick={() => openAcaoModal(c, "upgrade")}>
                             <Settings2 className="mr-2 h-4 w-4" /> Mudar Plano / Recursos
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openAtribuirParceiro(c)}>
+                            <Handshake className="mr-2 h-4 w-4" /> Atribuir parceiro
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openAcaoModal(c, "churn")} className="text-destructive focus:text-destructive">
                             <XCircle className="mr-2 h-4 w-4" /> Registrar Cancelamento
                           </DropdownMenuItem>
@@ -1354,7 +1424,7 @@ function ClientesPage() {
             clientMovs.forEach((m) => {
               const matchedPlano = planos.find((p) => p.id === m.planoId);
               let descParts: string[] = [];
-              const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
+              const isDelta = ehTipoDelta(m.tipo);
               const fmtDelta = (v: number) => (v > 0 ? `+${v}` : `${v}`);
               const fmtNum = (label: string, v: number | undefined) => {
                 if (v === undefined || v === null) return;
@@ -1626,7 +1696,7 @@ function ClientesPage() {
               seu próprio registro de movimento e o seu próprio cálculo.
             </p>
           )}
-          {!acaoLoteIds && (movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
+          {!acaoLoteIds && ehTipoDelta(movForm.tipo) && (
             <p className="text-xs text-muted-foreground -mt-2">
               Informe apenas o que <strong>mudou</strong>. Use números positivos para adicionar
               e negativos para reduzir (ex.: <code>-1</code> em Canais WhatsApp). Campos em branco permanecem inalterados.
@@ -1639,7 +1709,7 @@ function ClientesPage() {
               <Select value={movForm.tipo} onValueChange={(v: TipoMovimento) => setMovForm({ ...movForm, tipo: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {tiposMovimento.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {tiposMovimento.filter((t) => t.value !== "parceiro").map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -1760,27 +1830,27 @@ function ClientesPage() {
             {!acaoLoteIds && !soAcompanhamento && (<>
             <div>
               <Label className="mb-1 block">Canais WhatsApp</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Canais Instagram</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisInsta} onChange={(e) => setMovForm({ ...movForm, canaisInsta: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisInsta} onChange={(e) => setMovForm({ ...movForm, canaisInsta: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Canais Messenger</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Canais Z-API</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisZapi} onChange={(e) => setMovForm({ ...movForm, canaisZapi: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisZapi} onChange={(e) => setMovForm({ ...movForm, canaisZapi: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Usuários</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
             </div>
             <div className="md:col-span-2">
               <Label className="mb-1 block font-medium">Contatos / MAU</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
             </div>
             </>)}
             {acaoLoteIds && previaLote && (
@@ -1870,6 +1940,72 @@ function ClientesPage() {
                 : acaoLoteIds
                   ? `Aplicar a ${acaoLoteIds.length} cliente(s)`
                   : (editMovId ? "Salvar Alteração" : "Registrar Ação")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Atribuir parceiro (não altera valores cobrados) */}
+      <Dialog open={!!parceiroClienteId} onOpenChange={(o) => !o && setParceiroClienteId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Atribuir parceiro</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const cliente = clientes.find((c) => c.id === parceiroClienteId);
+            if (!cliente) return null;
+            const atual = parceiros.find((p) => p.id === cliente.parceiroId);
+            return (
+              <div className="space-y-4 py-2">
+                <p className="text-sm text-muted-foreground">
+                  Parceiro atual: <strong className="text-foreground">{atual?.nome ?? "Sem parceiro"}</strong>
+                </p>
+                <div>
+                  <Label htmlFor="parceiro-novo" className="mb-1 block">Novo parceiro</Label>
+                  <Select
+                    value={parceiroForm.parceiroId}
+                    onValueChange={(v) => setParceiroForm({ ...parceiroForm, parceiroId: v })}
+                  >
+                    <SelectTrigger id="parceiro-novo"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_">Sem parceiro (N/A)</SelectItem>
+                      {parceiros.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="parceiro-data" className="mb-1 block">Data</Label>
+                  <Input
+                    id="parceiro-data"
+                    type="date"
+                    value={parceiroForm.data}
+                    onChange={(e) => setParceiroForm({ ...parceiroForm, data: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="parceiro-obs" className="mb-1 block">Observação (opcional)</Label>
+                  <Input
+                    id="parceiro-obs"
+                    value={parceiroForm.observacao}
+                    onChange={(e) => setParceiroForm({ ...parceiroForm, observacao: e.target.value })}
+                    placeholder="Motivo da troca de parceiro"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A troca de parceiro não altera nenhum valor cobrado do cliente. Fechamentos já
+                  gerados continuam exatamente como estão.
+                </p>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setParceiroClienteId(null)}>Cancelar</Button>
+            <Button onClick={handleSaveParceiro} disabled={savingParceiro}>
+              {savingParceiro
+                ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>)
+                : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

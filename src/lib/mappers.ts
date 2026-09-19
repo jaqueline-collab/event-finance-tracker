@@ -294,6 +294,8 @@ export const mapDbToMovimento = (r: any): Movimento => ({
   extras: r.extras,
   valorServico: r.valor_servico,
   valorAcompanhamento: (r as { valor_acompanhamento?: number | null }).valor_acompanhamento ?? null,
+  parceiroAnteriorId: (r as { parceiro_anterior_id?: string | null }).parceiro_anterior_id ?? null,
+  parceiroNovoId: (r as { parceiro_novo_id?: string | null }).parceiro_novo_id ?? null,
   observacao: r.observacao,
 });
 
