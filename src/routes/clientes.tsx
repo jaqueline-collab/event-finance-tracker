@@ -419,6 +419,9 @@ function ClientesPage() {
       return;
     }
     const parseNum = (v: string) => (v.trim() === "" ? undefined : Number(v));
+    const clienteAlvo = clientes.find((c) => c.id === acaoClienteId);
+    const soAcomp = movForm.tipo === "acompanhamento";
+    const acompValor = clienteAlvo ? acompanhamentoDoMovimento(clienteAlvo) : undefined;
     // Editing: remove old (revertendo deltas) e recria com novos valores
     setSavingMovimento(true);
     try {
