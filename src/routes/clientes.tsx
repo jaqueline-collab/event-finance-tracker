@@ -1945,6 +1945,72 @@ function ClientesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal: Atribuir parceiro (não altera valores cobrados) */}
+      <Dialog open={!!parceiroClienteId} onOpenChange={(o) => !o && setParceiroClienteId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Atribuir parceiro</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const cliente = clientes.find((c) => c.id === parceiroClienteId);
+            if (!cliente) return null;
+            const atual = parceiros.find((p) => p.id === cliente.parceiroId);
+            return (
+              <div className="space-y-4 py-2">
+                <p className="text-sm text-muted-foreground">
+                  Parceiro atual: <strong className="text-foreground">{atual?.nome ?? "Sem parceiro"}</strong>
+                </p>
+                <div>
+                  <Label htmlFor="parceiro-novo" className="mb-1 block">Novo parceiro</Label>
+                  <Select
+                    value={parceiroForm.parceiroId}
+                    onValueChange={(v) => setParceiroForm({ ...parceiroForm, parceiroId: v })}
+                  >
+                    <SelectTrigger id="parceiro-novo"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_">Sem parceiro (N/A)</SelectItem>
+                      {parceiros.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="parceiro-data" className="mb-1 block">Data</Label>
+                  <Input
+                    id="parceiro-data"
+                    type="date"
+                    value={parceiroForm.data}
+                    onChange={(e) => setParceiroForm({ ...parceiroForm, data: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="parceiro-obs" className="mb-1 block">Observação (opcional)</Label>
+                  <Input
+                    id="parceiro-obs"
+                    value={parceiroForm.observacao}
+                    onChange={(e) => setParceiroForm({ ...parceiroForm, observacao: e.target.value })}
+                    placeholder="Motivo da troca de parceiro"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A troca de parceiro não altera nenhum valor cobrado do cliente. Fechamentos já
+                  gerados continuam exatamente como estão.
+                </p>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setParceiroClienteId(null)}>Cancelar</Button>
+            <Button onClick={handleSaveParceiro} disabled={savingParceiro}>
+              {savingParceiro
+                ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>)
+                : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal: Detalhamento de todos os clientes ativos (data de hoje) */}
       <Dialog open={detalhamentoHojeOpen} onOpenChange={setDetalhamentoHojeOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
