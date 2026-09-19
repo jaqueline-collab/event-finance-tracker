@@ -177,6 +177,9 @@ export interface Movimento {
   valorServico?: number;
   /** Novo valor de acompanhamento mensal aplicado ao cliente por este movimento. */
   valorAcompanhamento?: number | null;
+  /** Troca de parceiro: parceiro antes e depois do movimento. */
+  parceiroAnteriorId?: string | null;
+  parceiroNovoId?: string | null;
   observacao?: string;
 }
 
