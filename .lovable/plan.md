@@ -80,5 +80,8 @@ O pacote de recursos (canais, usuários, MAU, módulos) aparece nos dois níveis
 - "Histórico de movimentação" e "Plano atual do cliente" abertos separadamente em Cirurgiões Staffs - Fischer, cada um mostrando só o seu conteúdo.
 - Um parceiro com permissão de composição e outro sem: licença e acompanhamento discriminados no primeiro, só o total no segundo, com os excedentes aparecendo nos dois.
 - "Acompanhamento" como linha própria da composição quando a permissão está ligada.
+- Cliente sem movimento no ciclo atual: o card bate com a mensalidade vigente.
+- Cliente com troca de plano ou ajuste de acompanhamento no ciclo: o card reflete a mudança/proporcionalidade.
+- Conferir que a simulação não gera nenhum fechamento nem altera dados existentes.
 - Celular, tablet e computador, temas claro e escuro.
 - Testes e verificação de tipos rodando limpos; nenhum dado financeiro alterado.
