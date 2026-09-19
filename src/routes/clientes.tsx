@@ -1734,7 +1734,7 @@ function ClientesPage() {
                 </Select>
               </div>
             )}
-            {movForm.planoId && movForm.vigenciaPlano === "este_ciclo" && (
+            {!soAcompanhamento && movForm.planoId && movForm.vigenciaPlano === "este_ciclo" && (
               <div className="md:col-span-2">
                 <Label className="mb-1 block">Como cobrar neste ciclo?</Label>
                 <Select
@@ -1756,7 +1756,7 @@ function ClientesPage() {
             )}
             
             {/* Atualização de Recursos */}
-            {!acaoLoteIds && (<>
+            {!acaoLoteIds && !soAcompanhamento && (<>
             <div>
               <Label className="mb-1 block">Canais WhatsApp</Label>
               <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
