@@ -555,7 +555,7 @@ export const useStore = create<State>()(
         let clienteId: string | null = null;
         let clientePatch: Record<string, unknown> | null = null;
         // Reverte deltas no cliente quando o movimento for upgrade/downgrade
-        if (old.tipo === "upgrade" || old.tipo === "downgrade") {
+        if (old.tipo === "upgrade" || old.tipo === "downgrade" || old.tipo === "alterar_plano") {
           const cliente = get().clientes.find((c) => c.id === old.clienteId);
           if (cliente) {
             const rev = (cur: number | undefined, val: number | null | undefined) => {
