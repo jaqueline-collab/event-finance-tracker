@@ -87,12 +87,14 @@ Só aparecem quando o parceiro tem permissão de composição. Sem essa permiss�
 - A montagem continua vindo de `explicarReceitaCliente`; o acompanhamento, que já é devolvido separado por essa função, passa a virar linha própria de `itens` quando há permissão, e a ser embutido em `totalPlano` quando não há.
 - A lista branca de campos por cliente (`clientes.map`) ganha os campos de recurso — canais whats/insta/messenger/zapi, usuários, contatos/MAU, flags de IA/ASAAS/Z-API/Transcrição — e as franquias do plano, para montar o pacote. Nenhum campo de custo, margem, lucro, WTS ou scale discount entra, com ou sem permissão.
 - O total da carteira passa a somar `detalharCicloCliente` (`src/lib/calc/receita.ts`) — a mesma função que alimenta o fechamento mensal — para a competência em curso de cada cliente, usando os movimentos já carregados. Nada é gravado: é só leitura, sem criar fechamento nem tocar em `elora_fechamentos`/`elora_financeiro`.
+- Com permissão, o mesmo agregado devolve `totalLicenca`, `totalAcompanhamento` e `totalExcedentes`, somados sobre exatamente os mesmos clientes do total geral. Sem permissão, esses três campos não são calculados nem enviados.
 - Nenhuma mudança de schema, RLS ou dado financeiro.
 
 **Interface (`src/routes/parceiro.tsx`)**
 - Cada linha ganha dois botões com rótulo/ícone distintos; o diálogo atual perde o bloco "Composição cobrada".
 - Novo diálogo "Plano atual do cliente" com: cabeçalho com nome do cliente e plano, grade do pacote de recursos (reaproveitando a apresentação do bloco do cadastro interno), badges dos módulos ativos e a composição de valores conforme o nível de permissão.
-- Card do total com o novo cálculo e o rótulo "Previsão da próxima fatura".
+- Card do total com o novo cálculo e o rótulo "Previsão da próxima fatura", com os três blocos de composição ao lado quando a resposta os incluir.
+- Seletor de ano próprio do gráfico, com estado separado dos filtros do topo (ano na URL como parâmetro próprio, sem reaproveitar De/Até), alimentando a série de 12 meses.
 
 ## Validação
 
