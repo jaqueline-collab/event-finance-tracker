@@ -56,6 +56,8 @@ import {
   ExternalLink,
   Eye,
   GraduationCap,
+  History,
+  PackageOpen,
   Globe,
   Calculator,
   LayoutGrid,
@@ -64,10 +66,13 @@ import {
   X,
 } from "lucide-react";
 
+const ANO_INICIAL = 2026;
+
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
   aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
   grafico: fallback(z.enum(["fluxo", "ativos"]), "fluxo").default("fluxo"),
+  ano: fallback(z.number().int(), 0).default(0),
 });
 
 export const Route = createFileRoute("/parceiro")({
@@ -139,13 +144,20 @@ type FinanceiroData = Awaited<ReturnType<typeof getFinanceiroParceiro>>;
 type CalculadoraData = Awaited<ReturnType<typeof getPlanosCalculadoraParceiro>>;
 
 function AreaParceiro() {
-  const { como, aba, grafico } = Route.useSearch();
+  const { como, aba, grafico, ano } = Route.useSearch();
+  const anoAtual = new Date().getFullYear();
+  const anoGrafico = ano && ano >= ANO_INICIAL ? ano : anoAtual;
+  const anosDisponiveis = useMemo(() => {
+    const fim = Math.max(ANO_INICIAL, anoAtual);
+    return Array.from({ length: fim - ANO_INICIAL + 1 }, (_, i) => ANO_INICIAL + i);
+  }, [anoAtual]);
   const navigate = Route.useNavigate();
   const modoAdmin = como.trim().length > 0;
   const [dados, setDados] = useState<PainelData | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [planoAberto, setPlanoAberto] = useState<string | null>(null);
 
   const [financeiro, setFinanceiro] = useState<FinanceiroData | null>(null);
   const [carregandoFin, setCarregandoFin] = useState(false);
@@ -262,42 +274,33 @@ function AreaParceiro() {
     };
   }, [clientesFiltrados, de, ate]);
 
+  // Gráfico: independente do filtro De/Até — sempre janeiro a dezembro do ano escolhido.
   const serieMensal = useMemo(() => {
-    if (!de || !ate || de > ate)
-      return [] as { mes: string; entradas: number; saidas: number; ativos: number }[];
-    const mapa = new Map<string, { mes: string; entradas: number; saidas: number; ativos: number }>();
-    const cursor = new Date(`${de.slice(0, 7)}-01T12:00:00`);
-    const limite = new Date(`${ate.slice(0, 7)}-01T12:00:00`);
-    while (cursor <= limite) {
-      const chave = cursor.toISOString().slice(0, 7);
-      mapa.set(chave, { mes: mesLabel(chave), entradas: 0, saidas: 0, ativos: 0 });
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
-    // Clientes que já existiam antes do início do período abrem o acumulado.
-    let acumulado = clientesFiltrados.filter(
-      (c) => c.dataInicio && c.dataInicio.slice(0, 7) < de.slice(0, 7),
-    ).length;
+    const prefixo = String(anoGrafico);
+    const meses = Array.from({ length: 12 }, (_, i) => {
+      const chave = `${prefixo}-${String(i + 1).padStart(2, "0")}`;
+      return { chave, mes: mesLabel(chave), entradas: 0, saidas: 0, ativos: 0 };
+    });
+    const mapa = new Map(meses.map((m) => [m.chave, m]));
+    let acumulado = 0;
     for (const c of clientesFiltrados) {
-      if (noPeriodo(c.dataInicio)) {
-        const k = mapa.get((c.dataInicio ?? "").slice(0, 7));
-        if (k) k.entradas += 1;
+      const ini = (c.dataInicio ?? "").slice(0, 7);
+      const fim = (c.dataChurn ?? "").slice(0, 7);
+      if (ini && ini < `${prefixo}-01`) {
+        if (!fim || fim >= `${prefixo}-01`) acumulado += 1;
       }
-      if (noPeriodo(c.dataChurn)) {
-        const k = mapa.get((c.dataChurn ?? "").slice(0, 7));
-        if (k) k.saidas += 1;
-      }
-      // Desconta do acumulado inicial quem já tinha saído antes do período.
-      if (c.dataInicio && c.dataInicio.slice(0, 7) < de.slice(0, 7) && c.dataChurn && c.dataChurn.slice(0, 7) < de.slice(0, 7)) {
-        acumulado -= 1;
-      }
+      const kIni = mapa.get(ini);
+      if (kIni) kIni.entradas += 1;
+      const kFim = mapa.get(fim);
+      if (kFim) kFim.saidas += 1;
     }
-    acumulado = Math.max(0, acumulado);
-    for (const mes of mapa.values()) {
+    for (const mes of meses) {
       acumulado += mes.entradas - mes.saidas;
-      mes.ativos = acumulado;
+      mes.ativos = Math.max(0, acumulado);
     }
-    return [...mapa.values()];
-  }, [clientesFiltrados, de, ate]);
+    return meses;
+  }, [clientesFiltrados, anoGrafico]);
+
 
   const irPara = (proxima: "clientes" | "financeiro" | "calculadora") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
@@ -479,18 +482,70 @@ function AreaParceiro() {
                 )}
               </div>
 
-              {veValores && "totalCarteira" in (dados ?? {}) && (
+              {veValores && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Previsão da próxima fatura
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold">{brl((dados as any)?.totalCarteira ?? 0)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        competência em curso, atualizada em tempo real
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total cobrado pelo sistema
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalLicenca ?? 0)}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total de acompanhamento
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalAcompanhamento ?? 0)}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total de excedentes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalExcedentes ?? 0)}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {!veValores && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-xs font-medium text-muted-foreground">
-                      Total mensal da carteira
+                      Previsão da próxima fatura
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="text-2xl font-semibold">
-                    {brl((dados as any).totalCarteira ?? 0)}
+                  <CardContent>
+                    <p className="text-2xl font-semibold">{brl((dados as any)?.totalCarteira ?? 0)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      competência em curso, atualizada em tempo real
+                    </p>
                   </CardContent>
                 </Card>
               )}
+
 
               <Card>
                 <CardHeader>
@@ -510,9 +565,29 @@ function AreaParceiro() {
                         {rotulo}
                       </Button>
                     ))}
-                    <span className="ml-auto text-xs text-muted-foreground">por mês</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Label htmlFor="grafico-ano" className="text-xs text-muted-foreground">
+                        Ano
+                      </Label>
+                      <Select
+                        value={String(anoGrafico)}
+                        onValueChange={(v) => navigate({ search: (s: any) => ({ ...s, ano: Number(v) }) })}
+                      >
+                        <SelectTrigger id="grafico-ano" className="h-8 w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {anosDisponiveis.map((a) => (
+                            <SelectItem key={a} value={String(a)}>
+                              {a}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardHeader>
+
                 <CardContent className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={serieMensal}>
@@ -559,6 +634,7 @@ function AreaParceiro() {
                         <TableHead>LTV</TableHead>
                         <TableHead>Churn</TableHead>
                         {veValores && <TableHead className="text-right">Mensalidade</TableHead>}
+                        <TableHead className="text-right">Ações</TableHead>
                         {podeVerPainel && <TableHead className="text-right">Painel</TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -566,7 +642,7 @@ function AreaParceiro() {
                       {clientesFiltrados.length === 0 && (
                         <TableRow>
                           <TableCell
-                            colSpan={6 + (veValores ? 1 : 0) + (podeVerPainel ? 1 : 0)}
+                            colSpan={7 + (veValores ? 1 : 0) + (podeVerPainel ? 1 : 0)}
                             className="text-sm text-muted-foreground"
                           >
                             Nenhum cliente encontrado com esses filtros.
@@ -574,11 +650,7 @@ function AreaParceiro() {
                         </TableRow>
                       )}
                       {clientesFiltrados.map((c) => (
-                        <TableRow
-                          key={c.id}
-                          className="cursor-pointer"
-                          onClick={() => setAberto(c.id)}
-                        >
+                        <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.nome}</TableCell>
                           <TableCell>{c.plano}</TableCell>
                           <TableCell>
@@ -594,8 +666,18 @@ function AreaParceiro() {
                               {brl(((c as any).mensalidade as number) ?? 0)}
                             </TableCell>
                           )}
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => setAberto(c.id)}>
+                                <History className="mr-2 h-4 w-4" /> Histórico
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setPlanoAberto(c.id)}>
+                                <PackageOpen className="mr-2 h-4 w-4" /> Plano atual
+                              </Button>
+                            </div>
+                          </TableCell>
                           {podeVerPainel && (
-                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="text-right">
                               <Button asChild variant="outline" size="sm">
                                 <Link to="/area-do-cliente" search={{ como: c.id }}>
                                   <Eye className="mr-2 h-4 w-4" /> Ver painel
@@ -614,7 +696,7 @@ function AreaParceiro() {
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-base">
-                      Histórico · {clientes.find((c) => c.id === aberto)?.nome}
+                      Histórico de movimentação · {clientes.find((c) => c.id === aberto)?.nome}
                     </DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -646,29 +728,102 @@ function AreaParceiro() {
                           </li>
                         ))}
                     </ol>
-
-                    {veValores && aberto && (
-                      <div className="rounded-md border border-border/60 p-3">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">Composição cobrada</p>
-                        <ul className="space-y-1 text-sm">
-                          {(((clientes.find((c) => c.id === aberto) as any)?.itens ?? []) as any[]).map((i, idx) => (
-                            <li key={idx} className="flex justify-between gap-4">
-                              <span>{i.label}</span>
-                              <span className="tabular-nums">{brl(i.total)}</span>
-                            </li>
-                          ))}
-                          <li className="flex justify-between gap-4 border-t border-border/60 pt-1 font-medium">
-                            <span>Total</span>
-                            <span className="tabular-nums">
-                              {brl(((clientes.find((c) => c.id === aberto) as any)?.mensalidade as number) ?? 0)}
-                            </span>
-                          </li>
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 </DialogContent>
               </Dialog>
+
+              <Dialog open={!!planoAberto} onOpenChange={(open) => !open && setPlanoAberto(null)}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">
+                      Plano atual do cliente · {clientes.find((c) => c.id === planoAberto)?.nome}
+                    </DialogTitle>
+                  </DialogHeader>
+                  {(() => {
+                    const cli = clientes.find((c) => c.id === planoAberto) as any;
+                    if (!cli) return null;
+                    const r = cli.recursos ?? {};
+                    const recursos: { label: string; valor: string }[] = [
+                      { label: "Canais WhatsApp", valor: `${r.canaisWhats ?? 0} (${r.canaisWhatsInclusos ?? 0} inclusos)` },
+                      { label: "Canais Instagram", valor: `${r.canaisInsta ?? 0} (${r.canaisInstaInclusos ?? 0} inclusos)` },
+                      { label: "Canais Messenger", valor: `${r.canaisMessenger ?? 0} (${r.canaisMessengerInclusos ?? 0} inclusos)` },
+                      { label: "Canais Z-API", valor: `${r.canaisZapi ?? 0} (${r.zapiInclusos ?? 0} inclusos)` },
+                      { label: "Usuários", valor: `${r.usuariosAtivos ?? 0} (${r.usuariosInclusos ?? 0} inclusos)` },
+                      { label: "Contatos (MAU)", valor: `${r.contatosAtivos ?? 0} (${r.contatosInclusos ?? 0} inclusos)` },
+                    ];
+                    const modulos = [
+                      r.agentesIA ? "Agentes de IA" : null,
+                      r.asaas ? "Integração Asaas" : null,
+                      r.transcricaoIA ? "Transcrição IA" : null,
+                      (r.canaisZapi ?? 0) > 0 ? "Z-API" : null,
+                    ].filter(Boolean) as string[];
+                    const excedentes = (cli.excedentes ?? []) as any[];
+                    return (
+                      <div className="space-y-4">
+                        <div className="rounded-md border border-border/60 p-3">
+                          <p className="text-xs font-medium text-muted-foreground">Plano</p>
+                          <p className="text-sm font-medium">{cli.plano}</p>
+                        </div>
+
+                        <div className="rounded-md border border-border/60 p-3">
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">Pacote atual de recursos</p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {recursos.map((item) => (
+                              <div key={item.label} className="flex justify-between gap-3 text-sm">
+                                <span className="text-muted-foreground">{item.label}</span>
+                                <span className="tabular-nums">{item.valor}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {modulos.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">Sem módulos opcionais ativos.</span>
+                            ) : (
+                              modulos.map((m) => (
+                                <Badge key={m} variant="secondary">
+                                  {m}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-md border border-border/60 p-3">
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">Composição cobrada</p>
+                          <ul className="space-y-1 text-sm">
+                            {veValores ? (
+                              ((cli.itens ?? []) as any[]).map((i, idx) => (
+                                <li key={idx} className="flex justify-between gap-4">
+                                  <span>{i.label}</span>
+                                  <span className="tabular-nums">{brl(i.total)}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <>
+                                <li className="flex justify-between gap-4">
+                                  <span>Plano contratado</span>
+                                  <span className="tabular-nums">{brl(cli.totalPlano ?? 0)}</span>
+                                </li>
+                                {excedentes.map((i, idx) => (
+                                  <li key={idx} className="flex justify-between gap-4">
+                                    <span>{i.label}</span>
+                                    <span className="tabular-nums">{brl(i.total)}</span>
+                                  </li>
+                                ))}
+                              </>
+                            )}
+                            <li className="flex justify-between gap-4 border-t border-border/60 pt-1 font-medium">
+                              <span>Total</span>
+                              <span className="tabular-nums">{brl(cli.mensalidade ?? 0)}</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </DialogContent>
+              </Dialog>
+
             </>
           ) : aba === "financeiro" ? (
             <FinanceiroParceiro
