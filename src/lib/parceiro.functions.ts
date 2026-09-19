@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mapDbToCliente, mapDbToMovimento, mapDbToPlano } from "@/lib/mappers";
-import { explicarReceitaCliente, receitaMensalCliente } from "@/lib/calc/receita";
+import { detalharCicloCliente, explicarReceitaCliente } from "@/lib/calc/receita";
 import {
   concederAcessoSchema,
   envioFechamentoSchema,
