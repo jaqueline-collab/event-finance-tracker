@@ -93,6 +93,19 @@ const brl = (v: number) =>
 const dataBr = (v?: string | null) =>
   v ? new Date(`${v}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 
+/** Rótulo amigável do tipo de movimento no histórico (nunca exibe valores). */
+const rotuloTipoMovimento = (tipo: string) =>
+  ({
+    setup: "Setup / Ativação",
+    upgrade: "Upgrade",
+    downgrade: "Downgrade",
+    alterar_plano: "Alteração de plano",
+    churn: "Churn",
+    servico: "Serviço avulso",
+    acompanhamento: "Ajuste de acompanhamento",
+    parceiro: "Alteração de parceiro",
+  })[tipo] ?? tipo;
+
 const mesLabel = (chave: string) => {
   const [a, m] = chave.split("-");
   return `${m}/${a.slice(2)}`;
