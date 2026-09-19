@@ -34,7 +34,7 @@ export function calcularPatchMovimento(
   // Upgrade/Downgrade: campos numéricos são DELTAS (ex.: -1, +2),
   // somados ao valor atual do cliente. Booleanos representam o estado final.
   // Setup: valores numéricos são absolutos (substituem o valor atual).
-  const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
+  const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade" || m.tipo === "alterar_plano";
   const applyNum = (cur: number | undefined, val: number | undefined) => {
     if (val === undefined || val === null) return undefined;
     if (isDelta) return Math.max(0, (cur ?? 0) + val);
