@@ -64,10 +64,13 @@ import {
   X,
 } from "lucide-react";
 
+const ANO_INICIAL = 2026;
+
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
   aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
   grafico: fallback(z.enum(["fluxo", "ativos"]), "fluxo").default("fluxo"),
+  ano: fallback(z.number().int(), 0).default(0),
 });
 
 export const Route = createFileRoute("/parceiro")({
