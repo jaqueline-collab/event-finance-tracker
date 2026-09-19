@@ -105,6 +105,8 @@ function ClientesPage() {
 
   // Real-time pricing calculations for the chosen form state
   const selectedPlano = useMemo(() => planos.find(p => p.id === form.planoId), [planos, form.planoId]);
+  // Plano pode bloquear a ativação de novos módulos opcionais (o que já está ativo permanece).
+  const planoPermiteModulos = selectedPlano?.permiteModulosOpcionais !== false;
 
   const realTimePricing = useMemo(() => {
     if (!selectedPlano) return { base: 0, extraCanais: 0, extraCanaisQtd: 0, extraUsers: 0, extraContatos: 0, zapi: 0, ia: 0, asaas: 0, transcricao: 0, custoTotal: 0, receitaTotal: 0, lucroTotal: 0, faturamentoBase: 0, faturamentoCanaisExc: 0, faturamentoUsersExc: 0, faturamentoContatosExc: 0, faturamentoZapi: 0, faturamentoIA: 0, faturamentoAsaas: 0, faturamentoTranscricao: 0 };
@@ -708,13 +710,18 @@ function ClientesPage() {
                 {/* Switches de Opcionais na mesma linha */}
                 <div className="border-t border-border/40 pt-4">
                   <Label className="mb-3 block text-xs font-semibold text-muted-foreground uppercase">Módulos Opcionais Ativados</Label>
+                  {!planoPermiteModulos && (
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      O plano {selectedPlano?.nome} não permite módulos opcionais. Só continuam disponíveis os que já estavam ativos.
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-x-8 gap-y-4">
                     <div className="flex items-center space-x-2.5">
-                      <Switch id="ia" checked={form.agentesIA} onCheckedChange={(v) => setForm({ ...form, agentesIA: v })} />
+                      <Switch id="ia" disabled={!planoPermiteModulos && !form.agentesIA} checked={form.agentesIA} onCheckedChange={(v) => setForm({ ...form, agentesIA: v })} />
                       <Label htmlFor="ia" className="text-sm cursor-pointer font-medium">Agentes IA</Label>
                     </div>
                     <div className="flex items-center space-x-2.5">
-                      <Switch id="asaas" checked={form.asaas} onCheckedChange={(v) => setForm({ ...form, asaas: v })} />
+                      <Switch id="asaas" disabled={!planoPermiteModulos && !form.asaas} checked={form.asaas} onCheckedChange={(v) => setForm({ ...form, asaas: v })} />
                       <Label htmlFor="asaas" className="text-sm cursor-pointer font-medium">ASAAS</Label>
                     </div>
                     <div className="flex items-center space-x-2.5 border border-border/40 rounded-lg px-3 py-1.5 bg-muted/5">
@@ -725,19 +732,20 @@ function ClientesPage() {
                         type="number"
                         className="w-16 h-8 text-center"
                         min={0}
+                        disabled={!planoPermiteModulos && form.canaisZapi === 0}
                         value={form.canaisZapi === 0 ? "" : form.canaisZapi}
                         onChange={(e) => {
-                          const val = e.target.value === "" ? 0 : Math.max(0, Number(e.target.value));
-                          setForm(prev => ({
-                            ...prev,
-                            canaisZapi: val,
-                            zapi: val > 0
-                          }));
+                          const digitado = e.target.value === "" ? 0 : Math.max(0, Number(e.target.value));
+                          setForm(prev => {
+                            // Plano sem módulos: não permite aumentar além do que já estava contratado.
+                            const val = planoPermiteModulos ? digitado : Math.min(digitado, prev.canaisZapi);
+                            return { ...prev, canaisZapi: val, zapi: val > 0 };
+                          });
                         }}
                       />
                     </div>
                     <div className="flex items-center space-x-2.5">
-                      <Switch id="trans" checked={form.transcricaoIA} onCheckedChange={(v) => setForm({ ...form, transcricaoIA: v })} />
+                      <Switch id="trans" disabled={!planoPermiteModulos && !form.transcricaoIA} checked={form.transcricaoIA} onCheckedChange={(v) => setForm({ ...form, transcricaoIA: v })} />
                       <Label htmlFor="trans" className="text-sm cursor-pointer font-medium">Transcrição IA</Label>
                     </div>
                   </div>
