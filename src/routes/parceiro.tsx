@@ -142,13 +142,20 @@ type FinanceiroData = Awaited<ReturnType<typeof getFinanceiroParceiro>>;
 type CalculadoraData = Awaited<ReturnType<typeof getPlanosCalculadoraParceiro>>;
 
 function AreaParceiro() {
-  const { como, aba, grafico } = Route.useSearch();
+  const { como, aba, grafico, ano } = Route.useSearch();
+  const anoAtual = new Date().getFullYear();
+  const anoGrafico = ano && ano >= ANO_INICIAL ? ano : anoAtual;
+  const anosDisponiveis = useMemo(() => {
+    const fim = Math.max(ANO_INICIAL, anoAtual);
+    return Array.from({ length: fim - ANO_INICIAL + 1 }, (_, i) => ANO_INICIAL + i);
+  }, [anoAtual]);
   const navigate = Route.useNavigate();
   const modoAdmin = como.trim().length > 0;
   const [dados, setDados] = useState<PainelData | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [planoAberto, setPlanoAberto] = useState<string | null>(null);
 
   const [financeiro, setFinanceiro] = useState<FinanceiroData | null>(null);
   const [carregandoFin, setCarregandoFin] = useState(false);
