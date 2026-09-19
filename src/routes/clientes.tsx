@@ -68,6 +68,14 @@ function ClientesPage() {
   const [editMovId, setEditMovId] = useState<string | null>(null);
   // Após marcar churn: exportar / apagar os dados da integração
   const [churnDados, setChurnDados] = useState<{ id: string; nome: string } | null>(null);
+  // Diálogo "Atribuir parceiro" (troca de parceiro, sem impacto em valores).
+  const [parceiroClienteId, setParceiroClienteId] = useState<string | null>(null);
+  const [parceiroForm, setParceiroForm] = useState({
+    parceiroId: "_",
+    data: new Date().toISOString().slice(0, 10),
+    observacao: "",
+  });
+  const [savingParceiro, setSavingParceiro] = useState(false);
   const [detalhamentoHojeOpen, setDetalhamentoHojeOpen] = useState(false);
   const [savingCliente, setSavingCliente] = useState(false);
   const [savingMovimento, setSavingMovimento] = useState(false);
