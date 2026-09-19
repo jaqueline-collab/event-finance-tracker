@@ -47,7 +47,13 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
   { value: "churn", label: "Churn", color: "bg-destructive/20 text-destructive" },
   { value: "servico", label: "Serviço avulso", color: "bg-primary/20 text-primary" },
   { value: "acompanhamento", label: "Ajustar acompanhamento", color: "bg-fin/20 text-fin" },
+  // Gravado apenas pelo diálogo "Atribuir parceiro" (fora da lista de Tipo de Ação).
+  { value: "parceiro", label: "Alteração de parceiro", color: "bg-muted text-muted-foreground" },
 ];
+
+/** Tipos que trocam plano/recursos por diferença (deltas). */
+const ehTipoDelta = (t: TipoMovimento) =>
+  t === "upgrade" || t === "downgrade" || t === "alterar_plano";
 
 function ClientesPage() {
   const { clientes, planos, custos, movimentos, parceiros, addCliente, updateCliente, removeCliente, addMovimento, removeMovimento } = useStore();
