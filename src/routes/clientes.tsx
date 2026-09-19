@@ -301,7 +301,7 @@ function ClientesPage() {
 
   const openAcaoModal = (c: Cliente, tipo: TipoMovimento) => {
     setAcaoClienteId(c.id);
-    const isDelta = tipo === "upgrade" || tipo === "downgrade";
+    const isDelta = ehTipoDelta(tipo);
     setMovForm({
       data: new Date().toISOString().slice(0, 10),
       tipo,
@@ -409,7 +409,7 @@ function ClientesPage() {
   const previaMovimento = useMemo(() => {
     const cliente = clientes.find((c) => c.id === acaoClienteId);
     if (!cliente) return null;
-    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "churn", "acompanhamento"];
+    const tiposComImpacto: TipoMovimento[] = ["setup", "upgrade", "downgrade", "alterar_plano", "churn", "acompanhamento"];
     if (!tiposComImpacto.includes(movForm.tipo)) return null;
     return simularMovimentoCliente(cliente);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1362,7 +1362,7 @@ function ClientesPage() {
             clientMovs.forEach((m) => {
               const matchedPlano = planos.find((p) => p.id === m.planoId);
               let descParts: string[] = [];
-              const isDelta = m.tipo === "upgrade" || m.tipo === "downgrade";
+              const isDelta = ehTipoDelta(m.tipo);
               const fmtDelta = (v: number) => (v > 0 ? `+${v}` : `${v}`);
               const fmtNum = (label: string, v: number | undefined) => {
                 if (v === undefined || v === null) return;
@@ -1634,7 +1634,7 @@ function ClientesPage() {
               seu próprio registro de movimento e o seu próprio cálculo.
             </p>
           )}
-          {!acaoLoteIds && (movForm.tipo === "upgrade" || movForm.tipo === "downgrade") && (
+          {!acaoLoteIds && ehTipoDelta(movForm.tipo) && (
             <p className="text-xs text-muted-foreground -mt-2">
               Informe apenas o que <strong>mudou</strong>. Use números positivos para adicionar
               e negativos para reduzir (ex.: <code>-1</code> em Canais WhatsApp). Campos em branco permanecem inalterados.
@@ -1647,7 +1647,7 @@ function ClientesPage() {
               <Select value={movForm.tipo} onValueChange={(v: TipoMovimento) => setMovForm({ ...movForm, tipo: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {tiposMovimento.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {tiposMovimento.filter((t) => t.value !== "parceiro").map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -1768,27 +1768,27 @@ function ClientesPage() {
             {!acaoLoteIds && !soAcompanhamento && (<>
             <div>
               <Label className="mb-1 block">Canais WhatsApp</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisWhats} onChange={(e) => setMovForm({ ...movForm, canaisWhats: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Canais Instagram</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisInsta} onChange={(e) => setMovForm({ ...movForm, canaisInsta: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisInsta} onChange={(e) => setMovForm({ ...movForm, canaisInsta: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Canais Messenger</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisMessenger} onChange={(e) => setMovForm({ ...movForm, canaisMessenger: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Canais Z-API</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.canaisZapi} onChange={(e) => setMovForm({ ...movForm, canaisZapi: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.canaisZapi} onChange={(e) => setMovForm({ ...movForm, canaisZapi: e.target.value })} />
             </div>
             <div>
               <Label className="mb-1 block">Usuários</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +1 ou -1" : ""} value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +1 ou -1" : ""} value={movForm.usuariosAtivos} onChange={(e) => setMovForm({ ...movForm, usuariosAtivos: e.target.value })} />
             </div>
             <div className="md:col-span-2">
               <Label className="mb-1 block font-medium">Contatos / MAU</Label>
-              <Input type="number" placeholder={(movForm.tipo === "upgrade" || movForm.tipo === "downgrade") ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
+              <Input type="number" placeholder={ehTipoDelta(movForm.tipo) ? "Ex.: +500 ou -200" : ""} value={movForm.contatosAtivos} onChange={(e) => setMovForm({ ...movForm, contatosAtivos: e.target.value })} />
             </div>
             </>)}
             {acaoLoteIds && previaLote && (
