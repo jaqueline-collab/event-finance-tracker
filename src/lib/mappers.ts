@@ -293,6 +293,7 @@ export const mapDbToMovimento = (r: any): Movimento => ({
   transcricaoIA: r.transcricao_ia,
   extras: r.extras,
   valorServico: r.valor_servico,
+  valorAcompanhamento: (r as { valor_acompanhamento?: number | null }).valor_acompanhamento ?? null,
   observacao: r.observacao,
 });
 
