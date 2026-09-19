@@ -1,10 +1,8 @@
 # Área do Parceiro: Histórico e Plano Atual separados, permissão em dois níveis
 
-## Parte 3 — resposta primeiro: como o "Total mensal da carteira" funciona hoje
+## Como o "Total mensal da carteira" funciona hoje (resposta)
 
-Confirmado, sem alterar nada: **é uma fotografia estática de preço de tabela de hoje**, não uma prévia do ciclo.
-
-A fórmula atual é, para cada cliente da carteira do parceiro:
+Hoje é uma **fotografia estática de preço de tabela**, não uma prévia do ciclo. Para cada cliente:
 
 ```text
 mensalidade = valor mensal do plano atual
@@ -17,15 +15,20 @@ mensalidade = valor mensal do plano atual
 Total mensal da carteira = soma dessas mensalidades
 ```
 
-Características importantes:
+- Usa sempre o preço atual do plano e os números atuais do cadastro.
+- Ignora o ciclo, o vencimento e o ciclo personalizado.
+- Ignora movimentações do ciclo em curso (troca de plano, rateio proporcional, ajuste de acompanhamento).
+- Soma todos os clientes da carteira, sem os filtros visuais da tela.
 
-- Usa **sempre o preço atual do plano** e os números atuais do cadastro do cliente (canais, usuários, MAU). Se o preço do plano mudar hoje, o número muda hoje.
-- **Não olha o ciclo**: ignora em que dia da competência estamos, data de vencimento e ciclo personalizado.
-- **Não olha movimentações do ciclo em curso**: troca de plano no meio do mês, cobrança proporcional e ajustes de acompanhamento feitos durante a competência não entram — só o estado final do cadastro entra.
-- **Não usa consumo incremental acumulado**: o excedente é calculado sobre o número que está no cadastro agora, não sobre o que foi consumido ao longo do mês.
-- Soma **todos os clientes da carteira**, sem filtrar por status na conta (o filtro da tela é só visual).
+## Parte 3 — o indicador passa a usar o cálculo por ciclo
 
-O que você quer (prévia real da fatura que vai fechar, com proporcionalidade e movimentações do ciclo) é diferente disso. O sistema **já tem** a máquina de cálculo por ciclo — a mesma usada no fechamento mensal, que respeita ciclo, troca de plano no meio do período e rateio proporcional —, ela simplesmente não é usada nesse indicador. Trocar o cálculo do indicador por essa máquina é viável, mas fica para uma etapa seguinte, depois da sua confirmação.
+O card deixa de usar essa fórmula estática e passa a usar a mesma máquina de cálculo do fechamento mensal, que respeita ciclo, vencimento, troca de plano no meio do período e rateio proporcional — em modo somente leitura, simulando o fechamento da competência em curso sem gravar nada.
+
+- Para cada cliente da carteira: valor projetado da competência atual considerando os movimentos já registrados dentro do ciclo.
+- Cliente sem movimento no ciclo: valor igual à mensalidade vigente, como hoje.
+- Rótulo do card passa a deixar claro que é uma prévia: **"Previsão da próxima fatura"**, com a legenda "competência em curso, atualizada em tempo real".
+- Continua somando os clientes ativos da carteira, sujeito aos filtros já existentes na tela (Todos/Ativos/Inativos e o período De/Até).
+
 
 ## Parte 1 — dois botões por cliente
 
