@@ -71,6 +71,8 @@ function movimentoToDb(mov: Movimento) {
       mov.valorAcompanhamento === undefined || mov.valorAcompanhamento === null
         ? null
         : mov.valorAcompanhamento,
+    parceiro_anterior_id: mov.parceiroAnteriorId ?? null,
+    parceiro_novo_id: mov.parceiroNovoId ?? null,
     observacao: mov.observacao || null,
   };
 }
