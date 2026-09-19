@@ -1,4 +1,4 @@
-import type { Cliente, Movimento } from "../types";
+import type { Cliente, Movimento, Plano } from "../types";
 
 export type MovimentoLike = Omit<Movimento, "id"> & { id?: string };
 
@@ -10,10 +10,19 @@ export type MovimentoLike = Omit<Movimento, "id"> & { id?: string };
 export function calcularPatchMovimento(
   cliente: Cliente,
   m: MovimentoLike,
+  planos?: Plano[],
 ): Partial<Cliente> {
   const patch: Partial<Cliente> = {};
   if (m.tipo === "churn") patch.dataChurn = m.data;
-  if (m.planoId !== undefined && m.planoId !== null) patch.planoId = m.planoId;
+  if (m.planoId !== undefined && m.planoId !== null) {
+    patch.planoId = m.planoId;
+    // Troca de plano: cliente sem acompanhamento próprio herda o valor padrão
+    // do plano novo (mesma regra do cadastro). Quem já tem valor nunca é tocado.
+    if (planos && m.planoId !== cliente.planoId && !(cliente.valorAcompanhamento > 0)) {
+      const planoNovo = planos.find((p) => p.id === m.planoId);
+      patch.valorAcompanhamento = planoNovo?.valorAcompanhamento ?? 0;
+    }
+  }
 
   // Upgrade/Downgrade: campos numéricos são DELTAS (ex.: -1, +2),
   // somados ao valor atual do cliente. Booleanos representam o estado final.
@@ -61,6 +70,7 @@ export function calcularPatchMovimento(
 export function aplicarMovimentoNoCliente(
   cliente: Cliente,
   m: MovimentoLike,
+  planos?: Plano[],
 ): Cliente {
-  return { ...cliente, ...calcularPatchMovimento(cliente, m) };
+  return { ...cliente, ...calcularPatchMovimento(cliente, m, planos) };
 }
