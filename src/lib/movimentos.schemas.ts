@@ -23,6 +23,7 @@ const movimentoRowSchema = z.object({
   transcricao_ia: z.boolean().nullable().optional(),
   extras: z.unknown().optional(),
   valor_servico: z.number().nullable().optional(),
+  valor_acompanhamento: z.number().nullable().optional(),
   observacao: z.string().nullable().optional(),
 });
 

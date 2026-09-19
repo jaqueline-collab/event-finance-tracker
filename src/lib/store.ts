@@ -67,6 +67,10 @@ function movimentoToDb(mov: Movimento) {
     transcricao_ia: mov.transcricaoIA || null,
     extras: mov.extras || null,
     valor_servico: mov.valorServico || null,
+    valor_acompanhamento:
+      mov.valorAcompanhamento === undefined || mov.valorAcompanhamento === null
+        ? null
+        : mov.valorAcompanhamento,
     observacao: mov.observacao || null,
   };
 }

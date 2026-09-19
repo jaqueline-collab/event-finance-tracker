@@ -14,6 +14,12 @@ export function calcularPatchMovimento(
 ): Partial<Cliente> {
   const patch: Partial<Cliente> = {};
   if (m.tipo === "churn") patch.dataChurn = m.data;
+  // Valor de acompanhamento informado explicitamente no movimento tem precedência
+  // sobre a herança automática do plano (ajuste direto ou escolha na troca de plano).
+  const acompExplicito =
+    m.valorAcompanhamento !== undefined && m.valorAcompanhamento !== null
+      ? Math.max(0, m.valorAcompanhamento)
+      : null;
   if (m.planoId !== undefined && m.planoId !== null) {
     patch.planoId = m.planoId;
     // Troca de plano: cliente sem acompanhamento próprio herda o valor padrão

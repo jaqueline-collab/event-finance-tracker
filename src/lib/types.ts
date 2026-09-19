@@ -108,7 +108,8 @@ export type TipoMovimento =
   | "upgrade"
   | "downgrade"
   | "churn"
-  | "servico";
+  | "servico"
+  | "acompanhamento";
 
 export interface Cliente {
   id: string;
@@ -172,6 +173,8 @@ export interface Movimento {
   transcricaoIA?: boolean;
   extras?: Record<string, number>;
   valorServico?: number;
+  /** Novo valor de acompanhamento mensal aplicado ao cliente por este movimento. */
+  valorAcompanhamento?: number | null;
   observacao?: string;
 }
 
