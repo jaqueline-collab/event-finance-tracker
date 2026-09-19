@@ -42,3 +42,13 @@
 - A pergunta individual só renderiza quando `movForm.planoId` está preenchido e `cliente.valorAcompanhamento > 0`; a de lote quando algum `acaoLoteIds` atende a condição.
 - O rótulo do novo tipo entra em `tiposMovimento`, usado tanto na lista de histórico do cliente quanto na Área do Parceiro (`src/routes/parceiro.tsx` lê o mesmo dado de movimentos).
 - Nenhum fechamento, lançamento financeiro ou dado existente é alterado.
+
+## 4. Visibilidade do valor para o parceiro (trava confirmada)
+
+Confirmado no código: a área do parceiro (`src/lib/parceiro.functions.ts`) lê os movimentos com uma lista fechada de colunas, sem nenhum campo de valor, e a "Composição cobrada" só é montada quando `parceiro_ve_valores()` é verdadeiro. O novo ajuste segue a mesma trava:
+
+- A coluna nova `valor_acompanhamento` de `elora_movimentos` **não** entra no `select` do painel do parceiro. Parceiro sem permissão vê apenas data, tipo e observação — nunca o R$.
+- Quando o parceiro tem permissão de ver valores, o ajuste aparece dentro da "Composição cobrada" já existente, como hoje, sem caminho paralelo.
+- O histórico exibe o rótulo "Ajuste de acompanhamento" em vez do código cru do tipo, sem valor ao lado.
+- Observação: o campo livre "Observação" é digitado por você e é exibido ao parceiro — se o valor for escrito ali manualmente, ele fica visível. O valor gravado no campo próprio nunca vaza.
+- Validação extra: abrir o histórico como parceiro sem permissão de valores e confirmar que o ajuste aparece sem nenhum R$; repetir com permissão ligada e conferir a composição.
