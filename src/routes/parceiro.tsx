@@ -480,18 +480,70 @@ function AreaParceiro() {
                 )}
               </div>
 
-              {veValores && "totalCarteira" in (dados ?? {}) && (
+              {veValores && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Previsão da próxima fatura
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold">{brl((dados as any)?.totalCarteira ?? 0)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        competência em curso, atualizada em tempo real
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total cobrado pelo sistema
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalLicenca ?? 0)}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total de acompanhamento
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalAcompanhamento ?? 0)}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total de excedentes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalExcedentes ?? 0)}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {!veValores && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-xs font-medium text-muted-foreground">
-                      Total mensal da carteira
+                      Previsão da próxima fatura
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="text-2xl font-semibold">
-                    {brl((dados as any).totalCarteira ?? 0)}
+                  <CardContent>
+                    <p className="text-2xl font-semibold">{brl((dados as any)?.totalCarteira ?? 0)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      competência em curso, atualizada em tempo real
+                    </p>
                   </CardContent>
                 </Card>
               )}
+
 
               <Card>
                 <CardHeader>
