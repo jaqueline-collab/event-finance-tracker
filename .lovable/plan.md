@@ -104,5 +104,7 @@ Só aparecem quando o parceiro tem permissão de composição. Sem essa permiss�
 - Cliente sem movimento no ciclo atual: o card bate com a mensalidade vigente.
 - Cliente com troca de plano ou ajuste de acompanhamento no ciclo: o card reflete a mudança/proporcionalidade.
 - Conferir que a simulação não gera nenhum fechamento nem altera dados existentes.
+- Trocar o ano no seletor do gráfico: sempre 12 barras de janeiro a dezembro daquele ano, sem sofrer com o De/Até do topo; mudar o De/Até e confirmar que só tabela e cards reagem.
+- Parceiro com permissão: os três blocos aparecem e Licença + Acompanhamento + Excedentes batem com a previsão. Parceiro sem permissão: os blocos não aparecem em nenhuma hipótese.
 - Celular, tablet e computador, temas claro e escuro.
 - Testes e verificação de tipos rodando limpos; nenhum dado financeiro alterado.
