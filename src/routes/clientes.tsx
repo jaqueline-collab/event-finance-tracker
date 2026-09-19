@@ -1839,7 +1839,7 @@ function ClientesPage() {
               <Input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} placeholder="Detalhe opcional do movimento" />
             </div>
             
-            {!acaoLoteIds && (
+            {!acaoLoteIds && !soAcompanhamento && (
             <div className="grid grid-cols-2 md:col-span-3 gap-4 border-t border-border pt-4 mt-2">
               {!movPermiteModulos && (
                 <p className="col-span-2 text-xs text-muted-foreground">
