@@ -223,6 +223,7 @@ function ClientesPage() {
         ? chosen.parceiroIds[0]
         : "";
       const zapiInclusos = chosen ? (typeof chosen.incluiZapi === "number" ? chosen.incluiZapi : (chosen.incluiZapi ? 1 : 0)) : 0;
+      const permite = chosen?.permiteModulosOpcionais !== false;
       return {
         ...prev,
         planoId,
@@ -231,11 +232,14 @@ function ClientesPage() {
         canais: chosen?.canaisInclusos ?? 1,
         usuariosAtivos: chosen?.usuariosInclusos ?? 3,
         contatosAtivos: chosen?.contatosInclusos ?? 500,
-        agentesIA: chosen?.incluiIA ?? false,
-        asaas: chosen?.incluiAsaas ?? false,
-        zapi: zapiInclusos > 0,
-        canaisZapi: zapiInclusos > 0 ? zapiInclusos : prev.canaisZapi,
-        transcricaoIA: chosen?.incluiTranscricao ?? false,
+        // Acompanhamento padrão do plano — só preenche quando o cliente ainda não tem valor próprio.
+        valorAcompanhamento: prev.valorAcompanhamento > 0 ? prev.valorAcompanhamento : (chosen?.valorAcompanhamento ?? 0),
+        // Plano sem módulos opcionais: nada é ativado, mas o que já estava marcado não é removido.
+        agentesIA: permite ? (chosen?.incluiIA ?? false) : prev.agentesIA,
+        asaas: permite ? (chosen?.incluiAsaas ?? false) : prev.asaas,
+        zapi: permite ? zapiInclusos > 0 : prev.zapi,
+        canaisZapi: permite && zapiInclusos > 0 ? zapiInclusos : prev.canaisZapi,
+        transcricaoIA: permite ? (chosen?.incluiTranscricao ?? false) : prev.transcricaoIA,
       };
     });
   };
