@@ -1646,6 +1646,7 @@ function ClientesPage() {
               <Label className="mb-1 block">Data da Ação</Label>
               <Input type="date" value={movForm.data} onChange={(e) => setMovForm({ ...movForm, data: e.target.value })} />
             </div>
+            {!soAcompanhamento && (
             <div>
               <Label className="mb-1 block">Novo Plano</Label>
               <Select value={movForm.planoId} onValueChange={(v) => setMovForm({ ...movForm, planoId: v })}>
@@ -1655,7 +1656,70 @@ function ClientesPage() {
                 </SelectContent>
               </Select>
             </div>
-            {movForm.planoId && (
+            )}
+            {soAcompanhamento && (
+              <div>
+                <Label className="mb-1 block" htmlFor="mov-acompanhamento">
+                  Novo valor de acompanhamento (R$)
+                </Label>
+                <Input
+                  id="mov-acompanhamento"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={movForm.valorAcompanhamento}
+                  onChange={(e) => setMovForm({ ...movForm, valorAcompanhamento: e.target.value })}
+                  placeholder="Ex: 250"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Ajusta apenas o acompanhamento mensal recorrente deste cliente. O plano não muda.
+                </p>
+              </div>
+            )}
+            {perguntaAcompIndividual && (
+              <div className="md:col-span-3">
+                <Label className="mb-1 block">
+                  Este cliente tem acompanhamento próprio ({formatBRL(clienteAcaoAtual?.valorAcompanhamento || 0)}). O que fazer?
+                </Label>
+                <Select
+                  value={movForm.acompanhamentoRegra}
+                  onValueChange={(v: "manter" | "padrao") => setMovForm({ ...movForm, acompanhamentoRegra: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manter">
+                      Manter o valor atual ({formatBRL(clienteAcaoAtual?.valorAcompanhamento || 0)})
+                    </SelectItem>
+                    <SelectItem value="padrao">
+                      Atualizar para o padrão do plano novo ({formatBRL(planoNovoMov?.valorAcompanhamento ?? 0)})
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {perguntaAcompLote && (
+              <div className="md:col-span-3">
+                <Label className="mb-1 block">
+                  {loteComAcompProprio.length} cliente(s) selecionado(s) têm acompanhamento próprio. O que fazer com esses valores?
+                </Label>
+                <Select
+                  value={movForm.acompanhamentoRegra}
+                  onValueChange={(v: "manter" | "padrao") => setMovForm({ ...movForm, acompanhamentoRegra: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manter">Manter o valor de cada cliente</SelectItem>
+                    <SelectItem value="padrao">
+                      Atualizar todos para o padrão do plano novo ({formatBRL(planoNovoMov?.valorAcompanhamento ?? 0)})
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Quem não tem valor próprio recebe o padrão do plano novo nos dois casos.
+                </p>
+              </div>
+            )}
+            {!soAcompanhamento && movForm.planoId && (
               <div>
                 <Label className="mb-1 block">Quando a mudança de plano entra em vigor?</Label>
                 <Select
