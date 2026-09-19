@@ -1,0 +1,1 @@
+ALTER TABLE public.elora_movimentos ADD COLUMN IF NOT EXISTS valor_acompanhamento numeric;

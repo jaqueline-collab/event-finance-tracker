@@ -940,6 +940,7 @@ export type Database = {
           transcricao_ia: boolean | null
           user_id: string
           usuarios_ativos: number | null
+          valor_acompanhamento: number | null
           valor_servico: number | null
           vigencia_plano: string | null
           zapi: boolean | null
@@ -967,6 +968,7 @@ export type Database = {
           transcricao_ia?: boolean | null
           user_id?: string
           usuarios_ativos?: number | null
+          valor_acompanhamento?: number | null
           valor_servico?: number | null
           vigencia_plano?: string | null
           zapi?: boolean | null
@@ -994,6 +996,7 @@ export type Database = {
           transcricao_ia?: boolean | null
           user_id?: string
           usuarios_ativos?: number | null
+          valor_acompanhamento?: number | null
           valor_servico?: number | null
           vigencia_plano?: string | null
           zapi?: boolean | null
