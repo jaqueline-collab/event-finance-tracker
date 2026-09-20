@@ -964,6 +964,7 @@ function AreaParceiro() {
               carregando={carregandoCalc}
               erro={erroCalc}
               planos={calculadora?.planos ?? []}
+              veValores={veValores}
             />
           )}
       </div>
