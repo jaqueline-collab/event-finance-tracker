@@ -866,12 +866,14 @@ function AreaParceiro() {
 const configuracaoInicial = (plano?: PlanoCalculadoraParceiro): ConfiguracaoCalculadoraParceiro => ({
   usuarios: plano?.usuariosInclusos ?? 1,
   canaisWhatsTotal: plano?.canaisWhatsInclusos ?? 0,
-  canaisWhatsOficiais: plano?.canaisWhatsInclusos ?? 0,
+  // API Oficial sempre começa em 0 — nunca herda valor anterior nem a franquia.
+  canaisWhatsOficiais: 0,
   canaisInsta: plano?.canaisInstaInclusos ?? 0,
   canaisMessenger: plano?.canaisMessengerInclusos ?? 0,
   agentesIA: Boolean(plano?.incluiIA),
   asaas: Boolean(plano?.incluiAsaas),
   transcricaoIA: Boolean(plano?.incluiTranscricao),
+  setup: 0,
 });
 
 function CalculadoraParceiro({
@@ -924,8 +926,10 @@ function CalculadoraParceiro({
   const mensalidadeBase = (resultado.itens[0]?.total ?? 0) + resultado.acompanhamento;
   const excedentes = resultado.itens.slice(1).reduce((s, i) => s + i.total, 0);
   const custoBase = mensalidadeBase + excedentes;
-  const valorMargem = calcularMargemParceiro(margem, custoBase, plano.valorSetup);
+  // Setup digitado pelo parceiro entra na base da margem só em "mensalidade + setup".
+  const valorMargem = calcularMargemParceiro(margem, custoBase, config.setup);
   const totalCobrar = custoBase + valorMargem;
+  const [licencaAberta, setLicencaAberta] = useState(false);
 
   const alterarNumero = (campo: keyof ConfiguracaoCalculadoraParceiro, valor: string) => {
     const numero = Math.max(0, Number(valor) || 0);
@@ -1019,6 +1023,17 @@ function CalculadoraParceiro({
                 />
               </div>
             ))}
+            <div className="space-y-2">
+              <Label htmlFor="calc-setup">Setup (R$) · opcional</Label>
+              <Input
+                id="calc-setup"
+                type="number"
+                min="0"
+                step="0.01"
+                value={String(config.setup)}
+                onChange={(e) => alterarNumero("setup", e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
@@ -1095,13 +1110,43 @@ function CalculadoraParceiro({
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md bg-muted p-3">
               <p className="text-xs text-muted-foreground">Setup</p>
-              <p className="mt-1 font-semibold tabular-nums">{brl(plano.valorSetup)}</p>
+              <p className="mt-1 font-semibold tabular-nums">{brl(config.setup)}</p>
             </div>
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-xs text-muted-foreground">Mensalidade base</p>
+            <button
+              type="button"
+              onClick={() => setLicencaAberta(true)}
+              className="rounded-md bg-muted p-3 text-left transition hover:bg-muted/70 focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+              title="O que inclui a licença base"
+            >
+              <p className="text-xs text-muted-foreground underline decoration-dotted underline-offset-2">Mensalidade base</p>
               <p className="mt-1 font-semibold tabular-nums">{brl(mensalidadeBase)}</p>
-            </div>
+            </button>
           </div>
+
+          <Dialog open={licencaAberta} onOpenChange={setLicencaAberta}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>O que inclui a licença base</DialogTitle>
+              </DialogHeader>
+              <ul className="list-disc space-y-2 pl-5 text-sm">
+                <li>{plano.usuariosInclusos} usuário(s) incluso(s).</li>
+                <li>
+                  Canais inclusos: {plano.canaisWhatsInclusos} WhatsApp, {plano.canaisInstaInclusos} Instagram,{" "}
+                  {plano.canaisMessengerInclusos} Messenger{plano.incluiZapi > 0 ? `, ${plano.incluiZapi} Z-API` : ""}.
+                </li>
+                <li>
+                  Conversas com até {plano.contatosInclusos.toLocaleString("pt-BR")} contatos únicos no mês.
+                  Excedente: {brl(plano.valorContatosExc)} por contato.
+                </li>
+                <li>Painéis e funis ilimitados.</li>
+                <li>Chatbots ilimitados.</li>
+                <li>
+                  Sequências: com sequências você automatiza follow-up, envia newsletters e faz campanhas de
+                  disparo em massa para sua base de contatos.
+                </li>
+              </ul>
+            </DialogContent>
+          </Dialog>
 
           <div className="space-y-2 text-sm">
             {resultado.itens.slice(1).map((item, indice) => (
