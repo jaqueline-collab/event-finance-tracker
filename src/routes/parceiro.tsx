@@ -1314,6 +1314,8 @@ function FinanceiroParceiro({
   dados: FinanceiroData | null;
   fechAberto: string | null;
   setFechAberto: (v: string | null) => void;
+  sub: "fechamentos" | "relatorios";
+  onSub: (v: "fechamentos" | "relatorios") => void;
 }) {
   const fnBaixar = useServerFn(baixarNotaFiscal);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
