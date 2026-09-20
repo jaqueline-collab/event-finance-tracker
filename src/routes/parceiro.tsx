@@ -144,6 +144,30 @@ const umAnoAtrasIso = () => {
   return d.toISOString().slice(0, 10);
 };
 
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Intervalo de datas de cada opção do seletor de período. */
+const intervaloPeriodo = (periodo: Periodo, de: string, ate: string) => {
+  const hoje = new Date();
+  if (periodo === "mes") {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    return { de: iso(ini), ate: iso(fim) };
+  }
+  if (periodo === "mesPassado") {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+    return { de: iso(ini), ate: iso(fim) };
+  }
+  if (periodo === "trimestre") {
+    // Últimos 3 meses corridos a partir de hoje.
+    const ini = new Date(hoje);
+    ini.setMonth(ini.getMonth() - 3);
+    return { de: iso(ini), ate: iso(hoje) };
+  }
+  return { de, ate };
+};
+
 const mediana = (valores: number[]) => {
   if (valores.length === 0) return 0;
   const ord = [...valores].sort((a, b) => a - b);
