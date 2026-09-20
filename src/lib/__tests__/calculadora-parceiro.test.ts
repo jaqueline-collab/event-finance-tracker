@@ -13,6 +13,7 @@ const plano: PlanoCalculadoraParceiro = {
   cobranca: "recorrente",
   valorMensal: 199.99,
   valorSetup: 0,
+  valorAcompanhamento: 0,
   canaisWhatsInclusos: 1,
   canaisInstaInclusos: 0,
   canaisMessengerInclusos: 1,
@@ -37,7 +38,6 @@ describe("Calculadora do parceiro", () => {
   it("reutiliza a composição oficial e calcula somente excedentes comerciais", () => {
     const resultado = calcularOrcamentoParceiro(plano, {
       usuarios: 5,
-      contatos: 5000,
       canaisWhatsTotal: 1,
       canaisWhatsOficiais: 1,
       canaisInsta: 0,
@@ -57,7 +57,6 @@ describe("Calculadora do parceiro", () => {
   it("cobra Z-API só sobre os números que não são API Oficial", () => {
     const config = {
       usuarios: 3,
-      contatos: 5000,
       canaisWhatsTotal: 3,
       canaisWhatsOficiais: 1,
       canaisInsta: 0,
