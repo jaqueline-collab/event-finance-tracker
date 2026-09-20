@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { montarFechamentosParceiro } from "@/lib/parceiro.financeiro";
+import { montarFechamentosParceiro, montarRelatorioParceiro } from "@/lib/parceiro.financeiro";
 
 /**
  * Cobertura dos 4 cenários exigidos para o Financeiro da Área do Parceiro.
