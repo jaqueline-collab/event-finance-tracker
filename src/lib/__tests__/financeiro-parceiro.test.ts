@@ -61,6 +61,7 @@ const itens = [
     valor_desconto: 59.5,
     valor_liquido: 600,
     payload_snapshot: snapshot,
+    lancamento_financeiro_id: "lanc-1",
   },
   {
     id: "it-2",
@@ -129,6 +130,25 @@ describe("Financeiro da Área do Parceiro", () => {
       "Acompanhamento",
       "MAU excedente (100)",
     ]);
+  });
+
+  it("5) vencimento, status e nota fiscal chegam na linha do parceiro", () => {
+    const [f] = montarFechamentosParceiro({
+      nomePorCliente,
+      cabecalhos,
+      itens,
+      statusPorLancamento: new Map([["lanc-1", "pago"]]),
+      notaPorLancamento: new Map([["lanc-1", "nota-1"]]),
+    });
+    expect(f.linhas[0].vencimento).toBe("2026-08-05");
+    expect(f.linhas[0].status).toBe("pago");
+    expect(f.linhas[0].notaId).toBe("nota-1");
+  });
+
+  it("6) lançamento sem status/nota não inventa botão de download", () => {
+    const [f] = montarFechamentosParceiro({ nomePorCliente, cabecalhos, itens });
+    expect(f.linhas[0].status).toBeNull();
+    expect(f.linhas[0].notaId).toBeNull();
   });
 
   it("4) nos 3 cenários o retorno nunca traz custo/margem/lucro/WTS/desconto de escala", () => {
