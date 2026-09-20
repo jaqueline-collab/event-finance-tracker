@@ -540,7 +540,16 @@ function AreaParceiro() {
                   </CardHeader>
                   <CardContent className="text-2xl font-semibold">{resumo.ativos}</CardContent>
                 </Card>
-                <Card>
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={indicador === "entradas"}
+                  onClick={() => alternarIndicador("entradas")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && alternarIndicador("entradas")}
+                  className={`cursor-pointer transition hover:border-primary/60 ${
+                    indicador === "entradas" ? "border-primary bg-primary/5 ring-1 ring-primary" : ""
+                  }`}
+                >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
                       <ArrowUpRight className="h-4 w-4" /> Entradas no período
@@ -548,7 +557,16 @@ function AreaParceiro() {
                   </CardHeader>
                   <CardContent className="text-2xl font-semibold">{resumo.entradas}</CardContent>
                 </Card>
-                <Card>
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={indicador === "saidas"}
+                  onClick={() => alternarIndicador("saidas")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && alternarIndicador("saidas")}
+                  className={`cursor-pointer transition hover:border-primary/60 ${
+                    indicador === "saidas" ? "border-primary bg-primary/5 ring-1 ring-primary" : ""
+                  }`}
+                >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
                       <ArrowDownRight className="h-4 w-4" /> Saídas no período
