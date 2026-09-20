@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { calcularOrcamentoParceiro, type PlanoCalculadoraParceiro } from "@/lib/parceiro.calculadora";
+import {
+  calcularMargemParceiro,
+  calcularOrcamentoParceiro,
+  canaisZapiDerivados,
+  type PlanoCalculadoraParceiro,
+} from "@/lib/parceiro.calculadora";
+
 
 const plano: PlanoCalculadoraParceiro = {
   id: "rabbit",
