@@ -758,7 +758,7 @@ function AreaParceiro() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {clientesFiltrados.length === 0 && (
+                      {clientesTabela.length === 0 && (
                         <TableRow>
                           <TableCell
                             colSpan={7 + (veValores ? 1 : 0) + (podeVerPainel ? 1 : 0)}
@@ -768,7 +768,7 @@ function AreaParceiro() {
                           </TableCell>
                         </TableRow>
                       )}
-                      {clientesFiltrados.map((c) => (
+                      {clientesTabela.map((c) => (
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.nome}</TableCell>
                           <TableCell>{c.plano}</TableCell>
