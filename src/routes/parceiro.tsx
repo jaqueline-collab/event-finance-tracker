@@ -1351,15 +1351,6 @@ function FinanceiroParceiro({
   }
 
   const fechamentos = dados?.fechamentos ?? [];
-  if (!dados?.habilitado || fechamentos.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Nenhum fechamento disponível para consulta no momento.
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (sub === "relatorios") {
     return (
@@ -1369,6 +1360,19 @@ function FinanceiroParceiro({
           itens={dados?.relatorioItens ?? []}
           veValores={Boolean(dados?.veValores)}
         />
+      </div>
+    );
+  }
+
+  if (!dados?.habilitado || fechamentos.length === 0) {
+    return (
+      <div className="space-y-4">
+        <AlternadorSub sub={sub} onSub={onSub} />
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Nenhum fechamento disponível para consulta no momento.
+          </CardContent>
+        </Card>
       </div>
     );
   }
