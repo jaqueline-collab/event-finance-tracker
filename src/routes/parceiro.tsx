@@ -675,9 +675,16 @@ function AreaParceiro() {
                               <Button variant="outline" size="sm" onClick={() => setAberto(c.id)}>
                                 <History className="mr-2 h-4 w-4" /> Histórico
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => setPlanoAberto(c.id)}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={Boolean(c.dataChurn)}
+                                title={c.dataChurn ? "Sem plano vigente" : undefined}
+                                onClick={() => !c.dataChurn && setPlanoAberto(c.id)}
+                              >
                                 <PackageOpen className="mr-2 h-4 w-4" /> Plano atual
                               </Button>
+
                             </div>
                           </TableCell>
                           {podeVerPainel && (
