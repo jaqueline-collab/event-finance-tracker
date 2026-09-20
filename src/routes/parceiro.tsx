@@ -858,7 +858,6 @@ function AreaParceiro() {
 
 const configuracaoInicial = (plano?: PlanoCalculadoraParceiro): ConfiguracaoCalculadoraParceiro => ({
   usuarios: plano?.usuariosInclusos ?? 1,
-  contatos: plano?.contatosInclusos ?? 0,
   canaisWhatsTotal: plano?.canaisWhatsInclusos ?? 0,
   canaisWhatsOficiais: plano?.canaisWhatsInclusos ?? 0,
   canaisInsta: plano?.canaisInstaInclusos ?? 0,
@@ -914,7 +913,8 @@ function CalculadoraParceiro({
 
   const resultado = calcularOrcamentoParceiro(plano, config);
   const zapiNaoOficiais = canaisZapiDerivados(config);
-  const mensalidadeBase = resultado.itens[0]?.total ?? 0;
+  // Mensalidade base = licença do plano + acompanhamento padrão, sem discriminar.
+  const mensalidadeBase = (resultado.itens[0]?.total ?? 0) + resultado.acompanhamento;
   const excedentes = resultado.itens.slice(1).reduce((s, i) => s + i.total, 0);
   const custoBase = mensalidadeBase + excedentes;
   const valorMargem = calcularMargemParceiro(margem, custoBase, plano.valorSetup);
@@ -936,7 +936,6 @@ function CalculadoraParceiro({
 
   const camposQuantidade: { campo: keyof ConfiguracaoCalculadoraParceiro; label: string }[] = [
     { campo: "usuarios", label: "Usuários" },
-    { campo: "contatos", label: "Contatos" },
     { campo: "canaisInsta", label: "Canais Instagram" },
     { campo: "canaisMessenger", label: "Canais Messenger" },
   ];
