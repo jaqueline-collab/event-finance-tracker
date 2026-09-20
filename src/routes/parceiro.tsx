@@ -8,6 +8,8 @@ import {
   getPainelParceiro,
   getPlanosCalculadoraParceiro,
 } from "@/lib/parceiro.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { baixarNotaFiscal, listarNotasParceiro } from "@/lib/notas-fiscais.functions";
 import {
   calcularMargemParceiro,
   calcularOrcamentoParceiro,
@@ -57,8 +59,10 @@ import {
   ArrowUpRight,
   ChevronDown,
   ChevronRight,
+  Download,
   ExternalLink,
   Eye,
+  FileText,
   GraduationCap,
   History,
   PackageOpen,
