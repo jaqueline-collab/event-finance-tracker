@@ -859,14 +859,13 @@ function AreaParceiro() {
 const configuracaoInicial = (plano?: PlanoCalculadoraParceiro): ConfiguracaoCalculadoraParceiro => ({
   usuarios: plano?.usuariosInclusos ?? 1,
   contatos: plano?.contatosInclusos ?? 0,
-  canaisWhats: plano?.canaisWhatsInclusos ?? 0,
+  canaisWhatsTotal: plano?.canaisWhatsInclusos ?? 0,
+  canaisWhatsOficiais: plano?.canaisWhatsInclusos ?? 0,
   canaisInsta: plano?.canaisInstaInclusos ?? 0,
   canaisMessenger: plano?.canaisMessengerInclusos ?? 0,
-  canaisZapi: plano?.incluiZapi ?? 0,
   agentesIA: Boolean(plano?.incluiIA),
   asaas: Boolean(plano?.incluiAsaas),
   transcricaoIA: Boolean(plano?.incluiTranscricao),
-  acompanhamento: 0,
 });
 
 function CalculadoraParceiro({
@@ -881,6 +880,11 @@ function CalculadoraParceiro({
   const [planoId, setPlanoId] = useState("");
   const plano = planos.find((p) => p.id === planoId) ?? planos[0];
   const [config, setConfig] = useState<ConfiguracaoCalculadoraParceiro>(() => configuracaoInicial());
+  const [margem, setMargem] = useState<MargemParceiro>({
+    tipo: "fixa",
+    valor: 0,
+    base: "mensalidade",
+  });
 
   useEffect(() => {
     if (!plano) return;
@@ -909,18 +913,32 @@ function CalculadoraParceiro({
   }
 
   const resultado = calcularOrcamentoParceiro(plano, config);
+  const zapiNaoOficiais = canaisZapiDerivados(config);
+  const mensalidadeBase = resultado.itens[0]?.total ?? 0;
+  const excedentes = resultado.itens.slice(1).reduce((s, i) => s + i.total, 0);
+  const custoBase = mensalidadeBase + excedentes;
+  const valorMargem = calcularMargemParceiro(margem, custoBase, plano.valorSetup);
+  const totalCobrar = custoBase + valorMargem;
+
   const alterarNumero = (campo: keyof ConfiguracaoCalculadoraParceiro, valor: string) => {
     const numero = Math.max(0, Number(valor) || 0);
-    setConfig((atual) => ({ ...atual, [campo]: numero }));
+    setConfig((atual) => {
+      const proximo = { ...atual, [campo]: numero };
+      if (campo === "canaisWhatsTotal") {
+        proximo.canaisWhatsOficiais = Math.min(atual.canaisWhatsOficiais, numero);
+      }
+      if (campo === "canaisWhatsOficiais") {
+        proximo.canaisWhatsOficiais = Math.min(numero, atual.canaisWhatsTotal);
+      }
+      return proximo;
+    });
   };
 
   const camposQuantidade: { campo: keyof ConfiguracaoCalculadoraParceiro; label: string }[] = [
     { campo: "usuarios", label: "Usuários" },
     { campo: "contatos", label: "Contatos" },
-    { campo: "canaisWhats", label: "Canais WhatsApp" },
     { campo: "canaisInsta", label: "Canais Instagram" },
     { campo: "canaisMessenger", label: "Canais Messenger" },
-    { campo: "canaisZapi", label: "Canais Z-API" },
   ];
 
   return (
@@ -946,6 +964,39 @@ function CalculadoraParceiro({
                 {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="rounded-md border border-border p-4">
+            <p className="mb-3 text-sm font-medium">WhatsApp</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="calc-whats-total">Quantos números vamos conectar?</Label>
+                <Input
+                  id="calc-whats-total"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={String(config.canaisWhatsTotal)}
+                  onChange={(e) => alterarNumero("canaisWhatsTotal", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="calc-whats-oficiais">Quantos desses são API Oficial?</Label>
+                <Input
+                  id="calc-whats-oficiais"
+                  type="number"
+                  min="0"
+                  max={String(config.canaisWhatsTotal)}
+                  step="1"
+                  value={String(config.canaisWhatsOficiais)}
+                  onChange={(e) => alterarNumero("canaisWhatsOficiais", e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {zapiNaoOficiais} número(s) via Z-API{" "}
+              {zapiNaoOficiais > 0 ? `· ${brl(plano.valorZapi)} por número não oficial` : ""}
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -980,16 +1031,51 @@ function CalculadoraParceiro({
             ))}
           </div>
 
-          <div className="max-w-xs space-y-2">
-            <Label htmlFor="calc-acompanhamento">Acompanhamento mensal</Label>
-            <Input
-              id="calc-acompanhamento"
-              type="number"
-              min="0"
-              step="0.01"
-              value={String(config.acompanhamento)}
-              onChange={(e) => alterarNumero("acompanhamento", e.target.value)}
-            />
+          <div className="rounded-md border border-border p-4">
+            <p className="mb-3 text-sm font-medium">Sua margem</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select
+                  value={margem.tipo}
+                  onValueChange={(v) => setMargem((m) => ({ ...m, tipo: v as MargemParceiro["tipo"] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixa">Valor fixo (R$)</SelectItem>
+                    <SelectItem value="percentual">Percentual (%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="calc-margem-valor">
+                  {margem.tipo === "percentual" ? "Percentual" : "Valor"}
+                </Label>
+                <Input
+                  id="calc-margem-valor"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={String(margem.valor)}
+                  onChange={(e) =>
+                    setMargem((m) => ({ ...m, valor: Math.max(0, Number(e.target.value) || 0) }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Aplicar sobre</Label>
+                <Select
+                  value={margem.base}
+                  onValueChange={(v) => setMargem((m) => ({ ...m, base: v as MargemParceiro["base"] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mensalidade">Só mensalidade</SelectItem>
+                    <SelectItem value="mensalidade_setup">Mensalidade + setup</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1007,38 +1093,41 @@ function CalculadoraParceiro({
             </div>
             <div className="rounded-md bg-muted p-3">
               <p className="text-xs text-muted-foreground">Mensalidade base</p>
-              <p className="mt-1 font-semibold tabular-nums">{brl(plano.valorMensal)}</p>
+              <p className="mt-1 font-semibold tabular-nums">{brl(mensalidadeBase)}</p>
             </div>
           </div>
 
           <div className="space-y-2 text-sm">
-            {resultado.itens.map((item, indice) => (
+            {resultado.itens.slice(1).map((item, indice) => (
               <div key={`${item.label}-${indice}`} className="flex items-start justify-between gap-4 border-b border-border/60 pb-2">
                 <div>
-                  <p>{item.label.startsWith("Licença base") ? "Mensalidade base" : item.label}</p>
+                  <p>{item.label}</p>
                   {item.incluso && <p className="text-xs text-muted-foreground">{item.incluso}</p>}
                   {item.qtd > 1 && <p className="text-xs text-muted-foreground">{item.qtd} × {brl(item.unit)}</p>}
                 </div>
                 <span className="shrink-0 tabular-nums">{brl(item.total)}</span>
               </div>
             ))}
-            {resultado.acompanhamento > 0 && (
-              <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
-                <span>Acompanhamento</span>
-                <span className="tabular-nums">{brl(resultado.acompanhamento)}</span>
-              </div>
-            )}
+            <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+              <span>Excedentes</span>
+              <span className="tabular-nums">{brl(excedentes)}</span>
+            </div>
+            <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+              <span>Margem aplicada</span>
+              <span className="tabular-nums">{brl(valorMargem)}</span>
+            </div>
           </div>
 
           <div className="flex items-end justify-between gap-4 border-t border-border pt-4">
-            <span className="font-medium">Total mensal estimado</span>
-            <span className="text-2xl font-semibold tabular-nums">{brl(resultado.total)}</span>
+            <span className="font-medium">Total a cobrar do cliente</span>
+            <span className="text-2xl font-semibold tabular-nums">{brl(totalCobrar)}</span>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
 
 function FinanceiroParceiro({
   carregando,
