@@ -965,6 +965,8 @@ function AreaParceiro() {
               dados={financeiro}
               fechAberto={fechAberto}
               setFechAberto={setFechAberto}
+              sub={sub}
+              onSub={(v) => navigate({ search: (s: any) => ({ ...s, sub: v }) })}
             />
           ) : (
             <CalculadoraParceiro
