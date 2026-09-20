@@ -30,15 +30,40 @@ export type PlanoCalculadoraParceiro = {
 export type ConfiguracaoCalculadoraParceiro = {
   usuarios: number;
   contatos: number;
-  canaisWhats: number;
+  /** Total de números WhatsApp que serão conectados. */
+  canaisWhatsTotal: number;
+  /** Quantos desses números são API Oficial (o restante vira Z-API). */
+  canaisWhatsOficiais: number;
   canaisInsta: number;
   canaisMessenger: number;
-  canaisZapi: number;
   agentesIA: boolean;
   asaas: boolean;
   transcricaoIA: boolean;
-  acompanhamento: number;
 };
+
+export type MargemParceiro = {
+  tipo: "fixa" | "percentual";
+  valor: number;
+  base: "mensalidade" | "mensalidade_setup";
+};
+
+/** Quantos números não oficiais viram Z-API. */
+export function canaisZapiDerivados(config: ConfiguracaoCalculadoraParceiro) {
+  return Math.max(0, config.canaisWhatsTotal - config.canaisWhatsOficiais);
+}
+
+/** Margem do parceiro aplicada sobre a base escolhida por ele. */
+export function calcularMargemParceiro(
+  margem: MargemParceiro,
+  mensalidade: number,
+  setup: number,
+) {
+  const base = margem.base === "mensalidade_setup" ? mensalidade + setup : mensalidade;
+  const valor =
+    margem.tipo === "percentual" ? (base * (margem.valor || 0)) / 100 : margem.valor || 0;
+  return Math.max(0, valor);
+}
+
 
 /** Usa a mesma regra comercial dos clientes, sem carregar campos de custo. */
 export function calcularOrcamentoParceiro(
@@ -73,6 +98,8 @@ export function calcularOrcamentoParceiro(
     parceiroIds: [],
   };
 
+  const canaisZapi = canaisZapiDerivados(config);
+
   const cliente: Cliente = {
     id: "simulacao",
     nome: "Simulação",
@@ -83,21 +110,22 @@ export function calcularOrcamentoParceiro(
     statusComercial: "ativo",
     apps: 0,
     mau: 0,
-    canais: config.canaisWhats + config.canaisInsta + config.canaisMessenger,
-    canaisWhats: config.canaisWhats,
+    canais: config.canaisWhatsTotal + config.canaisInsta + config.canaisMessenger,
+    canaisWhats: config.canaisWhatsTotal,
     canaisInsta: config.canaisInsta,
     canaisMessenger: config.canaisMessenger,
-    canaisZapi: config.canaisZapi,
+    canaisZapi,
     usuariosAtivos: config.usuarios,
     contatosAtivos: config.contatos,
     agentesIA: config.agentesIA,
     asaas: config.asaas,
-    zapi: config.canaisZapi > 0,
+    zapi: canaisZapi > 0,
     transcricaoIA: config.transcricaoIA,
     valorSetupPago: plano.valorSetup,
-    valorAcompanhamento: config.acompanhamento,
+    valorAcompanhamento: 0,
     extras: {},
   };
+
 
   return explicarReceitaCliente(cliente, [plano]);
 }
