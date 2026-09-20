@@ -9,7 +9,7 @@ import {
   getPlanosCalculadoraParceiro,
 } from "@/lib/parceiro.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { baixarNotaFiscal, listarNotasParceiro } from "@/lib/notas-fiscais.functions";
+import { baixarNotaFiscal } from "@/lib/notas-fiscais.functions";
 import {
   calcularMargemParceiro,
   calcularOrcamentoParceiro,
@@ -62,7 +62,6 @@ import {
   Download,
   ExternalLink,
   Eye,
-  FileText,
   GraduationCap,
   History,
   PackageOpen,
@@ -78,7 +77,7 @@ const ANO_INICIAL = 2026;
 
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
-  aba: fallback(z.enum(["clientes", "financeiro", "calculadora", "notas"]), "clientes").default("clientes"),
+  aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
   grafico: fallback(z.enum(["fluxo", "ativos"]), "fluxo").default("fluxo"),
   ano: fallback(z.number().int(), 0).default(0),
 });
@@ -312,7 +311,7 @@ function AreaParceiro() {
   }, [clientesFiltrados, anoGrafico]);
 
 
-  const irPara = (proxima: "clientes" | "financeiro" | "calculadora" | "notas") =>
+  const irPara = (proxima: "clientes" | "financeiro" | "calculadora") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
 
   const atalhosTopo = headerActionsTarget
@@ -380,14 +379,6 @@ function AreaParceiro() {
         onClick={() => irPara("calculadora")}
       >
         <Calculator className="mr-2 h-4 w-4" /> Calculadora
-      </Button>
-      <Button
-        variant={aba === "notas" ? "secondary" : "ghost"}
-        size="sm"
-        className="justify-start"
-        onClick={() => irPara("notas")}
-      >
-        <FileText className="mr-2 h-4 w-4" /> Notas Fiscais
       </Button>
     </nav>
   );
@@ -863,8 +854,6 @@ function AreaParceiro() {
               fechAberto={fechAberto}
               setFechAberto={setFechAberto}
             />
-          ) : aba === "notas" ? (
-            <NotasFiscaisParceiro parceiroId={dados?.parceiro.id ?? null} />
           ) : (
             <CalculadoraParceiro
               carregando={carregandoCalc}
@@ -907,6 +896,8 @@ function CalculadoraParceiro({
     valor: 0,
     base: "mensalidade",
   });
+  // Hook sempre no topo: abaixo há retornos antecipados (carregando/erro/sem plano).
+  const [licencaAberta, setLicencaAberta] = useState(false);
 
   useEffect(() => {
     if (!plano) return;
@@ -943,7 +934,6 @@ function CalculadoraParceiro({
   // Setup digitado pelo parceiro entra na base da margem só em "mensalidade + setup".
   const valorMargem = calcularMargemParceiro(margem, custoBase, config.setup);
   const totalCobrar = custoBase + valorMargem;
-  const [licencaAberta, setLicencaAberta] = useState(false);
 
   const alterarNumero = (campo: keyof ConfiguracaoCalculadoraParceiro, valor: string) => {
     const numero = Math.max(0, Number(valor) || 0);
@@ -1207,6 +1197,30 @@ function FinanceiroParceiro({
   fechAberto: string | null;
   setFechAberto: (v: string | null) => void;
 }) {
+  const fnBaixar = useServerFn(baixarNotaFiscal);
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
+
+  const baixarNota = async (notaId: string) => {
+    setBaixandoId(notaId);
+    try {
+      const r = await fnBaixar({ data: { notaId } });
+      const binario = atob(r.conteudoBase64);
+      const bytes = new Uint8Array(binario.length);
+      for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+      const blob = new Blob([bytes], { type: r.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = r.nomeArquivo;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível baixar a nota.");
+    } finally {
+      setBaixandoId(null);
+    }
+  };
+
   if (carregando) return <Skeleton className="h-64 w-full" />;
   if (erro) {
     return (
@@ -1252,9 +1266,12 @@ function FinanceiroParceiro({
                       <TableHead>Cliente</TableHead>
                       <TableHead>Composição cobrada</TableHead>
                       <TableHead>Ciclo</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Bruto</TableHead>
                       <TableHead className="text-right">Desconto</TableHead>
                       <TableHead className="text-right">Líquido</TableHead>
+                      <TableHead className="w-[64px] text-center">NF</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1276,16 +1293,44 @@ function FinanceiroParceiro({
                             ? `${dataBr(l.cicloInicio)} → ${dataBr(l.cicloFim)}`
                             : "—"}
                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {l.vencimento ? dataBr(l.vencimento) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {l.status ? (
+                            <Badge variant={l.status === "pago" ? "secondary" : "outline"} className="text-[10px] capitalize">
+                              {l.status === "pago" ? "Pago" : "Pendente"}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">{brl(l.valorBruto)}</TableCell>
                         <TableCell className="text-right tabular-nums">{brl(l.valorDesconto)}</TableCell>
                         <TableCell className="text-right font-medium tabular-nums">{brl(l.valorLiquido)}</TableCell>
+                        <TableCell className="text-center">
+                          {l.notaId ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Baixar nota fiscal de ${l.clienteNome}`}
+                              disabled={baixandoId === l.notaId}
+                              onClick={() => void baixarNota(l.notaId!)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={3} className="font-medium">Total da sua carteira</TableCell>
+                      <TableCell colSpan={5} className="font-medium">Total da sua carteira</TableCell>
                       <TableCell className="text-right tabular-nums">{brl(f.totalBruto)}</TableCell>
                       <TableCell className="text-right tabular-nums">{brl(f.totalDesconto)}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{brl(f.totalLiquido)}</TableCell>
+                      <TableCell />
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -1295,110 +1340,5 @@ function FinanceiroParceiro({
         );
       })}
     </div>
-  );
-}
-
-function NotasFiscaisParceiro({ parceiroId }: { parceiroId: string | null }) {
-  const fnListar = useServerFn(listarNotasParceiro);
-  const fnBaixar = useServerFn(baixarNotaFiscal);
-  const [notas, setNotas] = useState<Array<{
-    id: string; nomeArquivo: string; competencia: string | null; valorTotal: number;
-    criadoEm: string; lancamentoIds: string[];
-  }>>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
-  const [baixandoId, setBaixandoId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCarregando(true);
-    fnListar({ data: { parceiroId: parceiroId ?? undefined } })
-      .then((r) => { setNotas(r.notas); setErro(null); })
-      .catch((e) => setErro(e instanceof Error ? e.message : "Não foi possível carregar as notas."))
-      .finally(() => setCarregando(false));
-  }, [parceiroId]);
-
-  const baixar = async (notaId: string) => {
-    setBaixandoId(notaId);
-    try {
-      const r = await fnBaixar({ data: { notaId } });
-      const binario = atob(r.conteudoBase64);
-      const bytes = new Uint8Array(binario.length);
-      for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
-      const blob = new Blob([bytes], { type: r.mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = r.nomeArquivo;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível baixar a nota.");
-    } finally {
-      setBaixandoId(null);
-    }
-  };
-
-  if (carregando) return <Skeleton className="h-40 w-full" />;
-  if (erro) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Não foi possível carregar as notas fiscais</AlertTitle>
-        <AlertDescription>{erro}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Notas Fiscais</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {notas.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Nenhuma nota fiscal anexada aos seus clientes até o momento.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Arquivo</TableHead>
-                <TableHead>Competência</TableHead>
-                <TableHead>Lançamentos</TableHead>
-                <TableHead className="text-right">Valor total</TableHead>
-                <TableHead className="w-[56px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {notas.map((n) => (
-                <TableRow key={n.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      {n.nomeArquivo}
-                    </div>
-                  </TableCell>
-                  <TableCell>{n.competencia ?? "—"}</TableCell>
-                  <TableCell>{n.lancamentoIds.length}</TableCell>
-                  <TableCell className="text-right">{brl(n.valorTotal)}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Baixar ${n.nomeArquivo}`}
-                      disabled={baixandoId === n.id}
-                      onClick={() => void baixar(n.id)}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
   );
 }

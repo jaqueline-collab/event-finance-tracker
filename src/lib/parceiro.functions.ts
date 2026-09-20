@@ -489,7 +489,7 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
     const itensRes = await (supabaseAdmin as any)
       .from("elora_fechamento_itens")
       .select(
-        "id, fechamento_id, cliente_id, ciclo_inicio, ciclo_fim, vencimento, valor_bruto, valor_desconto, valor_liquido, payload_snapshot",
+        "id, fechamento_id, cliente_id, ciclo_inicio, ciclo_fim, vencimento, valor_bruto, valor_desconto, valor_liquido, payload_snapshot, lancamento_financeiro_id",
       )
       .in("cliente_id", ids);
     if (itensRes.error) throw new Error(`fechamento-itens: ${itensRes.error.message}`);
@@ -507,10 +507,39 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
 
     const cabecalhos = (fechRes.data ?? []) as any[];
 
+    // Status do lançamento e nota fiscal anexada — só dos lançamentos deste parceiro.
+    const lancamentoIds = [
+      ...new Set(
+        itensRows
+          .map((i) => i.lancamento_financeiro_id)
+          .filter((v): v is string => Boolean(v))
+          .map(String),
+      ),
+    ];
+    const statusPorLancamento = new Map<string, string>();
+    const notaPorLancamento = new Map<string, string>();
+    if (lancamentoIds.length > 0) {
+      const [finRes, nfRes] = await Promise.all([
+        (supabaseAdmin as any).from("elora_financeiro").select("id, status").in("id", lancamentoIds),
+        (supabaseAdmin as any)
+          .from("elora_nota_fiscal_lancamentos")
+          .select("lancamento_id, nota_id")
+          .in("lancamento_id", lancamentoIds),
+      ]);
+      for (const l of ((finRes.data ?? []) as any[])) {
+        if (l.status) statusPorLancamento.set(String(l.id), String(l.status));
+      }
+      for (const v of ((nfRes.data ?? []) as any[])) {
+        notaPorLancamento.set(String(v.lancamento_id), String(v.nota_id));
+      }
+    }
+
     const fechamentos = montarFechamentosParceiro({
       nomePorCliente,
       cabecalhos,
       itens: itensRows as Record<string, unknown>[],
+      statusPorLancamento,
+      notaPorLancamento,
     });
 
     return {
