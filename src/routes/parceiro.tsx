@@ -1308,6 +1308,8 @@ function FinanceiroParceiro({
   dados,
   fechAberto,
   setFechAberto,
+  sub,
+  onSub,
 }: {
   carregando: boolean;
   erro: string | null;
