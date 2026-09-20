@@ -54,7 +54,8 @@ Alternador no topo da aba Financeiro: **Fechamentos** (o que já existe) e **Rel
 ## Detalhes técnicos
 
 **`src/lib/parceiro.financeiro.ts`**
-- `LinhaFechamentoParceiro` perde `notaId`; `FechamentoParceiro` ganha `cicloInicio`, `cicloFim`, `vencimento` e `notaId`, derivados dos itens do próprio parceiro (menor `ciclo_inicio`, maior `ciclo_fim`, vencimento predominante, primeira nota encontrada em `notaPorLancamento`). `status` por linha permanece.
+- `LinhaFechamentoParceiro` perde `notaId`; `FechamentoParceiro` ganha `cicloInicio`, `cicloFim`, `vencimento`, `vencimentosDivergentes: boolean` e `notaId`, derivados dos itens do próprio parceiro (menor `ciclo_inicio`, maior `ciclo_fim`, primeira nota encontrada em `notaPorLancamento`). `status` por linha permanece.
+- Vencimento do fechamento: quando todos os itens têm a mesma data, mostra a data. Quando há datas diferentes, `vencimentosDivergentes` fica verdadeiro e a linha mostra a **mais próxima** seguida de "(+N datas)", com as datas completas na dica ao passar o mouse — nada de escolher uma "predominante" e esconder o resto. Cada linha de cliente continua mostrando seu próprio vencimento ao expandir.
 - Novo tipo `RelatorioParceiro` com `pagoPorMes`, `totalSistema`, `totalAcompanhamento`, `ticketMedio`, `reducoes`, `aumentos`, montado por função pura `montarRelatorioParceiro(...)` — lista branca: nada de custo WTS, margem, lucro ou desconto de escala.
 
 **`src/lib/parceiro.functions.ts`**
