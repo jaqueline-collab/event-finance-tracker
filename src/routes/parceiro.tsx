@@ -1511,7 +1511,7 @@ function AlternadorSub({
   );
 }
 
-const CORES_PIZZA = ["hsl(var(--primary))", "hsl(var(--muted-foreground))"];
+const CORES_PIZZA = ["var(--chart-2)", "var(--chart-4)"];
 
 function RelatoriosParceiro({
   itens,
@@ -1581,11 +1581,11 @@ function RelatoriosParceiro({
         <CardContent className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={relatorio.pagoPorMes}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="chave" tickFormatter={mesLabel} fontSize={12} />
-              <YAxis fontSize={12} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="chave" tickFormatter={mesLabel} stroke="var(--muted-foreground)" fontSize={12} />
+              <YAxis stroke="var(--muted-foreground)" fontSize={12} />
               <Tooltip formatter={(v: any) => brl(Number(v))} labelFormatter={(l: any) => mesLabel(String(l))} />
-              <Bar dataKey="total" name="Pago" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" name="Pago" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
