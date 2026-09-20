@@ -401,6 +401,11 @@ function FinanceiroPage() {
                           ? <FileCheck2 className="h-3.5 w-3.5 text-fin" />
                           : <FileX2 className="h-3.5 w-3.5 text-muted-foreground" />}
                         {l.nfNumero && <span className="text-[10px] text-muted-foreground">#{l.nfNumero}</span>}
+                        {vinculosNf[l.id] && (
+                          <Badge variant="outline" className="text-[10px] text-fin border-fin/40" title={vinculosNf[l.id].nomeArquivo}>
+                            Anexada
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -418,7 +423,7 @@ function FinanceiroPage() {
                 );
               })}
               {filtrados.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum lançamento. Clique em "Importar fechamentos" ou "Novo lançamento" para começar.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum lançamento. Clique em "Importar fechamentos" ou "Novo lançamento" para começar.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
