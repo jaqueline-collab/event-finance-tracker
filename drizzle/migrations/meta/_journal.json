@@ -120,6 +120,13 @@
       "when": 1789864857683,
       "tag": "0016_plano_ativo",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789867106324,
+      "tag": "0017_notas_fiscais",
+      "breakpoints": true
     }
   ]
 }

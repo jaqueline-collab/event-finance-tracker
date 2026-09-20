@@ -1009,6 +1009,102 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_nota_fiscal_lancamentos: {
+        Row: {
+          created_at: string
+          id: string
+          lancamento_id: string
+          nota_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lancamento_id: string
+          nota_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lancamento_id?: string
+          nota_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_nota_fiscal_lancamentos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "elora_financeiro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "elora_nota_fiscal_lancamentos_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "elora_notas_fiscais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_notas_fiscais: {
+        Row: {
+          cliente_id: string | null
+          competencia: string | null
+          created_at: string
+          criado_por: string | null
+          drive_file_id: string
+          drive_folder_id: string
+          escopo: string
+          id: string
+          mime_type: string | null
+          nome_arquivo: string
+          parceiro_id: string | null
+          valor_total: number
+        }
+        Insert: {
+          cliente_id?: string | null
+          competencia?: string | null
+          created_at?: string
+          criado_por?: string | null
+          drive_file_id: string
+          drive_folder_id: string
+          escopo: string
+          id?: string
+          mime_type?: string | null
+          nome_arquivo: string
+          parceiro_id?: string | null
+          valor_total?: number
+        }
+        Update: {
+          cliente_id?: string | null
+          competencia?: string | null
+          created_at?: string
+          criado_por?: string | null
+          drive_file_id?: string
+          drive_folder_id?: string
+          escopo?: string
+          id?: string
+          mime_type?: string | null
+          nome_arquivo?: string
+          parceiro_id?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_notas_fiscais_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "elora_notas_fiscais_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "elora_parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_notificacoes: {
         Row: {
           cliente_id: string | null

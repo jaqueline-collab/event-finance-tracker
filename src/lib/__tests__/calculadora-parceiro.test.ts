@@ -40,6 +40,7 @@ describe("Calculadora do parceiro", () => {
       usuarios: 5,
       canaisWhatsTotal: 1,
       canaisWhatsOficiais: 1,
+      setup: 0,
       canaisInsta: 0,
       canaisMessenger: 1,
       agentesIA: false,
@@ -61,6 +62,7 @@ describe("Calculadora do parceiro", () => {
         usuarios: 3,
         canaisWhatsTotal: 1,
         canaisWhatsOficiais: 1,
+        setup: 0,
         canaisInsta: 0,
         canaisMessenger: 1,
         agentesIA: false,
@@ -79,6 +81,7 @@ describe("Calculadora do parceiro", () => {
       usuarios: 4,
       canaisWhatsTotal: 1,
       canaisWhatsOficiais: 1,
+      setup: 0,
       canaisInsta: 0,
       canaisMessenger: 1,
       agentesIA: false,
@@ -96,6 +99,7 @@ describe("Calculadora do parceiro", () => {
       usuarios: 3,
       canaisWhatsTotal: 3,
       canaisWhatsOficiais: 1,
+      setup: 0,
       canaisInsta: 0,
       canaisMessenger: 1,
       agentesIA: false,
@@ -117,6 +121,14 @@ describe("Calculadora do parceiro", () => {
     expect(
       calcularMargemParceiro({ tipo: "percentual", valor: 10, base: "mensalidade_setup" }, 500, 200),
     ).toBeCloseTo(70, 2);
+  });
+
+  it("o setup da proposta só entra na margem quando a base é mensalidade + setup", () => {
+    const margem = { tipo: "percentual", valor: 20, base: "mensalidade" } as const;
+    expect(calcularMargemParceiro({ ...margem }, 1000, 400)).toBeCloseTo(200, 2);
+    expect(
+      calcularMargemParceiro({ ...margem, base: "mensalidade_setup" }, 1000, 400),
+    ).toBeCloseTo(280, 2);
   });
 
   it("o contrato público não contém campos de custo, margem, lucro ou WTS", () => {

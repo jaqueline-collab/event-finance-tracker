@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
@@ -19,8 +22,9 @@ import {
   obterVencimentoDaCompetencia,
   mensagemErroPersistencia,
 } from "@/lib/store";
+import { anexarNotaFiscal, listarVinculosNotas } from "@/lib/notas-fiscais.functions";
 import type { LancamentoFinanceiro, StatusFinanceiro, TipoFinanceiro } from "@/lib/types";
-import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/financeiro")({
@@ -61,6 +65,73 @@ function FinanceiroPage() {
   const [form, setForm] = useState<Omit<LancamentoFinanceiro, "id">>(empty);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Seleção em massa para anexar NF (um arquivo cobrindo vários lançamentos)
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [dialogNfAberto, setDialogNfAberto] = useState(false);
+  const [anexandoNf, setAnexandoNf] = useState(false);
+  const [arquivoNf, setArquivoNf] = useState<File | null>(null);
+  const inputArquivoRef = useRef<HTMLInputElement | null>(null);
+  const [vinculosNf, setVinculosNf] = useState<Record<string, { notaId: string; nomeArquivo: string }>>({});
+  const fnAnexarNf = useServerFn(anexarNotaFiscal);
+  const fnListarVinculos = useServerFn(listarVinculosNotas);
+
+  const recarregarVinculos = () => {
+    fnListarVinculos()
+      .then((r) => setVinculosNf(r.porLancamento))
+      .catch(() => {});
+  };
+  useEffect(recarregarVinculos, []);
+
+  const alternarSelecao = (id: string, marcado: boolean) => {
+    setSelecionados((prev) => {
+      const prox = new Set(prev);
+      if (marcado) prox.add(id);
+      else prox.delete(id);
+      return prox;
+    });
+  };
+
+  const enviarNf = async () => {
+    if (!arquivoNf) {
+      toast.error("Escolha o arquivo da nota fiscal antes de enviar.");
+      return;
+    }
+    if (arquivoNf.size > 10 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máx. 10 MB).");
+      return;
+    }
+    setAnexandoNf(true);
+    try {
+      const buf = await arquivoNf.arrayBuffer();
+      let binario = "";
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binario += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      }
+      await fnAnexarNf({
+        data: {
+          lancamentoIds: [...selecionados],
+          nomeArquivo: arquivoNf.name,
+          mimeType: arquivoNf.type || "application/pdf",
+          conteudoBase64: btoa(binario),
+        },
+      });
+      toast.success(
+        selecionados.size > 1
+          ? `NF anexada a ${selecionados.size} lançamentos.`
+          : "NF anexada ao lançamento.",
+      );
+      setSelecionados(new Set());
+      setArquivoNf(null);
+      setDialogNfAberto(false);
+      recarregarVinculos();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message.replace(/^.*?acesso-negado/, "Acesso negado") : "Não foi possível anexar a NF.");
+    } finally {
+      setAnexandoNf(false);
+    }
+  };
 
   const startNew = () => {
     setEditId(null);
@@ -249,13 +320,23 @@ function FinanceiroPage() {
       {/* Tabela */}
       <Card className="border-border/60">
         <CardHeader>
-          <CardTitle>Lançamentos</CardTitle>
-          <CardDescription>Toque em um lançamento para alterar o status ou marcar a emissão da NF.</CardDescription>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle>Lançamentos</CardTitle>
+              <CardDescription>Toque em um lançamento para alterar o status ou marcar a emissão da NF.</CardDescription>
+            </div>
+            {selecionados.size > 0 && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => { setArquivoNf(null); setDialogNfAberto(true); }}>
+                <FileUp className="h-4 w-4" /> Anexar NF ({selecionados.size})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[36px]"></TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Competência</TableHead>
@@ -272,6 +353,15 @@ function FinanceiroPage() {
                 const StatusIcon = s.Icon;
                 return (
                   <TableRow key={l.id}>
+                    <TableCell>
+                      {l.tipo === "fechamento" && (
+                        <Checkbox
+                          checked={selecionados.has(l.id)}
+                          onCheckedChange={(v) => alternarSelecao(l.id, v === true)}
+                          aria-label="Selecionar lançamento"
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
                         <span>{l.descricao}</span>
@@ -311,6 +401,11 @@ function FinanceiroPage() {
                           ? <FileCheck2 className="h-3.5 w-3.5 text-fin" />
                           : <FileX2 className="h-3.5 w-3.5 text-muted-foreground" />}
                         {l.nfNumero && <span className="text-[10px] text-muted-foreground">#{l.nfNumero}</span>}
+                        {vinculosNf[l.id] && (
+                          <Badge variant="outline" className="text-[10px] text-fin border-fin/40" title={vinculosNf[l.id].nomeArquivo}>
+                            Anexada
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -328,7 +423,7 @@ function FinanceiroPage() {
                 );
               })}
               {filtrados.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum lançamento. Clique em "Importar fechamentos" ou "Novo lançamento" para começar.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum lançamento. Clique em "Importar fechamentos" ou "Novo lançamento" para começar.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -397,6 +492,35 @@ function FinanceiroPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={save} disabled={saving}>
               {saving ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>) : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: anexar NF aos lançamentos selecionados */}
+      <Dialog open={dialogNfAberto} onOpenChange={setDialogNfAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Anexar nota fiscal</DialogTitle>
+            <DialogDescription>
+              Um único arquivo cobre {selecionados.size === 1 ? "o lançamento selecionado" : `os ${selecionados.size} lançamentos selecionados`}.
+              Todos precisam ser do mesmo pagador (mesmo parceiro, ou o mesmo cliente sem parceiro).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="arquivo-nf">Arquivo da nota (PDF ou imagem, até 10 MB)</Label>
+            <Input
+              id="arquivo-nf"
+              ref={inputArquivoRef}
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(e) => setArquivoNf(e.target.files?.[0] ?? null)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogNfAberto(false)}>Cancelar</Button>
+            <Button onClick={enviarNf} disabled={anexandoNf || !arquivoNf}>
+              {anexandoNf ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</>) : "Anexar"}
             </Button>
           </DialogFooter>
         </DialogContent>
