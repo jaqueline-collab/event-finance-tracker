@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { montarFechamentosParceiro } from "@/lib/parceiro.financeiro";
+import { montarFechamentosParceiro, montarRelatorioParceiro } from "@/lib/parceiro.financeiro";
 
 /**
  * Cobertura dos 4 cenários exigidos para o Financeiro da Área do Parceiro.
@@ -132,7 +132,7 @@ describe("Financeiro da Área do Parceiro", () => {
     ]);
   });
 
-  it("5) vencimento, status e nota fiscal chegam na linha do parceiro", () => {
+  it("5) vencimento e status na linha; NF e ciclo no nível do fechamento", () => {
     const [f] = montarFechamentosParceiro({
       nomePorCliente,
       cabecalhos,
@@ -142,13 +142,17 @@ describe("Financeiro da Área do Parceiro", () => {
     });
     expect(f.linhas[0].vencimento).toBe("2026-08-05");
     expect(f.linhas[0].status).toBe("pago");
-    expect(f.linhas[0].notaId).toBe("nota-1");
+    // A nota é do fechamento, nunca da linha de cliente.
+    expect((f.linhas[0] as Record<string, unknown>).notaId).toBeUndefined();
+    expect(f.notaId).toBe("nota-1");
+    expect(f.vencimento).toBe("2026-08-05");
+    expect(f.vencimentosDivergentes).toBe(false);
   });
 
   it("6) lançamento sem status/nota não inventa botão de download", () => {
     const [f] = montarFechamentosParceiro({ nomePorCliente, cabecalhos, itens });
     expect(f.linhas[0].status).toBeNull();
-    expect(f.linhas[0].notaId).toBeNull();
+    expect(f.notaId).toBeNull();
   });
 
   it("4) nos 3 cenários o retorno nunca traz custo/margem/lucro/WTS/desconto de escala", () => {
@@ -163,5 +167,30 @@ describe("Financeiro da Área do Parceiro", () => {
         expect(chaves.some((k) => k.includes(proibida))).toBe(false);
       }
     }
+  });
+});
+
+describe("Relatórios do parceiro", () => {
+  const itensRel = [
+    { clienteId: "cli-a", competencia: "2026-01", valorLiquido: 1000, sistema: 800, acompanhamento: 200, pago: true },
+    { clienteId: "cli-a", competencia: "2026-02", valorLiquido: 1200, sistema: 1000, acompanhamento: 200, pago: true },
+    { clienteId: "cli-a", competencia: "2026-03", valorLiquido: 900, sistema: 700, acompanhamento: 200, pago: false },
+    { clienteId: "cli-b", competencia: "2026-01", valorLiquido: 500, sistema: 500, acompanhamento: 0, pago: true },
+  ];
+
+  it("soma aumentos e reduções pelo sinal real do delta", () => {
+    const r = montarRelatorioParceiro({ ano: 2026, veValores: true, itens: itensRel });
+    expect(r.aumentos).toBe(200);
+    expect(r.reducoes).toBe(300);
+    expect(r.totalPago).toBe(2700);
+    expect(r.clientesConsiderados).toBe(2);
+    expect(r.ticketMedio).toBe(1350);
+    expect(r.pagoPorMes.find((m) => m.chave === "2026-01")?.total).toBe(1500);
+    expect(r.composicao).toEqual({ sistema: 3000, acompanhamento: 600 });
+  });
+
+  it("sem permissão de composição, o gráfico sistema × acompanhamento não existe", () => {
+    const r = montarRelatorioParceiro({ ano: 2026, veValores: false, itens: itensRel });
+    expect(r.composicao).toBeNull();
   });
 });

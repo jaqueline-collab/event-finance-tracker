@@ -11,6 +11,7 @@ import {
 import {
   montarFechamentosParceiro,
   type FechamentoParceiro,
+  type ItemRelatorioParceiro,
 } from "@/lib/parceiro.financeiro";
 import type { PlanoCalculadoraParceiro } from "@/lib/parceiro.calculadora";
 
@@ -460,16 +461,21 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
 
     const { data: parc, error: parcErr } = await db
       .from("elora_parceiros")
-      .select("id, nome, pode_ver_fechamentos")
+      .select("id, nome, pode_ver_fechamentos, mostrar_valores_cliente")
       .eq("id", parceiroId)
       .maybeSingle();
     if (parcErr) throw new Error(`parceiro: ${parcErr.message}`);
     if (!parc?.id) throw new Error("financeiro-parceiro: parceiro não encontrado.");
 
+    // Permissão de composição: mesma trava usada em todo o resto da área.
+    const veValores = Boolean(parc.mostrar_valores_cliente);
+
     const vazio = {
       habilitado: false as boolean,
+      veValores,
       parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
       fechamentos: [] as FechamentoParceiro[],
+      relatorioItens: [] as ItemRelatorioParceiro[],
     };
     if (!parc.pode_ver_fechamentos) return vazio;
 
@@ -542,10 +548,32 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
       notaPorLancamento,
     });
 
+    // Insumo dos Relatórios: só itens de fechamentos já liberados ao parceiro.
+    const competenciaPorFechamento = new Map<string, string>(
+      cabecalhos.map((c) => [String(c.id), String(c.competencia ?? "").slice(0, 7)]),
+    );
+    const relatorioItens: ItemRelatorioParceiro[] = itensRows
+      .filter((i) => competenciaPorFechamento.has(String(i.fechamento_id)))
+      .map((i) => {
+        const snap = (i.payload_snapshot ?? {}) as Record<string, unknown>;
+        const lanc = i.lancamento_financeiro_id ? String(i.lancamento_financeiro_id) : null;
+        return {
+          clienteId: String(i.cliente_id),
+          competencia: competenciaPorFechamento.get(String(i.fechamento_id)) ?? "",
+          valorLiquido: Number(i.valor_liquido ?? 0),
+          // Composição só viaja com permissão — sem ela, nem sai do servidor.
+          sistema: veValores ? Number(snap["sistema"] ?? 0) : 0,
+          acompanhamento: veValores ? Number(snap["acompanhamento"] ?? 0) : 0,
+          pago: lanc ? statusPorLancamento.get(lanc) === "pago" : false,
+        };
+      });
+
     return {
       habilitado: true,
+      veValores,
       parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
       fechamentos,
+      relatorioItens,
     };
   });
 
