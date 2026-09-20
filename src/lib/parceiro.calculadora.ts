@@ -7,6 +7,8 @@ export type PlanoCalculadoraParceiro = {
   cobranca: "recorrente" | "unica";
   valorMensal: number;
   valorSetup: number;
+  /** Acompanhamento padrão do plano — embutido na mensalidade base, sem discriminar. */
+  valorAcompanhamento: number;
   canaisWhatsInclusos: number;
   canaisInstaInclusos: number;
   canaisMessengerInclusos: number;
@@ -29,7 +31,6 @@ export type PlanoCalculadoraParceiro = {
 
 export type ConfiguracaoCalculadoraParceiro = {
   usuarios: number;
-  contatos: number;
   /** Total de números WhatsApp que serão conectados. */
   canaisWhatsTotal: number;
   /** Quantos desses números são API Oficial (o restante vira Z-API). */
@@ -116,13 +117,15 @@ export function calcularOrcamentoParceiro(
     canaisMessenger: config.canaisMessenger,
     canaisZapi,
     usuariosAtivos: config.usuarios,
-    contatosAtivos: config.contatos,
+    // A proposta não configura volume de contatos: usa a franquia do plano.
+    contatosAtivos: planoPublico.contatosInclusos,
     agentesIA: config.agentesIA,
     asaas: config.asaas,
     zapi: canaisZapi > 0,
     transcricaoIA: config.transcricaoIA,
     valorSetupPago: plano.valorSetup,
-    valorAcompanhamento: 0,
+    // Acompanhamento padrão do plano, somado na mensalidade base sem discriminação.
+    valorAcompanhamento: planoPublico.valorAcompanhamento ?? 0,
     extras: {},
   };
 

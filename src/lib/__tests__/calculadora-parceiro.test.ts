@@ -13,6 +13,7 @@ const plano: PlanoCalculadoraParceiro = {
   cobranca: "recorrente",
   valorMensal: 199.99,
   valorSetup: 0,
+  valorAcompanhamento: 0,
   canaisWhatsInclusos: 1,
   canaisInstaInclusos: 0,
   canaisMessengerInclusos: 1,
@@ -37,7 +38,6 @@ describe("Calculadora do parceiro", () => {
   it("reutiliza a composição oficial e calcula somente excedentes comerciais", () => {
     const resultado = calcularOrcamentoParceiro(plano, {
       usuarios: 5,
-      contatos: 5000,
       canaisWhatsTotal: 1,
       canaisWhatsOficiais: 1,
       canaisInsta: 0,
@@ -54,10 +54,46 @@ describe("Calculadora do parceiro", () => {
     expect(resultado.total).toBeCloseTo(259.97, 2);
   });
 
+  it("embute o acompanhamento padrão do plano sem criar linha própria", () => {
+    const resultado = calcularOrcamentoParceiro(
+      { ...plano, valorAcompanhamento: 150 },
+      {
+        usuarios: 3,
+        canaisWhatsTotal: 1,
+        canaisWhatsOficiais: 1,
+        canaisInsta: 0,
+        canaisMessenger: 1,
+        agentesIA: false,
+        asaas: false,
+        transcricaoIA: false,
+      },
+    );
+    expect(resultado.itens.some((i) => i.label.toLowerCase().includes("acompanhamento"))).toBe(false);
+    expect(resultado.acompanhamento).toBeCloseTo(150, 2);
+    const mensalidadeBase = (resultado.itens[0]?.total ?? 0) + resultado.acompanhamento;
+    expect(mensalidadeBase).toBeCloseTo(349.99, 2);
+  });
+
+  it("escala a transcrição IA pela quantidade de usuários", () => {
+    const resultado = calcularOrcamentoParceiro(plano, {
+      usuarios: 4,
+      canaisWhatsTotal: 1,
+      canaisWhatsOficiais: 1,
+      canaisInsta: 0,
+      canaisMessenger: 1,
+      agentesIA: false,
+      asaas: false,
+      transcricaoIA: true,
+    });
+    const linha = resultado.itens.find((i) => i.label.toLowerCase().includes("transcrição"));
+    expect(linha?.total).toBeCloseTo(4 * 7.99, 2);
+  });
+
+
+
   it("cobra Z-API só sobre os números que não são API Oficial", () => {
     const config = {
       usuarios: 3,
-      contatos: 5000,
       canaisWhatsTotal: 3,
       canaisWhatsOficiais: 1,
       canaisInsta: 0,

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStore, formatBRL } from "@/lib/store";
 import type { Plano } from "@/lib/types";
-import { Plus, Trash2, Pencil, Copy, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, Bot, CreditCard, Zap, AudioLines, Briefcase, Layers, Loader2, Ban, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/planos")({
@@ -530,12 +530,13 @@ function PlanosPage() {
         {planos.map((p) => {
           const ps = parceiros.filter((pr) => (p.parceiroIds ?? []).includes(pr.id));
           return (
-            <Card key={p.id} className="border-border/60 hover:border-primary/40 transition-colors">
+            <Card key={p.id} className={`border-border/60 hover:border-primary/40 transition-colors ${p.ativo === false ? "opacity-60" : ""}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-lg">{p.nome}</CardTitle>
                     <div className="flex flex-wrap gap-1.5 mt-1 mb-1">
+                      {p.ativo === false && <Badge variant="destructive" className="text-[10px]">Inativo</Badge>}
                       <Badge variant={p.categoria === "consultoria" ? "default" : "secondary"} className="text-[10px] gap-1">
                         {p.categoria === "consultoria" ? <><Briefcase className="h-3 w-3" /> Consultoria</> : <><Layers className="h-3 w-3" /> Elora</>}
                       </Badge>
@@ -550,6 +551,20 @@ function PlanosPage() {
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" title="Editar plano" onClick={() => startEdit(p)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" title="Duplicar plano" onClick={() => startDuplicate(p)}><Copy className="h-4 w-4" /></Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title={p.ativo === false ? "Reativar plano" : "Inativar plano"}
+                      aria-label={p.ativo === false ? "Reativar plano" : "Inativar plano"}
+                      onClick={() => {
+                        const reativar = p.ativo === false;
+                        void updatePlano(p.id, { ativo: reativar })
+                          .then(() => toast.success(reativar ? "Plano reativado." : "Plano inativado — não aparece mais nos seletores."))
+                          .catch(() => {});
+                      }}
+                    >
+                      {p.ativo === false ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => { void removePlano(p.id).catch(() => {}); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </div>

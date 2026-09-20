@@ -1221,6 +1221,7 @@ export type Database = {
       }
       elora_planos: {
         Row: {
+          ativo: boolean
           canais_inclusos: number | null
           canais_insta_inclusos: number
           canais_messenger_inclusos: number
@@ -1272,6 +1273,7 @@ export type Database = {
           valor_zapi: number | null
         }
         Insert: {
+          ativo?: boolean
           canais_inclusos?: number | null
           canais_insta_inclusos?: number
           canais_messenger_inclusos?: number
@@ -1323,6 +1325,7 @@ export type Database = {
           valor_zapi?: number | null
         }
         Update: {
+          ativo?: boolean
           canais_inclusos?: number | null
           canais_insta_inclusos?: number
           canais_messenger_inclusos?: number

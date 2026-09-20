@@ -308,13 +308,16 @@ export const getPlanosCalculadoraParceiro = createServerFn({ method: "POST" })
     const { data: rows, error } = await (supabaseAdmin as any)
       .from("elora_planos")
       .select(
-        "id, nome, cobranca, valor_mensal, valor_setup, canais_whats_inclusos, canais_insta_inclusos, canais_messenger_inclusos, usuarios_inclusos, contatos_inclusos, inclui_ia, inclui_asaas, inclui_zapi, inclui_transcricao, valor_canal_whats_exc, valor_canal_insta_exc, valor_canal_messenger_exc, valor_usuarios_exc, valor_contatos_exc, valor_ia, valor_asaas, valor_zapi, valor_transcricao_user, parceiro_ids",
+        "id, nome, ativo, cobranca, valor_mensal, valor_setup, valor_acompanhamento, canais_whats_inclusos, canais_insta_inclusos, canais_messenger_inclusos, usuarios_inclusos, contatos_inclusos, inclui_ia, inclui_asaas, inclui_zapi, inclui_transcricao, valor_canal_whats_exc, valor_canal_insta_exc, valor_canal_messenger_exc, valor_usuarios_exc, valor_contatos_exc, valor_ia, valor_asaas, valor_zapi, valor_transcricao_user, parceiro_ids",
       )
       .order("nome");
     if (error) throw new Error(`calculadora-planos: ${error.message}`);
 
     const vinculados = ((rows ?? []) as any[]).filter(
-      (r) => Array.isArray(r.parceiro_ids) && r.parceiro_ids.includes(parceiroId),
+      (r) =>
+        r.ativo !== false &&
+        Array.isArray(r.parceiro_ids) &&
+        r.parceiro_ids.includes(parceiroId),
     );
     const planos: PlanoCalculadoraParceiro[] = vinculados.map((r) => ({
       id: String(r.id),
@@ -322,6 +325,7 @@ export const getPlanosCalculadoraParceiro = createServerFn({ method: "POST" })
       cobranca: r.cobranca === "unica" ? "unica" : "recorrente",
       valorMensal: Number(r.valor_mensal ?? 0),
       valorSetup: Number(r.valor_setup ?? 0),
+      valorAcompanhamento: Number(r.valor_acompanhamento ?? 0),
       canaisWhatsInclusos: Number(r.canais_whats_inclusos ?? 0),
       canaisInstaInclusos: Number(r.canais_insta_inclusos ?? 0),
       canaisMessengerInclusos: Number(r.canais_messenger_inclusos ?? 0),

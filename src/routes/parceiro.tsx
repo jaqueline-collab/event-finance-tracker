@@ -95,6 +95,8 @@ export const Route = createFileRoute("/parceiro")({
 });
 
 const APP_LOGIN_URL = "https://app.eloracrm.com.br/";
+const APRESENTACAO_URL =
+  "https://docs.google.com/presentation/d/1roYM3Uw23zYmkZq0hzOQFbDKtMzuyPiUU4--BBKij-s/edit?usp=drive_link";
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -326,6 +328,11 @@ function AreaParceiro() {
         <Button asChild variant="ghost" size="sm" title="Elora App" aria-label="Elora App">
           <a href={APP_LOGIN_URL} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Elora App</span>
+          </a>
+        </Button>
+        <Button asChild variant="ghost" size="sm" title="Apresentar ferramenta" aria-label="Apresentar ferramenta">
+          <a href={APRESENTACAO_URL} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Apresentar ferramenta</span>
           </a>
         </Button>
         <Button
@@ -858,7 +865,6 @@ function AreaParceiro() {
 
 const configuracaoInicial = (plano?: PlanoCalculadoraParceiro): ConfiguracaoCalculadoraParceiro => ({
   usuarios: plano?.usuariosInclusos ?? 1,
-  contatos: plano?.contatosInclusos ?? 0,
   canaisWhatsTotal: plano?.canaisWhatsInclusos ?? 0,
   canaisWhatsOficiais: plano?.canaisWhatsInclusos ?? 0,
   canaisInsta: plano?.canaisInstaInclusos ?? 0,
@@ -914,7 +920,8 @@ function CalculadoraParceiro({
 
   const resultado = calcularOrcamentoParceiro(plano, config);
   const zapiNaoOficiais = canaisZapiDerivados(config);
-  const mensalidadeBase = resultado.itens[0]?.total ?? 0;
+  // Mensalidade base = licença do plano + acompanhamento padrão, sem discriminar.
+  const mensalidadeBase = (resultado.itens[0]?.total ?? 0) + resultado.acompanhamento;
   const excedentes = resultado.itens.slice(1).reduce((s, i) => s + i.total, 0);
   const custoBase = mensalidadeBase + excedentes;
   const valorMargem = calcularMargemParceiro(margem, custoBase, plano.valorSetup);
@@ -936,7 +943,6 @@ function CalculadoraParceiro({
 
   const camposQuantidade: { campo: keyof ConfiguracaoCalculadoraParceiro; label: string }[] = [
     { campo: "usuarios", label: "Usuários" },
-    { campo: "contatos", label: "Contatos" },
     { campo: "canaisInsta", label: "Canais Instagram" },
     { campo: "canaisMessenger", label: "Canais Messenger" },
   ];
@@ -1019,7 +1025,7 @@ function CalculadoraParceiro({
             {([
               ["agentesIA", "Agentes de IA"],
               ["asaas", "Integração Asaas"],
-              ["transcricaoIA", "Transcrição IA"],
+              ["transcricaoIA", `Transcrição IA — ${brl(plano.valorTranscricaoUser)}/usuário`],
             ] as const).map(([campo, label]) => (
               <label key={campo} className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm">
                 <span>{label}</span>

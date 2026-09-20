@@ -815,7 +815,7 @@ function ClientesPage() {
                     <Select value={form.planoId} onValueChange={handlePlanoChange}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
-                        {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                        {planos.filter((p) => p.ativo !== false || p.id === form.planoId).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1723,7 +1723,7 @@ function ClientesPage() {
               <Select value={movForm.planoId} onValueChange={(v) => setMovForm({ ...movForm, planoId: v })}>
                 <SelectTrigger><SelectValue placeholder="Manter atual" /></SelectTrigger>
                 <SelectContent>
-                  {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                  {planos.filter((p) => p.ativo !== false || p.id === movForm.planoId).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -1,0 +1,1 @@
+ALTER TABLE public.elora_planos ADD COLUMN IF NOT EXISTS ativo boolean NOT NULL DEFAULT true;
