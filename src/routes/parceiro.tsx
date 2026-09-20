@@ -74,7 +74,7 @@ const ANO_INICIAL = 2026;
 
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
-  aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
+  aba: fallback(z.enum(["clientes", "financeiro", "calculadora", "notas"]), "clientes").default("clientes"),
   grafico: fallback(z.enum(["fluxo", "ativos"]), "fluxo").default("fluxo"),
   ano: fallback(z.number().int(), 0).default(0),
 });
@@ -308,7 +308,7 @@ function AreaParceiro() {
   }, [clientesFiltrados, anoGrafico]);
 
 
-  const irPara = (proxima: "clientes" | "financeiro" | "calculadora") =>
+  const irPara = (proxima: "clientes" | "financeiro" | "calculadora" | "notas") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
 
   const atalhosTopo = headerActionsTarget
@@ -376,6 +376,14 @@ function AreaParceiro() {
         onClick={() => irPara("calculadora")}
       >
         <Calculator className="mr-2 h-4 w-4" /> Calculadora
+      </Button>
+      <Button
+        variant={aba === "notas" ? "secondary" : "ghost"}
+        size="sm"
+        className="justify-start"
+        onClick={() => irPara("notas")}
+      >
+        <FileText className="mr-2 h-4 w-4" /> Notas Fiscais
       </Button>
     </nav>
   );
@@ -851,6 +859,8 @@ function AreaParceiro() {
               fechAberto={fechAberto}
               setFechAberto={setFechAberto}
             />
+          ) : aba === "notas" ? (
+            <NotasFiscaisParceiro parceiroId={dados?.parceiro.id ?? null} />
           ) : (
             <CalculadoraParceiro
               carregando={carregandoCalc}
