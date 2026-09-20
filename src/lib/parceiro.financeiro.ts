@@ -16,8 +16,6 @@ export type LinhaFechamentoParceiro = {
   vencimento: string | null;
   /** Status do lançamento no Financeiro (mesmo da tela interna). */
   status: string | null;
-  /** Nota fiscal anexada cobrindo este lançamento, quando houver. */
-  notaId: string | null;
   valorBruto: number;
   valorDesconto: number;
   valorLiquido: number;
@@ -29,6 +27,17 @@ export type FechamentoParceiro = {
   competencia: string;
   titulo: string;
   enviadoEm: string;
+  /** Ciclo consolidado: menor início e maior fim entre as linhas do parceiro. */
+  cicloInicio: string | null;
+  cicloFim: string | null;
+  /** Vencimento mais próximo entre as linhas; veja vencimentosDivergentes. */
+  vencimento: string | null;
+  /** Verdadeiro quando as linhas têm datas de vencimento diferentes. */
+  vencimentosDivergentes: boolean;
+  /** Todas as datas distintas, em ordem — usado na dica quando divergem. */
+  vencimentos: string[];
+  /** Nota fiscal anexada ao lançamento consolidado do fechamento. */
+  notaId: string | null;
   linhas: LinhaFechamentoParceiro[];
   totalBruto: number;
   totalDesconto: number;
