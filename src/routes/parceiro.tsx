@@ -219,8 +219,13 @@ function AreaParceiro() {
 
   const [busca, setBusca] = useState("");
   const [status, setStatus] = useState<"todos" | "ativos" | "inativos">("todos");
-  const [de, setDe] = useState(umAnoAtrasIso());
-  const [ate, setAte] = useState(hojeIso());
+  // Datas manuais: usadas apenas na opção "Personalizado".
+  const [deManual, setDeManual] = useState(umAnoAtrasIso());
+  const [ateManual, setAteManual] = useState(hojeIso());
+  const { de, ate } = useMemo(
+    () => intervaloPeriodo(periodo, deManual, ateManual),
+    [periodo, deManual, ateManual],
+  );
   const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
