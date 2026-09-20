@@ -1242,6 +1242,9 @@ function CalculadoraParceiro({
               </DialogHeader>
               <ul className="list-disc space-y-2 pl-5 text-sm">
                 <li>{plano.usuariosInclusos} usuário(s) incluso(s).</li>
+                {veValores && (
+                  <li>Acompanhamento: {brl(plano.valorAcompanhamento ?? 0)}.</li>
+                )}
                 <li>
                   Canais inclusos: {plano.canaisWhatsInclusos} WhatsApp, {plano.canaisInstaInclusos} Instagram,{" "}
                   {plano.canaisMessengerInclusos} Messenger{plano.incluiZapi > 0 ? `, ${plano.incluiZapi} Z-API` : ""}.
