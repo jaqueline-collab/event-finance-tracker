@@ -55,8 +55,14 @@ export function montarFechamentosParceiro(params: {
   /** Só devem chegar aqui cabeçalhos já filtrados por enviado_parceiro_em / deletado_em. */
   cabecalhos: { id: string; competencia: string; titulo: string; enviado_parceiro_em: string | null; deletado_em?: string | null }[];
   itens: Record<string, unknown>[];
+  /** lancamento_financeiro_id → status do lançamento (pago/pendente...). */
+  statusPorLancamento?: Map<string, string>;
+  /** lancamento_financeiro_id → id da nota fiscal anexada. */
+  notaPorLancamento?: Map<string, string>;
 }): FechamentoParceiro[] {
   const { nomePorCliente, cabecalhos, itens } = params;
+  const statusPorLancamento = params.statusPorLancamento ?? new Map<string, string>();
+  const notaPorLancamento = params.notaPorLancamento ?? new Map<string, string>();
 
   return cabecalhos
     .filter((f) => Boolean(f.enviado_parceiro_em) && !f.deletado_em)
@@ -68,6 +74,9 @@ export function montarFechamentosParceiro(params: {
         .map((i) => {
           const snap = (i["payload_snapshot"] ?? {}) as Record<string, unknown>;
           const clienteId = String(i["cliente_id"]);
+          const lancamentoId = i["lancamento_financeiro_id"]
+            ? String(i["lancamento_financeiro_id"])
+            : null;
           return {
             id: String(i["id"]),
             clienteId,
@@ -76,6 +85,8 @@ export function montarFechamentosParceiro(params: {
             cicloInicio: (i["ciclo_inicio"] as string | null) ?? null,
             cicloFim: (i["ciclo_fim"] as string | null) ?? null,
             vencimento: (i["vencimento"] as string | null) ?? null,
+            status: lancamentoId ? statusPorLancamento.get(lancamentoId) ?? null : null,
+            notaId: lancamentoId ? notaPorLancamento.get(lancamentoId) ?? null : null,
             valorBruto: Number(i["valor_bruto"] ?? 0),
             valorDesconto: Number(i["valor_desconto"] ?? 0),
             valorLiquido: Number(i["valor_liquido"] ?? 0),
