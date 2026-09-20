@@ -188,7 +188,13 @@ type FinanceiroData = Awaited<ReturnType<typeof getFinanceiroParceiro>>;
 type CalculadoraData = Awaited<ReturnType<typeof getPlanosCalculadoraParceiro>>;
 
 function AreaParceiro() {
-  const { como, aba, grafico, ano } = Route.useSearch();
+  const { como, aba, grafico, ano, periodo: periodoRaw, indicador: indicadorRaw, sub: subRaw } =
+    Route.useSearch();
+  const periodo = (PERIODOS.some((p) => p.valor === periodoRaw) ? periodoRaw : "mes") as Periodo;
+  const indicador = (["entradas", "saidas", "excedentes"].includes(indicadorRaw)
+    ? indicadorRaw
+    : "") as "" | "entradas" | "saidas" | "excedentes";
+  const sub = (subRaw === "relatorios" ? "relatorios" : "fechamentos") as "fechamentos" | "relatorios";
   const anoAtual = new Date().getFullYear();
   const anoGrafico = ano && ano >= ANO_INICIAL ? ano : anoAtual;
   const anosDisponiveis = useMemo(() => {
