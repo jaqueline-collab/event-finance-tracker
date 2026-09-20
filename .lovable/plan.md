@@ -48,8 +48,8 @@ Fixo, em qualquer plano:
 
 ### Precisa de você
 
-- O endereço da pasta principal do Drive onde as subpastas serão criadas.
-- Autorizar a conexão do Google Drive para este projeto (hoje só o Google Sheets está ligado).
+- A conexão "Jaqueline's Google Drive" já existe e está disponível — falta só vincular a este projeto, um clique quando a implementação começar.
+- O endereço da pasta principal do Drive onde as subpastas de parceiros/clientes serão criadas.
 
 ## Detalhes técnicos
 
