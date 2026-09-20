@@ -132,7 +132,7 @@ describe("Financeiro da Área do Parceiro", () => {
     ]);
   });
 
-  it("5) vencimento, status e nota fiscal chegam na linha do parceiro", () => {
+  it("5) vencimento e status na linha; NF e ciclo no nível do fechamento", () => {
     const [f] = montarFechamentosParceiro({
       nomePorCliente,
       cabecalhos,
@@ -142,13 +142,17 @@ describe("Financeiro da Área do Parceiro", () => {
     });
     expect(f.linhas[0].vencimento).toBe("2026-08-05");
     expect(f.linhas[0].status).toBe("pago");
-    expect(f.linhas[0].notaId).toBe("nota-1");
+    // A nota é do fechamento, nunca da linha de cliente.
+    expect((f.linhas[0] as Record<string, unknown>).notaId).toBeUndefined();
+    expect(f.notaId).toBe("nota-1");
+    expect(f.vencimento).toBe("2026-08-05");
+    expect(f.vencimentosDivergentes).toBe(false);
   });
 
   it("6) lançamento sem status/nota não inventa botão de download", () => {
     const [f] = montarFechamentosParceiro({ nomePorCliente, cabecalhos, itens });
     expect(f.linhas[0].status).toBeNull();
-    expect(f.linhas[0].notaId).toBeNull();
+    expect(f.notaId).toBeNull();
   });
 
   it("4) nos 3 cenários o retorno nunca traz custo/margem/lucro/WTS/desconto de escala", () => {
