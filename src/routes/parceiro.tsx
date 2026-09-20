@@ -9,10 +9,14 @@ import {
   getPlanosCalculadoraParceiro,
 } from "@/lib/parceiro.functions";
 import {
+  calcularMargemParceiro,
   calcularOrcamentoParceiro,
+  canaisZapiDerivados,
   type ConfiguracaoCalculadoraParceiro,
+  type MargemParceiro,
   type PlanoCalculadoraParceiro,
 } from "@/lib/parceiro.calculadora";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
