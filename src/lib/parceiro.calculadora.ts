@@ -117,13 +117,15 @@ export function calcularOrcamentoParceiro(
     canaisMessenger: config.canaisMessenger,
     canaisZapi,
     usuariosAtivos: config.usuarios,
-    contatosAtivos: config.contatos,
+    // A proposta não configura volume de contatos: usa a franquia do plano.
+    contatosAtivos: planoPublico.contatosInclusos,
     agentesIA: config.agentesIA,
     asaas: config.asaas,
     zapi: canaisZapi > 0,
     transcricaoIA: config.transcricaoIA,
     valorSetupPago: plano.valorSetup,
-    valorAcompanhamento: 0,
+    // Acompanhamento padrão do plano, somado na mensalidade base sem discriminação.
+    valorAcompanhamento: planoPublico.valorAcompanhamento ?? 0,
     extras: {},
   };
 
