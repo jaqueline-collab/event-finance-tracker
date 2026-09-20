@@ -329,6 +329,20 @@ function AreaParceiro() {
     };
   }, [clientesFiltrados, de, ate]);
 
+  // Indicador clicado vira filtro da tabela (os números dos cards não mudam).
+  const clientesTabela = useMemo(() => {
+    if (!indicador) return clientesFiltrados;
+    return clientesFiltrados.filter((c) => {
+      if (indicador === "entradas") return noPeriodo(c.dataInicio);
+      if (indicador === "saidas") return noPeriodo(c.dataChurn);
+      const exc = ((c as any).excedentes ?? []) as { total: number }[];
+      return exc.some((e) => Number(e.total) > 0);
+    });
+  }, [clientesFiltrados, indicador, de, ate]);
+
+  const alternarIndicador = (qual: "entradas" | "saidas" | "excedentes") =>
+    navigate({ search: (s: any) => ({ ...s, indicador: s.indicador === qual ? "" : qual }) });
+
   // Gráfico: independente do filtro De/Até — sempre janeiro a dezembro do ano escolhido.
   const serieMensal = useMemo(() => {
     const prefixo = String(anoGrafico);
