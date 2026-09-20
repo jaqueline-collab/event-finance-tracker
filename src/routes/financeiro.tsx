@@ -66,6 +66,73 @@ function FinanceiroPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Seleção em massa para anexar NF (um arquivo cobrindo vários lançamentos)
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [dialogNfAberto, setDialogNfAberto] = useState(false);
+  const [anexandoNf, setAnexandoNf] = useState(false);
+  const [arquivoNf, setArquivoNf] = useState<File | null>(null);
+  const inputArquivoRef = useRef<HTMLInputElement | null>(null);
+  const [vinculosNf, setVinculosNf] = useState<Record<string, { notaId: string; nomeArquivo: string }>>({});
+  const fnAnexarNf = useServerFn(anexarNotaFiscal);
+  const fnListarVinculos = useServerFn(listarVinculosNotas);
+
+  const recarregarVinculos = () => {
+    fnListarVinculos()
+      .then((r) => setVinculosNf(r.porLancamento))
+      .catch(() => {});
+  };
+  useEffect(recarregarVinculos, []);
+
+  const alternarSelecao = (id: string, marcado: boolean) => {
+    setSelecionados((prev) => {
+      const prox = new Set(prev);
+      if (marcado) prox.add(id);
+      else prox.delete(id);
+      return prox;
+    });
+  };
+
+  const enviarNf = async () => {
+    if (!arquivoNf) {
+      toast.error("Escolha o arquivo da nota fiscal antes de enviar.");
+      return;
+    }
+    if (arquivoNf.size > 10 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máx. 10 MB).");
+      return;
+    }
+    setAnexandoNf(true);
+    try {
+      const buf = await arquivoNf.arrayBuffer();
+      let binario = "";
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binario += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      }
+      await fnAnexarNf({
+        data: {
+          lancamentoIds: [...selecionados],
+          nomeArquivo: arquivoNf.name,
+          mimeType: arquivoNf.type || "application/pdf",
+          conteudoBase64: btoa(binario),
+        },
+      });
+      toast.success(
+        selecionados.size > 1
+          ? `NF anexada a ${selecionados.size} lançamentos.`
+          : "NF anexada ao lançamento.",
+      );
+      setSelecionados(new Set());
+      setArquivoNf(null);
+      setDialogNfAberto(false);
+      recarregarVinculos();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message.replace(/^.*?acesso-negado/, "Acesso negado") : "Não foi possível anexar a NF.");
+    } finally {
+      setAnexandoNf(false);
+    }
+  };
+
   const startNew = () => {
     setEditId(null);
     setForm(empty);
@@ -253,13 +320,23 @@ function FinanceiroPage() {
       {/* Tabela */}
       <Card className="border-border/60">
         <CardHeader>
-          <CardTitle>Lançamentos</CardTitle>
-          <CardDescription>Toque em um lançamento para alterar o status ou marcar a emissão da NF.</CardDescription>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle>Lançamentos</CardTitle>
+              <CardDescription>Toque em um lançamento para alterar o status ou marcar a emissão da NF.</CardDescription>
+            </div>
+            {selecionados.size > 0 && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => { setArquivoNf(null); setDialogNfAberto(true); }}>
+                <FileUp className="h-4 w-4" /> Anexar NF ({selecionados.size})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[36px]"></TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Competência</TableHead>
@@ -276,6 +353,15 @@ function FinanceiroPage() {
                 const StatusIcon = s.Icon;
                 return (
                   <TableRow key={l.id}>
+                    <TableCell>
+                      {l.tipo === "fechamento" && (
+                        <Checkbox
+                          checked={selecionados.has(l.id)}
+                          onCheckedChange={(v) => alternarSelecao(l.id, v === true)}
+                          aria-label="Selecionar lançamento"
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
                         <span>{l.descricao}</span>
