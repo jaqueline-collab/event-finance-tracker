@@ -98,6 +98,8 @@ export function calcularOrcamentoParceiro(
     parceiroIds: [],
   };
 
+  const canaisZapi = canaisZapiDerivados(config);
+
   const cliente: Cliente = {
     id: "simulacao",
     nome: "Simulação",
@@ -108,21 +110,22 @@ export function calcularOrcamentoParceiro(
     statusComercial: "ativo",
     apps: 0,
     mau: 0,
-    canais: config.canaisWhats + config.canaisInsta + config.canaisMessenger,
-    canaisWhats: config.canaisWhats,
+    canais: config.canaisWhatsTotal + config.canaisInsta + config.canaisMessenger,
+    canaisWhats: config.canaisWhatsTotal,
     canaisInsta: config.canaisInsta,
     canaisMessenger: config.canaisMessenger,
-    canaisZapi: config.canaisZapi,
+    canaisZapi,
     usuariosAtivos: config.usuarios,
     contatosAtivos: config.contatos,
     agentesIA: config.agentesIA,
     asaas: config.asaas,
-    zapi: config.canaisZapi > 0,
+    zapi: canaisZapi > 0,
     transcricaoIA: config.transcricaoIA,
     valorSetupPago: plano.valorSetup,
-    valorAcompanhamento: config.acompanhamento,
+    valorAcompanhamento: 0,
     extras: {},
   };
+
 
   return explicarReceitaCliente(cliente, [plano]);
 }
