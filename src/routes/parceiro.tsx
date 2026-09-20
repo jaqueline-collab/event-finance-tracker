@@ -989,10 +989,12 @@ function CalculadoraParceiro({
   carregando,
   erro,
   planos,
+  veValores,
 }: {
   carregando: boolean;
   erro: string | null;
   planos: PlanoCalculadoraParceiro[];
+  veValores: boolean;
 }) {
   const [planoId, setPlanoId] = useState("");
   const plano = planos.find((p) => p.id === planoId) ?? planos[0];
