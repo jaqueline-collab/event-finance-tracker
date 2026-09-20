@@ -169,3 +169,28 @@ describe("Financeiro da Área do Parceiro", () => {
     }
   });
 });
+
+describe("Relatórios do parceiro", () => {
+  const itensRel = [
+    { clienteId: "cli-a", competencia: "2026-01", valorLiquido: 1000, sistema: 800, acompanhamento: 200, pago: true },
+    { clienteId: "cli-a", competencia: "2026-02", valorLiquido: 1200, sistema: 1000, acompanhamento: 200, pago: true },
+    { clienteId: "cli-a", competencia: "2026-03", valorLiquido: 900, sistema: 700, acompanhamento: 200, pago: false },
+    { clienteId: "cli-b", competencia: "2026-01", valorLiquido: 500, sistema: 500, acompanhamento: 0, pago: true },
+  ];
+
+  it("soma aumentos e reduções pelo sinal real do delta", () => {
+    const r = montarRelatorioParceiro({ ano: 2026, veValores: true, itens: itensRel });
+    expect(r.aumentos).toBe(200);
+    expect(r.reducoes).toBe(300);
+    expect(r.totalPago).toBe(2700);
+    expect(r.clientesConsiderados).toBe(2);
+    expect(r.ticketMedio).toBe(1350);
+    expect(r.pagoPorMes.find((m) => m.chave === "2026-01")?.total).toBe(1500);
+    expect(r.composicao).toEqual({ sistema: 3000, acompanhamento: 600 });
+  });
+
+  it("sem permissão de composição, o gráfico sistema × acompanhamento não existe", () => {
+    const r = montarRelatorioParceiro({ ano: 2026, veValores: false, itens: itensRel });
+    expect(r.composicao).toBeNull();
+  });
+});
