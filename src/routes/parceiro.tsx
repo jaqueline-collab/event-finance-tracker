@@ -95,6 +95,8 @@ export const Route = createFileRoute("/parceiro")({
 });
 
 const APP_LOGIN_URL = "https://app.eloracrm.com.br/";
+const APRESENTACAO_URL =
+  "https://docs.google.com/presentation/d/1roYM3Uw23zYmkZq0hzOQFbDKtMzuyPiUU4--BBKij-s/edit?usp=drive_link";
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
