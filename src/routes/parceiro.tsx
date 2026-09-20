@@ -1110,13 +1110,43 @@ function CalculadoraParceiro({
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md bg-muted p-3">
               <p className="text-xs text-muted-foreground">Setup</p>
-              <p className="mt-1 font-semibold tabular-nums">{brl(plano.valorSetup)}</p>
+              <p className="mt-1 font-semibold tabular-nums">{brl(config.setup)}</p>
             </div>
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-xs text-muted-foreground">Mensalidade base</p>
+            <button
+              type="button"
+              onClick={() => setLicencaAberta(true)}
+              className="rounded-md bg-muted p-3 text-left transition hover:bg-muted/70 focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+              title="O que inclui a licença base"
+            >
+              <p className="text-xs text-muted-foreground underline decoration-dotted underline-offset-2">Mensalidade base</p>
               <p className="mt-1 font-semibold tabular-nums">{brl(mensalidadeBase)}</p>
-            </div>
+            </button>
           </div>
+
+          <Dialog open={licencaAberta} onOpenChange={setLicencaAberta}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>O que inclui a licença base</DialogTitle>
+              </DialogHeader>
+              <ul className="list-disc space-y-2 pl-5 text-sm">
+                <li>{plano.usuariosInclusos} usuário(s) incluso(s).</li>
+                <li>
+                  Canais inclusos: {plano.canaisWhatsInclusos} WhatsApp, {plano.canaisInstaInclusos} Instagram,{" "}
+                  {plano.canaisMessengerInclusos} Messenger{plano.incluiZapi > 0 ? `, ${plano.incluiZapi} Z-API` : ""}.
+                </li>
+                <li>
+                  Conversas com até {plano.contatosInclusos.toLocaleString("pt-BR")} contatos únicos no mês.
+                  Excedente: {brl(plano.valorContatosExc)} por contato.
+                </li>
+                <li>Painéis e funis ilimitados.</li>
+                <li>Chatbots ilimitados.</li>
+                <li>
+                  Sequências: com sequências você automatiza follow-up, envia newsletters e faz campanhas de
+                  disparo em massa para sua base de contatos.
+                </li>
+              </ul>
+            </DialogContent>
+          </Dialog>
 
           <div className="space-y-2 text-sm">
             {resultado.itens.slice(1).map((item, indice) => (
