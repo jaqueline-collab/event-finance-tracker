@@ -460,16 +460,21 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
 
     const { data: parc, error: parcErr } = await db
       .from("elora_parceiros")
-      .select("id, nome, pode_ver_fechamentos")
+      .select("id, nome, pode_ver_fechamentos, mostrar_valores_cliente")
       .eq("id", parceiroId)
       .maybeSingle();
     if (parcErr) throw new Error(`parceiro: ${parcErr.message}`);
     if (!parc?.id) throw new Error("financeiro-parceiro: parceiro não encontrado.");
 
+    // Permissão de composição: mesma trava usada em todo o resto da área.
+    const veValores = Boolean(parc.mostrar_valores_cliente);
+
     const vazio = {
       habilitado: false as boolean,
+      veValores,
       parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
       fechamentos: [] as FechamentoParceiro[],
+      relatorioItens: [] as ItemRelatorioParceiro[],
     };
     if (!parc.pode_ver_fechamentos) return vazio;
 
