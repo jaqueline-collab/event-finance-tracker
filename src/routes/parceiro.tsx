@@ -80,7 +80,18 @@ const searchSchema = z.object({
   aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
   grafico: fallback(z.enum(["fluxo", "ativos"]), "fluxo").default("fluxo"),
   ano: fallback(z.number().int(), 0).default(0),
+  periodo: fallback(z.string(), "mes").default("mes"),
+  indicador: fallback(z.string(), "").default(""),
+  sub: fallback(z.string(), "fechamentos").default("fechamentos"),
 });
+
+type Periodo = "mes" | "mesPassado" | "trimestre" | "custom";
+const PERIODOS: { valor: Periodo; label: string }[] = [
+  { valor: "mes", label: "Este mês" },
+  { valor: "mesPassado", label: "Mês passado" },
+  { valor: "trimestre", label: "Trimestre" },
+  { valor: "custom", label: "Personalizado" },
+];
 
 export const Route = createFileRoute("/parceiro")({
   validateSearch: zodValidator(searchSchema),
