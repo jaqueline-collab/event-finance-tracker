@@ -496,6 +496,35 @@ function FinanceiroPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: anexar NF aos lançamentos selecionados */}
+      <Dialog open={dialogNfAberto} onOpenChange={setDialogNfAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Anexar nota fiscal</DialogTitle>
+            <DialogDescription>
+              Um único arquivo cobre {selecionados.size === 1 ? "o lançamento selecionado" : `os ${selecionados.size} lançamentos selecionados`}.
+              Todos precisam ser do mesmo pagador (mesmo parceiro, ou o mesmo cliente sem parceiro).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="arquivo-nf">Arquivo da nota (PDF ou imagem, até 10 MB)</Label>
+            <Input
+              id="arquivo-nf"
+              ref={inputArquivoRef}
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(e) => setArquivoNf(e.target.files?.[0] ?? null)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogNfAberto(false)}>Cancelar</Button>
+            <Button onClick={enviarNf} disabled={anexandoNf || !arquivoNf}>
+              {anexandoNf ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</>) : "Anexar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
