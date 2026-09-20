@@ -328,6 +328,11 @@ function AreaParceiro() {
             <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Elora App</span>
           </a>
         </Button>
+        <Button asChild variant="ghost" size="sm" title="Apresentar ferramenta" aria-label="Apresentar ferramenta">
+          <a href={APRESENTACAO_URL} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Apresentar ferramenta</span>
+          </a>
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -1018,7 +1023,7 @@ function CalculadoraParceiro({
             {([
               ["agentesIA", "Agentes de IA"],
               ["asaas", "Integração Asaas"],
-              ["transcricaoIA", "Transcrição IA"],
+              ["transcricaoIA", `Transcrição IA — ${brl(plano.valorTranscricaoUser)}/usuário`],
             ] as const).map(([campo, label]) => (
               <label key={campo} className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm">
                 <span>{label}</span>
