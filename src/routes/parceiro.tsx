@@ -62,7 +62,6 @@ import {
   Download,
   ExternalLink,
   Eye,
-  FileText,
   GraduationCap,
   History,
   PackageOpen,
