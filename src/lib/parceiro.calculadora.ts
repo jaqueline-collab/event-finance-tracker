@@ -33,13 +33,15 @@ export type ConfiguracaoCalculadoraParceiro = {
   usuarios: number;
   /** Total de números WhatsApp que serão conectados. */
   canaisWhatsTotal: number;
-  /** Quantos desses números são API Oficial (o restante vira Z-API). */
+  /** Quantos desses números são API Oficial (o restante vira Z-API). Sempre começa em 0. */
   canaisWhatsOficiais: number;
   canaisInsta: number;
   canaisMessenger: number;
   agentesIA: boolean;
   asaas: boolean;
   transcricaoIA: boolean;
+  /** Taxa de setup que o parceiro quer cobrar na proposta. Entra só na base da margem. */
+  setup: number;
 };
 
 export type MargemParceiro = {
