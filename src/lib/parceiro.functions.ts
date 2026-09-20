@@ -547,10 +547,32 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
       notaPorLancamento,
     });
 
+    // Insumo dos Relatórios: só itens de fechamentos já liberados ao parceiro.
+    const competenciaPorFechamento = new Map<string, string>(
+      cabecalhos.map((c) => [String(c.id), String(c.competencia ?? "").slice(0, 7)]),
+    );
+    const relatorioItens: ItemRelatorioParceiro[] = itensRows
+      .filter((i) => competenciaPorFechamento.has(String(i.fechamento_id)))
+      .map((i) => {
+        const snap = (i.payload_snapshot ?? {}) as Record<string, unknown>;
+        const lanc = i.lancamento_financeiro_id ? String(i.lancamento_financeiro_id) : null;
+        return {
+          clienteId: String(i.cliente_id),
+          competencia: competenciaPorFechamento.get(String(i.fechamento_id)) ?? "",
+          valorLiquido: Number(i.valor_liquido ?? 0),
+          // Composição só viaja com permissão — sem ela, nem sai do servidor.
+          sistema: veValores ? Number(snap["sistema"] ?? 0) : 0,
+          acompanhamento: veValores ? Number(snap["acompanhamento"] ?? 0) : 0,
+          pago: lanc ? statusPorLancamento.get(lanc) === "pago" : false,
+        };
+      });
+
     return {
       habilitado: true,
+      veValores,
       parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
       fechamentos,
+      relatorioItens,
     };
   });
 
