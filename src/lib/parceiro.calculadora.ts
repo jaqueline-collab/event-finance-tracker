@@ -7,6 +7,8 @@ export type PlanoCalculadoraParceiro = {
   cobranca: "recorrente" | "unica";
   valorMensal: number;
   valorSetup: number;
+  /** Acompanhamento padrão do plano — embutido na mensalidade base, sem discriminar. */
+  valorAcompanhamento: number;
   canaisWhatsInclusos: number;
   canaisInstaInclusos: number;
   canaisMessengerInclusos: number;
@@ -29,7 +31,6 @@ export type PlanoCalculadoraParceiro = {
 
 export type ConfiguracaoCalculadoraParceiro = {
   usuarios: number;
-  contatos: number;
   /** Total de números WhatsApp que serão conectados. */
   canaisWhatsTotal: number;
   /** Quantos desses números são API Oficial (o restante vira Z-API). */
