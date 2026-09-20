@@ -926,8 +926,10 @@ function CalculadoraParceiro({
   const mensalidadeBase = (resultado.itens[0]?.total ?? 0) + resultado.acompanhamento;
   const excedentes = resultado.itens.slice(1).reduce((s, i) => s + i.total, 0);
   const custoBase = mensalidadeBase + excedentes;
-  const valorMargem = calcularMargemParceiro(margem, custoBase, plano.valorSetup);
+  // Setup digitado pelo parceiro entra na base da margem só em "mensalidade + setup".
+  const valorMargem = calcularMargemParceiro(margem, custoBase, config.setup);
   const totalCobrar = custoBase + valorMargem;
+  const [licencaAberta, setLicencaAberta] = useState(false);
 
   const alterarNumero = (campo: keyof ConfiguracaoCalculadoraParceiro, valor: string) => {
     const numero = Math.max(0, Number(valor) || 0);
@@ -1021,6 +1023,17 @@ function CalculadoraParceiro({
                 />
               </div>
             ))}
+            <div className="space-y-2">
+              <Label htmlFor="calc-setup">Setup (R$) · opcional</Label>
+              <Input
+                id="calc-setup"
+                type="number"
+                min="0"
+                step="0.01"
+                value={String(config.setup)}
+                onChange={(e) => alterarNumero("setup", e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
