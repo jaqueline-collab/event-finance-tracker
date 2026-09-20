@@ -907,6 +907,8 @@ function CalculadoraParceiro({
     valor: 0,
     base: "mensalidade",
   });
+  // Hook sempre no topo: abaixo há retornos antecipados (carregando/erro/sem plano).
+  const [licencaAberta, setLicencaAberta] = useState(false);
 
   useEffect(() => {
     if (!plano) return;
@@ -943,7 +945,6 @@ function CalculadoraParceiro({
   // Setup digitado pelo parceiro entra na base da margem só em "mensalidade + setup".
   const valorMargem = calcularMargemParceiro(margem, custoBase, config.setup);
   const totalCobrar = custoBase + valorMargem;
-  const [licencaAberta, setLicencaAberta] = useState(false);
 
   const alterarNumero = (campo: keyof ConfiguracaoCalculadoraParceiro, valor: string) => {
     const numero = Math.max(0, Number(valor) || 0);

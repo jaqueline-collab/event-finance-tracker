@@ -14,6 +14,10 @@ export type LinhaFechamentoParceiro = {
   cicloInicio: string | null;
   cicloFim: string | null;
   vencimento: string | null;
+  /** Status do lançamento no Financeiro (mesmo da tela interna). */
+  status: string | null;
+  /** Nota fiscal anexada cobrindo este lançamento, quando houver. */
+  notaId: string | null;
   valorBruto: number;
   valorDesconto: number;
   valorLiquido: number;
