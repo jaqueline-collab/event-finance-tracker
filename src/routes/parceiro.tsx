@@ -1198,6 +1198,30 @@ function FinanceiroParceiro({
   fechAberto: string | null;
   setFechAberto: (v: string | null) => void;
 }) {
+  const fnBaixar = useServerFn(baixarNotaFiscal);
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
+
+  const baixarNota = async (notaId: string) => {
+    setBaixandoId(notaId);
+    try {
+      const r = await fnBaixar({ data: { notaId } });
+      const binario = atob(r.conteudoBase64);
+      const bytes = new Uint8Array(binario.length);
+      for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+      const blob = new Blob([bytes], { type: r.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = r.nomeArquivo;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível baixar a nota.");
+    } finally {
+      setBaixandoId(null);
+    }
+  };
+
   if (carregando) return <Skeleton className="h-64 w-full" />;
   if (erro) {
     return (
@@ -1243,9 +1267,12 @@ function FinanceiroParceiro({
                       <TableHead>Cliente</TableHead>
                       <TableHead>Composição cobrada</TableHead>
                       <TableHead>Ciclo</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Bruto</TableHead>
                       <TableHead className="text-right">Desconto</TableHead>
                       <TableHead className="text-right">Líquido</TableHead>
+                      <TableHead className="w-[64px] text-center">NF</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1267,16 +1294,44 @@ function FinanceiroParceiro({
                             ? `${dataBr(l.cicloInicio)} → ${dataBr(l.cicloFim)}`
                             : "—"}
                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {l.vencimento ? dataBr(l.vencimento) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {l.status ? (
+                            <Badge variant={l.status === "pago" ? "secondary" : "outline"} className="text-[10px] capitalize">
+                              {l.status === "pago" ? "Pago" : "Pendente"}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">{brl(l.valorBruto)}</TableCell>
                         <TableCell className="text-right tabular-nums">{brl(l.valorDesconto)}</TableCell>
                         <TableCell className="text-right font-medium tabular-nums">{brl(l.valorLiquido)}</TableCell>
+                        <TableCell className="text-center">
+                          {l.notaId ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Baixar nota fiscal de ${l.clienteNome}`}
+                              disabled={baixandoId === l.notaId}
+                              onClick={() => void baixarNota(l.notaId!)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={3} className="font-medium">Total da sua carteira</TableCell>
+                      <TableCell colSpan={5} className="font-medium">Total da sua carteira</TableCell>
                       <TableCell className="text-right tabular-nums">{brl(f.totalBruto)}</TableCell>
                       <TableCell className="text-right tabular-nums">{brl(f.totalDesconto)}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{brl(f.totalLiquido)}</TableCell>
+                      <TableCell />
                     </TableRow>
                   </TableBody>
                 </Table>
