@@ -123,6 +123,14 @@ describe("Calculadora do parceiro", () => {
     ).toBeCloseTo(70, 2);
   });
 
+  it("o setup da proposta só entra na margem quando a base é mensalidade + setup", () => {
+    const margem = { tipo: "percentual", valor: 20, base: "mensalidade" } as const;
+    expect(calcularMargemParceiro({ ...margem }, 1000, 400)).toBeCloseTo(200, 2);
+    expect(
+      calcularMargemParceiro({ ...margem, base: "mensalidade_setup" }, 1000, 400),
+    ).toBeCloseTo(280, 2);
+  });
+
   it("o contrato público não contém campos de custo, margem, lucro ou WTS", () => {
     const payload = JSON.stringify(plano).toLowerCase();
     for (const chave of ["custo", "lucro", "wts", "licencabase", "precousuarios"]) {
