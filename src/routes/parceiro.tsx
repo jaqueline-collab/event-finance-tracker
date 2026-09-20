@@ -490,14 +490,32 @@ function AreaParceiro() {
                     <Label className="text-xs">Buscar cliente</Label>
                     <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome do cliente" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">De</Label>
-                    <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs">Período</Label>
+                    <Select
+                      value={periodo}
+                      onValueChange={(v) => navigate({ search: (s: any) => ({ ...s, periodo: v }) })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PERIODOS.map((p) => (
+                          <SelectItem key={p.valor} value={p.valor}>{p.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Até</Label>
-                    <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
-                  </div>
+                  {periodo === "custom" && (
+                    <>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs">De</Label>
+                        <Input type="date" value={deManual} onChange={(e) => setDeManual(e.target.value)} />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs">Até</Label>
+                        <Input type="date" value={ateManual} onChange={(e) => setAteManual(e.target.value)} />
+                      </div>
+                    </>
+                  )}
                   <div className="flex gap-2 sm:col-span-4">
                     {(["todos", "ativos", "inativos"] as const).map((s) => (
                       <Button
