@@ -866,12 +866,14 @@ function AreaParceiro() {
 const configuracaoInicial = (plano?: PlanoCalculadoraParceiro): ConfiguracaoCalculadoraParceiro => ({
   usuarios: plano?.usuariosInclusos ?? 1,
   canaisWhatsTotal: plano?.canaisWhatsInclusos ?? 0,
-  canaisWhatsOficiais: plano?.canaisWhatsInclusos ?? 0,
+  // API Oficial sempre começa em 0 — nunca herda valor anterior nem a franquia.
+  canaisWhatsOficiais: 0,
   canaisInsta: plano?.canaisInstaInclusos ?? 0,
   canaisMessenger: plano?.canaisMessengerInclusos ?? 0,
   agentesIA: Boolean(plano?.incluiIA),
   asaas: Boolean(plano?.incluiAsaas),
   transcricaoIA: Boolean(plano?.incluiTranscricao),
+  setup: 0,
 });
 
 function CalculadoraParceiro({
