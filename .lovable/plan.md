@@ -70,4 +70,4 @@ Alternador no topo da aba Financeiro: **Fechamentos** (o que já existe) e **Rel
 
 **Testes** em `src/lib/__tests__/financeiro-parceiro.test.ts`: NF/ciclo/vencimento no nível do fechamento, ausência de `notaId` por linha, cálculo de reduções/aumentos pelo sinal do delta e bloqueio da composição sem permissão.
 
-**Validação**: 390/834/1440, claro e escuro; competência fechada mostrando ciclo/vencimento/NF; nenhuma NF em linha de cliente; troca entre os quatro períodos; clique e desclique nos três indicadores; Relatórios com e sem permissão de composição.
+**Validação**: 390/834/1440, claro e escuro; competência fechada mostrando ciclo/vencimento/NF; nenhuma NF em linha de cliente; troca entre os quatro períodos; clique e desclique nos três indicadores; Relatórios com e sem permissão de composição. Inclui o caso limite de **vencimentos divergentes** no mesmo fechamento (metade dia 5, metade dia 10) — os dados reais da Rabbit Agency têm todo mundo no dia 5, então esse cenário será montado à parte para conferir a exibição "mais próxima (+N datas)".
