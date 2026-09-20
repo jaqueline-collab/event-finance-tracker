@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
@@ -19,8 +22,9 @@ import {
   obterVencimentoDaCompetencia,
   mensagemErroPersistencia,
 } from "@/lib/store";
+import { anexarNotaFiscal, listarVinculosNotas } from "@/lib/notas-fiscais.functions";
 import type { LancamentoFinanceiro, StatusFinanceiro, TipoFinanceiro } from "@/lib/types";
-import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/financeiro")({
