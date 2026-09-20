@@ -627,7 +627,16 @@ function AreaParceiro() {
                       {brl((dados as any)?.totalAcompanhamento ?? 0)}
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={indicador === "excedentes"}
+                    onClick={() => alternarIndicador("excedentes")}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && alternarIndicador("excedentes")}
+                    className={`cursor-pointer transition hover:border-primary/60 ${
+                      indicador === "excedentes" ? "border-primary bg-primary/5 ring-1 ring-primary" : ""
+                    }`}
+                  >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xs font-medium text-muted-foreground">
                         Total de excedentes
