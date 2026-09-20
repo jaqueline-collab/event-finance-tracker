@@ -1574,7 +1574,7 @@ function RelatoriosParceiro({
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="chave" tickFormatter={mesLabel} fontSize={12} />
               <YAxis fontSize={12} />
-              <RTooltip formatter={(v: any) => brl(Number(v))} labelFormatter={(l: any) => mesLabel(String(l))} />
+              <Tooltip formatter={(v: any) => brl(Number(v))} labelFormatter={(l: any) => mesLabel(String(l))} />
               <Bar dataKey="total" name="Pago" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -1597,7 +1597,7 @@ function RelatoriosParceiro({
                       <Cell key={i} fill={CORES_PIZZA[i % CORES_PIZZA.length]} />
                     ))}
                   </Pie>
-                  <RTooltip formatter={(v: any) => brl(Number(v))} />
+                  <Tooltip formatter={(v: any) => brl(Number(v))} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
