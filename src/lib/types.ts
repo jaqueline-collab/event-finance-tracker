@@ -25,6 +25,8 @@ export interface Plano {
   valorAcompanhamento?: number;
   /** Quando false, clientes deste plano não podem ativar novos módulos opcionais. */
   permiteModulosOpcionais?: boolean;
+  /** Plano inativo não aparece nos seletores de escolha, mas segue no histórico. */
+  ativo?: boolean;
   // Dia padrão de vencimento (1-31). Cliente pode sobrescrever via Cliente.dataVencimento.
   diaVencimento?: number | null;
   // Ciclo de faturamento padrão (dias 1-31). Cliente pode sobrescrever.
