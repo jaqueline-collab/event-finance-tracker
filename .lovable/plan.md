@@ -54,7 +54,8 @@ Alternador no topo da aba Financeiro: **Fechamentos** (o que já existe) e **Rel
 ## Detalhes técnicos
 
 **`src/lib/parceiro.financeiro.ts`**
-- `LinhaFechamentoParceiro` perde `notaId`; `FechamentoParceiro` ganha `cicloInicio`, `cicloFim`, `vencimento` e `notaId`, derivados dos itens do próprio parceiro (menor `ciclo_inicio`, maior `ciclo_fim`, vencimento predominante, primeira nota encontrada em `notaPorLancamento`). `status` por linha permanece.
+- `LinhaFechamentoParceiro` perde `notaId`; `FechamentoParceiro` ganha `cicloInicio`, `cicloFim`, `vencimento`, `vencimentosDivergentes: boolean` e `notaId`, derivados dos itens do próprio parceiro (menor `ciclo_inicio`, maior `ciclo_fim`, primeira nota encontrada em `notaPorLancamento`). `status` por linha permanece.
+- Vencimento do fechamento: quando todos os itens têm a mesma data, mostra a data. Quando há datas diferentes, `vencimentosDivergentes` fica verdadeiro e a linha mostra a **mais próxima** seguida de "(+N datas)", com as datas completas na dica ao passar o mouse — nada de escolher uma "predominante" e esconder o resto. Cada linha de cliente continua mostrando seu próprio vencimento ao expandir.
 - Novo tipo `RelatorioParceiro` com `pagoPorMes`, `totalSistema`, `totalAcompanhamento`, `ticketMedio`, `reducoes`, `aumentos`, montado por função pura `montarRelatorioParceiro(...)` — lista branca: nada de custo WTS, margem, lucro ou desconto de escala.
 
 **`src/lib/parceiro.functions.ts`**
@@ -69,4 +70,4 @@ Alternador no topo da aba Financeiro: **Fechamentos** (o que já existe) e **Rel
 
 **Testes** em `src/lib/__tests__/financeiro-parceiro.test.ts`: NF/ciclo/vencimento no nível do fechamento, ausência de `notaId` por linha, cálculo de reduções/aumentos pelo sinal do delta e bloqueio da composição sem permissão.
 
-**Validação**: 390/834/1440, claro e escuro; competência fechada mostrando ciclo/vencimento/NF; nenhuma NF em linha de cliente; troca entre os quatro períodos; clique e desclique nos três indicadores; Relatórios com e sem permissão de composição.
+**Validação**: 390/834/1440, claro e escuro; competência fechada mostrando ciclo/vencimento/NF; nenhuma NF em linha de cliente; troca entre os quatro períodos; clique e desclique nos três indicadores; Relatórios com e sem permissão de composição. Inclui o caso limite de **vencimentos divergentes** no mesmo fechamento (metade dia 5, metade dia 10) — os dados reais da Rabbit Agency têm todo mundo no dia 5, então esse cenário será montado à parte para conferir a exibição "mais próxima (+N datas)".
