@@ -127,6 +127,13 @@
       "when": 1789867106324,
       "tag": "0017_notas_fiscais",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790119896624,
+      "tag": "0018_treinamento_lms",
+      "breakpoints": true
     }
   ]
 }
