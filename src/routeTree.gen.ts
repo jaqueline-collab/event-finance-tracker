@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as TreinamentoRouteImport } from './routes/treinamento'
 import { Route as SimuladorRouteImport } from './routes/simulador'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as PlanosRouteImport } from './routes/planos'
@@ -42,6 +43,11 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TreinamentoRoute = TreinamentoRouteImport.update({
+  id: '/treinamento',
+  path: '/treinamento',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SimuladorRoute = SimuladorRouteImport.update({
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
+  '/treinamento': typeof TreinamentoRoute
   '/usuarios': typeof UsuariosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
+  '/treinamento': typeof TreinamentoRoute
   '/usuarios': typeof UsuariosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -272,6 +280,7 @@ export interface FileRoutesById {
   '/planos': typeof PlanosRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
+  '/treinamento': typeof TreinamentoRoute
   '/usuarios': typeof UsuariosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/resumo'
     | '/simulador'
+    | '/treinamento'
     | '/usuarios'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -336,6 +346,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/resumo'
     | '/simulador'
+    | '/treinamento'
     | '/usuarios'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -367,6 +378,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/resumo'
     | '/simulador'
+    | '/treinamento'
     | '/usuarios'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -399,6 +411,7 @@ export interface RootRouteChildren {
   PlanosRoute: typeof PlanosRoute
   ResumoRoute: typeof ResumoRoute
   SimuladorRoute: typeof SimuladorRoute
+  TreinamentoRoute: typeof TreinamentoRoute
   UsuariosRoute: typeof UsuariosRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -417,6 +430,13 @@ declare module '@tanstack/react-router' {
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/treinamento': {
+      id: '/treinamento'
+      path: '/treinamento'
+      fullPath: '/treinamento'
+      preLoaderRoute: typeof TreinamentoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/simulador': {
@@ -648,6 +668,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlanosRoute: PlanosRoute,
   ResumoRoute: ResumoRoute,
   SimuladorRoute: SimuladorRoute,
+  TreinamentoRoute: TreinamentoRoute,
   UsuariosRoute: UsuariosRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:

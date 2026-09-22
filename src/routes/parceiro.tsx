@@ -18,6 +18,7 @@ import {
   type MargemParceiro,
   type PlanoCalculadoraParceiro,
 } from "@/lib/parceiro.calculadora";
+import { PainelTreinamento } from "@/components/treinamento/painel-treinamento";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +85,9 @@ const ANO_INICIAL = 2026;
 
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
-  aba: fallback(z.enum(["clientes", "financeiro", "calculadora"]), "clientes").default("clientes"),
+  aba: fallback(z.enum(["clientes", "financeiro", "calculadora", "treinamento"]), "clientes").default(
+    "clientes",
+  ),
   grafico: fallback(z.enum(["fluxo", "ativos"]), "fluxo").default("fluxo"),
   ano: fallback(z.number().int(), 0).default(0),
   periodo: fallback(z.string(), "mes").default("mes"),
@@ -378,7 +381,7 @@ function AreaParceiro() {
   }, [clientesFiltrados, anoGrafico]);
 
 
-  const irPara = (proxima: "clientes" | "financeiro" | "calculadora") =>
+  const irPara = (proxima: "clientes" | "financeiro" | "calculadora" | "treinamento") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
 
   const atalhosTopo = headerActionsTarget
@@ -406,11 +409,11 @@ function AreaParceiro() {
           </a>
         </Button>
         <Button
-          variant="ghost"
+          variant={aba === "treinamento" ? "secondary" : "ghost"}
           size="sm"
           title="Treinamento"
           aria-label="Treinamento"
-          onClick={() => toast.info("Treinamento: página em construção.")}
+          onClick={() => irPara("treinamento")}
         >
           <GraduationCap className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Treinamento</span>
         </Button>
@@ -446,6 +449,14 @@ function AreaParceiro() {
         onClick={() => irPara("calculadora")}
       >
         <Calculator className="mr-2 h-4 w-4" /> Calculadora
+      </Button>
+      <Button
+        variant={aba === "treinamento" ? "secondary" : "ghost"}
+        size="sm"
+        className="justify-start"
+        onClick={() => irPara("treinamento")}
+      >
+        <GraduationCap className="mr-2 h-4 w-4" /> Treinamento
       </Button>
     </nav>
   );
@@ -968,6 +979,8 @@ function AreaParceiro() {
               sub={sub}
               onSub={(v) => navigate({ search: (s: any) => ({ ...s, sub: v }) })}
             />
+          ) : aba === "treinamento" ? (
+            <PainelTreinamento audiencia="parceiro" />
           ) : (
             <CalculadoraParceiro
               carregando={carregandoCalc}

@@ -916,6 +916,68 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_medalhas: {
+        Row: {
+          created_at: string
+          criterio_tipo: string
+          criterio_valor: string
+          descricao: string | null
+          icone: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          criterio_tipo: string
+          criterio_valor: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          criterio_tipo?: string
+          criterio_valor?: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      elora_medalhas_conquistadas: {
+        Row: {
+          conquistada_em: string
+          id: string
+          medalha_id: string
+          user_id: string
+          usuario_tipo: string
+        }
+        Insert: {
+          conquistada_em?: string
+          id?: string
+          medalha_id: string
+          user_id?: string
+          usuario_tipo: string
+        }
+        Update: {
+          conquistada_em?: string
+          id?: string
+          medalha_id?: string
+          user_id?: string
+          usuario_tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_medalhas_conquistadas_medalha_id_fkey"
+            columns: ["medalha_id"]
+            isOneToOne: false
+            referencedRelation: "elora_medalhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_movimentos: {
         Row: {
           agentes_ia: boolean | null
@@ -1006,6 +1068,30 @@ export type Database = {
           valor_servico?: number | null
           vigencia_plano?: string | null
           zapi?: boolean | null
+        }
+        Relationships: []
+      }
+      elora_niveis_gamificacao: {
+        Row: {
+          icone: string | null
+          id: string
+          nivel: number
+          nome: string
+          pontos_minimos: number
+        }
+        Insert: {
+          icone?: string | null
+          id?: string
+          nivel: number
+          nome: string
+          pontos_minimos?: number
+        }
+        Update: {
+          icone?: string | null
+          id?: string
+          nivel?: number
+          nome?: string
+          pontos_minimos?: number
         }
         Relationships: []
       }
@@ -1474,6 +1560,41 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_progresso_video: {
+        Row: {
+          concluido: boolean
+          concluido_em: string
+          id: string
+          user_id: string
+          usuario_tipo: string
+          video_id: string
+        }
+        Insert: {
+          concluido?: boolean
+          concluido_em?: string
+          id?: string
+          user_id?: string
+          usuario_tipo: string
+          video_id: string
+        }
+        Update: {
+          concluido?: boolean
+          concluido_em?: string
+          id?: string
+          user_id?: string
+          usuario_tipo?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_progresso_video_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "elora_trilha_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_release_destinos: {
         Row: {
           cliente_id: string
@@ -1583,6 +1704,86 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      elora_trilha_videos: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          ordem: number
+          pontos: number
+          titulo: string
+          trilha_id: string
+          youtube_id: string
+          youtube_url: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          pontos?: number
+          titulo: string
+          trilha_id: string
+          youtube_id: string
+          youtube_url: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          pontos?: number
+          titulo?: string
+          trilha_id?: string
+          youtube_id?: string
+          youtube_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_trilha_videos_trilha_id_fkey"
+            columns: ["trilha_id"]
+            isOneToOne: false
+            referencedRelation: "elora_trilhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_trilhas: {
+        Row: {
+          ativa: boolean
+          audiencia: string
+          created_at: string
+          descricao: string | null
+          id: string
+          ordem: number
+          pontos_bonus_conclusao: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          audiencia: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          pontos_bonus_conclusao?: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          audiencia?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          pontos_bonus_conclusao?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       elora_uso_snapshots: {
         Row: {
