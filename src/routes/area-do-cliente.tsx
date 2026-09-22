@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { PainelTreinamento } from "@/components/treinamento/painel-treinamento";
 import {
   adicionarPessoaEquipe,
   getPainelCliente,
@@ -215,6 +216,7 @@ function AreaCliente() {
               [
                 { v: "resultados", l: "Dash" },
                 { v: "conta", l: "Conta" },
+                { v: "treinamento", l: "Treinamento" },
                 { v: "novidades", l: "Novidades" },
                 { v: "equipe", l: "Minha equipe" },
               ] as const
@@ -244,6 +246,10 @@ function AreaCliente() {
       <Tabs value={aba} onValueChange={setAba}>
         <TabsContent value="resultados" className="mt-0">
           <ResultadosCliente clienteId={cliente.id} />
+        </TabsContent>
+
+        <TabsContent value="treinamento" className="mt-4">
+          <PainelTreinamento audiencia="cliente" />
         </TabsContent>
 
         <TabsContent value="conta" className="mt-4 grid gap-4 md:grid-cols-2">
