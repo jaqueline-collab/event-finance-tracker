@@ -18,6 +18,7 @@ import {
   Sparkles,
   Globe,
   Plug,
+  GraduationCap,
 } from "lucide-react";
 import {
   Sidebar,
