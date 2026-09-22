@@ -55,6 +55,7 @@ const configItemsAll: { title: string; url: string; icon: any; moduleKey: Module
   { title: "Parceiros", url: "/gestao-parceiros", icon: Handshake, moduleKey: "parceiros" },
   { title: "Usuários", url: "/usuarios", icon: UserCog, moduleKey: "usuarios", adminOnly: true },
   { title: "Novidades", url: "/novidades", icon: Sparkles, moduleKey: "novidades", adminOnly: true },
+  { title: "Treinamento", url: "/treinamento", icon: GraduationCap, moduleKey: "treinamento", adminOnly: true },
 ];
 
 const ORDER_KEY = "elora.sidebar.order.v1";
