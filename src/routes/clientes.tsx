@@ -690,6 +690,13 @@ function ClientesPage() {
   }, [clientesFiltrados]);
 
   // Seleção em massa: só vale para o que está visível com os filtros atuais.
+  const [modelosPainel, setModelosPainel] = useState<ModeloPainel[]>([]);
+  useEffect(() => {
+    listarModelosPainel()
+      .then((r) => setModelosPainel(r.modelos))
+      .catch(() => setModelosPainel([]));
+  }, []);
+
   const selecionadosVisiveis = useMemo(
     () => clientesOrdenados.filter((c) => selecionados.includes(c.id)).map((c) => c.id),
     [clientesOrdenados, selecionados],
@@ -1247,6 +1254,42 @@ function ClientesPage() {
           >
             Trocar plano
           </Button>
+          <Select
+            value=""
+            onValueChange={async (modeloId) => {
+              const modelo = modelosPainel.find((m) => m.id === modeloId);
+              if (!modelo) return;
+              const ok = window.confirm(
+                `Isso substitui os widgets de ${selecionadosVisiveis.length} cliente(s) selecionado(s), confirmar?`,
+              );
+              if (!ok) return;
+              try {
+                await aplicarModeloEmClientes({
+                  data: { modeloId, clienteIds: selecionadosVisiveis },
+                });
+                toast.success(`Modelo "${modelo.nome}" aplicado aos clientes selecionados.`);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Não foi possível aplicar o modelo.");
+              }
+            }}
+          >
+            <SelectTrigger className="w-56" aria-label="Aplicar modelo de painel">
+              <SelectValue placeholder="Aplicar modelo de painel" />
+            </SelectTrigger>
+            <SelectContent>
+              {modelosPainel.length === 0 ? (
+                <SelectItem value="__vazio" disabled>
+                  Nenhum modelo salvo
+                </SelectItem>
+              ) : (
+                modelosPainel.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.nome}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
           <Button size="sm" variant="ghost" onClick={() => setSelecionados([])}>
             Limpar seleção
           </Button>
