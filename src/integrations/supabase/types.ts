@@ -485,6 +485,36 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_dashboard_modelos: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          widgets: Json
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          widgets?: Json
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          widgets?: Json
+        }
+        Relationships: []
+      }
       elora_dashboard_widgets: {
         Row: {
           atualizado_em: string
@@ -492,6 +522,7 @@ export type Database = {
           configuracao: Json
           criado_em: string
           id: string
+          layout: Json
           ordem: number
           tipo: string
           titulo: string
@@ -502,6 +533,7 @@ export type Database = {
           configuracao?: Json
           criado_em?: string
           id?: string
+          layout?: Json
           ordem?: number
           tipo: string
           titulo: string
@@ -512,6 +544,7 @@ export type Database = {
           configuracao?: Json
           criado_em?: string
           id?: string
+          layout?: Json
           ordem?: number
           tipo?: string
           titulo?: string
