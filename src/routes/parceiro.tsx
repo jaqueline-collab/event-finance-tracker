@@ -10,6 +10,7 @@ import {
 } from "@/lib/parceiro.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { baixarNotaFiscal } from "@/lib/notas-fiscais.functions";
+import { gerarPdfClientesParceiro } from "@/lib/parceiro-pdf";
 import {
   calcularMargemParceiro,
   calcularOrcamentoParceiro,
@@ -354,6 +355,50 @@ function AreaParceiro() {
     });
   }, [clientesFiltrados, indicador, de, ate]);
 
+  // PDF respeita exatamente os filtros ativos e a trava de composição do parceiro.
+  const baixarPdfClientes = () => {
+    if (clientesTabela.length === 0) {
+      toast.error("Nenhum cliente para exportar com os filtros atuais.");
+      return;
+    }
+    gerarPdfClientesParceiro({
+      parceiro: dados?.parceiro.nome ?? "Parceiro",
+      periodo: `${dataBr(de)} a ${dataBr(ate)}`,
+      geradoEm: new Date().toLocaleString("pt-BR"),
+      veValores,
+      clientes: clientesTabela.map((c) => ({
+        nome: c.nome,
+        plano: c.plano,
+        status: c.dataChurn ? "Churn" : c.statusComercial === "trial" ? "Trial" : "Ativo",
+        setup: dataBr(c.dataInicio),
+        ltv: (() => {
+          const d = ltvDias(c);
+          return d === null ? "—" : `${d} dias`;
+        })(),
+        churn: dataBr(c.dataChurn),
+        mensalidade: veValores ? brl(((c as any).mensalidade as number) ?? 0) : undefined,
+        historico: movimentos
+          .filter((m) => m.clienteId === c.id)
+          .map((m) => ({
+            data: dataBr(m.data),
+            tipo: rotuloTipoMovimento(m.tipo),
+            descricao:
+              [
+                m.plano ? `Plano: ${m.plano}` : null,
+                m.canaisWhats ? `WhatsApp: ${m.canaisWhats}` : null,
+                m.canaisInsta ? `Instagram: ${m.canaisInsta}` : null,
+                m.canaisMessenger ? `Messenger: ${m.canaisMessenger}` : null,
+                m.canaisZapi ? `Z-API: ${m.canaisZapi}` : null,
+                m.usuariosAtivos ? `Usuários: ${m.usuariosAtivos}` : null,
+                m.observacao ?? null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—",
+          })),
+      })),
+    });
+  };
+
   const alternarIndicador = (qual: "entradas" | "saidas" | "excedentes") =>
     navigate({ search: (s: any) => ({ ...s, indicador: s.indicador === qual ? "" : qual }) });
 
@@ -538,7 +583,7 @@ function AreaParceiro() {
                       </div>
                     </>
                   )}
-                  <div className="flex gap-2 sm:col-span-4">
+                  <div className="flex flex-wrap gap-2 sm:col-span-4">
                     {(["todos", "ativos", "inativos"] as const).map((s) => (
                       <Button
                         key={s}
@@ -549,6 +594,9 @@ function AreaParceiro() {
                         {s === "todos" ? "Todos" : s === "ativos" ? "Ativos" : "Inativos"}
                       </Button>
                     ))}
+                    <Button size="sm" variant="outline" className="ml-auto" onClick={baixarPdfClientes}>
+                      <FileDown className="mr-2 h-4 w-4" /> Baixar PDF
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
