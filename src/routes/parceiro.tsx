@@ -70,6 +70,8 @@ import {
   Download,
   ExternalLink,
   Eye,
+  FileDown,
+  FileText,
   GraduationCap,
   History,
   PackageOpen,
@@ -80,6 +82,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+
+type SubFinanceiro = "fechamentos" | "relatorios" | "notas";
 
 const ANO_INICIAL = 2026;
 
