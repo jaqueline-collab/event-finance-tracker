@@ -204,7 +204,7 @@ function AreaParceiro() {
   const indicador = (["entradas", "saidas", "excedentes"].includes(indicadorRaw)
     ? indicadorRaw
     : "") as "" | "entradas" | "saidas" | "excedentes";
-  const sub = (subRaw === "relatorios" ? "relatorios" : "fechamentos") as "fechamentos" | "relatorios";
+  const sub = (["relatorios", "notas"].includes(subRaw) ? subRaw : "fechamentos") as SubFinanceiro;
   const anoAtual = new Date().getFullYear();
   const anoGrafico = ano && ano >= ANO_INICIAL ? ano : anoAtual;
   const anosDisponiveis = useMemo(() => {
@@ -1331,8 +1331,8 @@ function FinanceiroParceiro({
   dados: FinanceiroData | null;
   fechAberto: string | null;
   setFechAberto: (v: string | null) => void;
-  sub: "fechamentos" | "relatorios";
-  onSub: (v: "fechamentos" | "relatorios") => void;
+  sub: SubFinanceiro;
+  onSub: (v: SubFinanceiro) => void;
 }) {
   const fnBaixar = useServerFn(baixarNotaFiscal);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
@@ -1379,6 +1379,47 @@ function FinanceiroParceiro({
           itens={dados?.relatorioItens ?? []}
           veValores={Boolean(dados?.veValores)}
         />
+      </div>
+    );
+  }
+
+  if (sub === "notas") {
+    const notas = dados?.notas ?? [];
+    return (
+      <div className="space-y-4">
+        <AlternadorSub sub={sub} onSub={onSub} />
+        {notas.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Nenhuma nota fiscal anexada aos seus fechamentos até agora.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {notas.map((n) => (
+              <Card key={n.id}>
+                <CardContent className="flex flex-wrap items-center gap-3 p-3">
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{n.arquivo}</span>
+                  <Badge variant="outline">{n.competencia}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {n.lancamentos} lançamento{n.lancamentos === 1 ? "" : "s"}
+                  </span>
+                  <span className="text-sm tabular-nums">{brl(n.valorTotal)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={baixandoId === n.id}
+                    onClick={() => baixarNota(n.id)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {baixandoId === n.id ? "Baixando…" : "Baixar"}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1510,14 +1551,14 @@ function AlternadorSub({
   sub,
   onSub,
 }: {
-  sub: "fechamentos" | "relatorios";
-  onSub: (v: "fechamentos" | "relatorios") => void;
+  sub: SubFinanceiro;
+  onSub: (v: SubFinanceiro) => void;
 }) {
   return (
-    <div className="flex gap-2">
-      {(["fechamentos", "relatorios"] as const).map((s) => (
+    <div className="flex flex-wrap gap-2">
+      {(["fechamentos", "relatorios", "notas"] as const).map((s) => (
         <Button key={s} size="sm" variant={sub === s ? "secondary" : "outline"} onClick={() => onSub(s)}>
-          {s === "fechamentos" ? "Fechamentos" : "Relatórios"}
+          {s === "fechamentos" ? "Fechamentos" : s === "relatorios" ? "Relatórios" : "Notas Fiscais"}
         </Button>
       ))}
     </div>
