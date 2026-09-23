@@ -28,6 +28,9 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { getResultadosCliente, type WidgetRenderizado } from "@/lib/integracao-elora.functions";
+import { DashboardGrid } from "@/components/dashboard-grid";
+import { normalizarGrade } from "@/lib/grid-layout";
+import { formatBRL } from "@/lib/calc/format";
 
 type Resultados = Awaited<ReturnType<typeof getResultadosCliente>>;
 
@@ -70,12 +73,16 @@ function WidgetMetrico({ w }: { w: WidgetRenderizado }) {
       ) : (
         <>
           <p className="mt-1 text-2xl font-bold">
-            {d.formato === "duracao" ? duracaoBr(Number(d.valor ?? 0)) : Number(d.valor ?? 0)}
+            {d.formato === "duracao"
+              ? duracaoBr(Number(d.valor ?? 0))
+              : d.formato === "moeda"
+                ? formatBRL(Number(d.valor ?? 0))
+                : Number(d.valor ?? 0)}
           </p>
           {d.secundario && (
             <p className="text-xs text-muted-foreground">
               {d.secundario.quantidade} {d.secundario.rotulo}
-              {d.formato !== "duracao" && Number(d.valor) > 0
+              {d.formato === "numero" && Number(d.valor) > 0
                 ? ` (${Math.round((d.secundario.quantidade / Number(d.valor)) * 100)}%)`
                 : ""}
             </p>
@@ -411,8 +418,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
   };
 
   const widgets = dados?.widgets ?? [];
-  const metricos = widgets.filter((w) => w.tipo === "metrico");
-  const demais = widgets.filter((w) => w.tipo !== "metrico");
+  const grade = useMemo(() => normalizarGrade(widgets), [widgets]);
 
   return (
     <Card>
@@ -486,26 +492,25 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
           </p>
         )}
 
-        {!carregando && metricos.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {metricos.map((w) => (
-              <WidgetMetrico key={w.id} w={w} />
-            ))}
-          </div>
+        {!carregando && widgets.length > 0 && (
+          <DashboardGrid
+            itens={grade}
+            editavel={false}
+            renderItem={(g) => {
+              const w = g.item;
+              return (
+                <div className="h-full">
+                  {w.tipo === "metrico" && <WidgetMetrico w={w} />}
+                  {w.tipo === "pizza" && <WidgetPizza w={w} />}
+                  {w.tipo === "barras" && <WidgetBarras w={w} />}
+                  {w.tipo === "calendario" && <WidgetCalendario w={w} />}
+                  {w.tipo === "ranking" && <WidgetRanking w={w} />}
+                  {w.tipo === "tabela" && <WidgetTabela w={w} pagina={pagina} setPagina={setPagina} />}
+                </div>
+              );
+            }}
+          />
         )}
-
-        {!carregando &&
-          demais.map((w) => (
-            <div key={w.id}>
-              {w.tipo === "pizza" && <WidgetPizza w={w} />}
-              {w.tipo === "barras" && <WidgetBarras w={w} />}
-              {w.tipo === "calendario" && <WidgetCalendario w={w} />}
-              {w.tipo === "ranking" && <WidgetRanking w={w} />}
-              {w.tipo === "tabela" && (
-                <WidgetTabela w={w} pagina={pagina} setPagina={setPagina} />
-              )}
-            </div>
-          ))}
 
         {!carregando && dados && (
           <p className="text-xs text-muted-foreground">
