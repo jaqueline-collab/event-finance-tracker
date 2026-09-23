@@ -208,6 +208,258 @@ export const reordenarWidgetsCliente = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Salva de uma vez a posição/tamanho (e a ordem visual) da grade inteira. */
+export const salvarGradeCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1),
+        blocos: z.array(z.object({ id: z.string().uuid(), layout: layoutSchema })).max(100),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ordenados = [...data.blocos].sort(
+      (a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x,
+    );
+    for (let i = 0; i < ordenados.length; i++) {
+      await supabaseAdmin
+        .from("elora_dashboard_widgets")
+        .update({
+          layout: ordenados[i].layout as never,
+          ordem: i,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", ordenados[i].id)
+        .eq("cliente_id", data.clienteId);
+    }
+    return { ok: true };
+  });
+
+/* ------------------------------------------------------------------ *
+ * Modelos de painel (grade reutilizável)
+ * ------------------------------------------------------------------ */
+
+export type ModeloPainel = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  widgets: {
+    tipo: string;
+    titulo: string;
+    configuracao: any;
+    ordem: number;
+    layout: { x: number; y: number; w: number; h: number } | null;
+  }[];
+};
+
+const modeloWidgetSchema = z.object({
+  tipo: z.enum(["metrico", "pizza", "barras", "calendario", "ranking", "tabela"]),
+  titulo: z.string().trim().min(1).max(120),
+  configuracao: z.record(z.string(), z.unknown()).default({}),
+  ordem: z.number().int().min(0).max(999).default(0),
+  layout: layoutSchema.nullable().default(null),
+});
+
+export const listarModelosPainel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ modelos: ModeloPainel[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("elora_dashboard_modelos")
+      .select("id, nome, descricao, widgets")
+      .order("nome", { ascending: true });
+    if (error) throw new Error(`modelos: ${error.message}`);
+    return {
+      modelos: ((rows ?? []) as any[]).map((m) => ({
+        id: String(m.id),
+        nome: String(m.nome),
+        descricao: m.descricao ? String(m.descricao) : null,
+        widgets: Array.isArray(m.widgets) ? m.widgets : [],
+      })),
+    };
+  });
+
+export const salvarModeloPainel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        modeloId: z.string().uuid().nullable().default(null),
+        nome: z.string().trim().min(1).max(120),
+        descricao: z.string().trim().max(400).nullable().default(null),
+        widgets: z.array(modeloWidgetSchema).max(100).default([]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ modeloId: string }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.modeloId) {
+      const { error } = await supabaseAdmin
+        .from("elora_dashboard_modelos")
+        .update({
+          nome: data.nome,
+          descricao: data.descricao,
+          widgets: data.widgets as never,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", data.modeloId);
+      if (error) throw new Error(`modelos: ${error.message}`);
+      return { modeloId: data.modeloId };
+    }
+    const { data: criado, error } = await supabaseAdmin
+      .from("elora_dashboard_modelos")
+      .insert({
+        nome: data.nome,
+        descricao: data.descricao,
+        widgets: data.widgets as never,
+        criado_por: context.userId,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(`modelos: ${error.message}`);
+    return { modeloId: String((criado as any).id) };
+  });
+
+/** Captura o painel atual de um cliente como modelo novo. */
+export const salvarPainelComoModelo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1),
+        nome: z.string().trim().min(1).max(120),
+        descricao: z.string().trim().max(400).nullable().default(null),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ modeloId: string; total: number }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("elora_dashboard_widgets")
+      .select("tipo, titulo, configuracao, ordem, layout")
+      .eq("cliente_id", data.clienteId)
+      .order("ordem", { ascending: true });
+    if (error) throw new Error(`modelos: ${error.message}`);
+    const widgets = ((rows ?? []) as any[]).map((w, i) => ({
+      tipo: String(w.tipo),
+      titulo: String(w.titulo),
+      configuracao: w.configuracao ?? {},
+      ordem: Number(w.ordem ?? i),
+      layout: sanearLayout(w.layout),
+    }));
+    const { data: criado, error: e2 } = await supabaseAdmin
+      .from("elora_dashboard_modelos")
+      .insert({
+        nome: data.nome,
+        descricao: data.descricao,
+        widgets: widgets as never,
+        criado_por: context.userId,
+      })
+      .select("id")
+      .single();
+    if (e2) throw new Error(`modelos: ${e2.message}`);
+    return { modeloId: String((criado as any).id), total: widgets.length };
+  });
+
+export const excluirModeloPainel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ modeloId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("elora_dashboard_modelos")
+      .delete()
+      .eq("id", data.modeloId);
+    if (error) throw new Error(`modelos: ${error.message}`);
+    return { ok: true };
+  });
+
+/**
+ * Aplica o modelo aos clientes escolhidos: apaga os widgets atuais e grava uma
+ * cópia independente. Referências (rótulo, painel, sequência) que não existirem
+ * no destino ficam em branco — nunca apontam para outro cliente.
+ */
+export const aplicarModeloEmClientes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        modeloId: z.string().uuid(),
+        clienteIds: z.array(z.string().min(1)).min(1).max(200),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ aplicados: number }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: modelo, error } = await supabaseAdmin
+      .from("elora_dashboard_modelos")
+      .select("widgets")
+      .eq("id", data.modeloId)
+      .single();
+    if (error) throw new Error(`modelos: ${error.message}`);
+    const widgets = Array.isArray((modelo as any).widgets) ? ((modelo as any).widgets as any[]) : [];
+
+    for (const clienteId of data.clienteIds) {
+      const [{ data: rot }, { data: pai }, { data: seq }] = await Promise.all([
+        supabaseAdmin.from("elora_classificacoes_rotulos").select("id").eq("cliente_id", clienteId),
+        supabaseAdmin
+          .from("elora_paineis_sincronizados")
+          .select("painel_id")
+          .eq("cliente_id", clienteId),
+        supabaseAdmin
+          .from("elora_sequencias_sincronizadas")
+          .select("sequencia_id")
+          .eq("cliente_id", clienteId),
+      ]);
+      const okRot = new Set(((rot ?? []) as any[]).map((r) => String(r.id)));
+      const okPai = new Set(((pai ?? []) as any[]).map((r) => String(r.painel_id)));
+      const okSeq = new Set(((seq ?? []) as any[]).map((r) => String(r.sequencia_id)));
+
+      const limpar = (cfg: any): any => {
+        const c = JSON.parse(JSON.stringify(cfg ?? {}));
+        if (c.rotuloId && !okRot.has(String(c.rotuloId))) c.rotuloId = null;
+        if (Array.isArray(c.series)) {
+          c.series = c.series.filter((s: any) => s?.rotuloId && okRot.has(String(s.rotuloId)));
+        }
+        if (Array.isArray(c.camadas)) {
+          c.camadas = c.camadas.map((x: any) =>
+            x?.rotuloId && !okRot.has(String(x.rotuloId)) ? { ...x, rotuloId: null } : x,
+          );
+        }
+        if (c.painelId && !okPai.has(String(c.painelId))) c.painelId = null;
+        if (c.filtros?.painelId && !okPai.has(String(c.filtros.painelId))) c.filtros.painelId = null;
+        if (c.sequenciaId && !okSeq.has(String(c.sequenciaId))) c.sequenciaId = null;
+        return c;
+      };
+
+      await supabaseAdmin.from("elora_dashboard_widgets").delete().eq("cliente_id", clienteId);
+      if (widgets.length === 0) continue;
+      const { error: e2 } = await supabaseAdmin.from("elora_dashboard_widgets").insert(
+        widgets.map((w, i) => ({
+          cliente_id: clienteId,
+          tipo: String(w.tipo),
+          titulo: String(w.titulo),
+          configuracao: limpar(w.configuracao) as never,
+          ordem: Number(w.ordem ?? i),
+          layout: (sanearLayout(w.layout) ?? {}) as never,
+        })) as never,
+      );
+      if (e2) throw new Error(`modelos: ${e2.message}`);
+    }
+
+    return { aplicados: data.clienteIds.length };
+  });
+
 /* ------------------------------------------------------------------ *
  * Exportar e apagar os dados vindos da integração
  * ------------------------------------------------------------------ */
