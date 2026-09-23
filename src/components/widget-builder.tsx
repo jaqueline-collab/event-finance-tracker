@@ -20,6 +20,7 @@ import {
   listarModelosPainel,
   listarWidgetsCliente,
   salvarGradeCliente,
+  salvarModeloPainel,
   salvarPainelComoModelo,
   salvarWidgetCliente,
   type ModeloPainel,
@@ -282,6 +283,36 @@ export function WidgetBuilder({
     }
   };
 
+  const criarModeloVazio = async () => {
+    const nome = nomeModelo.trim();
+    if (!nome) {
+      toast.error("Dê um nome ao modelo.");
+      return;
+    }
+    try {
+      await salvarModeloPainel({ data: { modeloId: null, nome, descricao: null, widgets: [] } });
+      toast.success(`Modelo "${nome}" criado vazio. Monte o painel e use "Atualizar com o painel atual".`);
+      setNomeModelo("");
+      carregarModelos();
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
+
+  const atualizarModelo = async (m: ModeloPainel) => {
+    if (!window.confirm(`Substituir o conteúdo do modelo "${m.nome}" pelo painel atual deste cliente?`))
+      return;
+    try {
+      const r = await salvarPainelComoModelo({
+        data: { clienteId, nome: m.nome, descricao: null, modeloId: m.id },
+      });
+      toast.success(`Modelo "${m.nome}" atualizado com ${r.total} widget(s).`);
+      carregarModelos();
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
+
   const aplicarModelo = async (m: ModeloPainel) => {
     const ok = window.confirm(
       "Isso substitui todos os widgets atuais deste cliente pelos do modelo. Confirmar?",
@@ -371,7 +402,7 @@ export function WidgetBuilder({
           </p>
           <div className="flex flex-wrap items-end gap-2">
             <div className="space-y-1">
-              <Label htmlFor="nome-modelo">Salvar painel atual como modelo</Label>
+              <Label htmlFor="nome-modelo">Nome do modelo</Label>
               <Input
                 id="nome-modelo"
                 className="w-64"
@@ -381,7 +412,10 @@ export function WidgetBuilder({
               />
             </div>
             <Button size="sm" variant="outline" onClick={salvarComoModelo}>
-              <Copy className="mr-2 h-4 w-4" /> Salvar como modelo
+              <Copy className="mr-2 h-4 w-4" /> Salvar painel atual como modelo
+            </Button>
+            <Button size="sm" variant="ghost" onClick={criarModeloVazio}>
+              <Plus className="mr-2 h-4 w-4" /> Criar modelo vazio
             </Button>
           </div>
           {modelos.length === 0 ? (
@@ -398,6 +432,9 @@ export function WidgetBuilder({
                   <div className="ml-auto flex items-center gap-1">
                     <Button size="sm" variant="ghost" onClick={() => aplicarModelo(m)}>
                       Aplicar neste cliente
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => atualizarModelo(m)}>
+                      Atualizar com o painel atual
                     </Button>
                     <Button
                       size="icon"
