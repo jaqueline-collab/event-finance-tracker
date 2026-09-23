@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanearLayout } from "@/lib/grid-layout";
 
 /**
  * Widgets do painel do cliente ("Meu Dash") + exportação e limpeza dos dados
@@ -18,6 +19,7 @@ export type Widget = {
   titulo: string;
   configuracao: any;
   ordem: number;
+  layout: { x: number; y: number; w: number; h: number } | null;
 };
 
 async function exigirEquipeInterna(db: any) {
@@ -27,6 +29,13 @@ async function exigirEquipeInterna(db: any) {
 
 const soCliente = z.object({ clienteId: z.string().min(1) });
 
+const layoutSchema = z.object({
+  x: z.number().int().min(0).max(11),
+  y: z.number().int().min(0).max(999),
+  w: z.number().int().min(1).max(12),
+  h: z.number().int().min(1).max(60),
+});
+
 export const listarWidgetsCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => soCliente.parse(input))
@@ -35,7 +44,7 @@ export const listarWidgetsCliente = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("elora_dashboard_widgets")
-      .select("id, tipo, titulo, configuracao, ordem")
+      .select("id, tipo, titulo, configuracao, ordem, layout")
       .eq("cliente_id", data.clienteId)
       .order("ordem", { ascending: true });
     if (error) throw new Error(`widgets: ${error.message}`);
@@ -46,6 +55,7 @@ export const listarWidgetsCliente = createServerFn({ method: "POST" })
         titulo: String(w.titulo),
         configuracao: w.configuracao ?? {},
         ordem: Number(w.ordem ?? 0),
+        layout: sanearLayout(w.layout),
       })),
     };
   });
@@ -57,6 +67,7 @@ const widgetSchema = z.object({
   titulo: z.string().trim().min(1).max(120),
   configuracao: z.record(z.string(), z.unknown()).default({}),
   ordem: z.number().int().min(0).max(999).default(0),
+  layout: layoutSchema.nullable().default(null),
 });
 
 /** Coleta todo identificador citado na configuração, por tipo de entidade. */
@@ -132,6 +143,7 @@ export const salvarWidgetCliente = createServerFn({ method: "POST" })
           titulo: data.titulo,
           configuracao: data.configuracao as never,
           ordem: data.ordem,
+          layout: (data.layout ?? {}) as never,
           atualizado_em: new Date().toISOString(),
         })
         .eq("id", data.widgetId)
@@ -148,6 +160,7 @@ export const salvarWidgetCliente = createServerFn({ method: "POST" })
         titulo: data.titulo,
         configuracao: data.configuracao as never,
         ordem: data.ordem,
+        layout: (data.layout ?? {}) as never,
       })
       .select("id")
       .single();
