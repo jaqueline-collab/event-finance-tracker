@@ -12,6 +12,7 @@ import {
   montarFechamentosParceiro,
   type FechamentoParceiro,
   type ItemRelatorioParceiro,
+  type NotaParceiro,
 } from "@/lib/parceiro.financeiro";
 import type { PlanoCalculadoraParceiro } from "@/lib/parceiro.calculadora";
 
