@@ -485,6 +485,23 @@ export function WidgetBuilder({
                     </Select>
                   </div>
                 )}
+                <div className="space-y-1">
+                  <Label>Formato do número</Label>
+                  <Select
+                    value={rascunho.formato}
+                    onValueChange={(v) =>
+                      setRascunho({ ...rascunho, formato: v === "moeda" ? "moeda" : "inteiro" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inteiro">Inteiro (162)</SelectItem>
+                      <SelectItem value="moeda">Valor financeiro (R$ 12.345,67)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
