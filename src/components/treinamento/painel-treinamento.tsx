@@ -7,6 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlayerYoutube } from "@/components/treinamento/player-youtube";
@@ -28,6 +36,10 @@ export function PainelTreinamento({ audiencia }: { audiencia?: "parceiro" | "cli
   const [quaseFim, setQuaseFim] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [celebracao, setCelebracao] = useState<{ titulo: string; texto: string } | null>(null);
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState<
+    "todas" | "andamento" | "concluidas" | "nao-iniciadas"
+  >("todas");
 
   const buscar = () => {
     setCarregando(true);
@@ -41,7 +53,18 @@ export function PainelTreinamento({ audiencia }: { audiencia?: "parceiro" | "cli
   useEffect(buscar, [audiencia]);
 
   const concluidos = useMemo(() => new Set(dados?.concluidos ?? []), [dados]);
-  const trilhas = (dados?.trilhas ?? []) as Trilha[];
+  const todasTrilhas = (dados?.trilhas ?? []) as Trilha[];
+  const trilhas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return todasTrilhas.filter((t) => {
+      if (q && !t.titulo.toLowerCase().includes(q)) return false;
+      const feitos = t.videos.filter((v) => concluidos.has(v.id)).length;
+      if (statusFiltro === "concluidas") return t.videos.length > 0 && feitos === t.videos.length;
+      if (statusFiltro === "nao-iniciadas") return feitos === 0;
+      if (statusFiltro === "andamento") return feitos > 0 && feitos < t.videos.length;
+      return true;
+    });
+  }, [todasTrilhas, busca, statusFiltro, concluidos]);
   const trilha = trilhas.find((t) => t.id === trilhaAberta) ?? trilhas[0] ?? null;
   const video =
     trilha?.videos.find((v) => v.id === videoSelecionado) ??
@@ -129,11 +152,40 @@ export function PainelTreinamento({ audiencia }: { audiencia?: "parceiro" | "cli
         </CardContent>
       </Card>
 
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar trilha pelo título"
+          aria-label="Buscar trilha pelo título"
+          className="sm:max-w-xs"
+        />
+        <Select value={statusFiltro} onValueChange={(v) => setStatusFiltro(v as typeof statusFiltro)}>
+          <SelectTrigger className="sm:w-56" aria-label="Filtrar por status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas</SelectItem>
+            <SelectItem value="andamento">Em andamento</SelectItem>
+            <SelectItem value="concluidas">Concluídas</SelectItem>
+            <SelectItem value="nao-iniciadas">Não iniciadas</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {trilhas.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Nenhuma trilha disponível ainda</CardTitle>
-            <CardDescription>Assim que o time publicar um treinamento, ele aparece aqui.</CardDescription>
+            <CardTitle className="text-base">
+              {todasTrilhas.length === 0
+                ? "Nenhuma trilha disponível ainda"
+                : "Nenhuma trilha com esses filtros"}
+            </CardTitle>
+            <CardDescription>
+              {todasTrilhas.length === 0
+                ? "Assim que o time publicar um treinamento, ele aparece aqui."
+                : "Ajuste a busca ou o status para ver outras trilhas."}
+            </CardDescription>
           </CardHeader>
         </Card>
       ) : (

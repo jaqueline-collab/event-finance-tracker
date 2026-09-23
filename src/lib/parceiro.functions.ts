@@ -12,6 +12,7 @@ import {
   montarFechamentosParceiro,
   type FechamentoParceiro,
   type ItemRelatorioParceiro,
+  type NotaParceiro,
 } from "@/lib/parceiro.financeiro";
 import type { PlanoCalculadoraParceiro } from "@/lib/parceiro.calculadora";
 
@@ -476,6 +477,7 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
       parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
       fechamentos: [] as FechamentoParceiro[],
       relatorioItens: [] as ItemRelatorioParceiro[],
+      notas: [] as NotaParceiro[],
     };
     if (!parc.pode_ver_fechamentos) return vazio;
 
@@ -568,12 +570,38 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
         };
       });
 
+    // Visão consolidada "Notas Fiscais": uma linha por nota anexada a este parceiro.
+    const notaIds = [...new Set([...notaPorLancamento.values()])];
+    const lancamentosPorNota = new Map<string, number>();
+    for (const notaId of notaPorLancamento.values()) {
+      lancamentosPorNota.set(notaId, (lancamentosPorNota.get(notaId) ?? 0) + 1);
+    }
+    let notas: NotaParceiro[] = [];
+    if (notaIds.length > 0) {
+      const notasRes = await (supabaseAdmin as any)
+        .from("elora_notas_fiscais")
+        .select("id, nome_arquivo, competencia, valor_total, created_at")
+        .in("id", notaIds);
+      if (notasRes.error) throw new Error(`notas: ${notasRes.error.message}`);
+      notas = ((notasRes.data ?? []) as any[])
+        .map((n) => ({
+          id: String(n.id),
+          arquivo: String(n.nome_arquivo ?? "nota.pdf"),
+          competencia: String(n.competencia ?? "").slice(0, 7),
+          lancamentos: lancamentosPorNota.get(String(n.id)) ?? 0,
+          valorTotal: Number(n.valor_total ?? 0),
+          anexadaEm: String(n.created_at ?? ""),
+        }))
+        .sort((a, b) => b.competencia.localeCompare(a.competencia));
+    }
+
     return {
       habilitado: true,
       veValores,
       parceiro: { id: parceiroId, nome: (parc.nome as string) ?? "Parceiro" },
       fechamentos,
       relatorioItens,
+      notas,
     };
   });
 

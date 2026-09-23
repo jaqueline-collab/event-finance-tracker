@@ -257,7 +257,7 @@ function RootComponent() {
                   ? "Elora · Área do cliente"
                   : isParceiro || pathname === "/parceiro"
                     ? "Elora · Área do parceiro"
-                    : "Elora · Controle financeiro"}
+                    : "Elora · Painel administrativo"}
               </div>
               <div
                 id="app-header-actions"

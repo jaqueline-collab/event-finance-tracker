@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, LayoutGrid, Plus, Trash2 } from "lucide-react";
+import { Copy, LayoutGrid, LayoutTemplate, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  aplicarModeloEmClientes,
+  excluirModeloPainel,
   excluirWidgetCliente,
+  listarModelosPainel,
   listarWidgetsCliente,
-  reordenarWidgetsCliente,
+  salvarGradeCliente,
+  salvarPainelComoModelo,
   salvarWidgetCliente,
+  type ModeloPainel,
   type Widget,
 } from "@/lib/dashboard-widgets.functions";
+import { DashboardGrid } from "@/components/dashboard-grid";
+import { normalizarGrade, proximaPosicao, type ItemGrade } from "@/lib/grid-layout";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -49,6 +56,7 @@ type Rascunho = {
   tipo: Widget["tipo"];
   titulo: string;
   criterio: string;
+  formato: "inteiro" | "moeda";
   rotuloId: string;
   secundario: boolean;
   dimensao: string;
@@ -66,6 +74,7 @@ const vazio = (tipo: Widget["tipo"]): Rascunho => ({
   tipo,
   titulo: "",
   criterio: "total_contatos",
+  formato: "inteiro",
   rotuloId: "",
   secundario: false,
   dimensao: "origem",
@@ -92,6 +101,10 @@ export function WidgetBuilder({
   const [carregando, setCarregando] = useState(true);
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [modelos, setModelos] = useState<ModeloPainel[]>([]);
+  const [nomeModelo, setNomeModelo] = useState("");
+
+  const grade = useMemo(() => normalizarGrade(widgets), [widgets]);
 
   const recarregar = useCallback(() => {
     setCarregando(true);
@@ -110,6 +123,7 @@ export function WidgetBuilder({
       tipo: w.tipo as Widget["tipo"],
       titulo: w.titulo,
       criterio: String(c.criterio ?? "total_contatos"),
+      formato: c.formato === "moeda" ? "moeda" : "inteiro",
       rotuloId: c.rotuloId ? String(c.rotuloId) : "",
       secundario: c.secundario === "anuncio",
       dimensao: String(c.dimensao ?? "origem"),
@@ -152,6 +166,7 @@ export function WidgetBuilder({
       return {
         ...base,
         criterio: r.criterio,
+        formato: r.formato === "moeda" ? "moeda" : "inteiro",
         rotuloId: r.criterio === "rotulo" && r.rotuloId ? r.rotuloId : null,
         secundario: r.secundario ? "anuncio" : null,
       };
@@ -198,6 +213,9 @@ export function WidgetBuilder({
           ordem: rascunho.widgetId
             ? (widgets.find((w) => w.id === rascunho.widgetId)?.ordem ?? 0)
             : widgets.length,
+          layout: rascunho.widgetId
+            ? (widgets.find((w) => w.id === rascunho.widgetId)?.layout ?? null)
+            : proximaPosicao(grade as ItemGrade[]),
         },
       });
       toast.success("Widget salvo.");
@@ -220,18 +238,72 @@ export function WidgetBuilder({
     }
   };
 
-  const mover = async (index: number, delta: number) => {
-    const destino = index + delta;
-    if (destino < 0 || destino >= widgets.length) return;
-    const nova = [...widgets];
-    const [item] = nova.splice(index, 1);
-    nova.splice(destino, 0, item);
-    setWidgets(nova.map((w, i) => ({ ...w, ordem: i })));
+  const aoMudarGrade = (nova: ItemGrade<Widget>[]) => {
+    setWidgets(nova.map((g, i) => ({ ...g.item, layout: g.layout, ordem: i })));
+  };
+
+  const persistirGrade = async (itens: ItemGrade<Widget>[]) => {
     try {
-      await reordenarWidgetsCliente({ data: { clienteId, ordem: nova.map((w) => w.id) } });
+      await salvarGradeCliente({
+        data: {
+          clienteId,
+          blocos: itens.map((g) => ({ id: g.id, layout: g.layout })),
+        },
+      });
     } catch (e) {
       toast.error(msg(e));
       recarregar();
+    }
+  };
+
+  /* ---------------- Modelos de painel ---------------- */
+
+  const carregarModelos = useCallback(() => {
+    listarModelosPainel()
+      .then((r) => setModelos(r.modelos))
+      .catch((e) => toast.error(msg(e)));
+  }, []);
+
+  useEffect(carregarModelos, [carregarModelos]);
+
+  const salvarComoModelo = async () => {
+    const nome = nomeModelo.trim();
+    if (!nome) {
+      toast.error("Dê um nome ao modelo.");
+      return;
+    }
+    try {
+      const r = await salvarPainelComoModelo({ data: { clienteId, nome, descricao: null } });
+      toast.success(`Modelo "${nome}" salvo com ${r.total} widget(s).`);
+      setNomeModelo("");
+      carregarModelos();
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
+
+  const aplicarModelo = async (m: ModeloPainel) => {
+    const ok = window.confirm(
+      "Isso substitui todos os widgets atuais deste cliente pelos do modelo. Confirmar?",
+    );
+    if (!ok) return;
+    try {
+      await aplicarModeloEmClientes({ data: { modeloId: m.id, clienteIds: [clienteId] } });
+      toast.success(`Modelo "${m.nome}" aplicado.`);
+      recarregar();
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
+
+  const removerModelo = async (m: ModeloPainel) => {
+    if (!window.confirm(`Apagar o modelo "${m.nome}"? Painéis já aplicados não mudam.`)) return;
+    try {
+      await excluirModeloPainel({ data: { modeloId: m.id } });
+      toast.success("Modelo apagado.");
+      carregarModelos();
+    } catch (e) {
+      toast.error(msg(e));
     }
   };
 
@@ -258,30 +330,88 @@ export function WidgetBuilder({
           </p>
         )}
 
-        <div className="space-y-2">
-          {widgets.map((w, i) => (
-            <div
-              key={w.id}
-              className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-3 py-2"
-            >
-              <span className="truncate text-sm font-medium">{w.titulo}</span>
-              <Badge variant="outline">{TIPOS.find((t) => t.valor === w.tipo)?.rotulo ?? w.tipo}</Badge>
-              <div className="ml-auto flex items-center gap-1">
-                <Button size="icon" variant="ghost" aria-label="Subir" onClick={() => mover(i, -1)}>
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" aria-label="Descer" onClick={() => mover(i, 1)}>
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => editar(w)}>
-                  Editar
-                </Button>
-                <Button size="icon" variant="ghost" aria-label="Remover" onClick={() => remover(w.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+        <div>
+          <DashboardGrid
+            itens={grade}
+            onChange={aoMudarGrade}
+            onCommit={(itens) => void persistirGrade(itens)}
+            renderItem={(g) => (
+              <div className="flex h-full flex-col gap-1 rounded-lg border border-border/60 bg-card px-3 py-2">
+                <span className="truncate pr-6 text-sm font-medium">{g.item.titulo}</span>
+                <Badge variant="outline" className="w-fit">
+                  {TIPOS.find((t) => t.valor === g.item.tipo)?.rotulo ?? g.item.tipo}
+                </Badge>
+                <div className="mt-auto flex items-center gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => editar(g.item)}>
+                    Editar
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Remover"
+                    onClick={() => remover(g.item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
+            )}
+          />
+        </div>
+        {widgets.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Arraste pela alça no topo do bloco para mover e pelo canto inferior direito para
+            redimensionar. No celular os blocos aparecem empilhados.
+          </p>
+        )}
+
+        <div className="space-y-2 rounded-lg border border-border/60 p-3">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <LayoutTemplate className="h-4 w-4" /> Modelos de painel
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="nome-modelo">Salvar painel atual como modelo</Label>
+              <Input
+                id="nome-modelo"
+                className="w-64"
+                value={nomeModelo}
+                onChange={(e) => setNomeModelo(e.target.value)}
+                placeholder="Ex.: Modelo Clínica Essencial"
+              />
             </div>
-          ))}
+            <Button size="sm" variant="outline" onClick={salvarComoModelo}>
+              <Copy className="mr-2 h-4 w-4" /> Salvar como modelo
+            </Button>
+          </div>
+          {modelos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum modelo salvo ainda.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {modelos.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 px-2.5 py-1.5"
+                >
+                  <span className="truncate text-sm">{m.nome}</span>
+                  <Badge variant="outline">{m.widgets.length} widget(s)</Badge>
+                  <div className="ml-auto flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => aplicarModelo(m)}>
+                      Aplicar neste cliente
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Apagar modelo"
+                      onClick={() => removerModelo(m)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {rascunho && (
@@ -356,6 +486,23 @@ export function WidgetBuilder({
                     </Select>
                   </div>
                 )}
+                <div className="space-y-1">
+                  <Label>Formato do número</Label>
+                  <Select
+                    value={rascunho.formato}
+                    onValueChange={(v) =>
+                      setRascunho({ ...rascunho, formato: v === "moeda" ? "moeda" : "inteiro" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inteiro">Inteiro (162)</SelectItem>
+                      <SelectItem value="moeda">Valor financeiro (R$ 12.345,67)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"

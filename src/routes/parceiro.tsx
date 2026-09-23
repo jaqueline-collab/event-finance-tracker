@@ -10,6 +10,7 @@ import {
 } from "@/lib/parceiro.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { baixarNotaFiscal } from "@/lib/notas-fiscais.functions";
+import { gerarPdfClientesParceiro } from "@/lib/parceiro-pdf";
 import {
   calcularMargemParceiro,
   calcularOrcamentoParceiro,
@@ -70,6 +71,8 @@ import {
   Download,
   ExternalLink,
   Eye,
+  FileDown,
+  FileText,
   GraduationCap,
   History,
   PackageOpen,
@@ -80,6 +83,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+
+type SubFinanceiro = "fechamentos" | "relatorios" | "notas";
 
 const ANO_INICIAL = 2026;
 
@@ -204,7 +209,7 @@ function AreaParceiro() {
   const indicador = (["entradas", "saidas", "excedentes"].includes(indicadorRaw)
     ? indicadorRaw
     : "") as "" | "entradas" | "saidas" | "excedentes";
-  const sub = (subRaw === "relatorios" ? "relatorios" : "fechamentos") as "fechamentos" | "relatorios";
+  const sub = (["relatorios", "notas"].includes(subRaw) ? subRaw : "fechamentos") as SubFinanceiro;
   const anoAtual = new Date().getFullYear();
   const anoGrafico = ano && ano >= ANO_INICIAL ? ano : anoAtual;
   const anosDisponiveis = useMemo(() => {
@@ -349,6 +354,50 @@ function AreaParceiro() {
       return exc.some((e) => Number(e.total) > 0);
     });
   }, [clientesFiltrados, indicador, de, ate]);
+
+  // PDF respeita exatamente os filtros ativos e a trava de composição do parceiro.
+  const baixarPdfClientes = () => {
+    if (clientesTabela.length === 0) {
+      toast.error("Nenhum cliente para exportar com os filtros atuais.");
+      return;
+    }
+    gerarPdfClientesParceiro({
+      parceiro: dados?.parceiro.nome ?? "Parceiro",
+      periodo: `${dataBr(de)} a ${dataBr(ate)}`,
+      geradoEm: new Date().toLocaleString("pt-BR"),
+      veValores,
+      clientes: clientesTabela.map((c) => ({
+        nome: c.nome,
+        plano: c.plano,
+        status: c.dataChurn ? "Churn" : c.statusComercial === "trial" ? "Trial" : "Ativo",
+        setup: dataBr(c.dataInicio),
+        ltv: (() => {
+          const d = ltvDias(c);
+          return d === null ? "—" : `${d} dias`;
+        })(),
+        churn: dataBr(c.dataChurn),
+        mensalidade: veValores ? brl(((c as any).mensalidade as number) ?? 0) : undefined,
+        historico: movimentos
+          .filter((m) => m.clienteId === c.id)
+          .map((m) => ({
+            data: dataBr(m.data),
+            tipo: rotuloTipoMovimento(m.tipo),
+            descricao:
+              [
+                m.plano ? `Plano: ${m.plano}` : null,
+                m.canaisWhats ? `WhatsApp: ${m.canaisWhats}` : null,
+                m.canaisInsta ? `Instagram: ${m.canaisInsta}` : null,
+                m.canaisMessenger ? `Messenger: ${m.canaisMessenger}` : null,
+                m.canaisZapi ? `Z-API: ${m.canaisZapi}` : null,
+                m.usuariosAtivos ? `Usuários: ${m.usuariosAtivos}` : null,
+                m.observacao ?? null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—",
+          })),
+      })),
+    });
+  };
 
   const alternarIndicador = (qual: "entradas" | "saidas" | "excedentes") =>
     navigate({ search: (s: any) => ({ ...s, indicador: s.indicador === qual ? "" : qual }) });
@@ -534,7 +583,7 @@ function AreaParceiro() {
                       </div>
                     </>
                   )}
-                  <div className="flex gap-2 sm:col-span-4">
+                  <div className="flex flex-wrap gap-2 sm:col-span-4">
                     {(["todos", "ativos", "inativos"] as const).map((s) => (
                       <Button
                         key={s}
@@ -545,6 +594,9 @@ function AreaParceiro() {
                         {s === "todos" ? "Todos" : s === "ativos" ? "Ativos" : "Inativos"}
                       </Button>
                     ))}
+                    <Button size="sm" variant="outline" className="ml-auto" onClick={baixarPdfClientes}>
+                      <FileDown className="mr-2 h-4 w-4" /> Baixar PDF
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1331,8 +1383,8 @@ function FinanceiroParceiro({
   dados: FinanceiroData | null;
   fechAberto: string | null;
   setFechAberto: (v: string | null) => void;
-  sub: "fechamentos" | "relatorios";
-  onSub: (v: "fechamentos" | "relatorios") => void;
+  sub: SubFinanceiro;
+  onSub: (v: SubFinanceiro) => void;
 }) {
   const fnBaixar = useServerFn(baixarNotaFiscal);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
@@ -1379,6 +1431,47 @@ function FinanceiroParceiro({
           itens={dados?.relatorioItens ?? []}
           veValores={Boolean(dados?.veValores)}
         />
+      </div>
+    );
+  }
+
+  if (sub === "notas") {
+    const notas = dados?.notas ?? [];
+    return (
+      <div className="space-y-4">
+        <AlternadorSub sub={sub} onSub={onSub} />
+        {notas.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Nenhuma nota fiscal anexada aos seus fechamentos até agora.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {notas.map((n) => (
+              <Card key={n.id}>
+                <CardContent className="flex flex-wrap items-center gap-3 p-3">
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{n.arquivo}</span>
+                  <Badge variant="outline">{n.competencia}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {n.lancamentos} lançamento{n.lancamentos === 1 ? "" : "s"}
+                  </span>
+                  <span className="text-sm tabular-nums">{brl(n.valorTotal)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={baixandoId === n.id}
+                    onClick={() => baixarNota(n.id)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {baixandoId === n.id ? "Baixando…" : "Baixar"}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1510,14 +1603,14 @@ function AlternadorSub({
   sub,
   onSub,
 }: {
-  sub: "fechamentos" | "relatorios";
-  onSub: (v: "fechamentos" | "relatorios") => void;
+  sub: SubFinanceiro;
+  onSub: (v: SubFinanceiro) => void;
 }) {
   return (
-    <div className="flex gap-2">
-      {(["fechamentos", "relatorios"] as const).map((s) => (
+    <div className="flex flex-wrap gap-2">
+      {(["fechamentos", "relatorios", "notas"] as const).map((s) => (
         <Button key={s} size="sm" variant={sub === s ? "secondary" : "outline"} onClick={() => onSub(s)}>
-          {s === "fechamentos" ? "Fechamentos" : "Relatórios"}
+          {s === "fechamentos" ? "Fechamentos" : s === "relatorios" ? "Relatórios" : "Notas Fiscais"}
         </Button>
       ))}
     </div>

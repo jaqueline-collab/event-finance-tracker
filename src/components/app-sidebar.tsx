@@ -19,6 +19,7 @@ import {
   Globe,
   Plug,
   GraduationCap,
+  Eye,
 } from "lucide-react";
 import {
   Sidebar,
@@ -49,6 +50,7 @@ const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: Mo
   { title: "Fechamento Mensal", url: "/resumo", icon: CalendarRange, moduleKey: "resumo" },
   { title: "Financeiro", url: "/financeiro", icon: Wallet, moduleKey: "financeiro" },
   { title: "Funil", url: "/orcamentos", icon: Kanban, moduleKey: "orcamentos" },
+  { title: "Ver como", url: "/ver-como", icon: Eye, moduleKey: "clientes" },
 ];
 
 const configItemsAll: { title: string; url: string; icon: any; moduleKey: ModuleKey; adminOnly?: boolean }[] = [
@@ -142,7 +144,7 @@ export function AppSidebar() {
             >
               EloraCRM
             </span>
-            <span className="text-[10px] text-muted-foreground uppercase">Controle financeiro</span>
+            <span className="text-[10px] text-muted-foreground uppercase">Painel administrativo</span>
           </div>
         </div>
       </SidebarHeader>
