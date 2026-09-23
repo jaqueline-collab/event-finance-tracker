@@ -540,6 +540,7 @@ export type WidgetRenderizado = {
   tipo: string;
   titulo: string;
   ordem: number;
+  layout: { x: number; y: number; w: number; h: number } | null;
   dados: any;
 };
 
@@ -576,7 +577,7 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
     const [{ data: widgetsRaw }, { data: contatosRaw }, { data: conversasRaw }] = await Promise.all([
       db
         .from("elora_dashboard_widgets")
-        .select("id, tipo, titulo, configuracao, ordem")
+        .select("id, tipo, titulo, configuracao, ordem, layout")
         .eq("cliente_id", data.clienteId)
         .order("ordem", { ascending: true }),
       noPeriodo(db.from("elora_contatos_sincronizados").select("*")).limit(20000),
@@ -659,20 +660,28 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
 
     const montar = (w: any): WidgetRenderizado => {
       const cfg = (w.configuracao ?? {}) as any;
-      const base = { id: String(w.id), tipo: String(w.tipo), titulo: String(w.titulo), ordem: Number(w.ordem ?? 0) };
+      const base = {
+        id: String(w.id),
+        tipo: String(w.tipo),
+        titulo: String(w.titulo),
+        ordem: Number(w.ordem ?? 0),
+        layout: sanearLayout(w.layout),
+      };
+      // Bloco métrico: inteiro (padrão) ou valor financeiro.
+      const formatoNumero = cfg.formato === "moeda" ? "moeda" : "numero";
 
       if (w.tipo === "metrico") {
         const criterio = String(cfg.criterio ?? "total_contatos");
         if (criterio === "rotulo") {
           const r = conversasDoRotulo(cfg.rotuloId);
-          if (!r) return { ...base, dados: { valor: 0, formato: "numero", configurado: false } };
+          if (!r) return { ...base, dados: { valor: 0, formato: formatoNumero, configurado: false } };
           const anuncio = r.lista.filter((s) => s.contato_id && setAnuncio.has(String(s.contato_id))).length;
           return {
             ...base,
             titulo: base.titulo || r.nome,
             dados: {
               valor: r.lista.length,
-              formato: "numero",
+              formato: formatoNumero,
               configurado: true,
               secundario: cfg.secundario === "anuncio" ? { rotulo: "de anúncio", quantidade: anuncio } : null,
             },
@@ -683,7 +692,7 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
             ...base,
             dados: {
               valor: conversas.filter((s) => s.teve_resposta).length,
-              formato: "numero",
+              formato: formatoNumero,
               configurado: true,
               secundario: { rotulo: "conversas no período", quantidade: conversas.length },
             },
@@ -711,7 +720,7 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
           ...base,
           dados: {
             valor: lista.length,
-            formato: "numero",
+            formato: formatoNumero,
             configurado: true,
             secundario: cfg.secundario === "anuncio" ? { rotulo: "de anúncio", quantidade: anuncio } : null,
           },
