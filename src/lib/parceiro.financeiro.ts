@@ -153,6 +153,16 @@ export function montarFechamentosParceiro(params: {
  * permissão de composição. Custo, margem, lucro, WTS e desconto de escala
  * nunca entram aqui.
  */
+/** Linha da visão consolidada "Notas Fiscais" do parceiro. */
+export type NotaParceiro = {
+  id: string;
+  arquivo: string;
+  competencia: string;
+  lancamentos: number;
+  valorTotal: number;
+  anexadaEm: string;
+};
+
 export type ItemRelatorioParceiro = {
   clienteId: string;
   /** Competência no formato AAAA-MM. */
