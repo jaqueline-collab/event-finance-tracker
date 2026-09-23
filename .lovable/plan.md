@@ -68,3 +68,42 @@ Nas três telas (parceiro, cliente e administração interna):
 - "Ver como parceiro" e "Ver como cliente" direto pelo menu lateral.
 - Busca e filtros do Treinamento nas três telas.
 - Celular, tablet e computador, temas claro e escuro; testes existentes mais os novos de grade.
+
+---
+
+# Parte 2 — Painel Administrativo, PDF de clientes e Notas Fiscais no Financeiro
+
+## 6. "Controle Financeiro" vira "Painel Administrativo"
+
+No cabeçalho do menu lateral interno, abaixo do logo EloraCRM, o subtítulo passa a ser "PAINEL ADMINISTRATIVO". Só o texto muda — mesmo tamanho, cor e posição.
+
+## 7. Baixar PDF de clientes com histórico (Área do Parceiro)
+
+Na aba Clientes, novo botão **Baixar PDF** junto de "Adicionar filtro" / "Limpar filtros".
+
+- Exporta exatamente os clientes visíveis com os filtros ativos (situação, período, busca, indicador) — nunca a base inteira.
+- Cada cliente sai com os dados da tabela (Plano, Status, Setup, LTV, Churn, Mensalidade) seguidos do histórico completo de movimentações, o mesmo do pop-up "Histórico": data, tipo (Setup/Ativação, Upgrade, Downgrade, Alteração de plano, Ajuste de acompanhamento, Alteração de parceiro) e descrição.
+- Mesma trava de composição já usada no resto: sem permissão, só valores totais; com permissão, o detalhamento de licença e acompanhamento. Nunca custo, margem ou lucro.
+- Cabeçalho do PDF: nome do parceiro, período filtrado e data de geração; rodapé com numeração de páginas.
+
+## 8. "Notas Fiscais" como terceira visão do Financeiro
+
+O alternador Fechamentos / Relatórios ganha **Notas Fiscais**:
+
+- Uma linha por nota: nome do arquivo, competência, quantidade de lançamentos cobertos, valor total e botão de baixar.
+- Reaproveita os dados e o download já existentes; ver a nota dentro do fechamento continua funcionando.
+- Download segue passando pelo servidor, que confere que a nota pertence ao parceiro logado.
+
+## Detalhes técnicos (parte 2)
+
+- `src/components/app-sidebar.tsx`: troca do texto do subtítulo.
+- PDF com `jspdf` + `jspdf-autotable` (já no projeto), em `src/lib/parceiro-pdf.ts`, alimentado pelos mesmos dados já carregados na tela (`clientesTabela` + históricos), respeitando `parceiro_ve_valores()`.
+- `getFinanceiroParceiro` passa a devolver também a lista consolidada de notas do parceiro (arquivo, competência, nº de lançamentos, total, `notaId`); nova visão `notas` no `searchSchema` (`sub`) de `src/routes/parceiro.tsx`, usando `baixarNotaFiscal` já existente.
+
+## Validação (parte 2)
+
+- Subtítulo novo em todo o sistema interno, sem quebrar layout.
+- PDF com filtro de período aplicado: só os clientes filtrados, com histórico completo.
+- PDF com e sem permissão de composição, conferindo a diferença.
+- Visão Notas Fiscais listando todas as notas do parceiro, com download igual ao do fechamento.
+- Celular, tablet e computador, temas claro e escuro.
