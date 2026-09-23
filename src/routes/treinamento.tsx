@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, GraduationCap, Plus, Trash2 } from "lucide-react";
 
@@ -190,7 +190,7 @@ function PaginaTreinamento() {
                         audiencia: novaTrilha.audiencia,
                         ativa: true,
                         pontosBonusConclusao: novaTrilha.pontosBonusConclusao,
-                        ordem: trilhas.length + 1,
+                        ordem: todasTrilhas.length + 1,
                       },
                     }).then(() => setNovaTrilha({ ...trilhaVazia })),
                   "Trilha criada.",
@@ -490,7 +490,7 @@ function PaginaTreinamento() {
                     <SelectValue placeholder="Trilha" />
                   </SelectTrigger>
                   <SelectContent>
-                    {trilhas.map((t) => (
+                    {todasTrilhas.map((t) => (
                       <SelectItem key={t.id} value={t.id}>
                         {t.titulo}
                       </SelectItem>
