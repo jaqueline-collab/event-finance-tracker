@@ -335,6 +335,7 @@ export const salvarPainelComoModelo = createServerFn({ method: "POST" })
         clienteId: z.string().min(1),
         nome: z.string().trim().min(1).max(120),
         descricao: z.string().trim().max(400).nullable().default(null),
+        modeloId: z.string().uuid().nullable().default(null),
       })
       .parse(input),
   )
@@ -354,6 +355,19 @@ export const salvarPainelComoModelo = createServerFn({ method: "POST" })
       ordem: Number(w.ordem ?? i),
       layout: sanearLayout(w.layout),
     }));
+    if (data.modeloId) {
+      const { error: e1 } = await supabaseAdmin
+        .from("elora_dashboard_modelos")
+        .update({
+          nome: data.nome,
+          descricao: data.descricao,
+          widgets: widgets as never,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", data.modeloId);
+      if (e1) throw new Error(`modelos: ${e1.message}`);
+      return { modeloId: data.modeloId, total: widgets.length };
+    }
     const { data: criado, error: e2 } = await supabaseAdmin
       .from("elora_dashboard_modelos")
       .insert({
