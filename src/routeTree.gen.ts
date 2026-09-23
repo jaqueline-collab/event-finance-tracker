@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerComoRouteImport } from './routes/ver-como'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as TreinamentoRouteImport } from './routes/treinamento'
 import { Route as SimuladorRouteImport } from './routes/simulador'
@@ -40,6 +41,11 @@ import { Route as ClientesIdIntegracaoEloraRouteImport } from './routes/clientes
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 
+const VerComoRoute = VerComoRouteImport.update({
+  id: '/ver-como',
+  path: '/ver-como',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
   '/usuarios': typeof UsuariosRoute
+  '/ver-como': typeof VerComoRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -249,6 +256,7 @@ export interface FileRoutesByTo {
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
   '/usuarios': typeof UsuariosRoute
+  '/ver-como': typeof VerComoRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -282,6 +290,7 @@ export interface FileRoutesById {
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
   '/usuarios': typeof UsuariosRoute
+  '/ver-como': typeof VerComoRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/simulador'
     | '/treinamento'
     | '/usuarios'
+    | '/ver-como'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/auth/callback'
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/simulador'
     | '/treinamento'
     | '/usuarios'
+    | '/ver-como'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/auth/callback'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/simulador'
     | '/treinamento'
     | '/usuarios'
+    | '/ver-como'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/auth/callback'
@@ -413,6 +425,7 @@ export interface RootRouteChildren {
   SimuladorRoute: typeof SimuladorRoute
   TreinamentoRoute: typeof TreinamentoRoute
   UsuariosRoute: typeof UsuariosRoute
+  VerComoRoute: typeof VerComoRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BlogSlugRoute: typeof BlogSlugRoute
@@ -425,6 +438,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/ver-como': {
+      id: '/ver-como'
+      path: '/ver-como'
+      fullPath: '/ver-como'
+      preLoaderRoute: typeof VerComoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/usuarios': {
       id: '/usuarios'
       path: '/usuarios'
@@ -670,6 +690,7 @@ const rootRouteChildren: RootRouteChildren = {
   SimuladorRoute: SimuladorRoute,
   TreinamentoRoute: TreinamentoRoute,
   UsuariosRoute: UsuariosRoute,
+  VerComoRoute: VerComoRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
