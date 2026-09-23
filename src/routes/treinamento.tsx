@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, GraduationCap, Plus, Trash2 } from "lucide-react";
 
@@ -56,6 +56,9 @@ function PaginaTreinamento() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [novaTrilha, setNovaTrilha] = useState({ ...trilhaVazia });
+  const [busca, setBusca] = useState("");
+  const [audienciaFiltro, setAudienciaFiltro] = useState<"todas" | "parceiro" | "cliente">("todas");
+  const [statusFiltro, setStatusFiltro] = useState<"todas" | "ativas" | "desativadas">("todas");
   const [videoForm, setVideoForm] = useState<Record<string, { titulo: string; url: string; pontos: string }>>({});
   const [medalha, setMedalha] = useState({
     nome: "",
@@ -108,7 +111,15 @@ function PaginaTreinamento() {
     );
   }
 
-  const trilhas = (dados?.trilhas ?? []) as Trilha[];
+  const todasTrilhas = (dados?.trilhas ?? []) as Trilha[];
+  const trilhasFiltradas = todasTrilhas.filter((t) => {
+    const q = busca.trim().toLowerCase();
+    if (q && !t.titulo.toLowerCase().includes(q)) return false;
+    if (audienciaFiltro !== "todas" && t.audiencia !== audienciaFiltro) return false;
+    if (statusFiltro === "ativas" && !t.ativa) return false;
+    if (statusFiltro === "desativadas" && t.ativa) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-4 p-4">
@@ -192,8 +203,42 @@ function PaginaTreinamento() {
         </CardContent>
       </Card>
 
+      {/* Busca e filtros */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar trilha pelo título"
+          aria-label="Buscar trilha pelo título"
+          className="sm:max-w-xs"
+        />
+        <Select value={audienciaFiltro} onValueChange={(v) => setAudienciaFiltro(v as typeof audienciaFiltro)}>
+          <SelectTrigger className="sm:w-48" aria-label="Filtrar por audiência">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as audiências</SelectItem>
+            <SelectItem value="parceiro">Parceiros</SelectItem>
+            <SelectItem value="cliente">Clientes</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFiltro} onValueChange={(v) => setStatusFiltro(v as typeof statusFiltro)}>
+          <SelectTrigger className="sm:w-48" aria-label="Filtrar por status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todos os status</SelectItem>
+            <SelectItem value="ativas">Ativas</SelectItem>
+            <SelectItem value="desativadas">Desativadas</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {trilhasFiltradas.length === 0 && todasTrilhas.length > 0 && (
+        <p className="text-sm text-muted-foreground">Nenhuma trilha com esses filtros.</p>
+      )}
+
       {/* Trilhas existentes */}
-      {trilhas.map((t) => {
+      {trilhasFiltradas.map((t) => {
         const form = videoForm[t.id] ?? { titulo: "", url: "", pontos: "10" };
         return (
           <Card key={t.id}>
