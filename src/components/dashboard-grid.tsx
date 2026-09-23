@@ -21,11 +21,13 @@ export const ALTURA_CELULA = 44;
 export function DashboardGrid<T>({
   itens,
   onChange,
+  onCommit,
   renderItem,
   editavel = true,
 }: {
   itens: ItemGrade<T>[];
   onChange?: (itens: ItemGrade<T>[]) => void;
+  onCommit?: (itens: ItemGrade<T>[]) => void;
   renderItem: (item: ItemGrade<T>) => React.ReactNode;
   editavel?: boolean;
 }) {
@@ -74,6 +76,7 @@ export function DashboardGrid<T>({
       window.removeEventListener("pointerup", soltar);
       setArraste(null);
       onChange(atual);
+      onCommit?.(atual);
     };
     window.addEventListener("pointermove", mover);
     window.addEventListener("pointerup", soltar);

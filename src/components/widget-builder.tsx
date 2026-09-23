@@ -242,12 +242,12 @@ export function WidgetBuilder({
     setWidgets(nova.map((g, i) => ({ ...g.item, layout: g.layout, ordem: i })));
   };
 
-  const persistirGrade = async () => {
+  const persistirGrade = async (itens: ItemGrade<Widget>[]) => {
     try {
       await salvarGradeCliente({
         data: {
           clienteId,
-          blocos: grade.map((g) => ({ id: g.id, layout: g.layout })),
+          blocos: itens.map((g) => ({ id: g.id, layout: g.layout })),
         },
       });
     } catch (e) {
@@ -330,10 +330,11 @@ export function WidgetBuilder({
           </p>
         )}
 
-        <div onPointerUp={() => void persistirGrade()}>
+        <div>
           <DashboardGrid
             itens={grade}
             onChange={aoMudarGrade}
+            onCommit={(itens) => void persistirGrade(itens)}
             renderItem={(g) => (
               <div className="flex h-full flex-col gap-1 rounded-lg border border-border/60 bg-card px-3 py-2">
                 <span className="truncate pr-6 text-sm font-medium">{g.item.titulo}</span>
