@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, LayoutGrid, Plus, Trash2 } from "lucide-react";
+import { Copy, LayoutGrid, LayoutTemplate, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  aplicarModeloEmClientes,
+  excluirModeloPainel,
   excluirWidgetCliente,
+  listarModelosPainel,
   listarWidgetsCliente,
-  reordenarWidgetsCliente,
+  salvarGradeCliente,
+  salvarPainelComoModelo,
   salvarWidgetCliente,
+  type ModeloPainel,
   type Widget,
 } from "@/lib/dashboard-widgets.functions";
+import { DashboardGrid } from "@/components/dashboard-grid";
+import { normalizarGrade, proximaPosicao, type ItemGrade } from "@/lib/grid-layout";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -49,6 +56,7 @@ type Rascunho = {
   tipo: Widget["tipo"];
   titulo: string;
   criterio: string;
+  formato: "inteiro" | "moeda";
   rotuloId: string;
   secundario: boolean;
   dimensao: string;
@@ -66,6 +74,7 @@ const vazio = (tipo: Widget["tipo"]): Rascunho => ({
   tipo,
   titulo: "",
   criterio: "total_contatos",
+  formato: "inteiro",
   rotuloId: "",
   secundario: false,
   dimensao: "origem",
@@ -110,6 +119,7 @@ export function WidgetBuilder({
       tipo: w.tipo as Widget["tipo"],
       titulo: w.titulo,
       criterio: String(c.criterio ?? "total_contatos"),
+      formato: c.formato === "moeda" ? "moeda" : "inteiro",
       rotuloId: c.rotuloId ? String(c.rotuloId) : "",
       secundario: c.secundario === "anuncio",
       dimensao: String(c.dimensao ?? "origem"),
@@ -152,6 +162,7 @@ export function WidgetBuilder({
       return {
         ...base,
         criterio: r.criterio,
+        formato: r.formato === "moeda" ? "moeda" : "inteiro",
         rotuloId: r.criterio === "rotulo" && r.rotuloId ? r.rotuloId : null,
         secundario: r.secundario ? "anuncio" : null,
       };
