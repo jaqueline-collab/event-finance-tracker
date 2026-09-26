@@ -43,7 +43,7 @@ interface KanbanCard {
 const COLUMNS = [
   { id: "contato" as const, label: "Contato Inicial", color: "bg-muted border-border text-foreground" },
   { id: "proposta" as const, label: "Proposta Enviada", color: "bg-primary/10 border-primary/30 text-primary" },
-__LINE46__
+{ id: "negociacao" as const, label: "Em Negociação", color: "bg-accent/15 border-accent/40 text-foreground" },
   { id: "ganho" as const, label: "Fechado / Ganho", color: "bg-fin/15 border-fin/40 text-fin" },
 ];
 
