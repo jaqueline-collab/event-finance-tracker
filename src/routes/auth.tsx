@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { traduzirErroAuth } from "@/lib/auth-errors";
 import { Mail, CheckCircle2, ArrowUpRight, MessageCircle } from "lucide-react";
 import { Navbar, Footer, PageHeader } from "@/components/landing/SiteChrome";
-import { WHATSAPP_LINK } from "@/lib/landing/contato";
+import { CHAT_LINK } from "@/lib/landing/contato";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -159,10 +159,10 @@ function AuthPage() {
               Ainda não sou cliente
             </div>
             <p className="text-sm text-white/70 mt-2">
-              Fale com a gente no WhatsApp e conheça o EloraCRM na prática.
+              Fale com a gente no chat e conheça o EloraCRM na prática.
             </p>
             <a
-              href={WHATSAPP_LINK}
+              href={CHAT_LINK}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 mt-4 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-6 py-3 rounded-md text-sm transition-colors"
