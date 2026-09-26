@@ -268,20 +268,93 @@ export const anexarNotaFiscal = createServerFn({ method: "POST" })
 /** Mapa lançamento → nota, para a equipe marcar o que já tem NF anexada. */
 export const listarVinculosNotas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ porLancamento: Record<string, { notaId: string; nomeArquivo: string }> }> => {
+  .handler(
+    async ({
+      context,
+    }): Promise<{
+      porLancamento: Record<string, { notaId: string; nomeArquivo: string; totalLancamentos: number }>;
+      titulos: Record<string, { titulo: string; ciclo: string | null }>;
+    }> => {
+      await exigirEquipeInterna(context.supabase);
+      const { data, error } = await context.supabase
+        .from("elora_nota_fiscal_lancamentos")
+        .select("lancamento_id, nota_id, elora_notas_fiscais(nome_arquivo)");
+      if (error) throw new Error(`vínculos: ${error.message}`);
+      const contagem = new Map<string, number>();
+      for (const v of (data ?? []) as any[]) {
+        contagem.set(String(v.nota_id), (contagem.get(String(v.nota_id)) ?? 0) + 1);
+      }
+      const porLancamento: Record<string, { notaId: string; nomeArquivo: string; totalLancamentos: number }> = {};
+      for (const v of (data ?? []) as any[]) {
+        porLancamento[String(v.lancamento_id)] = {
+          notaId: String(v.nota_id),
+          nomeArquivo: String(v.elora_notas_fiscais?.nome_arquivo ?? "Nota fiscal"),
+          totalLancamentos: contagem.get(String(v.nota_id)) ?? 1,
+        };
+      }
+
+      // Título do Fechamento Mensal ligado a cada lançamento (ex.: "Rabbit Agency · Agosto/2026").
+      const titulos: Record<string, { titulo: string; ciclo: string | null }> = {};
+      const { data: itens } = await context.supabase
+        .from("elora_fechamento_itens")
+        .select("lancamento_financeiro_id, ciclo_inicio, ciclo_fim, elora_fechamentos(titulo, deletado_em)")
+        .not("lancamento_financeiro_id", "is", null);
+      const br = (d: string | null) => (d ? d.split("-").reverse().join("/") : "");
+      for (const it of (itens ?? []) as any[]) {
+        const f = it.elora_fechamentos;
+        if (!f?.titulo || f.deletado_em) continue;
+        titulos[String(it.lancamento_financeiro_id)] = {
+          titulo: String(f.titulo),
+          ciclo: it.ciclo_inicio && it.ciclo_fim ? `${br(it.ciclo_inicio)}–${br(it.ciclo_fim)}` : null,
+        };
+      }
+      return { porLancamento, titulos };
+    },
+  );
+
+const substituirSchema = z.object({
+  notaId: z.string().uuid(),
+  nomeArquivo: z.string().trim().min(1).max(200),
+  mimeType: z.string().trim().min(3).max(100).default("application/pdf"),
+  conteudoBase64: z.string().min(1).max(14_000_000),
+});
+
+/** Troca o arquivo de uma nota existente (mesma nota, mesmos lançamentos). */
+export const substituirNotaFiscal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => substituirSchema.parse(input))
+  .handler(async ({ data, context }) => {
     await exigirEquipeInterna(context.supabase);
-    const { data, error } = await context.supabase
-      .from("elora_nota_fiscal_lancamentos")
-      .select("lancamento_id, nota_id, elora_notas_fiscais(nome_arquivo)");
-    if (error) throw new Error(`vínculos: ${error.message}`);
-    const porLancamento: Record<string, { notaId: string; nomeArquivo: string }> = {};
-    for (const v of (data ?? []) as any[]) {
-      porLancamento[String(v.lancamento_id)] = {
-        notaId: String(v.nota_id),
-        nomeArquivo: String(v.elora_notas_fiscais?.nome_arquivo ?? "Nota fiscal"),
-      };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: nota, error } = await supabaseAdmin
+      .from("elora_notas_fiscais")
+      .select("id, drive_file_id, drive_folder_id")
+      .eq("id", data.notaId)
+      .maybeSingle();
+    if (error) throw new Error(`nota: ${error.message}`);
+    if (!nota) throw new Error("Nota não encontrada.");
+
+    const auth = driveAuth();
+    const bytes = new Uint8Array(Buffer.from(data.conteudoBase64, "base64"));
+    const novoId = await uploadArquivo(auth, String(nota.drive_folder_id), data.nomeArquivo, data.mimeType, bytes);
+
+    const { error: errUp } = await supabaseAdmin
+      .from("elora_notas_fiscais")
+      .update({ drive_file_id: novoId, nome_arquivo: data.nomeArquivo, mime_type: data.mimeType })
+      .eq("id", data.notaId);
+    if (errUp) throw new Error(`nota: ${errUp.message}`);
+
+    // Arquivo antigo vai para a lixeira do Drive (recuperável), nunca apagado de vez.
+    try {
+      await driveFetch(auth, `/drive/v3/files/${nota.drive_file_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trashed: true }),
+      });
+    } catch (e) {
+      console.error("Falha ao mover NF antiga para a lixeira", e);
     }
-    return { porLancamento };
+    return { ok: true, nomeArquivo: data.nomeArquivo };
   });
 
 const listarSchema = z.object({ parceiroId: z.string().optional() });
