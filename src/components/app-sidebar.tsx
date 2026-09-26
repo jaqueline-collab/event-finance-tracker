@@ -153,6 +153,8 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Gestão</SidebarGroupLabel>
           <SidebarGroupContent>
+            {access.isAdmin && !isCollapsed && <VerComoBusca />}
+
             <SidebarMenu>
               {showGestaoSkeleton &&
                 [0, 1, 2, 3, 4].map((i) => (
@@ -208,7 +210,6 @@ export function AppSidebar() {
                 Nenhum módulo liberado para o seu acesso. Peça a um administrador para liberar em Usuários.
               </p>
             )}
-            {access.isAdmin && !isCollapsed && <VerComoBusca />}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

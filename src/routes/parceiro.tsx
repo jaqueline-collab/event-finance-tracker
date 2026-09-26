@@ -452,11 +452,6 @@ function AreaParceiro() {
             <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Elora App</span>
           </a>
         </Button>
-        <Button asChild variant="ghost" size="sm" title="Apresentar ferramenta" aria-label="Apresentar ferramenta">
-          <a href={APRESENTACAO_URL} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Apresentar ferramenta</span>
-          </a>
-        </Button>
         <Button
           variant={aba === "treinamento" ? "secondary" : "ghost"}
           size="sm"
@@ -499,14 +494,12 @@ function AreaParceiro() {
       >
         <Calculator className="mr-2 h-4 w-4" /> Calculadora
       </Button>
-      <Button
-        variant={aba === "treinamento" ? "secondary" : "ghost"}
-        size="sm"
-        className="justify-start"
-        onClick={() => irPara("treinamento")}
-      >
-        <GraduationCap className="mr-2 h-4 w-4" /> Treinamento
+      <Button asChild variant="ghost" size="sm" className="justify-start">
+        <a href={APRESENTACAO_URL} target="_blank" rel="noopener noreferrer">
+          <ExternalLink className="mr-2 h-4 w-4" /> Apresentar ferramenta
+        </a>
       </Button>
+
     </nav>
   );
 
