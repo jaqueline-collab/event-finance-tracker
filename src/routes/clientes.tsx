@@ -998,6 +998,13 @@ function ClientesPage() {
                     <h3 className="font-semibold text-base tracking-tight">Simulação em Tempo Real</h3>
                   </div>
 
+                  {selectedPlano && (selectedPlano.contatosInclusos == null || selectedPlano.usuariosInclusos == null) && (
+                    <div className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-foreground">
+                      {selectedPlano.contatosInclusos == null && <p>Franquia de contatos não configurada no plano — considerada 0.</p>}
+                      {selectedPlano.usuariosInclusos == null && <p>Usuários inclusos não configurados no plano — considerado 0.</p>}
+                    </div>
+                  )}
+
                   {/* Volume Contemplado vs Preço */}
                   <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between items-center text-muted-foreground">
@@ -1470,7 +1477,7 @@ function ClientesPage() {
             timelineEvents.push({
               data: cliente.dataInicio,
               titulo: "Setup Inicial",
-              desc: `Conta criada no plano "${plano?.nome ?? 'Rabbit Essencial'}". Canais: ${cliente.canais || 1}, Usuários: ${cliente.usuariosAtivos || 3}, Contatos: ${cliente.contatosAtivos || 500}. Setup pago: ${formatBRL(cliente.valorSetupPago || 0)}.`,
+              desc: `Conta criada no plano "${plano?.nome ?? 'Rabbit Essencial'}". Canais: ${cliente.canais || 1}, Usuários: ${cliente.usuariosAtivos ?? 0}, Contatos: ${cliente.contatosAtivos ?? 0}. Setup pago: ${formatBRL(cliente.valorSetupPago || 0)}.`,
               icon: Plus,
               color: "text-primary border-primary",
             });
