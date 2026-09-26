@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight, Clock } from "lucide-react";
 import { Navbar, Footer } from "@/components/landing/SiteChrome";
-import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { ProgressoLeitura } from "@/components/landing/ProgressoLeitura";
 import { BlogCard } from "@/components/landing/BlogCard";
 import { POSTS, getPost, formatarData } from "@/lib/landing/posts";
@@ -206,7 +205,6 @@ function BlogPost() {
       </section>
 
       <Footer />
-      <WhatsAppFloat />
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { Sparkles, ArrowUpRight, LogIn, ArrowRight } from "lucide-react";
 import { Navbar, Footer } from "@/components/landing/SiteChrome";
 import { VideoIntro } from "@/components/landing/VideoIntro";
 import { SistemaTour } from "@/components/landing/SistemaTour";
-import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { FaqLista } from "@/components/landing/FaqLista";
 import { Reveal, Typewriter } from "@/components/landing/motion";
 import { BlogCard } from "@/components/landing/BlogCard";
@@ -59,7 +58,6 @@ function LandingPage() {
       <DoBlog />
       <FaqResumo />
       <Footer />
-      <WhatsAppFloat />
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, Search, X } from "lucide-react";
 import { Navbar, Footer, PageHeader } from "@/components/landing/SiteChrome";
 import { FaqLista, normalizar } from "@/components/landing/FaqLista";
-import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Reveal } from "@/components/landing/motion";
 import { FAQS } from "@/lib/landing/faqs";
 import { CHAT_LINK } from "@/lib/landing/contato";
@@ -167,7 +166,6 @@ function FaqPage() {
       </section>
 
       <Footer />
-      <WhatsAppFloat />
     </div>
   );
 }

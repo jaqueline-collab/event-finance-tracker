@@ -87,3 +87,56 @@ export function gerarPdfClientesParceiro(dados: PdfClientesParceiro) {
 
   doc.save(`clientes-${dados.parceiro.replace(/\s+/g, "-").toLowerCase()}.pdf`);
 }
+
+export type PdfResumoFechamento = {
+  titulo: string;
+  competencia: string;
+  ciclo: string;
+  vencimento: string;
+  geradoEm: string;
+  /** Composição já vem filtrada pelo servidor conforme a permissão do parceiro. */
+  linhas: {
+    cliente: string;
+    composicao: string;
+    ciclo: string;
+    vencimento: string;
+    status: string;
+    bruto: string;
+    desconto: string;
+    liquido: string;
+  }[];
+  totais: { bruto: string; desconto: string; liquido: string };
+};
+
+/** Gera e baixa o PDF de resumo de um fechamento (uma competência). */
+export function gerarPdfResumoFechamento(d: PdfResumoFechamento) {
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+  const margem = 40;
+  let y = margem;
+  doc.setFontSize(16);
+  doc.text(`Resumo do fechamento · ${d.titulo}`, margem, y);
+  y += 18;
+  doc.setFontSize(10);
+  for (const t of [
+    `Competência: ${d.competencia}`,
+    `Ciclo: ${d.ciclo}`,
+    `Vencimento: ${d.vencimento}`,
+    `Gerado em: ${d.geradoEm}`,
+  ]) {
+    doc.text(t, margem, y);
+    y += 14;
+  }
+  autoTable(doc, {
+    startY: y + 4,
+    head: [["Cliente", "Composição cobrada", "Ciclo", "Vencimento", "Status", "Bruto", "Desconto", "Líquido"]],
+    body: d.linhas.map((l) => [l.cliente, l.composicao, l.ciclo, l.vencimento, l.status, l.bruto, l.desconto, l.liquido]),
+    foot: [["Total da sua carteira", "", "", "", "", d.totais.bruto, d.totais.desconto, d.totais.liquido]],
+    styles: { fontSize: 8, cellPadding: 4 },
+    headStyles: { fillColor: [30, 41, 59] },
+    footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: "bold" },
+    columnStyles: { 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right" } },
+    margin: { left: margem, right: margem },
+  });
+  const nome = `${d.titulo}-${d.competencia}`.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
+  doc.save(`resumo-${nome}.pdf`);
+}
