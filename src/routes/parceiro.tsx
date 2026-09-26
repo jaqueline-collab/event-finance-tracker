@@ -494,10 +494,14 @@ function AreaParceiro() {
       >
         <Calculator className="mr-2 h-4 w-4" /> Calculadora
       </Button>
-      <Button asChild variant="ghost" size="sm" className="justify-start">
-        <a href={APRESENTACAO_URL} target="_blank" rel="noopener noreferrer">
-          <ExternalLink className="mr-2 h-4 w-4" /> Apresentar ferramenta
-        </a>
+      {/* Temporário: link da apresentação (APRESENTACAO_URL) desligado até o material ficar pronto. */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="justify-start"
+        onClick={() => toast.info("Este recurso ainda está sendo configurado.")}
+      >
+        <ExternalLink className="mr-2 h-4 w-4" /> Apresentar ferramenta
       </Button>
 
     </nav>
@@ -1508,20 +1512,35 @@ function FinanceiroParceiro({
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-sm font-semibold">{brl(f.totalLiquido)}</span>
-                {f.notaId && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Baixar nota fiscal de ${f.titulo}`}
-                    disabled={baixandoId === f.notaId}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void baixarNota(f.notaId!);
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Baixar resumo de ${f.titulo}`}
+                  title="Baixar resumo do fechamento (PDF)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    gerarPdfResumoFechamento({
+                      titulo: f.titulo,
+                      competencia: f.competencia,
+                      ciclo: f.cicloInicio && f.cicloFim ? `${dataBr(f.cicloInicio)} a ${dataBr(f.cicloFim)}` : "—",
+                      vencimento: vencLabel,
+                      geradoEm: new Date().toLocaleString("pt-BR"),
+                      linhas: f.linhas.map((l) => ({
+                        cliente: l.planoNome ? `${l.clienteNome} (${l.planoNome})` : l.clienteNome,
+                        composicao: l.composicao.length === 0 ? "—" : l.composicao.map((c) => `${c.label}: ${brl(c.total)}`).join(" · "),
+                        ciclo: l.cicloInicio && l.cicloFim ? `${dataBr(l.cicloInicio)} a ${dataBr(l.cicloFim)}` : "—",
+                        vencimento: l.vencimento ? dataBr(l.vencimento) : "—",
+                        status: l.status === "pago" ? "Pago" : l.status ? "Pendente" : "—",
+                        bruto: brl(l.valorBruto),
+                        desconto: brl(l.valorDesconto),
+                        liquido: brl(l.valorLiquido),
+                      })),
+                      totais: { bruto: brl(f.totalBruto), desconto: brl(f.totalDesconto), liquido: brl(f.totalLiquido) },
+                    });
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
               </div>
             </CardHeader>
             {expandido && (
