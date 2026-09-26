@@ -101,8 +101,8 @@ function ClientesPage() {
     canaisInsta: 0,
     canaisMessenger: 0,
     canaisZapi: 0,
-    usuariosAtivos: 3,
-    contatosAtivos: 500,
+    usuariosAtivos: 0,
+    contatosAtivos: 0,
     agentesIA: false,
     asaas: false,
     zapi: false,
@@ -206,10 +206,10 @@ function ClientesPage() {
       excInsta * precoCanalInstaExc +
       excMessenger * precoCanalMessengerExc;
 
-    const usersExcQtd = Math.max(0, form.usuariosAtivos - (selectedPlano.usuariosInclusos ?? 3));
+    const usersExcQtd = Math.max(0, form.usuariosAtivos - (selectedPlano.usuariosInclusos ?? 0));
     const extraUsers = calcularCustoExtraUsuariosHelena(usersExcQtd);
 
-    const contatosExcQtd = Math.max(0, form.contatosAtivos - (selectedPlano.contatosInclusos ?? 500));
+    const contatosExcQtd = Math.max(0, form.contatosAtivos - (selectedPlano.contatosInclusos ?? 0));
     const extraContatos = calcularCustoExtraContatosHelena(contatosExcQtd, selectedPlano.contatosInclusos ?? 0);
 
     // Z-API (cobrado por canal configurado como Z-API excedente aos inclusos no plano)
@@ -287,8 +287,8 @@ function ClientesPage() {
         parceiroId: partnerId,
         // Auto fill recommended limits
         canais: chosen?.canaisInclusos ?? 1,
-        usuariosAtivos: chosen?.usuariosInclusos ?? 3,
-        contatosAtivos: chosen?.contatosInclusos ?? 500,
+        usuariosAtivos: chosen?.usuariosInclusos ?? 0,
+        contatosAtivos: chosen?.contatosInclusos ?? 0,
         // Acompanhamento padrão do plano — só preenche quando o cliente ainda não tem valor próprio.
         valorAcompanhamento: prev.valorAcompanhamento > 0 ? prev.valorAcompanhamento : (chosen?.valorAcompanhamento ?? 0),
         // Plano sem módulos opcionais: nada é ativado, mas o que já estava marcado não é removido.
@@ -327,8 +327,8 @@ function ClientesPage() {
       canaisInsta: isDelta ? "" : String(c.canaisInsta ?? 0),
       canaisMessenger: isDelta ? "" : String(c.canaisMessenger ?? 0),
       canaisZapi: isDelta ? "" : String(c.canaisZapi || 0),
-      usuariosAtivos: isDelta ? "" : String(c.usuariosAtivos || 3),
-      contatosAtivos: isDelta ? "" : String(c.contatosAtivos || 500),
+      usuariosAtivos: isDelta ? "" : String(c.usuariosAtivos ?? ""),
+      contatosAtivos: isDelta ? "" : String(c.contatosAtivos ?? ""),
       agentesIA: c.agentesIA || false,
       asaas: c.asaas || false,
       zapi: c.zapi || false,
@@ -1021,7 +1021,7 @@ function ClientesPage() {
 
                     {realTimePricing.faturamentoUsersExc > 0 && (
                       <div className="flex justify-between items-center text-muted-foreground">
-                        <span>Usuários extras (+{Math.max(0, form.usuariosAtivos - (selectedPlano?.usuariosInclusos ?? 3))}):</span>
+                        <span>Usuários extras (+{Math.max(0, form.usuariosAtivos - (selectedPlano?.usuariosInclusos ?? 0))}):</span>
                         <span className="font-medium text-foreground">+{formatBRL(realTimePricing.faturamentoUsersExc)}</span>
                       </div>
                     )}
@@ -1090,7 +1090,7 @@ function ClientesPage() {
 
                       {realTimePricing.extraUsers > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Users extra (+{Math.max(0, form.usuariosAtivos - (selectedPlano?.usuariosInclusos ?? 3))}):</span>
+                          <span className="text-muted-foreground">Users extra (+{Math.max(0, form.usuariosAtivos - (selectedPlano?.usuariosInclusos ?? 0))}):</span>
                           <span className="text-primary">+{formatBRL(realTimePricing.extraUsers)}</span>
                         </div>
                       )}
@@ -1202,8 +1202,8 @@ function ClientesPage() {
                         canaisInsta: 0,
                         canaisMessenger: 0,
                         canaisZapi: 0,
-                        usuariosAtivos: 3,
-                        contatosAtivos: 500,
+                        usuariosAtivos: 0,
+                        contatosAtivos: 0,
                         agentesIA: false,
                         asaas: false,
                         zapi: false,
@@ -1631,8 +1631,8 @@ function ClientesPage() {
                       canaisWhats: Math.max(planoAtual?.canaisWhatsInclusos ?? 0, cliente.canaisWhats ?? cliente.canaisZapi ?? 0),
                       canaisInsta: Math.max(planoAtual?.canaisInstaInclusos ?? 0, cliente.canaisInsta ?? 0),
                       canaisMessenger: Math.max(planoAtual?.canaisMessengerInclusos ?? 0, cliente.canaisMessenger ?? 0),
-                      usuariosAtivos: Math.max(planoAtual?.usuariosInclusos ?? 3, cliente.usuariosAtivos ?? 0),
-                      contatosAtivos: Math.max(planoAtual?.contatosInclusos ?? 500, cliente.contatosAtivos ?? 0),
+                      usuariosAtivos: Math.max(planoAtual?.usuariosInclusos ?? 0, cliente.usuariosAtivos ?? 0),
+                      contatosAtivos: Math.max(planoAtual?.contatosInclusos ?? 0, cliente.contatosAtivos ?? 0),
                       agentesIA: cliente.agentesIA || (planoAtual?.incluiIA ?? false),
                       asaas: cliente.asaas || (planoAtual?.incluiAsaas ?? false),
                       zapi: cliente.zapi || ((planoAtual?.incluiZapi ?? 0) > 0),
