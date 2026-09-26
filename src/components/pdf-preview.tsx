@@ -61,10 +61,11 @@ export function PdfPreview({ url }: { url: string }) {
         const pdfjs = await import("pdfjs-dist");
         if (cancelled) return;
         pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-        task = pdfjs.getDocument(url);
+        task = pdfjs.getDocument({ url });
         loaded = await task.promise;
         if (!cancelled) setDocument(loaded);
-      } catch {
+      } catch (cause) {
+        console.error("Falha ao renderizar prévia de nota fiscal", cause);
         if (!cancelled) setError(true);
       }
     })();
