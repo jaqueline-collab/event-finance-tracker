@@ -20,6 +20,7 @@ import {
   type PlanoCalculadoraParceiro,
 } from "@/lib/parceiro.calculadora";
 import { PainelTreinamento } from "@/components/treinamento/painel-treinamento";
+import { PdfPreview } from "@/components/pdf-preview";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1556,7 +1557,7 @@ function FinanceiroParceiro({
                 <img src={previa.url} alt={`Nota fiscal ${previa.arquivo}`} className="max-h-full max-w-full object-contain" />
               )}
               {previa?.url && previa.mimeType === "application/pdf" && (
-                <iframe src={previa.url} title={`Pré-visualização de ${previa.arquivo}`} className="h-full w-full border-0" />
+                <div className="h-full w-full overflow-y-auto"><PdfPreview url={previa.url} /></div>
               )}
               {previa?.url && previa.mimeType !== "application/pdf" && !previa.mimeType?.startsWith("image/") && (
                 <p className="p-5 text-center text-sm text-muted-foreground">A pré-visualização deste tipo de arquivo não está disponível. Você pode baixá-lo.</p>

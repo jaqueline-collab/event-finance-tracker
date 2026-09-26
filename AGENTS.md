@@ -1,0 +1,1 @@
+- Render authenticated PDF note previews from the existing authorized download bytes with client-side PDF.js; browser-native blob iframes do not consistently display inline on mobile or in embedded browsers.
