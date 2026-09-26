@@ -1403,6 +1403,16 @@ function ClientesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        title="Registrar movimento"
+                        aria-label={`Registrar movimento de ${c.nome}`}
+                        onClick={() => openAcaoModal(c, "upgrade")}
+                      >
+                        <Settings2 className="h-4 w-4" />
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0"><MoreVertical className="h-4 w-4" /></Button>
@@ -1422,6 +1432,7 @@ function ClientesPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
