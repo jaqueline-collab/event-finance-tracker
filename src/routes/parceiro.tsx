@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   getFinanceiroParceiro,
@@ -40,6 +40,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -1386,15 +1387,69 @@ function FinanceiroParceiro({
 }) {
   const fnBaixar = useServerFn(baixarNotaFiscal);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
+  const [previa, setPrevia] = useState<{
+    id: string;
+    arquivo: string;
+    competencia: string;
+    url?: string;
+    mimeType?: string;
+    erro?: string;
+  } | null>(null);
+  const requisicaoPrevia = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (previa?.url) URL.revokeObjectURL(previa.url);
+    };
+  }, [previa?.url]);
+
+  useEffect(() => {
+    if (sub !== "notas") {
+      requisicaoPrevia.current += 1;
+      setPrevia(null);
+    }
+  }, [sub]);
+
+  const fecharPrevia = () => {
+    requisicaoPrevia.current += 1;
+    setPrevia(null);
+  };
+
+  const arquivoBlob = (conteudoBase64: string, mimeType: string) => {
+    const binario = atob(conteudoBase64);
+    const bytes = new Uint8Array(binario.length);
+    for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+    return new Blob([bytes], { type: mimeType });
+  };
+
+  const abrirPrevia = async (nota: { id: string; arquivo: string; competencia: string }) => {
+    const pedido = ++requisicaoPrevia.current;
+    setPrevia({ id: nota.id, arquivo: nota.arquivo, competencia: nota.competencia });
+    try {
+      const r = await fnBaixar({ data: { notaId: nota.id } });
+      const url = URL.createObjectURL(arquivoBlob(r.conteudoBase64, r.mimeType));
+      if (pedido !== requisicaoPrevia.current) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      setPrevia({ id: nota.id, arquivo: r.nomeArquivo, competencia: nota.competencia, mimeType: r.mimeType, url });
+    } catch (e) {
+      if (pedido === requisicaoPrevia.current) {
+        setPrevia({
+          id: nota.id,
+          arquivo: nota.arquivo,
+          competencia: nota.competencia,
+          erro: e instanceof Error ? e.message : "Não foi possível visualizar a nota.",
+        });
+      }
+    }
+  };
 
   const baixarNota = async (notaId: string) => {
     setBaixandoId(notaId);
     try {
       const r = await fnBaixar({ data: { notaId } });
-      const binario = atob(r.conteudoBase64);
-      const bytes = new Uint8Array(binario.length);
-      for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
-      const blob = new Blob([bytes], { type: r.mimeType });
+      const blob = arquivoBlob(r.conteudoBase64, r.mimeType);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1445,17 +1500,34 @@ function FinanceiroParceiro({
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {notas.map((n) => (
-              <Card key={n.id}>
-                <CardContent className="flex flex-wrap items-center gap-3 p-3">
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{n.arquivo}</span>
-                  <Badge variant="outline">{n.competencia}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {n.lancamentos} lançamento{n.lancamentos === 1 ? "" : "s"}
-                  </span>
-                  <span className="text-sm tabular-nums">{brl(n.valorTotal)}</span>
+              <Card key={n.id} className="min-w-0 overflow-hidden">
+                <CardContent className="flex h-full flex-col p-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-auto w-full min-w-0 flex-1 flex-col items-stretch gap-4 rounded-none p-4 text-left hover:bg-muted/50"
+                    onClick={() => abrirPrevia(n)}
+                    aria-label={`Pré-visualizar ${n.arquivo}`}
+                    title={n.arquivo}
+                  >
+                    <span className="flex w-full min-w-0 items-center gap-3">
+                      <span className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+                        <FileText className="size-6" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{n.arquivo}</span>
+                      <Eye className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </span>
+                    <span className="flex w-full flex-wrap items-center gap-2">
+                      <Badge variant="outline">{n.competencia}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {n.lancamentos} lançamento{n.lancamentos === 1 ? "" : "s"}
+                      </span>
+                    </span>
+                  </Button>
+                  <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
+                    <span className="text-sm font-semibold tabular-nums">{brl(n.valorTotal)}</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1465,11 +1537,48 @@ function FinanceiroParceiro({
                     <Download className="mr-2 h-4 w-4" />
                     {baixandoId === n.id ? "Baixando…" : "Baixar"}
                   </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+        <Dialog open={Boolean(previa)} onOpenChange={(open) => { if (!open) fecharPrevia(); }}>
+          <DialogContent className="flex h-[min(90dvh,900px)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-3 overflow-hidden p-4 sm:p-6">
+            <DialogHeader className="min-w-0 pr-8 text-left">
+              <DialogTitle className="truncate" title={previa?.arquivo}>{previa?.arquivo}</DialogTitle>
+              <DialogDescription>Nota fiscal · {previa?.competencia}</DialogDescription>
+            </DialogHeader>
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
+              {!previa?.url && !previa?.erro && <Skeleton className="h-full w-full" />}
+              {previa?.erro && <p role="alert" className="p-5 text-center text-sm text-destructive">{previa.erro}</p>}
+              {previa?.url && previa.mimeType?.startsWith("image/") && (
+                <img src={previa.url} alt={`Nota fiscal ${previa.arquivo}`} className="max-h-full max-w-full object-contain" />
+              )}
+              {previa?.url && previa.mimeType === "application/pdf" && (
+                <iframe src={previa.url} title={`Pré-visualização de ${previa.arquivo}`} className="h-full w-full border-0" />
+              )}
+              {previa?.url && previa.mimeType !== "application/pdf" && !previa.mimeType?.startsWith("image/") && (
+                <p className="p-5 text-center text-sm text-muted-foreground">A pré-visualização deste tipo de arquivo não está disponível. Você pode baixá-lo.</p>
+              )}
+            </div>
+            <div className="flex shrink-0 justify-end gap-2">
+              <Button variant="outline" onClick={fecharPrevia}>Fechar</Button>
+              <Button
+                disabled={!previa?.url}
+                onClick={() => {
+                  if (!previa?.url) return;
+                  const a = document.createElement("a");
+                  a.href = previa.url;
+                  a.download = previa.arquivo;
+                  a.click();
+                }}
+              >
+                <Download className="mr-2 size-4" />Baixar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
