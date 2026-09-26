@@ -21,6 +21,7 @@ import {
 } from "@/lib/parceiro.calculadora";
 import { PainelTreinamento } from "@/components/treinamento/painel-treinamento";
 import { PdfPreview } from "@/components/pdf-preview";
+import { usePapelUsuario } from "@/lib/use-papel";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -221,6 +222,8 @@ function AreaParceiro() {
   }, [anoAtual]);
   const navigate = Route.useNavigate();
   const modoAdmin = como.trim().length > 0;
+  const papel = usePapelUsuario();
+  const semParceiro = !modoAdmin && !papel.loading && !papel.parceiroId;
   const [dados, setDados] = useState<PainelData | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -251,6 +254,7 @@ function AreaParceiro() {
   }, []);
 
   useEffect(() => {
+    if (papel.loading || semParceiro) return;
     let cancelado = false;
     setCarregando(true);
     setErro(null);
@@ -261,12 +265,12 @@ function AreaParceiro() {
     return () => {
       cancelado = true;
     };
-  }, [como, modoAdmin]);
+  }, [como, modoAdmin, papel.loading, semParceiro]);
 
   const podeVerFechamentos = Boolean((dados as any)?.podeVerFechamentos);
 
   useEffect(() => {
-    if (aba !== "financeiro" || !podeVerFechamentos) return;
+    if (papel.loading || semParceiro || aba !== "financeiro" || !podeVerFechamentos) return;
     let cancelado = false;
     setCarregandoFin(true);
     setErroFin(null);
@@ -277,10 +281,10 @@ function AreaParceiro() {
     return () => {
       cancelado = true;
     };
-  }, [aba, como, modoAdmin, podeVerFechamentos]);
+  }, [aba, como, modoAdmin, podeVerFechamentos, papel.loading, semParceiro]);
 
   useEffect(() => {
-    if (aba !== "calculadora") return;
+    if (papel.loading || semParceiro || aba !== "calculadora") return;
     let cancelado = false;
     setCarregandoCalc(true);
     setErroCalc(null);
@@ -291,7 +295,7 @@ function AreaParceiro() {
     return () => {
       cancelado = true;
     };
-  }, [aba, como, modoAdmin]);
+  }, [aba, como, modoAdmin, papel.loading, semParceiro]);
 
   const banner = modoAdmin ? (
     <div className="sticky top-0 z-40 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b-2 border-landing-yellow-vivo bg-landing-dark px-4 py-3 backdrop-blur">
@@ -510,7 +514,23 @@ function AreaParceiro() {
     </nav>
   );
 
-  if (carregando) {
+  if (semParceiro) {
+    return (
+      <div className="space-y-4">
+        <Alert>
+          <AlertTitle>Área do Parceiro indisponível para este login</AlertTitle>
+          <AlertDescription>
+            {papel.isInterno
+              ? "Para visualizar a área de um parceiro, escolha-o em Gestão de Parceiros."
+              : "Este login não está vinculado a um parceiro. Solicite o acesso à equipe Elora."}
+          </AlertDescription>
+        </Alert>
+        {papel.isInterno && <Button asChild variant="outline"><Link to="/gestao-parceiros">Ver parceiros</Link></Button>}
+      </div>
+    );
+  }
+
+  if (carregando || papel.loading) {
     return (
       <div className="space-y-4">
         {banner}
