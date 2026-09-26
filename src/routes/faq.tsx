@@ -6,7 +6,7 @@ import { FaqLista, normalizar } from "@/components/landing/FaqLista";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Reveal } from "@/components/landing/motion";
 import { FAQS } from "@/lib/landing/faqs";
-import { WHATSAPP_LINK } from "@/lib/landing/contato";
+import { CHAT_LINK } from "@/lib/landing/contato";
 
 const TITULO = "Perguntas frequentes — EloraCRM";
 const DESC =
@@ -109,12 +109,12 @@ function FaqPage() {
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <a
-                href={WHATSAPP_LINK}
+                href={CHAT_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-6 py-3 rounded-md text-sm transition-colors"
               >
-                Falar no WhatsApp <ArrowUpRight className="h-4 w-4" />
+                Falar no chat <ArrowUpRight className="h-4 w-4" />
               </a>
               <button
                 type="button"
@@ -149,14 +149,14 @@ function FaqPage() {
           >
             Ficou com outra dúvida?
           </h2>
-          <p className="text-white/70 mt-3">Fale com a gente no WhatsApp e a gente te responde.</p>
+          <p className="text-white/70 mt-3">Fale com a gente no chat e a gente te responde.</p>
           <a
-            href={WHATSAPP_LINK}
+            href={CHAT_LINK}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 mt-6 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-7 py-3 rounded-md transition-colors"
           >
-            Falar no WhatsApp <ArrowUpRight className="h-4 w-4" />
+            Falar no chat <ArrowUpRight className="h-4 w-4" />
           </a>
           <div className="mt-4">
             <Link to="/" className="text-sm text-white/60 hover:text-white underline">
