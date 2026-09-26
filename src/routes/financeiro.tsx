@@ -22,9 +22,9 @@ import {
   obterVencimentoDaCompetencia,
   mensagemErroPersistencia,
 } from "@/lib/store";
-import { anexarNotaFiscal, listarVinculosNotas } from "@/lib/notas-fiscais.functions";
+import { anexarNotaFiscal, listarVinculosNotas, substituirNotaFiscal } from "@/lib/notas-fiscais.functions";
 import type { LancamentoFinanceiro, StatusFinanceiro, TipoFinanceiro } from "@/lib/types";
-import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileX2, FileUp, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, DownloadCloud, CheckCircle2, Clock, XCircle, FileCheck2, FileUp, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/financeiro")({
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/financeiro")({
 
 const statusOptions: { value: StatusFinanceiro; label: string; color: string; Icon: any }[] = [
   { value: "pendente", label: "Pendente", color: "bg-fin/15 text-fin", Icon: Clock },
-  { value: "pago", label: "Pago", color: "bg-fin/15 text-fin", Icon: CheckCircle2 },
+  { value: "pago", label: "Recebido", color: "bg-success/15 text-success", Icon: CheckCircle2 },
   { value: "cancelado", label: "Cancelado", color: "bg-destructive/15 text-destructive", Icon: XCircle },
 ];
 
@@ -72,13 +72,19 @@ function FinanceiroPage() {
   const [anexandoNf, setAnexandoNf] = useState(false);
   const [arquivoNf, setArquivoNf] = useState<File | null>(null);
   const inputArquivoRef = useRef<HTMLInputElement | null>(null);
-  const [vinculosNf, setVinculosNf] = useState<Record<string, { notaId: string; nomeArquivo: string }>>({});
+  const [vinculosNf, setVinculosNf] = useState<Record<string, { notaId: string; nomeArquivo: string; totalLancamentos: number }>>({});
+  const [titulosFech, setTitulosFech] = useState<Record<string, { titulo: string; ciclo: string | null }>>({});
+  const [substituindo, setSubstituindo] = useState<{ notaId: string; nomeArquivo: string; totalLancamentos: number } | null>(null);
   const fnAnexarNf = useServerFn(anexarNotaFiscal);
+  const fnSubstituirNf = useServerFn(substituirNotaFiscal);
   const fnListarVinculos = useServerFn(listarVinculosNotas);
 
   const recarregarVinculos = () => {
     fnListarVinculos()
-      .then((r) => setVinculosNf(r.porLancamento))
+      .then((r) => {
+        setVinculosNf(r.porLancamento);
+        setTitulosFech(r.titulos);
+      })
       .catch(() => {});
   };
   useEffect(recarregarVinculos, []);
@@ -109,25 +115,28 @@ function FinanceiroPage() {
       for (let i = 0; i < bytes.length; i += 8192) {
         binario += String.fromCharCode(...bytes.subarray(i, i + 8192));
       }
-      await fnAnexarNf({
-        data: {
-          lancamentoIds: [...selecionados],
-          nomeArquivo: arquivoNf.name,
-          mimeType: arquivoNf.type || "application/pdf",
-          conteudoBase64: btoa(binario),
-        },
-      });
-      toast.success(
-        selecionados.size > 1
-          ? `NF anexada a ${selecionados.size} lançamentos.`
-          : "NF anexada ao lançamento.",
-      );
+      const conteudoBase64 = btoa(binario);
+      const mimeType = arquivoNf.type || "application/pdf";
+      if (substituindo) {
+        await fnSubstituirNf({
+          data: { notaId: substituindo.notaId, nomeArquivo: arquivoNf.name, mimeType, conteudoBase64 },
+        });
+        toast.success("Arquivo da NF substituído.");
+      } else {
+        await fnAnexarNf({
+          data: { lancamentoIds: [...selecionados], nomeArquivo: arquivoNf.name, mimeType, conteudoBase64 },
+        });
+        toast.success(
+          selecionados.size > 1 ? `NF anexada a ${selecionados.size} lançamentos.` : "NF anexada ao lançamento.",
+        );
+      }
       setSelecionados(new Set());
+      setSubstituindo(null);
       setArquivoNf(null);
       setDialogNfAberto(false);
       recarregarVinculos();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message.replace(/^.*?acesso-negado/, "Acesso negado") : "Não foi possível anexar a NF.");
+      toast.error(e instanceof Error ? e.message.replace(/^.*?acesso-negado/, "Acesso negado") : "Não foi possível enviar a NF.");
     } finally {
       setAnexandoNf(false);
     }
@@ -244,9 +253,9 @@ function FinanceiroPage() {
       custoPago: sum(custos, "pago"),
       custoPendente: sum(custos, "pendente"),
       saldo: sum(receitas) - sum(custos),
-      nfPendentes: receitas.filter((l) => !l.nfEmitida && l.status !== "cancelado").length,
+      nfPendentes: receitas.filter((l) => !vinculosNf[l.id] && l.status !== "cancelado").length,
     };
-  }, [financeiro]);
+  }, [financeiro, vinculosNf]);
 
   const save = async () => {
     if (!form.descricao || !form.valor) {
@@ -297,18 +306,18 @@ function FinanceiroPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card><CardHeader className="pb-2"><CardDescription>Receitas (total)</CardDescription><CardTitle className="text-xl text-primary">{formatBRL(totais.receitaTotal)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Pago {formatBRL(totais.receitaPaga)} · Pend. {formatBRL(totais.receitaPendente)}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>Receitas (total)</CardDescription><CardTitle className="text-xl text-primary">{formatBRL(totais.receitaTotal)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Recebido {formatBRL(totais.receitaPaga)} · Pend. {formatBRL(totais.receitaPendente)}</CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Custos (total)</CardDescription><CardTitle className="text-xl text-fin">{formatBRL(totais.custoTotal)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Pago {formatBRL(totais.custoPago)} · Pend. {formatBRL(totais.custoPendente)}</CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Saldo previsto</CardDescription><CardTitle className={`text-xl ${totais.saldo >= 0 ? "text-fin" : "text-destructive"}`}>{formatBRL(totais.saldo)}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Receita − Custo</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>NF a emitir</CardDescription><CardTitle className="text-xl">{totais.nfPendentes}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Fechamentos sem NF</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>NF a emitir</CardDescription><CardTitle className="text-xl">{totais.nfPendentes}</CardTitle></CardHeader><CardContent className="text-xs text-muted-foreground">Receitas sem NF anexada</CardContent></Card>
       </div>
 
       {/* Filtros */}
       <FilterBar
         fields={[
           { key: "tipo", label: "Tipo", type: "multi", options: [
-            { value: "custo", label: "Custo" },
-            { value: "fechamento", label: "Fechamento mensal" },
+            { value: "fechamento", label: "Receita" },
+            { value: "custo", label: "Despesa" },
           ] },
           { key: "status", label: "Status", type: "multi", options: statusOptions.map((s) => ({ value: s.value, label: s.label })) },
           { key: "vencimento", label: "Vencimento", type: "dateRange" },
@@ -323,10 +332,10 @@ function FinanceiroPage() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <CardTitle>Lançamentos</CardTitle>
-              <CardDescription>Toque em um lançamento para alterar o status ou marcar a emissão da NF.</CardDescription>
+              <CardDescription>Altere o status direto na lista. A NF fica marcada como anexada assim que o arquivo é enviado.</CardDescription>
             </div>
             {selecionados.size > 0 && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => { setArquivoNf(null); setDialogNfAberto(true); }}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => { setSubstituindo(null); setArquivoNf(null); setDialogNfAberto(true); }}>
                 <FileUp className="h-4 w-4" /> Anexar NF ({selecionados.size})
               </Button>
             )}
@@ -368,6 +377,7 @@ function FinanceiroPage() {
                             title="Anexar NF a este fechamento"
                             aria-label="Anexar NF a este fechamento"
                             onClick={() => {
+                              setSubstituindo(null);
                               setSelecionados(new Set([l.id]));
                               setArquivoNf(null);
                               setDialogNfAberto(true);
@@ -380,13 +390,16 @@ function FinanceiroPage() {
                     </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
-                        <span>{l.descricao}</span>
+                        <span>{titulosFech[l.id]?.titulo ?? l.descricao}</span>
+                        {titulosFech[l.id]?.ciclo && (
+                          <span className="text-[10px] text-muted-foreground">ciclo {titulosFech[l.id].ciclo}</span>
+                        )}
                         {l.categoria && <span className="text-[10px] text-muted-foreground">{l.categoria}</span>}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[10px] capitalize">
-                        {l.tipo === "fechamento" ? "Fechamento" : "Custo"}
+                      <Badge variant="outline" className="text-[10px]">
+                        {l.tipo === "fechamento" ? "Receita" : "Despesa"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">{l.competencia ?? "—"}</TableCell>
@@ -408,21 +421,28 @@ function FinanceiroPage() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Switch
-                          checked={l.nfEmitida}
-                          onCheckedChange={(v) => { void updateLancamento(l.id, { nfEmitida: v }).catch(() => {}); }}
-                        />
-                        {l.nfEmitida
-                          ? <FileCheck2 className="h-3.5 w-3.5 text-fin" />
-                          : <FileX2 className="h-3.5 w-3.5 text-muted-foreground" />}
-                        {l.nfNumero && <span className="text-[10px] text-muted-foreground">#{l.nfNumero}</span>}
-                        {vinculosNf[l.id] && (
-                          <Badge variant="outline" className="text-[10px] text-fin border-fin/40" title={vinculosNf[l.id].nomeArquivo}>
-                            Anexada
+                      {vinculosNf[l.id] ? (
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className="gap-1 text-[10px] text-success border-success/40" title={vinculosNf[l.id].nomeArquivo}>
+                            <FileCheck2 className="h-3 w-3" /> Anexada
                           </Badge>
-                        )}
-                      </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-[11px]"
+                            title="Substituir o arquivo da NF"
+                            onClick={() => {
+                              setSubstituindo(vinculosNf[l.id]);
+                              setArquivoNf(null);
+                              setDialogNfAberto(true);
+                            }}
+                          >
+                            <RefreshCw className="h-3 w-3" /> Substituir
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
@@ -493,11 +513,6 @@ function FinanceiroPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2 flex items-center gap-3 border border-border/40 rounded-md p-3">
-                <Switch checked={form.nfEmitida} onCheckedChange={(v) => setForm({ ...form, nfEmitida: v })} />
-                <Label className="text-sm">NF emitida</Label>
-                <Input className="ml-auto max-w-[160px]" placeholder="Nº da NF (opcional)" value={form.nfNumero ?? ""} onChange={(e) => setForm({ ...form, nfNumero: e.target.value })} />
-              </div>
               <div className="col-span-2">
                 <Label className="text-xs">Observação</Label>
                 <Input value={form.observacao ?? ""} onChange={(e) => setForm({ ...form, observacao: e.target.value })} />
@@ -514,13 +529,22 @@ function FinanceiroPage() {
       </Dialog>
 
       {/* Dialog: anexar NF aos lançamentos selecionados */}
-      <Dialog open={dialogNfAberto} onOpenChange={setDialogNfAberto}>
+      <Dialog open={dialogNfAberto} onOpenChange={(v) => { setDialogNfAberto(v); if (!v) setSubstituindo(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Anexar nota fiscal</DialogTitle>
+            <DialogTitle>{substituindo ? "Substituir nota fiscal" : "Anexar nota fiscal"}</DialogTitle>
             <DialogDescription>
-              Um único arquivo cobre {selecionados.size === 1 ? "o lançamento selecionado" : `os ${selecionados.size} lançamentos selecionados`}.
-              Todos precisam ser do mesmo pagador (mesmo parceiro, ou o mesmo cliente sem parceiro).
+              {substituindo ? (
+                <>
+                  O arquivo atual ({substituindo.nomeArquivo}) será trocado pelo novo e irá para a lixeira do Drive.
+                  {substituindo.totalLancamentos > 1 && ` Esta nota cobre ${substituindo.totalLancamentos} lançamentos — a troca vale para todos.`}
+                </>
+              ) : (
+                <>
+                  Um único arquivo cobre {selecionados.size === 1 ? "o lançamento selecionado" : `os ${selecionados.size} lançamentos selecionados`}.
+                  Todos precisam ser do mesmo pagador (mesmo parceiro, ou o mesmo cliente sem parceiro).
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -536,7 +560,7 @@ function FinanceiroPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogNfAberto(false)}>Cancelar</Button>
             <Button onClick={enviarNf} disabled={anexandoNf || !arquivoNf}>
-              {anexandoNf ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</>) : "Anexar"}
+              {anexandoNf ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</>) : substituindo ? "Substituir" : "Anexar"}
             </Button>
           </DialogFooter>
         </DialogContent>
