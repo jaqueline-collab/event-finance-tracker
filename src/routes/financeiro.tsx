@@ -285,12 +285,12 @@ function FinanceiroPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Gestão Financeira</h1>
           <p className="text-muted-foreground text-sm">Boletos de custo, fechamentos mensais, status de pagamento e emissão de NF.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={importarFechamentosAuto} className="gap-2">
-            <DownloadCloud className="h-4 w-4" /> Importar fechamentos
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <Button variant="outline" onClick={importarFechamentosAuto} className="min-w-0 gap-2">
+            <DownloadCloud className="h-4 w-4 shrink-0" /> <span className="truncate">Importar fechamentos</span>
           </Button>
-          <Button onClick={startNew} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo lançamento
+          <Button onClick={startNew} className="min-w-0 gap-2">
+            <Plus className="h-4 w-4 shrink-0" /> <span className="truncate">Novo lançamento</span>
           </Button>
         </div>
       </div>

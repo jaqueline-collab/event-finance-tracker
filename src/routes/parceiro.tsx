@@ -291,8 +291,8 @@ function AreaParceiro() {
   }, [aba, como, modoAdmin]);
 
   const banner = modoAdmin ? (
-    <div className="sticky top-0 z-40 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-3 backdrop-blur">
-      <p className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+    <div className="sticky top-0 z-40 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b-2 border-landing-yellow-vivo bg-landing-dark px-4 py-3 backdrop-blur">
+      <p className="flex items-center gap-2 text-sm font-medium text-landing-yellow-vivo">
         <Eye className="h-4 w-4" />
         Visualizando como: {dados?.parceiro.nome ?? "…"} (modo admin, somente leitura)
       </p>
