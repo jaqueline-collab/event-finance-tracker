@@ -355,11 +355,27 @@ function FinanceiroPage() {
                   <TableRow key={l.id}>
                     <TableCell>
                       {l.tipo === "fechamento" && (
-                        <Checkbox
-                          checked={selecionados.has(l.id)}
-                          onCheckedChange={(v) => alternarSelecao(l.id, v === true)}
-                          aria-label="Selecionar lançamento"
-                        />
+                        <div className="flex items-center gap-1">
+                          <Checkbox
+                            checked={selecionados.has(l.id)}
+                            onCheckedChange={(v) => alternarSelecao(l.id, v === true)}
+                            aria-label="Selecionar para anexar NF em conjunto"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            title="Anexar NF a este fechamento"
+                            aria-label="Anexar NF a este fechamento"
+                            onClick={() => {
+                              setSelecionados(new Set([l.id]));
+                              setArquivoNf(null);
+                              setDialogNfAberto(true);
+                            }}
+                          >
+                            <FileUp className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="font-medium">
