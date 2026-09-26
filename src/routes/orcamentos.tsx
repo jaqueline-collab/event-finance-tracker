@@ -41,10 +41,10 @@ interface KanbanCard {
 }
 
 const COLUMNS = [
-  { id: "contato" as const, label: "Contato Inicial", color: "bg-blue-500/10 border-blue-500/30 text-blue-400" },
-  { id: "proposta" as const, label: "Proposta Enviada", color: "bg-amber-500/10 border-amber-500/30 text-amber-400" },
-  { id: "negociacao" as const, label: "Em Negociação", color: "bg-purple-500/10 border-purple-500/30 text-purple-400" },
-  { id: "ganho" as const, label: "Fechado / Ganho", color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" },
+  { id: "contato" as const, label: "Contato Inicial", color: "bg-muted border-border text-foreground" },
+  { id: "proposta" as const, label: "Proposta Enviada", color: "bg-primary/10 border-primary/30 text-primary" },
+{ id: "negociacao" as const, label: "Em Negociação", color: "bg-accent/15 border-accent/40 text-foreground" },
+  { id: "ganho" as const, label: "Fechado / Ganho", color: "bg-fin/15 border-fin/40 text-fin" },
 ];
 
 function formatBRL(v: number) {

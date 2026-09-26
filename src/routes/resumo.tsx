@@ -2070,7 +2070,7 @@ function ResumoPage() {
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span>{d.cliente.nome}</span>
                                 {d.cicloAberto && (
-                                  <Badge variant="outline" className="text-[10px] border-sky-500/40 text-sky-600 bg-sky-500/10">
+                                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/10">
                                     ciclo em aberto — encerra {d.cicloFimLabel}
                                   </Badge>
                                 )}

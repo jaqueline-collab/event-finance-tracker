@@ -285,12 +285,12 @@ function FinanceiroPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Gestão Financeira</h1>
           <p className="text-muted-foreground text-sm">Boletos de custo, fechamentos mensais, status de pagamento e emissão de NF.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={importarFechamentosAuto} className="gap-2">
-            <DownloadCloud className="h-4 w-4" /> Importar fechamentos
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <Button variant="outline" onClick={importarFechamentosAuto} className="min-w-0 gap-2">
+            <DownloadCloud className="h-4 w-4 shrink-0" /> <span className="truncate">Importar fechamentos</span>
           </Button>
-          <Button onClick={startNew} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo lançamento
+          <Button onClick={startNew} className="min-w-0 gap-2">
+            <Plus className="h-4 w-4 shrink-0" /> <span className="truncate">Novo lançamento</span>
           </Button>
         </div>
       </div>
@@ -355,11 +355,27 @@ function FinanceiroPage() {
                   <TableRow key={l.id}>
                     <TableCell>
                       {l.tipo === "fechamento" && (
-                        <Checkbox
-                          checked={selecionados.has(l.id)}
-                          onCheckedChange={(v) => alternarSelecao(l.id, v === true)}
-                          aria-label="Selecionar lançamento"
-                        />
+                        <div className="flex items-center gap-1">
+                          <Checkbox
+                            checked={selecionados.has(l.id)}
+                            onCheckedChange={(v) => alternarSelecao(l.id, v === true)}
+                            aria-label="Selecionar para anexar NF em conjunto"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            title="Anexar NF a este fechamento"
+                            aria-label="Anexar NF a este fechamento"
+                            onClick={() => {
+                              setSelecionados(new Set([l.id]));
+                              setArquivoNf(null);
+                              setDialogNfAberto(true);
+                            }}
+                          >
+                            <FileUp className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="font-medium">

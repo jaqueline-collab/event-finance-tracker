@@ -54,11 +54,32 @@ function ConfigurarApiPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div>
-        <h1 className="text-xl font-semibold sm:text-2xl">Configurar API</h1>
-        <p className="text-sm text-muted-foreground">
-          Escolha o cliente para conectar a conta do app Elora e montar o painel dele.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold sm:text-2xl">Configurar API</h1>
+          <p className="text-sm text-muted-foreground">
+            Escolha o cliente para conectar a conta do app Elora e montar o painel dele.
+          </p>
+        </div>
+        {cliente && clientes.length > 0 && (
+          <div className="w-full space-y-1 sm:w-72">
+            <Label htmlFor="trocar-cliente">Trocar de cliente</Label>
+            <select
+              id="trocar-cliente"
+              value={cliente}
+              onChange={(e) => navigate({ search: { cliente: e.target.value } })}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+            >
+              {[...clientes]
+                .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <Card>

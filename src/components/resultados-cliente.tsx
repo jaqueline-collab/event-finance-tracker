@@ -265,14 +265,14 @@ function WidgetRanking({ w }: { w: WidgetRenderizado }) {
   const linhas: { campanha: string; source: string | null; medium: string | null; leads: number }[] =
     w.dados?.linhas ?? [];
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 max-w-full space-y-2">
       <p className="text-sm font-semibold">{w.titulo}</p>
       {linhas.length === 0 ? (
         <p className="rounded-lg border border-border/60 py-6 text-center text-sm text-muted-foreground">
           Nenhuma campanha no período.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border/60">
+        <div className="w-0 min-w-full overflow-x-auto rounded-lg border border-border/60">
           <Table>
             <TableHeader>
               <TableRow>
