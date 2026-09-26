@@ -34,7 +34,7 @@ function PdfPage({ document, number }: { document: PDFDocumentProxy; number: num
         surface.style.height = `${viewport.height}px`;
         const context = surface.getContext("2d");
         if (!context) throw new Error("Canvas indisponível");
-        rendering = page.render({ canvas: surface, canvasContext: context, viewport, transform: [ratio, 0, 0, ratio, 0, 0] });
+        rendering = page.render({ canvasContext: context, viewport, transform: [ratio, 0, 0, ratio, 0, 0] });
         await rendering.promise;
       } catch (e) {
         console.error("Falha ao desenhar página do PDF", e);
