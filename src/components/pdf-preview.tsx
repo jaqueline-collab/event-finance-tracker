@@ -37,6 +37,7 @@ function PdfPage({ document, number }: { document: PDFDocumentProxy; number: num
         rendering = page.render({ canvas: surface, canvasContext: context, viewport, transform: [ratio, 0, 0, ratio, 0, 0] });
         await rendering.promise;
       } catch (e) {
+        console.error("Falha ao desenhar página do PDF", e);
         if (!cancelled && !(e instanceof Error && e.name === "RenderingCancelledException")) setError(true);
       }
     })();
