@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Navbar, Footer } from "@/components/landing/SiteChrome";
-import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Parceiros } from "@/components/landing/Parceiros";
 
 export const Route = createFileRoute("/parceiros")({
@@ -44,7 +43,6 @@ function ParceirosPage() {
       </main>
 
       <Footer />
-      <WhatsAppFloat />
     </div>
   );
 }
