@@ -23,6 +23,8 @@ import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 import { usePapelUsuario } from "@/lib/use-papel";
 import { ThemeToggle, themeInitScript } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
+import { CHAT_WIDGET_ID, CHAT_WIDGET_SRC } from "@/lib/landing/contato";
+
 
 function NotFoundComponent() {
   return (
@@ -101,6 +103,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "EloraCRM" },
       { name: "twitter:description", content: "Comunicação eficiente e escalável para impulsionar seu negócio." },
     ],
+    scripts: [
+      {
+        type: "application/javascript",
+        src: CHAT_WIDGET_SRC,
+        "data-widget": CHAT_WIDGET_ID,
+        async: true,
+      } as any,
+    ],
     links: [
       {
         rel: "stylesheet",
@@ -113,6 +123,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap",
       },
     ],
+
   }),
   shellComponent: RootShell,
   component: RootComponent,
