@@ -103,14 +103,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "EloraCRM" },
       { name: "twitter:description", content: "Comunicação eficiente e escalável para impulsionar seu negócio." },
     ],
-    scripts: [
-      {
-        type: "application/javascript",
-        src: CHAT_WIDGET_SRC,
-        "data-widget": CHAT_WIDGET_ID,
-        async: true,
-      } as any,
-    ],
     links: [
       {
         rel: "stylesheet",
@@ -221,6 +213,27 @@ function RootComponent() {
   const isPublicRoute = ehPaginaPublica(pathname) || pathname.startsWith("/auth");
   // Site institucional: não renderiza shell do app
   const isLanding = ehPaginaPublica(pathname);
+
+  // Widget do Elora Chat: só nas páginas públicas do site.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const estilo = document.getElementById("elora-chat-oculto");
+    if (isLanding) {
+      estilo?.remove();
+      if (!document.querySelector(`script[data-widget="${CHAT_WIDGET_ID}"]`)) {
+        const sc = document.createElement("script");
+        sc.src = CHAT_WIDGET_SRC;
+        sc.async = true;
+        sc.setAttribute("data-widget", CHAT_WIDGET_ID);
+        document.body.appendChild(sc);
+      }
+    } else if (!estilo && document.querySelector(`script[data-widget="${CHAT_WIDGET_ID}"]`)) {
+      const st = document.createElement("style");
+      st.id = "elora-chat-oculto";
+      st.textContent = '[class*="h-widget"],[id*="h-widget"]{display:none!important}';
+      document.head.appendChild(st);
+    }
+  }, [isLanding]);
 
   // Landing pública: renderiza imediatamente sem esperar checagem de sessão
   if (isLanding) {

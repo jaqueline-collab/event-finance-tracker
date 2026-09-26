@@ -124,8 +124,8 @@ export const Route = createFileRoute("/parceiro")({
 });
 
 const APP_LOGIN_URL = "https://app.eloracrm.com.br/";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const APRESENTACAO_URL =
+// Link da apresentação — desligado temporariamente (ver botão "Apresentar ferramenta").
+const APRESENTACAO_URL =
   "https://docs.google.com/presentation/d/1roYM3Uw23zYmkZq0hzOQFbDKtMzuyPiUU4--BBKij-s/edit?usp=drive_link";
 
 const brl = (v: number) =>
