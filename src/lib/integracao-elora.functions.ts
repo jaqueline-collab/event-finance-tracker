@@ -1455,6 +1455,9 @@ export type RelatorioDiarioLinha = {
   consultaAgendadaAds: number;
   procedimentoVendido: number;
   procedimentoVendidoAds: number;
+  /** '' quando não informado pela automação (linhas antigas, antes do canal/atendente). */
+  canal: string;
+  atendente: string;
 };
 
 /** Liga/desliga a entrada do cliente no relatório diário. Só equipe interna. */
@@ -1493,7 +1496,7 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
     const { data: linhas, error } = await context.supabase
       .from("elora_relatorio_diario")
       .select(
-        "data, novos_contatos, novos_contatos_ads, conversas_usuario, conversas_bot, consulta_agendada, consulta_agendada_ads, procedimento_vendido, procedimento_vendido_ads",
+        "data, novos_contatos, novos_contatos_ads, conversas_usuario, conversas_bot, consulta_agendada, consulta_agendada_ads, procedimento_vendido, procedimento_vendido_ads, canal, atendente",
       )
       .eq("cliente_id", data.clienteId)
       .gte("data", data.de)
@@ -1512,6 +1515,8 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
         consultaAgendadaAds: Number(l.consulta_agendada_ads ?? 0),
         procedimentoVendido: Number(l.procedimento_vendido ?? 0),
         procedimentoVendidoAds: Number(l.procedimento_vendido_ads ?? 0),
+        canal: String(l.canal ?? ""),
+        atendente: String(l.atendente ?? ""),
       })),
     };
   });

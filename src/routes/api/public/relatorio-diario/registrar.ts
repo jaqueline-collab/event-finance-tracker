@@ -4,7 +4,7 @@ import { respostaNaoAutorizada, segredoAutomacaoValido } from "@/lib/automation-
 
 const contador = z.number().int().min(0).max(1_000_000);
 
-const corpoSchema = z
+const corpoBaseSchema = z
   .object({
     cliente_id: z.string().min(1).max(200),
     data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -16,8 +16,19 @@ const corpoSchema = z
     consulta_agendada_ads: contador,
     procedimento_vendido: contador,
     procedimento_vendido_ads: contador,
+    // Opcionais para compatibilidade com chamadas antigas da automação que
+    // ainda não enviam canal/atendente. '' é o valor "não informado" — o
+    // mesmo sentinela usado na constraint única da tabela (ver migração
+    // 0022), então null/omitido caem em '' antes do upsert.
+    canal: z.string().max(200).nullable().optional(),
+    atendente: z.string().max(200).nullable().optional(),
   })
   .strict();
+
+// Aceita um único registro ou uma lista (uma linha por canal/atendente do
+// cliente no dia) num só POST, para não precisar de um HTTP request por
+// linha no n8n.
+const corpoSchema = z.union([corpoBaseSchema, z.array(corpoBaseSchema).min(1).max(500)]);
 
 /**
  * POST /api/public/relatorio-diario/registrar
@@ -40,14 +51,19 @@ export const Route = createFileRoute("/api/public/relatorio-diario/registrar")({
         if (!parsed.success) {
           return Response.json({ erro: "campos inválidos" }, { status: 400 });
         }
-        const d = parsed.data;
+        const linhas = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+
+        const clienteId = linhas[0].cliente_id;
+        if (linhas.some((l) => l.cliente_id !== clienteId)) {
+          return Response.json({ erro: "todas as linhas do lote devem ser do mesmo cliente" }, { status: 400 });
+        }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: conta } = await supabaseAdmin
           .from("elora_integracao_contas")
           .select("cliente_id")
-          .eq("cliente_id", d.cliente_id)
+          .eq("cliente_id", clienteId)
           .eq("relatorio_diario_ativo", true)
           .maybeSingle();
         if (!conta) {
@@ -57,8 +73,9 @@ export const Route = createFileRoute("/api/public/relatorio-diario/registrar")({
           );
         }
 
+        const agora = new Date().toISOString();
         const { error } = await supabaseAdmin.from("elora_relatorio_diario").upsert(
-          {
+          linhas.map((d) => ({
             cliente_id: d.cliente_id,
             data: d.data,
             novos_contatos: d.novos_contatos,
@@ -69,13 +86,17 @@ export const Route = createFileRoute("/api/public/relatorio-diario/registrar")({
             consulta_agendada_ads: d.consulta_agendada_ads,
             procedimento_vendido: d.procedimento_vendido,
             procedimento_vendido_ads: d.procedimento_vendido_ads,
-            atualizado_em: new Date().toISOString(),
-          },
-          { onConflict: "cliente_id,data" },
+            // '' é o sentinela de "não informado" (ver migração 0022) —
+            // mantém o onConflict funcionando mesmo sem canal/atendente.
+            canal: d.canal ?? "",
+            atendente: d.atendente ?? "",
+            atualizado_em: agora,
+          })),
+          { onConflict: "cliente_id,data,canal,atendente" },
         );
         if (error) return Response.json({ erro: error.message }, { status: 500 });
 
-        return Response.json({ ok: true });
+        return Response.json({ ok: true, registros: linhas.length });
       },
     },
   },

@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -13,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, Info, Loader2, Megaphone } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, Columns3, Info, Loader2, Megaphone } from "lucide-react";
 import {
   Tooltip as UiTooltip,
   TooltipContent as UiTooltipContent,
@@ -400,16 +403,28 @@ function WidgetTabela({
   );
 }
 
-const COLUNAS_RELATORIO: { chave: keyof Omit<RelatorioDiarioLinha, "data">; titulo: string; dica: string }[] = [
-  { chave: "novosContatos", titulo: "Novos contatos", dica: "Contatos criados pela primeira vez no dia." },
-  { chave: "novosContatosAds", titulo: "Novos contatos/ADS", dica: "Novos contatos do dia que chegaram com UTM de campanha." },
-  { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "Contatos únicos atendidos por um atendente humano no dia." },
-  { chave: "conversasBot", titulo: "Conversas do bot", dica: "Contatos únicos atendidos pelo bot no dia. Um contato pode contar nas duas colunas de conversas." },
-  { chave: "consultaAgendada", titulo: "Consulta agendada", dica: "Conversas classificadas como ganho com a etiqueta de consulta agendada no dia." },
-  { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com UTM preenchido." },
-  { chave: "procedimentoVendido", titulo: "Procedimento vendido", dica: "Conversas classificadas como ganho com a etiqueta de procedimento vendido no dia." },
-  { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido." },
+type ColunaRelatorio = {
+  chave: keyof Omit<RelatorioDiarioLinha, "data">;
+  titulo: string;
+  dica: string;
+  tipo: "numero" | "texto";
+};
+
+const COLUNAS_RELATORIO: ColunaRelatorio[] = [
+  { chave: "novosContatos", titulo: "Novos contatos", dica: "Contatos criados pela primeira vez no dia.", tipo: "numero" },
+  { chave: "novosContatosAds", titulo: "Novos contatos/ADS", dica: "Novos contatos do dia que chegaram com UTM de campanha.", tipo: "numero" },
+  { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "Contatos únicos atendidos por um atendente humano no dia.", tipo: "numero" },
+  { chave: "conversasBot", titulo: "Conversas do bot", dica: "Contatos únicos atendidos pelo bot no dia. Um contato pode contar nas duas colunas de conversas.", tipo: "numero" },
+  { chave: "consultaAgendada", titulo: "Consulta agendada", dica: "Conversas classificadas como ganho com a etiqueta de consulta agendada no dia.", tipo: "numero" },
+  { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com UTM preenchido.", tipo: "numero" },
+  { chave: "procedimentoVendido", titulo: "Procedimento vendido", dica: "Conversas classificadas como ganho com a etiqueta de procedimento vendido no dia.", tipo: "numero" },
+  { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido.", tipo: "numero" },
+  { chave: "canal", titulo: "Canal", dica: "Canal/plataforma da conversa (WhatsApp, Instagram, Messenger...).", tipo: "texto" },
+  { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa, ou \"Bot\"/\"Automação\" quando não houve humano envolvido.", tipo: "texto" },
 ];
+
+const NAO_INFORMADO = "Não informado";
+const rotuloDimensao = (v: string) => (v ? v : NAO_INFORMADO);
 
 /** Matriz do relatório diário: uma linha por dia, mais recente no topo. */
 function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
@@ -418,6 +433,11 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
   const [ateCustom, setAteCustom] = useState(hojeIso());
   const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [canalFiltro, setCanalFiltro] = useState("todos");
+  const [atendenteFiltro, setAtendenteFiltro] = useState("todos");
+  const [colunasVisiveis, setColunasVisiveis] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(COLUNAS_RELATORIO.map((c) => [c.chave, true])),
+  );
 
   const de = modo === "custom" ? deCustom : diasAtrasIso(modo === "7" ? 7 : 30);
   const ate = modo === "custom" ? ateCustom : hojeIso();
@@ -435,11 +455,31 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
       .finally(() => setCarregando(false));
   }, [clienteId, de, ate, periodoInvalido]);
 
+  const canaisDisponiveis = useMemo(
+    () => [...new Set((linhas ?? []).map((l) => l.canal))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [linhas],
+  );
+  const atendentesDisponiveis = useMemo(
+    () => [...new Set((linhas ?? []).map((l) => l.atendente))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [linhas],
+  );
+
+  const linhasFiltradas = useMemo(() => {
+    return (linhas ?? []).filter(
+      (l) => (canalFiltro === "todos" || l.canal === canalFiltro) && (atendenteFiltro === "todos" || l.atendente === atendenteFiltro),
+    );
+  }, [linhas, canalFiltro, atendenteFiltro]);
+
+  const colunasExibidas = useMemo(() => COLUNAS_RELATORIO.filter((c) => colunasVisiveis[c.chave] !== false), [colunasVisiveis]);
+
   const totais = useMemo(() => {
     const t = {} as Record<string, number>;
-    for (const c of COLUNAS_RELATORIO) t[c.chave] = (linhas ?? []).reduce((s, l) => s + (Number(l[c.chave]) || 0), 0);
+    for (const c of COLUNAS_RELATORIO) {
+      if (c.tipo !== "numero") continue;
+      t[c.chave] = linhasFiltradas.reduce((s, l) => s + (Number(l[c.chave]) || 0), 0);
+    }
     return t;
-  }, [linhas]);
+  }, [linhasFiltradas]);
 
   const formatarData = (iso: string) => {
     const [a, m, d] = iso.split("-");
@@ -507,6 +547,50 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
               />
             </div>
           </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Canal</Label>
+              <Select value={canalFiltro} onValueChange={setCanalFiltro}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {canaisDisponiveis.map((c) => (
+                    <SelectItem key={c || "__vazio"} value={c}>{rotuloDimensao(c)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Atendente</Label>
+              <Select value={atendenteFiltro} onValueChange={setAtendenteFiltro}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {atendentesDisponiveis.map((a) => (
+                    <SelectItem key={a || "__vazio"} value={a}>{rotuloDimensao(a)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Columns3 className="h-4 w-4" /> Colunas
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 space-y-2">
+                {COLUNAS_RELATORIO.map((c) => (
+                  <label key={c.chave} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={colunasVisiveis[c.chave] !== false}
+                      onCheckedChange={(v) => setColunasVisiveis((s) => ({ ...s, [c.chave]: v !== false }))}
+                    />
+                    {c.titulo}
+                  </label>
+                ))}
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
         {periodoInvalido && (
           <p className="text-sm text-destructive">A data inicial precisa ser anterior ou igual à data final.</p>
@@ -528,8 +612,11 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead className="whitespace-nowrap">Data</TableHead>
-                  {COLUNAS_RELATORIO.map((c) => (
-                    <TableHead key={c.chave} className="whitespace-nowrap text-right">
+                  {colunasExibidas.map((c) => (
+                    <TableHead
+                      key={c.chave}
+                      className={`whitespace-nowrap ${c.tipo === "numero" ? "text-right" : "text-left"}`}
+                    >
                       <UiTooltipProvider>
                         <UiTooltip>
                           <UiTooltipTrigger asChild>
@@ -546,20 +633,20 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                 </TableRow>
                 <TableRow className="bg-muted/60 font-semibold hover:bg-muted/60">
                   <TableCell className="whitespace-nowrap">Total</TableCell>
-                  {COLUNAS_RELATORIO.map((c) => (
-                    <TableCell key={c.chave} className="text-right tabular-nums">
-                      {totais[c.chave]}
+                  {colunasExibidas.map((c) => (
+                    <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left"}>
+                      {c.tipo === "numero" ? totais[c.chave] : "—"}
                     </TableCell>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {linhas.map((l) => (
-                  <TableRow key={l.data}>
+                {linhasFiltradas.map((l, i) => (
+                  <TableRow key={`${l.data}-${l.canal}-${l.atendente}-${i}`}>
                     <TableCell className="whitespace-nowrap">{formatarData(l.data)}</TableCell>
-                    {COLUNAS_RELATORIO.map((c) => (
-                      <TableCell key={c.chave} className="text-right tabular-nums">
-                        {l[c.chave]}
+                    {colunasExibidas.map((c) => (
+                      <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left"}>
+                        {c.tipo === "texto" ? rotuloDimensao(String(l[c.chave])) : l[c.chave]}
                       </TableCell>
                     ))}
                   </TableRow>
