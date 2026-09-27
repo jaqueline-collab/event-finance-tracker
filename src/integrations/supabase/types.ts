@@ -794,6 +794,7 @@ export type Database = {
           grafico2_serie1_rotulo_id: string | null
           grafico2_serie2_rotulo_id: string | null
           id: string
+          relatorio_diario_ativo: boolean
           sync_conversas_ultima: string | null
           sync_janela_inicio: string | null
           sync_paginas_ok: number
@@ -824,6 +825,7 @@ export type Database = {
           grafico2_serie1_rotulo_id?: string | null
           grafico2_serie2_rotulo_id?: string | null
           id?: string
+          relatorio_diario_ativo?: boolean
           sync_conversas_ultima?: string | null
           sync_janela_inicio?: string | null
           sync_paginas_ok?: number
@@ -854,6 +856,7 @@ export type Database = {
           grafico2_serie1_rotulo_id?: string | null
           grafico2_serie2_rotulo_id?: string | null
           id?: string
+          relatorio_diario_ativo?: boolean
           sync_conversas_ultima?: string | null
           sync_janela_inicio?: string | null
           sync_paginas_ok?: number
@@ -1624,6 +1627,62 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "elora_trilha_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_relatorio_diario: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string
+          consulta_agendada: number
+          consulta_agendada_ads: number
+          conversas_bot: number
+          conversas_usuario: number
+          criado_em: string
+          data: string
+          id: string
+          novos_contatos: number
+          novos_contatos_ads: number
+          procedimento_vendido: number
+          procedimento_vendido_ads: number
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id: string
+          consulta_agendada?: number
+          consulta_agendada_ads?: number
+          conversas_bot?: number
+          conversas_usuario?: number
+          criado_em?: string
+          data: string
+          id?: string
+          novos_contatos?: number
+          novos_contatos_ads?: number
+          procedimento_vendido?: number
+          procedimento_vendido_ads?: number
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string
+          consulta_agendada?: number
+          consulta_agendada_ads?: number
+          conversas_bot?: number
+          conversas_usuario?: number
+          criado_em?: string
+          data?: string
+          id?: string
+          novos_contatos?: number
+          novos_contatos_ads?: number
+          procedimento_vendido?: number
+          procedimento_vendido_ads?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_relatorio_diario_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
             referencedColumns: ["id"]
           },
         ]
