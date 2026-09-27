@@ -558,7 +558,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   {canaisDisponiveis.map((c) => (
-                    <SelectItem key={c || "__vazio"} value={c}>{rotuloDimensao(c)}</SelectItem>
+                    <SelectItem key={c || "nao_informado"} value={c || "nao_informado"}>{rotuloDimensao(c)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -570,7 +570,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   {atendentesDisponiveis.map((a) => (
-                    <SelectItem key={a || "__vazio"} value={a}>{rotuloDimensao(a)}</SelectItem>
+                    <SelectItem key={a || "nao_informado"} value={a || "nao_informado"}>{rotuloDimensao(a)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
