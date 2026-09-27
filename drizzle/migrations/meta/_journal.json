@@ -141,6 +141,13 @@
       "when": 1790125165022,
       "tag": "0019_painel_grade_e_modelos",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790535963382,
+      "tag": "0020_relatorio_diario",
+      "breakpoints": true
     }
   ]
 }
