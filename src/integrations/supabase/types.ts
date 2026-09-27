@@ -1633,7 +1633,9 @@ export type Database = {
       }
       elora_relatorio_diario: {
         Row: {
+          atendente: string
           atualizado_em: string
+          canal: string
           cliente_id: string
           consulta_agendada: number
           consulta_agendada_ads: number
@@ -1648,7 +1650,9 @@ export type Database = {
           procedimento_vendido_ads: number
         }
         Insert: {
+          atendente?: string
           atualizado_em?: string
+          canal?: string
           cliente_id: string
           consulta_agendada?: number
           consulta_agendada_ads?: number
@@ -1663,7 +1667,9 @@ export type Database = {
           procedimento_vendido_ads?: number
         }
         Update: {
+          atendente?: string
           atualizado_em?: string
+          canal?: string
           cliente_id?: string
           consulta_agendada?: number
           consulta_agendada_ads?: number
