@@ -1,50 +1,63 @@
-# Relatório: integração atual com a API do Elora (nada será alterado)
+# Relatório diário via API do Elora — tabela, rotas para automação externa e matriz no Dash
 
-Aprovar ou pular este cartão não muda nada no app.
+Reaproveita `lerApiElora` e `contaDoCliente`. Não altera cálculo de fechamento nem regra financeira.
 
-## 1. Onde fica o token de cada cliente
-- Tabela `elora_integracao_contas`, coluna **`api_key`** (texto em claro), uma linha por cliente (`cliente_id`), junto com `base_url` (domínio raiz, ex. https://api.wts.chat), `ativo`, `ultima_sync`, `ultimo_erro`, mapeamentos e filtros.
-- Proteção (confirmada agora no banco): RLS ligado com uma única regra, `integracao_contas_service_only`, e **nenhum GRANT** para usuários logados ou anônimos. Ou seja, nenhum login (nem equipe, nem cliente, nem parceiro) lê a tabela diretamente; só o servidor com a credencial de serviço.
-- A chave não é criptografada no banco; a proteção é só de acesso. Na tela ela aparece mascarada (`chaveMascarada`) e só pode ser substituída.
+## 1. Centralizar a leitura da conta
 
-## 2. Função que devolve token + conexão por cliente
-- Existe, mas é **interna, não exportada**: `contaDoCliente(clienteId)` em `src/lib/integracao-elora.functions.ts` (~linha 857). Lê a linha de `elora_integracao_contas` com acesso privilegiado e devolve `{ conta, supabaseAdmin }`.
-- Não há checagem de permissão dentro dela: quem chama precisa ter feito `exigirEquipeInterna` antes (todas as funções públicas fazem `requireSupabaseAuth` + `exigirEquipeInterna`).
-- Várias funções mais antigas (`testarIntegracaoCliente`, `listarCamposPersonalizados`, `sincronizarIntegracaoCliente`, `getIntegracaoCliente`) repetem a mesma consulta à mão em vez de usar `contaDoCliente`.
-- Nenhuma função de servidor devolve o token para o navegador — e não deve devolver. Para uma automação externa, o caminho seguro seria uma rota pública com verificação própria que usa `contaDoCliente` do lado do servidor.
+Exportar `contaDoCliente(clienteId)` (hoje interna em `src/lib/integracao-elora.functions.ts`) e trocar as consultas repetidas à mão em `testarIntegracaoCliente`, `listarCamposPersonalizados`, `sincronizarIntegracaoCliente` e `getIntegracaoCliente` para usarem essa função. Sem mudar comportamento, só a fonte da consulta.
 
-## 3. Lista de clientes "prontos para uso"
-- **Não existe** lista nem flag pronta. Há só peças soltas:
-  - `ativo` (liga/desliga manual);
-  - `ultimo_erro` (preenchido pelo "Testar conexão" ou por falha de sincronização);
-  - `ultima_sync` (última sincronização de contatos concluída);
-  - `campo_procedimento_key` / `campo_data_consulta_key` (mapeamento).
-- O "Testar conexão" não grava um "testado com sucesso em"; só limpa ou grava o erro.
-- Situação atual no banco: **2 contas cadastradas** — 1 ativa, mapeada, sincronizada e sem erro; 1 desligada, sem mapeamento, nunca sincronizada e com erro registrado.
-- Uma regra razoável para o relatório diário seria `ativo = true AND ultimo_erro IS NULL` (e, se exigir dados já sincronizados, `ultima_sync IS NOT NULL`) — isso é sugestão, não existe hoje.
+## 2. Marcador de prontidão
 
-## 4. O que `lerApiElora` cobre
-- `lerApiElora(baseUrl, apiKey, servico, caminho, {metodo, corpo})` é **genérica**: aceita qualquer caminho em `core`, `crm` ou `chat`, GET ou POST com corpo, com tempo-limite, 3 novas tentativas em "limite de requisições" (respeita Retry-After) e mensagens de erro em português. Não é amarrada aos widgets.
-- Endpoints efetivamente usados hoje:
-  - **Contatos:** `core /v1/contact/filter` (paginado, desde data) e `core /v1/contact/custom-field`.
-  - **Conversas:** `chat /v2/session` com `IncludeDetails=ClassificationDetails` — usado em `sincronizarConversasCliente` (grava em `elora_conversas_classificadas`, com tempo de espera/atendimento e se teve resposta) e em `listarClassificacoesRecentes` (últimos 90 dias, até 5 páginas).
-  - **Classificação de atendimento:** não há endpoint de catálogo na API; as categorias vêm dentro de cada conversa (`categoryName`). O sistema descobre os nomes pelas conversas e guarda em `elora_classificacoes_descobertas`; os agrupamentos ficam em `elora_classificacoes_rotulos` / `_rotulo_valores`.
-  - **Etiquetas (tags de contato):** `core /v1/tag` (`listarEtiquetasCliente`) — usado só como filtro, não sincronizado em tabela.
-  - Também: `crm /v1/panel`, painel/custom-fields, `/v1/sequence`, `core /v1/user`.
-- Limitação: `sincronizarIntegracaoCliente` e `sincronizarConversasCliente` exigem sessão de equipe interna logada; não podem ser chamadas por uma automação externa como estão.
+Nova coluna `relatorio_diario_ativo boolean not null default false` em `elora_integracao_contas`, com um interruptor próprio na tela Configurar API (separado do "Ligada" geral, sem relação com o mapeamento de campos). Só clientes com esse campo `true` entram no relatório diário.
 
-## 5. Obsoleto, quebrado ou nunca usado (apenas listado)
-- **`elora_uso_snapshots`**: tabela da migração 0006 que nenhum código grava ou lê — só aparece no teste de RLS.
-- **Colunas antigas em `elora_integracao_contas`**: `classificacao_consulta_agendada` e `classificacao_procedimento_vendido` não são usadas em lugar nenhum; `bloco2/bloco3_rotulo_id` e `grafico1/2_serie1/2_rotulo_id` são do Dashboard Resultados fixo anterior ao construtor de widgets e só aparecem em código de compatibilidade.
-- **Funções exportadas sem nenhum uso na tela:** `salvarMapeamentoCliente` e `getConfigDashboardCliente`.
-- **Mapeamento de contatos em duas camadas:** o botão "Sincronizar contatos" (cadastro do cliente) ainda exige Procedimento/Data da consulta mapeados, mas a tela atual de Configurar API já trabalha com campos personalizados livres e sincronização seletiva por widget — a exigência sobrou do desenho antigo.
-- **Duas telas para a mesma coisa:** `/configurar-api?cliente=` e `/clientes/$id/integracao-elora` renderizam o mesmo componente.
-- **Quebrado de fora:** `core /v1/user` responde "acesso negado" em todas as contas (permissão da chave no app Elora) — filtro por usuário fica inutilizável.
-- **Sem agendamento:** as duas sincronizações são só manuais.
-- **Consultas repetidas** da conta (item 2) em vez de uma só função.
-- `filtro_campanha` gravado, mas **não confirmado** se algum widget aplica esse filtro na leitura.
+## 3. Tabela do relatório diário
 
-## Pontos para decidir antes de desenhar o relatório diário
-1. Se a automação externa vai chamar o EloraCRM (rota pública com segredo compartilhado) ou se o próprio EloraCRM vai chamar a API do Elora num horário agendado — no segundo caso, `lerApiElora` + `contaDoCliente` já servem.
-2. Criar um marcador explícito de "pronto" (ex. `testado_ok_em`) ou usar a regra `ativo + sem erro`.
-3. Se vale limpar os itens do item 5 antes de construir.
+Nova tabela `elora_relatorio_diario`:
+- `id uuid`, `cliente_id text` → `elora_clientes(id)`, `data date` (data do relatório, não da gravação)
+- inteiros: `novos_contatos`, `novos_contatos_ads`, `conversas_usuario`, `conversas_bot`, `consulta_agendada`, `consulta_agendada_ads`, `procedimento_vendido`, `procedimento_vendido_ads`
+- `criado_em`, `atualizado_em`; **único por (cliente_id, data)** — gravar o mesmo dia duas vezes atualiza, não duplica.
+- GRANTs: `SELECT` para `authenticated`, `ALL` para `service_role`, nada para `anon`; RLS ligado.
+- Leitura: equipe interna (`is_equipe_interna()`), próprio cliente (`cliente_do_usuario()`), parceiro com painel liberado (`parceiro_pode_ver_painel(cliente_id)`) — mesmo padrão das outras tabelas de integração. Escrita: nenhuma policy de INSERT/UPDATE para logados; só o servidor grava.
+
+## 4. Duas rotas para a automação externa (n8n)
+
+Em `src/routes/api/public/relatorio-diario/` (prefixo público, segurança feita no próprio handler):
+- Autenticação por segredo compartilhado no header `X-Automation-Secret`, comparado em tempo constante contra uma variável de ambiente do servidor (lida dentro do handler). Sem o segredo correto: 401 sem detalhe. O valor do segredo será pedido a você num formulário seguro na hora da implementação, e você cola o mesmo valor no n8n.
+- **GET `listar-clientes`**: devolve, para cada cliente com `relatorio_diario_ativo = true`, `{ cliente_id, base_url, api_key }` (via `contaDoCliente`). É a única rota que expõe o token, e só mediante o segredo.
+- **POST `registrar`**: corpo validado com Zod — `cliente_id`, `data` e os 8 contadores (inteiros ≥ 0). Confirma que o cliente existe e está com `relatorio_diario_ativo = true` antes de gravar (upsert por cliente + data). Campos fora da lista são ignorados.
+- `supabaseAdmin` carregado dentro do handler, só depois da verificação do segredo.
+
+## 5. Matriz no Dash da Área do Cliente
+
+Abaixo de "Resultados da conta", nova seção **"Relatório diário"** em `src/components/resultados-cliente.tsx`, respeitando o mesmo filtro de período (7 dias, 30 dias, personalizado). Uma linha por dia, mais recente no topo, colunas nesta ordem:
+
+```text
+Data | Novos contatos | Novos contatos/ADS | Conversas do Usuário | Conversas do bot |
+Consulta agendada | Consulta agendada/ADS | Procedimento vendido | Procedimento vendido/ADS
+```
+
+Cada cabeçalho (exceto Data) tem um ícone (i) com explicação curta ao passar o mouse ou tocar:
+- Novos contatos: contatos criados pela primeira vez naquele dia.
+- Novos contatos/ADS: desses, quantos vieram por link com UTM de campanha.
+- Conversas do Usuário: contatos únicos que falaram com atendente humano no dia.
+- Conversas do bot: contatos únicos que falaram com o bot no dia (um contato pode contar nas duas).
+- Consulta agendada / Procedimento vendido: conversas classificadas como ganho com essa etiqueta no dia.
+- .../ADS: dessas, quantas têm UTM de campanha preenchido.
+
+Sem dados no período: estado vazio explicado, não tabela zerada. Leitura via função de servidor com sessão do usuário (RLS aplicada), mesma visão para cliente logado, parceiro liberado e "Ver como".
+
+## Detalhes técnicos
+
+- Uma migração aditiva: coluna `relatorio_diario_ativo` + tabela `elora_relatorio_diario` (GRANTs antes de RLS e policies, índice por cliente/data). `src/integrations/supabase/types.ts` regenerado depois.
+- Rotas em `src/routes/api/public/relatorio-diario/listar-clientes.ts` e `registrar.ts`; segredo lido com `process.env` dentro do handler; comparação com `timingSafeEqual`.
+- Nova função de servidor `salvarRelatorioDiarioAtivo` (requireSupabaseAuth + exigirEquipeInterna) para o interruptor; leitura da matriz via `getRelatorioDiarioCliente` com a sessão do usuário.
+- Nenhum custo, margem ou valor financeiro envolvido.
+
+## Validação
+
+- As 4 funções passam a usar `contaDoCliente` sem mudar comportamento (suíte de testes atual íntegra).
+- Ligar o marcador num cliente de teste: `listar-clientes` com o segredo certo mostra só ele; sem segredo, 401.
+- `registrar` duas vezes no mesmo cliente + data: atualiza, não duplica; sem segredo, 401.
+- Teste automatizado no padrão de `integracao-elora-rls.test.ts`: cliente vê só os próprios relatórios; parceiro só com painel liberado; sem vínculo, nada.
+- Matriz com colunas na ordem certa, (i) funcionando, estado vazio para cliente sem dados.
+- Celular (390), tablet (834) e computador (1440), temas claro e escuro; build, typecheck e testes íntegros.
