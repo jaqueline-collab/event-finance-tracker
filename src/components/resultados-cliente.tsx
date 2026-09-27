@@ -449,7 +449,7 @@ function FiltroMultiplo({
         : `${selecionados.length} selecionados`;
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{rotulo}</Label>
+      <Label className="block text-xs text-muted-foreground">{rotulo}</Label>
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="h-9 w-40 justify-between font-normal">
