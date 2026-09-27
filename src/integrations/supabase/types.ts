@@ -1643,6 +1643,7 @@ export type Database = {
           conversas_usuario: number
           criado_em: string
           data: string
+          equipe: string
           id: string
           novos_contatos: number
           novos_contatos_ads: number
@@ -1660,6 +1661,7 @@ export type Database = {
           conversas_usuario?: number
           criado_em?: string
           data: string
+          equipe?: string
           id?: string
           novos_contatos?: number
           novos_contatos_ads?: number
@@ -1677,6 +1679,7 @@ export type Database = {
           conversas_usuario?: number
           criado_em?: string
           data?: string
+          equipe?: string
           id?: string
           novos_contatos?: number
           novos_contatos_ads?: number
