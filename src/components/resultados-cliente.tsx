@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -411,11 +412,19 @@ const COLUNAS_RELATORIO: { chave: keyof Omit<RelatorioDiarioLinha, "data">; titu
 ];
 
 /** Matriz do relatório diário: uma linha por dia, mais recente no topo. */
-function SecaoRelatorioDiario({ clienteId, de, ate }: { clienteId: string; de: string; ate: string }) {
+function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
+  const [modo, setModo] = useState<"7" | "30" | "custom">("30");
+  const [deCustom, setDeCustom] = useState(diasAtrasIso(30));
+  const [ateCustom, setAteCustom] = useState(hojeIso());
   const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
   const [carregando, setCarregando] = useState(true);
 
+  const de = modo === "custom" ? deCustom : diasAtrasIso(modo === "7" ? 7 : 30);
+  const ate = modo === "custom" ? ateCustom : hojeIso();
+  const periodoInvalido = !de || !ate || de > ate;
+
   useEffect(() => {
+    if (periodoInvalido) return;
     setCarregando(true);
     getRelatorioDiarioCliente({ data: { clienteId, de, ate } })
       .then((r) => setLinhas(r.linhas))
@@ -424,7 +433,13 @@ function SecaoRelatorioDiario({ clienteId, de, ate }: { clienteId: string; de: s
         toast.error(e instanceof Error ? e.message : String(e));
       })
       .finally(() => setCarregando(false));
-  }, [clienteId, de, ate]);
+  }, [clienteId, de, ate, periodoInvalido]);
+
+  const totais = useMemo(() => {
+    const t = {} as Record<string, number>;
+    for (const c of COLUNAS_RELATORIO) t[c.chave] = (linhas ?? []).reduce((s, l) => s + (Number(l[c.chave]) || 0), 0);
+    return t;
+  }, [linhas]);
 
   const formatarData = (iso: string) => {
     const [a, m, d] = iso.split("-");
@@ -439,22 +454,78 @@ function SecaoRelatorioDiario({ clienteId, de, ate }: { clienteId: string; de: s
         </CardTitle>
         <CardDescription>Números de cada dia, enviados pela automação.</CardDescription>
       </CardHeader>
-      <CardContent>
-        {carregando && (
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                { v: "7", l: "Últimos 7 dias" },
+                { v: "30", l: "Últimos 30 dias" },
+              ] as const
+            ).map((o) => (
+              <Button
+                key={o.v}
+                size="sm"
+                variant={modo === o.v ? "secondary" : "outline"}
+                onClick={() => {
+                  setModo(o.v);
+                  setDeCustom(diasAtrasIso(o.v === "7" ? 7 : 30));
+                  setAteCustom(hojeIso());
+                }}
+              >
+                {o.l}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="rel-de" className="text-xs text-muted-foreground">Data inicial</Label>
+              <Input
+                id="rel-de"
+                type="date"
+                className="w-40"
+                value={de}
+                onChange={(e) => {
+                  setDeCustom(e.target.value);
+                  if (modo !== "custom") setAteCustom(ate);
+                  setModo("custom");
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="rel-ate" className="text-xs text-muted-foreground">Data final</Label>
+              <Input
+                id="rel-ate"
+                type="date"
+                className="w-40"
+                value={ate}
+                onChange={(e) => {
+                  setAteCustom(e.target.value);
+                  if (modo !== "custom") setDeCustom(de);
+                  setModo("custom");
+                }}
+              />
+            </div>
+          </div>
+        </div>
+        {periodoInvalido && (
+          <p className="text-sm text-destructive">A data inicial precisa ser anterior ou igual à data final.</p>
+        )}
+        {carregando && !periodoInvalido && (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         )}
-        {!carregando && (!linhas || linhas.length === 0) && (
+        {!carregando && !periodoInvalido && (!linhas || linhas.length === 0) && (
           <p className="rounded-lg border border-border/60 py-6 text-center text-sm text-muted-foreground">
             Nenhum dia com relatório neste período ainda. Quando a automação enviar os números,
             eles aparecem aqui.
           </p>
         )}
-        {!carregando && linhas && linhas.length > 0 && (
-          <div className="overflow-x-auto">
+        {!carregando && !periodoInvalido && linhas && linhas.length > 0 && (
+          <div className="max-h-[32rem] overflow-auto rounded-lg border border-border/60">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead className="whitespace-nowrap">Data</TableHead>
                   {COLUNAS_RELATORIO.map((c) => (
@@ -471,6 +542,14 @@ function SecaoRelatorioDiario({ clienteId, de, ate }: { clienteId: string; de: s
                         </UiTooltip>
                       </UiTooltipProvider>
                     </TableHead>
+                  ))}
+                </TableRow>
+                <TableRow className="bg-muted/60 font-semibold hover:bg-muted/60">
+                  <TableCell className="whitespace-nowrap">Total</TableCell>
+                  {COLUNAS_RELATORIO.map((c) => (
+                    <TableCell key={c.chave} className="text-right tabular-nums">
+                      {totais[c.chave]}
+                    </TableCell>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -527,7 +606,19 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
   const grade = useMemo(() => normalizarGrade(widgets), [widgets]);
 
   return (
-    <>
+    <Tabs defaultValue="dash">
+      <TabsList>
+        <TabsTrigger value="dash" className="gap-1.5">
+          <BarChart3 className="h-4 w-4" /> Dash
+        </TabsTrigger>
+        <TabsTrigger value="relatorio" className="gap-1.5">
+          <CalendarDays className="h-4 w-4" /> Relatório diário
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="relatorio" className="mt-3">
+        <SecaoRelatorioDiario clienteId={clienteId} />
+      </TabsContent>
+      <TabsContent value="dash" className="mt-3">
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
@@ -626,7 +717,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
         )}
       </CardContent>
     </Card>
-    <SecaoRelatorioDiario clienteId={clienteId} de={de} ate={ate} />
-    </>
+      </TabsContent>
+    </Tabs>
   );
 }

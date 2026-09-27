@@ -148,6 +148,13 @@
       "when": 1790535963382,
       "tag": "0020_relatorio_diario",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790541538559,
+      "tag": "0021_fix_relatorio_diario_trigger",
+      "breakpoints": true
     }
   ]
 }
