@@ -993,7 +993,14 @@ export const listarUsuariosCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ usuarios: { id: string; nome: string }[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { conta } = await contaDoCliente(data.clienteId);
-    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/user?PageSize=200");
+    // Algumas contas não têm permissão para /v1/user — nesse caso o filtro
+    // de usuários simplesmente fica vazio, sem derrubar a tela.
+    let resp: unknown;
+    try {
+      resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/user?PageSize=200");
+    } catch {
+      return { usuarios: [] };
+    }
     const usuarios = listaDe(resp)
       .map((u: any) => ({
         id: String(u.id ?? ""),
