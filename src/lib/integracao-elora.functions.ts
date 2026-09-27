@@ -1433,3 +1433,78 @@ export const sincronizarConversasCliente = createServerFn({ method: "POST" })
     }
   });
 
+
+/* ------------------------------------------------------------------ *
+ * Relatório diário (alimentado por automação externa).
+ * ------------------------------------------------------------------ */
+
+export type RelatorioDiarioLinha = {
+  data: string;
+  novosContatos: number;
+  novosContatosAds: number;
+  conversasUsuario: number;
+  conversasBot: number;
+  consultaAgendada: number;
+  consultaAgendadaAds: number;
+  procedimentoVendido: number;
+  procedimentoVendidoAds: number;
+};
+
+/** Liga/desliga a entrada do cliente no relatório diário. Só equipe interna. */
+export const salvarRelatorioDiarioAtivo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ clienteId: z.string().min(1), ativo: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .update({ relatorio_diario_ativo: data.ativo })
+      .eq("cliente_id", data.clienteId);
+    if (error) throw new Error(`relatorio-diario: ${error.message}`);
+    return { ok: true };
+  });
+
+/**
+ * Lê o relatório diário de um cliente com a sessão do usuário (RLS aplicada):
+ * equipe interna, o próprio cliente ou parceiro com painel liberado.
+ */
+export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1),
+        de: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ linhas: RelatorioDiarioLinha[] }> => {
+    const { data: linhas, error } = await context.supabase
+      .from("elora_relatorio_diario")
+      .select(
+        "data, novos_contatos, novos_contatos_ads, conversas_usuario, conversas_bot, consulta_agendada, consulta_agendada_ads, procedimento_vendido, procedimento_vendido_ads",
+      )
+      .eq("cliente_id", data.clienteId)
+      .gte("data", data.de)
+      .lte("data", data.ate)
+      .order("data", { ascending: false });
+    if (error) throw new Error(`relatorio-diario: ${error.message}`);
+
+    return {
+      linhas: (linhas ?? []).map((l: any) => ({
+        data: String(l.data),
+        novosContatos: Number(l.novos_contatos ?? 0),
+        novosContatosAds: Number(l.novos_contatos_ads ?? 0),
+        conversasUsuario: Number(l.conversas_usuario ?? 0),
+        conversasBot: Number(l.conversas_bot ?? 0),
+        consultaAgendada: Number(l.consulta_agendada ?? 0),
+        consultaAgendadaAds: Number(l.consulta_agendada_ads ?? 0),
+        procedimentoVendido: Number(l.procedimento_vendido ?? 0),
+        procedimentoVendidoAds: Number(l.procedimento_vendido_ads ?? 0),
+      })),
+    };
+  });
