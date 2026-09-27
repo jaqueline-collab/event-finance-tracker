@@ -155,6 +155,13 @@
       "when": 1790541538559,
       "tag": "0021_fix_relatorio_diario_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790546904079,
+      "tag": "0022_relatorio_diario_canal_atendente",
+      "breakpoints": true
     }
   ]
 }
