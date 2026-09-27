@@ -67,7 +67,7 @@ function AreaCliente() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [aba, setAba] = useState("resultados");
+  const [aba, setAba] = useState("conta");
   const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -214,7 +214,6 @@ function AreaCliente() {
           <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
             {(
               [
-                { v: "resultados", l: "Dash" },
                 { v: "conta", l: "Conta" },
                 { v: "treinamento", l: "Treinamento" },
                 { v: "novidades", l: "Novidades" },
@@ -244,15 +243,15 @@ function AreaCliente() {
         )}
 
       <Tabs value={aba} onValueChange={setAba}>
-        <TabsContent value="resultados" className="mt-0">
-          <ResultadosCliente clienteId={cliente.id} />
-        </TabsContent>
-
         <TabsContent value="treinamento" className="mt-4">
           <PainelTreinamento audiencia="cliente" />
         </TabsContent>
 
-        <TabsContent value="conta" className="mt-4 grid gap-4 md:grid-cols-2">
+        <TabsContent value="conta" className="mt-0 grid gap-4 md:grid-cols-2">
+          <div className="min-w-0 md:col-span-2">
+            <ResultadosCliente clienteId={cliente.id} />
+          </div>
+
 
           <Card>
             <CardHeader>
