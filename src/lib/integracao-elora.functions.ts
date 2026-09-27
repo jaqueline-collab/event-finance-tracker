@@ -37,6 +37,7 @@ type IntegracaoVisivel = {
   ultimaSync: string | null;
   ultimaSyncConversas: string | null;
   ultimoErro: string | null;
+  relatorioDiarioAtivo: boolean;
 };
 
 const listaTexto = (v: unknown): string[] =>
@@ -57,13 +58,13 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }): Promise<IntegracaoVisivel> => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("*")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
+    let conta: any = null;
+    try {
+      conta = (await contaDoCliente(data.clienteId)).conta;
+    } catch {
+      conta = null;
+    }
 
     const semFiltros: FiltrosElora = {
       usuarios: [],
@@ -85,8 +86,9 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
         filtros: semFiltros,
         retomadaPendente: false,
         ultimaSync: null,
-        ultimaSyncConversas: null,
-        ultimoErro: null,
+      ultimaSyncConversas: null,
+      ultimoErro: null,
+      relatorioDiarioAtivo: false,
       };
     }
 
@@ -115,6 +117,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimaSync: c.ultima_sync ? String(c.ultima_sync) : null,
       ultimaSyncConversas: c.sync_conversas_ultima ? String(c.sync_conversas_ultima) : null,
       ultimoErro: c.ultimo_erro ? String(c.ultimo_erro) : null,
+      relatorioDiarioAtivo: Boolean(c.relatorio_diario_ativo),
     };
 
   });
@@ -272,14 +275,7 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }) => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("base_url, api_key")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
-    if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
 
     try {
       // Chamada real e barata de leitura: confirma endereço + chave de uma vez.
@@ -313,14 +309,7 @@ export const listarCamposPersonalizados = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }): Promise<{ campos: CampoElora[] }> => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("base_url, api_key")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
-    if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
+    const { conta } = await contaDoCliente(data.clienteId);
 
     const resp = await lerApiElora(
       String(conta.base_url),
@@ -386,15 +375,8 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }) => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
 
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("*")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
-
-    if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
     if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
 
     // Sincronização seletiva: só as chaves de campo personalizado usadas por
@@ -854,7 +836,7 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
  * classificações. Tudo passa pela mesma trava de equipe interna.
  * ------------------------------------------------------------------ */
 
-async function contaDoCliente(clienteId: string) {
+export async function contaDoCliente(clienteId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: conta } = await supabaseAdmin
     .from("elora_integracao_contas")
@@ -1011,7 +993,14 @@ export const listarUsuariosCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ usuarios: { id: string; nome: string }[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { conta } = await contaDoCliente(data.clienteId);
-    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/user?PageSize=200");
+    // Algumas contas não têm permissão para /v1/user — nesse caso o filtro
+    // de usuários simplesmente fica vazio, sem derrubar a tela.
+    let resp: unknown;
+    try {
+      resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "core", "/v1/user?PageSize=200");
+    } catch {
+      return { usuarios: [] };
+    }
     const usuarios = listaDe(resp)
       .map((u: any) => ({
         id: String(u.id ?? ""),
@@ -1451,3 +1440,78 @@ export const sincronizarConversasCliente = createServerFn({ method: "POST" })
     }
   });
 
+
+/* ------------------------------------------------------------------ *
+ * Relatório diário (alimentado por automação externa).
+ * ------------------------------------------------------------------ */
+
+export type RelatorioDiarioLinha = {
+  data: string;
+  novosContatos: number;
+  novosContatosAds: number;
+  conversasUsuario: number;
+  conversasBot: number;
+  consultaAgendada: number;
+  consultaAgendadaAds: number;
+  procedimentoVendido: number;
+  procedimentoVendidoAds: number;
+};
+
+/** Liga/desliga a entrada do cliente no relatório diário. Só equipe interna. */
+export const salvarRelatorioDiarioAtivo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ clienteId: z.string().min(1), ativo: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("elora_integracao_contas")
+      .update({ relatorio_diario_ativo: data.ativo })
+      .eq("cliente_id", data.clienteId);
+    if (error) throw new Error(`relatorio-diario: ${error.message}`);
+    return { ok: true };
+  });
+
+/**
+ * Lê o relatório diário de um cliente com a sessão do usuário (RLS aplicada):
+ * equipe interna, o próprio cliente ou parceiro com painel liberado.
+ */
+export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1),
+        de: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ linhas: RelatorioDiarioLinha[] }> => {
+    const { data: linhas, error } = await context.supabase
+      .from("elora_relatorio_diario")
+      .select(
+        "data, novos_contatos, novos_contatos_ads, conversas_usuario, conversas_bot, consulta_agendada, consulta_agendada_ads, procedimento_vendido, procedimento_vendido_ads",
+      )
+      .eq("cliente_id", data.clienteId)
+      .gte("data", data.de)
+      .lte("data", data.ate)
+      .order("data", { ascending: false });
+    if (error) throw new Error(`relatorio-diario: ${error.message}`);
+
+    return {
+      linhas: (linhas ?? []).map((l: any) => ({
+        data: String(l.data),
+        novosContatos: Number(l.novos_contatos ?? 0),
+        novosContatosAds: Number(l.novos_contatos_ads ?? 0),
+        conversasUsuario: Number(l.conversas_usuario ?? 0),
+        conversasBot: Number(l.conversas_bot ?? 0),
+        consultaAgendada: Number(l.consulta_agendada ?? 0),
+        consultaAgendadaAds: Number(l.consulta_agendada_ads ?? 0),
+        procedimentoVendido: Number(l.procedimento_vendido ?? 0),
+        procedimentoVendidoAds: Number(l.procedimento_vendido_ads ?? 0),
+      })),
+    };
+  });
