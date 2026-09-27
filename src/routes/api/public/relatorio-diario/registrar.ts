@@ -22,6 +22,7 @@ const corpoBaseSchema = z
     // 0022), então null/omitido caem em '' antes do upsert.
     canal: z.string().max(200).nullable().optional(),
     atendente: z.string().max(200).nullable().optional(),
+    equipe: z.string().max(200).nullable().optional(),
   })
   .strict();
 
@@ -90,9 +91,10 @@ export const Route = createFileRoute("/api/public/relatorio-diario/registrar")({
             // mantém o onConflict funcionando mesmo sem canal/atendente.
             canal: d.canal ?? "",
             atendente: d.atendente ?? "",
+            equipe: d.equipe ?? "",
             atualizado_em: agora,
           })),
-          { onConflict: "cliente_id,data,canal,atendente" },
+          { onConflict: "cliente_id,data,canal,atendente,equipe" },
         );
         if (error) return Response.json({ erro: error.message }, { status: 500 });
 

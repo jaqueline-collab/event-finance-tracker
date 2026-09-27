@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, Columns3, Info, Loader2, Megaphone } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Info, Loader2, Megaphone } from "lucide-react";
 import {
   Tooltip as UiTooltip,
   TooltipContent as UiTooltipContent,
@@ -421,26 +421,85 @@ const COLUNAS_RELATORIO: ColunaRelatorio[] = [
   { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido.", tipo: "numero" },
   { chave: "canal", titulo: "Canal", dica: "Canal/plataforma da conversa (WhatsApp, Instagram, Messenger...).", tipo: "texto" },
   { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa, ou \"Bot\"/\"Automação\" quando não houve humano envolvido.", tipo: "texto" },
+  { chave: "equipe", titulo: "Equipe", dica: "Equipe/departamento responsável pela conversa.", tipo: "texto" },
 ];
 
 const NAO_INFORMADO = "Não informado";
+const VALOR_NAO_INFORMADO = "nao_informado";
 const rotuloDimensao = (v: string) => (v ? v : NAO_INFORMADO);
+const chaveValor = (v: string) => v || VALOR_NAO_INFORMADO;
+const passaMulti = (sel: string[], v: string) => sel.length === 0 || sel.includes(chaveValor(v));
+
+function FiltroMultiplo({
+  rotulo,
+  valores,
+  selecionados,
+  onChange,
+}: {
+  rotulo: string;
+  valores: string[];
+  selecionados: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const texto =
+    selecionados.length === 0
+      ? "Todos"
+      : selecionados.length === 1
+        ? rotuloDimensao(selecionados[0] === VALOR_NAO_INFORMADO ? "" : selecionados[0])
+        : `${selecionados.length} selecionados`;
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{rotulo}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-9 w-40 justify-between font-normal">
+            <span className="truncate">{texto}</span>
+            <ChevronDown className="h-4 w-4 opacity-60" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="max-h-72 w-56 space-y-2 overflow-auto">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox checked={selecionados.length === 0} onCheckedChange={() => onChange([])} />
+            Todos
+          </label>
+          {valores.map((v) => {
+            const k = chaveValor(v);
+            return (
+              <label key={k} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={selecionados.includes(k)}
+                  onCheckedChange={(c) =>
+                    onChange(c ? [...selecionados, k] : selecionados.filter((s) => s !== k))
+                  }
+                />
+                {rotuloDimensao(v)}
+              </label>
+            );
+          })}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+const formatarDataBr = (iso: string) => {
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+};
 
 /** Matriz do relatório diário: uma linha por dia, mais recente no topo. */
 function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
-  const [modo, setModo] = useState<"7" | "30" | "custom">("30");
-  const [deCustom, setDeCustom] = useState(diasAtrasIso(30));
-  const [ateCustom, setAteCustom] = useState(hojeIso());
+  const [de, setDe] = useState(diasAtrasIso(30));
+  const [ate, setAte] = useState(hojeIso());
   const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [canalFiltro, setCanalFiltro] = useState("todos");
-  const [atendenteFiltro, setAtendenteFiltro] = useState("todos");
+  const [canalSel, setCanalSel] = useState<string[]>([]);
+  const [atendenteSel, setAtendenteSel] = useState<string[]>([]);
+  const [equipeSel, setEquipeSel] = useState<string[]>([]);
   const [colunasVisiveis, setColunasVisiveis] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(COLUNAS_RELATORIO.map((c) => [c.chave, true])),
   );
 
-  const de = modo === "custom" ? deCustom : diasAtrasIso(modo === "7" ? 7 : 30);
-  const ate = modo === "custom" ? ateCustom : hojeIso();
   const periodoInvalido = !de || !ate || de > ate;
 
   useEffect(() => {
@@ -455,23 +514,22 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
       .finally(() => setCarregando(false));
   }, [clienteId, de, ate, periodoInvalido]);
 
-  const canaisDisponiveis = useMemo(
-    () => [...new Set((linhas ?? []).map((l) => l.canal))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+  const distintos = useCallback(
+    (campo: "canal" | "atendente" | "equipe") =>
+      [...new Set((linhas ?? []).map((l) => l[campo]))].sort((a, b) => a.localeCompare(b, "pt-BR")),
     [linhas],
   );
-  const atendentesDisponiveis = useMemo(
-    () => [...new Set((linhas ?? []).map((l) => l.atendente))].sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [linhas],
+  const canais = useMemo(() => distintos("canal"), [distintos]);
+  const atendentes = useMemo(() => distintos("atendente"), [distintos]);
+  const equipes = useMemo(() => distintos("equipe"), [distintos]);
+
+  const linhasFiltradas = useMemo(
+    () =>
+      (linhas ?? []).filter(
+        (l) => passaMulti(canalSel, l.canal) && passaMulti(atendenteSel, l.atendente) && passaMulti(equipeSel, l.equipe),
+      ),
+    [linhas, canalSel, atendenteSel, equipeSel],
   );
-
-  const valorPassaFiltro = (valorFiltro: string, valorLinha: string) =>
-    valorFiltro === "todos" || (valorFiltro === "nao_informado" ? valorLinha === "" : valorLinha === valorFiltro);
-
-  const linhasFiltradas = useMemo(() => {
-    return (linhas ?? []).filter(
-      (l) => valorPassaFiltro(canalFiltro, l.canal) && valorPassaFiltro(atendenteFiltro, l.atendente),
-    );
-  }, [linhas, canalFiltro, atendenteFiltro]);
 
   const colunasExibidas = useMemo(() => COLUNAS_RELATORIO.filter((c) => colunasVisiveis[c.chave] !== false), [colunasVisiveis]);
 
@@ -484,9 +542,61 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
     return t;
   }, [linhasFiltradas]);
 
-  const formatarData = (iso: string) => {
-    const [a, m, d] = iso.split("-");
-    return `${d}/${m}/${a}`;
+  const matrizExport = () => {
+    const cab = ["Data", ...colunasExibidas.map((c) => c.titulo)];
+    const total = ["Total", ...colunasExibidas.map((c) => (c.tipo === "numero" ? totais[c.chave] : "—"))];
+    const corpo = linhasFiltradas.map((l) => [
+      formatarDataBr(l.data),
+      ...colunasExibidas.map((c) => (c.tipo === "texto" ? rotuloDimensao(String(l[c.chave])) : Number(l[c.chave]))),
+    ]);
+    return { cab, total, corpo };
+  };
+  const nomeArquivo = `relatorio-diario-${clienteId}-${de}-a-${ate}`;
+
+  const exportar = async (formato: "csv" | "xlsx" | "pdf") => {
+    const { cab, total, corpo } = matrizExport();
+    try {
+      if (formato === "csv") {
+        const esc = (v: unknown) => {
+          const s = String(v);
+          return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const csv = [cab, total, ...corpo].map((r) => r.map(esc).join(";")).join("\n");
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${nomeArquivo}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (formato === "xlsx") {
+        const XLSX = await import("xlsx");
+        const ws = XLSX.utils.aoa_to_sheet([cab, total, ...corpo]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Relatório diário");
+        XLSX.writeFile(wb, `${nomeArquivo}.xlsx`);
+      } else {
+        const { jsPDF } = await import("jspdf");
+        const autoTable = (await import("jspdf-autotable")).default;
+        const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+        doc.setFontSize(14);
+        doc.text("Relatório diário", 40, 40);
+        doc.setFontSize(9);
+        doc.text(`Período: ${formatarDataBr(de)} a ${formatarDataBr(ate)}`, 40, 56);
+        autoTable(doc, {
+          startY: 68,
+          head: [cab, total.map(String)],
+          body: corpo.map((r) => r.map(String)),
+          styles: { fontSize: 7, cellPadding: 3 },
+          headStyles: { fillColor: [30, 41, 59] },
+          margin: { left: 40, right: 40 },
+        });
+        doc.save(`${nomeArquivo}.pdf`);
+      }
+    } catch (e) {
+      toast.error("Não foi possível exportar. Tente novamente.");
+      console.error(e);
+    }
   };
 
   return (
@@ -499,101 +609,49 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                { v: "7", l: "Últimos 7 dias" },
-                { v: "30", l: "Últimos 30 dias" },
-              ] as const
-            ).map((o) => (
-              <Button
-                key={o.v}
-                size="sm"
-                variant={modo === o.v ? "secondary" : "outline"}
-                onClick={() => {
-                  setModo(o.v);
-                  setDeCustom(diasAtrasIso(o.v === "7" ? 7 : 30));
-                  setAteCustom(hojeIso());
-                }}
-              >
-                {o.l}
+          <div className="space-y-1">
+            <Label htmlFor="rel-de" className="text-xs text-muted-foreground">Data inicial</Label>
+            <Input id="rel-de" type="date" className="w-40" value={de} onChange={(e) => setDe(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="rel-ate" className="text-xs text-muted-foreground">Data final</Label>
+            <Input id="rel-ate" type="date" className="w-40" value={ate} onChange={(e) => setAte(e.target.value)} />
+          </div>
+          <FiltroMultiplo rotulo="Canal" valores={canais} selecionados={canalSel} onChange={setCanalSel} />
+          <FiltroMultiplo rotulo="Atendente" valores={atendentes} selecionados={atendenteSel} onChange={setAtendenteSel} />
+          <FiltroMultiplo rotulo="Equipe" valores={equipes} selecionados={equipeSel} onChange={setEquipeSel} />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5">
+                <Columns3 className="h-4 w-4" /> Colunas
               </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="space-y-1">
-              <Label htmlFor="rel-de" className="text-xs text-muted-foreground">Data inicial</Label>
-              <Input
-                id="rel-de"
-                type="date"
-                className="w-40"
-                value={de}
-                onChange={(e) => {
-                  setDeCustom(e.target.value);
-                  if (modo !== "custom") setAteCustom(ate);
-                  setModo("custom");
-                }}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="rel-ate" className="text-xs text-muted-foreground">Data final</Label>
-              <Input
-                id="rel-ate"
-                type="date"
-                className="w-40"
-                value={ate}
-                onChange={(e) => {
-                  setAteCustom(e.target.value);
-                  if (modo !== "custom") setDeCustom(de);
-                  setModo("custom");
-                }}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Canal</Label>
-              <Select value={canalFiltro} onValueChange={setCanalFiltro}>
-                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {canaisDisponiveis.map((c) => (
-                    <SelectItem key={c || "nao_informado"} value={c || "nao_informado"}>{rotuloDimensao(c)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Atendente</Label>
-              <Select value={atendenteFiltro} onValueChange={setAtendenteFiltro}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {atendentesDisponiveis.map((a) => (
-                    <SelectItem key={a || "nao_informado"} value={a || "nao_informado"}>{rotuloDimensao(a)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-1.5">
-                  <Columns3 className="h-4 w-4" /> Colunas
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 space-y-2">
+              {COLUNAS_RELATORIO.map((c) => (
+                <label key={c.chave} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={colunasVisiveis[c.chave] !== false}
+                    onCheckedChange={(v) => setColunasVisiveis((s) => ({ ...s, [c.chave]: v !== false }))}
+                  />
+                  {c.titulo}
+                </label>
+              ))}
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={linhasFiltradas.length === 0}>
+                <Download className="h-4 w-4" /> Exportar
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-40 p-1">
+              {(["csv", "xlsx", "pdf"] as const).map((f) => (
+                <Button key={f} variant="ghost" size="sm" className="w-full justify-start" onClick={() => exportar(f)}>
+                  {f.toUpperCase()}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 space-y-2">
-                {COLUNAS_RELATORIO.map((c) => (
-                  <label key={c.chave} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={colunasVisiveis[c.chave] !== false}
-                      onCheckedChange={(v) => setColunasVisiveis((s) => ({ ...s, [c.chave]: v !== false }))}
-                    />
-                    {c.titulo}
-                  </label>
-                ))}
-              </PopoverContent>
-            </Popover>
-          </div>
+              ))}
+            </PopoverContent>
+          </Popover>
         </div>
         {periodoInvalido && (
           <p className="text-sm text-destructive">A data inicial precisa ser anterior ou igual à data final.</p>
@@ -610,10 +668,10 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
           </p>
         )}
         {!carregando && !periodoInvalido && linhas && linhas.length > 0 && (
-          <div className="max-h-[32rem] overflow-auto rounded-lg border border-border/60">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card">
-                <TableRow>
+          <div className="max-h-[70vh] overflow-auto rounded-lg border border-border/60">
+            <table className="w-full caption-bottom text-sm">
+              <thead className="sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--border)]">
+                <TableRow className="bg-card hover:bg-card">
                   <TableHead className="whitespace-nowrap">Data</TableHead>
                   {colunasExibidas.map((c) => (
                     <TableHead
@@ -634,7 +692,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                     </TableHead>
                   ))}
                 </TableRow>
-                <TableRow className="bg-muted/60 font-semibold hover:bg-muted/60">
+                <TableRow className="bg-muted font-semibold hover:bg-muted">
                   <TableCell className="whitespace-nowrap">Total</TableCell>
                   {colunasExibidas.map((c) => (
                     <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left"}>
@@ -642,20 +700,20 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                     </TableCell>
                   ))}
                 </TableRow>
-              </TableHeader>
+              </thead>
               <TableBody>
                 {linhasFiltradas.map((l, i) => (
-                  <TableRow key={`${l.data}-${l.canal}-${l.atendente}-${i}`}>
-                    <TableCell className="whitespace-nowrap">{formatarData(l.data)}</TableCell>
+                  <TableRow key={`${l.data}-${l.canal}-${l.atendente}-${l.equipe}-${i}`}>
+                    <TableCell className="whitespace-nowrap">{formatarDataBr(l.data)}</TableCell>
                     {colunasExibidas.map((c) => (
-                      <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left"}>
+                      <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left whitespace-nowrap"}>
                         {c.tipo === "texto" ? rotuloDimensao(String(l[c.chave])) : l[c.chave]}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </table>
           </div>
         )}
       </CardContent>
