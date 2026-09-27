@@ -464,9 +464,12 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
     [linhas],
   );
 
+  const valorPassaFiltro = (valorFiltro: string, valorLinha: string) =>
+    valorFiltro === "todos" || (valorFiltro === "nao_informado" ? valorLinha === "" : valorLinha === valorFiltro);
+
   const linhasFiltradas = useMemo(() => {
     return (linhas ?? []).filter(
-      (l) => (canalFiltro === "todos" || l.canal === canalFiltro) && (atendenteFiltro === "todos" || l.atendente === atendenteFiltro),
+      (l) => valorPassaFiltro(canalFiltro, l.canal) && valorPassaFiltro(atendenteFiltro, l.atendente),
     );
   }, [linhas, canalFiltro, atendenteFiltro]);
 
