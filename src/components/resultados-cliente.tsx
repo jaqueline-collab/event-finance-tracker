@@ -13,7 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, Info, Loader2, Megaphone } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip as UiTooltip,
+  TooltipContent as UiTooltipContent,
+  TooltipProvider as UiTooltipProvider,
+  TooltipTrigger as UiTooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Bar,
   BarChart,
@@ -454,17 +459,17 @@ function SecaoRelatorioDiario({ clienteId, de, ate }: { clienteId: string; de: s
                   <TableHead className="whitespace-nowrap">Data</TableHead>
                   {COLUNAS_RELATORIO.map((c) => (
                     <TableHead key={c.chave} className="whitespace-nowrap text-right">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                      <UiTooltipProvider>
+                        <UiTooltip>
+                          <UiTooltipTrigger asChild>
                             <span className="inline-flex cursor-help items-center gap-1">
                               {c.titulo}
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </span>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-64">{c.dica}</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                          </UiTooltipTrigger>
+                          <UiTooltipContent className="max-w-64">{c.dica}</UiTooltipContent>
+                        </UiTooltip>
+                      </UiTooltipProvider>
                     </TableHead>
                   ))}
                 </TableRow>
