@@ -14,6 +14,8 @@ import {
   Search,
   Tags,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { salvarRelatorioDiarioAtivo } from "@/lib/integracao-elora.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -355,6 +357,39 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
             Volte ao cadastro do cliente, informe o endereço da conta e a chave de API, e teste a conexão.
           </AlertDescription>
         </Alert>
+      )}
+
+      {estado?.configurada && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Relatório diário</CardTitle>
+            <CardDescription>
+              Quando ligado, este cliente entra na lista que a automação externa usa para enviar os
+              números de cada dia. Independe do interruptor "Ligada" e do mapeamento de campos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="relatorio-diario-ativo"
+                checked={estado.relatorioDiarioAtivo}
+                onCheckedChange={(v) => {
+                  const anterior = estado.relatorioDiarioAtivo;
+                  setEstado({ ...estado, relatorioDiarioAtivo: v });
+                  salvarRelatorioDiarioAtivo({ data: { clienteId, ativo: v } })
+                    .then(() => toast.success(v ? "Relatório diário ligado." : "Relatório diário desligado."))
+                    .catch((e) => {
+                      setEstado({ ...estado, relatorioDiarioAtivo: anterior });
+                      toast.error(e instanceof Error ? e.message : String(e));
+                    });
+                }}
+              />
+              <Label htmlFor="relatorio-diario-ativo">
+                {estado.relatorioDiarioAtivo ? "Incluído no relatório diário" : "Fora do relatório diário"}
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* 2. Campos personalizados de contato */}
