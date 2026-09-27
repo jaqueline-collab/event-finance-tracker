@@ -12,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, ChevronLeft, ChevronRight, Loader2, Megaphone } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, Info, Loader2, Megaphone } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Bar,
   BarChart,
@@ -27,7 +28,12 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
-import { getResultadosCliente, type WidgetRenderizado } from "@/lib/integracao-elora.functions";
+import {
+  getRelatorioDiarioCliente,
+  getResultadosCliente,
+  type RelatorioDiarioLinha,
+  type WidgetRenderizado,
+} from "@/lib/integracao-elora.functions";
 import { DashboardGrid } from "@/components/dashboard-grid";
 import { normalizarGrade } from "@/lib/grid-layout";
 import { formatBRL } from "@/lib/calc/format";
@@ -388,6 +394,101 @@ function WidgetTabela({
   );
 }
 
+const COLUNAS_RELATORIO: { chave: keyof Omit<RelatorioDiarioLinha, "data">; titulo: string; dica: string }[] = [
+  { chave: "novosContatos", titulo: "Novos contatos", dica: "Contatos criados pela primeira vez no dia." },
+  { chave: "novosContatosAds", titulo: "Novos contatos/ADS", dica: "Novos contatos do dia que chegaram com UTM de campanha." },
+  { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "Contatos únicos atendidos por um atendente humano no dia." },
+  { chave: "conversasBot", titulo: "Conversas do bot", dica: "Contatos únicos atendidos pelo bot no dia. Um contato pode contar nas duas colunas de conversas." },
+  { chave: "consultaAgendada", titulo: "Consulta agendada", dica: "Conversas classificadas como ganho com a etiqueta de consulta agendada no dia." },
+  { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com UTM preenchido." },
+  { chave: "procedimentoVendido", titulo: "Procedimento vendido", dica: "Conversas classificadas como ganho com a etiqueta de procedimento vendido no dia." },
+  { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido." },
+];
+
+/** Matriz do relatório diário: uma linha por dia, mais recente no topo. */
+function SecaoRelatorioDiario({ clienteId, de, ate }: { clienteId: string; de: string; ate: string }) {
+  const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    setCarregando(true);
+    getRelatorioDiarioCliente({ data: { clienteId, de, ate } })
+      .then((r) => setLinhas(r.linhas))
+      .catch((e) => {
+        setLinhas(null);
+        toast.error(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => setCarregando(false));
+  }, [clienteId, de, ate]);
+
+  const formatarData = (iso: string) => {
+    const [a, m, d] = iso.split("-");
+    return `${d}/${m}/${a}`;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarDays className="h-4 w-4" /> Relatório diário
+        </CardTitle>
+        <CardDescription>Números de cada dia, enviados pela automação.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {carregando && (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {!carregando && (!linhas || linhas.length === 0) && (
+          <p className="rounded-lg border border-border/60 py-6 text-center text-sm text-muted-foreground">
+            Nenhum dia com relatório neste período ainda. Quando a automação enviar os números,
+            eles aparecem aqui.
+          </p>
+        )}
+        {!carregando && linhas && linhas.length > 0 && (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="whitespace-nowrap">Data</TableHead>
+                  {COLUNAS_RELATORIO.map((c) => (
+                    <TableHead key={c.chave} className="whitespace-nowrap text-right">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex cursor-help items-center gap-1">
+                              {c.titulo}
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-64">{c.dica}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhas.map((l) => (
+                  <TableRow key={l.data}>
+                    <TableCell className="whitespace-nowrap">{formatarData(l.data)}</TableCell>
+                    {COLUNAS_RELATORIO.map((c) => (
+                      <TableCell key={c.chave} className="text-right tabular-nums">
+                        {l[c.chave]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /** Painel do cliente: renderiza exatamente os widgets configurados, na ordem definida. */
 export function ResultadosCliente({ clienteId }: { clienteId: string }) {
   const [modo, setModo] = useState<"7" | "30" | "custom">("30");
@@ -421,6 +522,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
   const grade = useMemo(() => normalizarGrade(widgets), [widgets]);
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
@@ -519,5 +621,7 @@ export function ResultadosCliente({ clienteId }: { clienteId: string }) {
         )}
       </CardContent>
     </Card>
+    <SecaoRelatorioDiario clienteId={clienteId} de={de} ate={ate} />
+    </>
   );
 }
