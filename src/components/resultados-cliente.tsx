@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -541,6 +542,14 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                         </UiTooltip>
                       </UiTooltipProvider>
                     </TableHead>
+                  ))}
+                </TableRow>
+                <TableRow className="bg-muted/60 font-semibold hover:bg-muted/60">
+                  <TableCell className="whitespace-nowrap">Total</TableCell>
+                  {COLUNAS_RELATORIO.map((c) => (
+                    <TableCell key={c.chave} className="text-right tabular-nums">
+                      {totais[c.chave]}
+                    </TableCell>
                   ))}
                 </TableRow>
               </TableHeader>
