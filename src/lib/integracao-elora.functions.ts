@@ -37,6 +37,7 @@ type IntegracaoVisivel = {
   ultimaSync: string | null;
   ultimaSyncConversas: string | null;
   ultimoErro: string | null;
+  relatorioDiarioAtivo: boolean;
 };
 
 const listaTexto = (v: unknown): string[] =>
@@ -57,13 +58,13 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }): Promise<IntegracaoVisivel> => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("*")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
+    let conta: any = null;
+    try {
+      conta = (await contaDoCliente(data.clienteId)).conta;
+    } catch {
+      conta = null;
+    }
 
     const semFiltros: FiltrosElora = {
       usuarios: [],
@@ -85,8 +86,9 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
         filtros: semFiltros,
         retomadaPendente: false,
         ultimaSync: null,
-        ultimaSyncConversas: null,
-        ultimoErro: null,
+      ultimaSyncConversas: null,
+      ultimoErro: null,
+      relatorioDiarioAtivo: false,
       };
     }
 
@@ -115,6 +117,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimaSync: c.ultima_sync ? String(c.ultima_sync) : null,
       ultimaSyncConversas: c.sync_conversas_ultima ? String(c.sync_conversas_ultima) : null,
       ultimoErro: c.ultimo_erro ? String(c.ultimo_erro) : null,
+      relatorioDiarioAtivo: Boolean(c.relatorio_diario_ativo),
     };
 
   });
@@ -272,14 +275,7 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }) => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("base_url, api_key")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
-    if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
 
     try {
       // Chamada real e barata de leitura: confirma endereço + chave de uma vez.
@@ -313,14 +309,7 @@ export const listarCamposPersonalizados = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }): Promise<{ campos: CampoElora[] }> => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("base_url, api_key")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
-    if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
+    const { conta } = await contaDoCliente(data.clienteId);
 
     const resp = await lerApiElora(
       String(conta.base_url),
@@ -386,15 +375,8 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ clienteId: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }) => {
     await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { conta, supabaseAdmin } = await contaDoCliente(data.clienteId);
 
-    const { data: conta } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .select("*")
-      .eq("cliente_id", data.clienteId)
-      .maybeSingle();
-
-    if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
     if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
 
     // Sincronização seletiva: só as chaves de campo personalizado usadas por
@@ -854,7 +836,7 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
  * classificações. Tudo passa pela mesma trava de equipe interna.
  * ------------------------------------------------------------------ */
 
-async function contaDoCliente(clienteId: string) {
+export async function contaDoCliente(clienteId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: conta } = await supabaseAdmin
     .from("elora_integracao_contas")
