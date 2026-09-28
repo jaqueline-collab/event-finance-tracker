@@ -194,16 +194,6 @@ export function Footer() {
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4" /> {EMAIL_CONTATO}
             </li>
-            <li>
-              <a
-                href={WHATSAPP_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 hover:text-white"
-              >
-                <Phone className="h-4 w-4" /> {WHATSAPP_NUMERO}
-              </a>
-            </li>
             <li className="flex items-center gap-2">
               <Globe className="h-4 w-4" /> app.eloracrm.com.br
             </li>

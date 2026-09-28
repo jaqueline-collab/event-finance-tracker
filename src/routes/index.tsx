@@ -54,7 +54,6 @@ function LandingPage() {
     >
       <Navbar />
       <Hero />
-      <WebchatDestaque />
       <VideoIntro />
       <SistemaTour />
       <DoBlog />
@@ -153,13 +152,6 @@ function DoBlog() {
             </div>
           </Reveal>
         )}
-        <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {POSTS.slice(1, 4).map((p, i) => (
-            <Reveal key={p.slug} delay={i * 90}>
-              <BlogCard post={p} />
-            </Reveal>
-          ))}
-        </div>
       </div>
     </section>
   );
