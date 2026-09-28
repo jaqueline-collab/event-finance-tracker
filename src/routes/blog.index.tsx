@@ -5,7 +5,8 @@ import { Navbar, Footer, PageHeader } from "@/components/landing/SiteChrome";
 import { BlogCard } from "@/components/landing/BlogCard";
 import { Reveal } from "@/components/landing/motion";
 import { normalizar } from "@/components/landing/FaqLista";
-import { POSTS, CATEGORIAS } from "@/lib/landing/posts";
+import { POSTS, GRUPOS, grupoDo } from "@/lib/landing/posts";
+import { Newsletter } from "@/components/landing/blog/Newsletter";
 
 const TITULO = "Blog — EloraCRM";
 const DESC =
@@ -34,10 +35,10 @@ function BlogIndex() {
   const filtrados = useMemo(() => {
     const termo = normalizar(busca.trim());
     return POSTS.filter((p) => {
-      const okCat = !cat || p.categoria === cat;
+      const okCat = !cat || grupoDo(p) === cat;
       const okBusca =
         !termo ||
-        normalizar(`${p.titulo} ${p.resumo} ${p.categoria}`).includes(termo);
+        normalizar(p.titulo).includes(termo);
       return okCat && okBusca;
     });
   }, [busca, cat]);
@@ -62,7 +63,7 @@ function BlogIndex() {
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar artigo..."
+              placeholder="Buscar pelo título..."
               aria-label="Buscar artigo"
               className="w-full rounded-full bg-white/10 border border-white/20 pl-12 pr-11 py-3.5 text-white placeholder:text-white/40 outline-none focus:border-landing-yellow-vivo transition-colors"
             />
@@ -82,7 +83,7 @@ function BlogIndex() {
             <Pill ativo={cat === null} onClick={() => setCat(null)}>
               Todos
             </Pill>
-            {CATEGORIAS.map((c) => (
+            {GRUPOS.map((c) => (
               <Pill key={c} ativo={cat === c} onClick={() => setCat(cat === c ? null : c)}>
                 {c}
               </Pill>
@@ -94,6 +95,9 @@ function BlogIndex() {
 
       <section className="py-14 md:py-20 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
+          {filtrados.length > 0 && (
+            <h2 className="mb-6 text-sm font-bold uppercase tracking-widest text-rabbit-navy">Posts em destaque</h2>
+          )}
           {filtrados.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-landing-muted">
@@ -137,6 +141,7 @@ function BlogIndex() {
         </div>
       </section>
 
+      <Newsletter origem="blog" />
       <Footer />
     </div>
   );

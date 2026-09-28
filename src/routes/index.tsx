@@ -6,6 +6,7 @@ import { SistemaTour } from "@/components/landing/SistemaTour";
 import { FaqLista } from "@/components/landing/FaqLista";
 import { Reveal, Typewriter } from "@/components/landing/motion";
 import { BlogCard } from "@/components/landing/BlogCard";
+import { WebchatDestaque } from "@/components/landing/WebchatDestaque";
 import { FAQS } from "@/lib/landing/faqs";
 import { POSTS } from "@/lib/landing/posts";
 
@@ -53,6 +54,7 @@ function LandingPage() {
     >
       <Navbar />
       <Hero />
+      <WebchatDestaque />
       <VideoIntro />
       <SistemaTour />
       <DoBlog />
@@ -144,8 +146,15 @@ function DoBlog() {
           </Link>
         </div>
 
-        <div className="mt-8 sm:mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {POSTS.slice(0, 3).map((p, i) => (
+        {POSTS[0] && (
+          <Reveal>
+            <div className="mt-8 sm:mt-10">
+              <BlogCard post={POSTS[0]} destaque />
+            </div>
+          </Reveal>
+        )}
+        <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {POSTS.slice(1, 4).map((p, i) => (
             <Reveal key={p.slug} delay={i * 90}>
               <BlogCard post={p} />
             </Reveal>
