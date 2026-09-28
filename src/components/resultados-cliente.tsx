@@ -780,10 +780,70 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarDays className="h-4 w-4" /> Relatório diário
-        </CardTitle>
-        <CardDescription>Números de cada dia, enviados pela automação.</CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarDays className="h-4 w-4" /> Relatório diário
+            </CardTitle>
+            <CardDescription>Números de cada dia, enviados pela automação.</CardDescription>
+          </div>
+          <UiTooltipProvider delayDuration={300}>
+            <div className="flex items-center gap-1">
+              <Popover>
+                <UiTooltip>
+                  <UiTooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button size="icon" variant="outline" className="h-9 w-9" disabled={travado} aria-label="Colunas">
+                        <Columns3 className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                  </UiTooltipTrigger>
+                  <UiTooltipContent>Colunas</UiTooltipContent>
+                </UiTooltip>
+                <PopoverContent align="end" className="w-64 space-y-2">
+                  {COLUNAS_RELATORIO.map((c) => (
+                    <label key={c.chave} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={colunasVisiveis[c.chave] !== false}
+                        onCheckedChange={(v) => setColunasVisiveis((s) => ({ ...s, [c.chave]: v !== false }))}
+                      />
+                      {c.titulo}
+                    </label>
+                  ))}
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <UiTooltip>
+                  <UiTooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button size="icon" variant="outline" className="h-9 w-9" disabled={linhasFiltradas.length === 0} aria-label="Exportar">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                  </UiTooltipTrigger>
+                  <UiTooltipContent>Exportar</UiTooltipContent>
+                </UiTooltip>
+                <PopoverContent align="end" className="w-40 p-1">
+                  {(["csv", "xlsx", "pdf"] as const).map((f) => (
+                    <Button key={f} variant="ghost" size="sm" className="w-full justify-start" onClick={() => exportar(f)}>
+                      {f.toUpperCase()}
+                    </Button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+              {podeCongelar && (
+                <UiTooltip>
+                  <UiTooltipTrigger asChild>
+                    <Button size="icon" variant="outline" className="h-9 w-9" onClick={abrirDialogo} aria-label="Congelar visualização">
+                      <Snowflake className="h-4 w-4" />
+                    </Button>
+                  </UiTooltipTrigger>
+                  <UiTooltipContent>Congelar visualização</UiTooltipContent>
+                </UiTooltip>
+              )}
+            </div>
+          </UiTooltipProvider>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -798,43 +858,6 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
           <FiltroMultiplo rotulo="Canal" valores={canais} selecionados={canalSel} onChange={setCanalSel} desabilitado={travado} />
           <FiltroMultiplo rotulo="Atendente" valores={atendentes} selecionados={atendenteSel} onChange={setAtendenteSel} desabilitado={travado} />
           <FiltroMultiplo rotulo="Equipe" valores={equipes} selecionados={equipeSel} onChange={setEquipeSel} desabilitado={travado} />
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={travado}>
-                <Columns3 className="h-4 w-4" /> Colunas
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 space-y-2">
-              {COLUNAS_RELATORIO.map((c) => (
-                <label key={c.chave} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={colunasVisiveis[c.chave] !== false}
-                    onCheckedChange={(v) => setColunasVisiveis((s) => ({ ...s, [c.chave]: v !== false }))}
-                  />
-                  {c.titulo}
-                </label>
-              ))}
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={linhasFiltradas.length === 0}>
-                <Download className="h-4 w-4" /> Exportar
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-40 p-1">
-              {(["csv", "xlsx", "pdf"] as const).map((f) => (
-                <Button key={f} variant="ghost" size="sm" className="w-full justify-start" onClick={() => exportar(f)}>
-                  {f.toUpperCase()}
-                </Button>
-              ))}
-            </PopoverContent>
-          </Popover>
-          {podeCongelar && (
-            <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={abrirDialogo}>
-              <Snowflake className="h-4 w-4" /> Congelar visualização
-            </Button>
-          )}
         </div>
         {travado && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/50 px-3 py-2 text-xs text-muted-foreground">

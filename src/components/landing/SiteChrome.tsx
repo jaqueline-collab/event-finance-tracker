@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Mail, Phone, Globe, ArrowUpRight, LogIn, Rabbit, Menu } from "lucide-react";
+import { Mail, Globe, ArrowUpRight, LogIn, Rabbit, Menu } from "lucide-react";
 import { EloraMark } from "@/components/landing/EloraMark";
-import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
+import { EMAIL_CONTATO } from "@/lib/landing/contato";
 import { usePerfil } from "@/hooks/use-perfil";
 import { UserMenu } from "@/components/user-menu";
 import { useDestinoPainel } from "@/lib/use-papel";
@@ -193,16 +193,6 @@ export function Footer() {
           <ul className="mt-3 space-y-2 text-sm">
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4" /> {EMAIL_CONTATO}
-            </li>
-            <li>
-              <a
-                href={WHATSAPP_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 hover:text-white"
-              >
-                <Phone className="h-4 w-4" /> {WHATSAPP_NUMERO}
-              </a>
             </li>
             <li className="flex items-center gap-2">
               <Globe className="h-4 w-4" /> app.eloracrm.com.br
