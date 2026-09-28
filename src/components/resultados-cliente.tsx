@@ -797,7 +797,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                         <Columns3 className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
-                  </TooltipTrigger>
+                  </UiTooltipTrigger>
                   <UiTooltipContent>Colunas</UiTooltipContent>
                 </UiTooltip>
                 <PopoverContent align="end" className="w-64 space-y-2">
@@ -820,7 +820,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                         <Download className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
-                  </TooltipTrigger>
+                  </UiTooltipTrigger>
                   <UiTooltipContent>Exportar</UiTooltipContent>
                 </UiTooltip>
                 <PopoverContent align="end" className="w-40 p-1">
@@ -837,7 +837,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                     <Button size="icon" variant="outline" className="h-9 w-9" onClick={abrirDialogo} aria-label="Congelar visualização">
                       <Snowflake className="h-4 w-4" />
                     </Button>
-                  </TooltipTrigger>
+                  </UiTooltipTrigger>
                   <UiTooltipContent>Congelar visualização</UiTooltipContent>
                 </UiTooltip>
               )}
