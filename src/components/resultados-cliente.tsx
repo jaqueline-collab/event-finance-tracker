@@ -791,7 +791,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
             <div className="flex items-center gap-1">
               <Popover>
                 <UiTooltip>
-                  <TooltipTrigger asChild>
+                  <UiTooltipTrigger asChild>
                     <PopoverTrigger asChild>
                       <Button size="icon" variant="outline" className="h-9 w-9" disabled={travado} aria-label="Colunas">
                         <Columns3 className="h-4 w-4" />
@@ -814,7 +814,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
               </Popover>
               <Popover>
                 <UiTooltip>
-                  <TooltipTrigger asChild>
+                  <UiTooltipTrigger asChild>
                     <PopoverTrigger asChild>
                       <Button size="icon" variant="outline" className="h-9 w-9" disabled={linhasFiltradas.length === 0} aria-label="Exportar">
                         <Download className="h-4 w-4" />
@@ -833,7 +833,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
               </Popover>
               {podeCongelar && (
                 <UiTooltip>
-                  <TooltipTrigger asChild>
+                  <UiTooltipTrigger asChild>
                     <Button size="icon" variant="outline" className="h-9 w-9" onClick={abrirDialogo} aria-label="Congelar visualização">
                       <Snowflake className="h-4 w-4" />
                     </Button>
