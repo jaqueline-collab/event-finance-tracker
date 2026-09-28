@@ -169,6 +169,13 @@
       "when": 1790554709521,
       "tag": "0023_relatorio_diario_filtro_congelado",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790558670396,
+      "tag": "0024_newsletter_inscricoes",
+      "breakpoints": true
     }
   ]
 }

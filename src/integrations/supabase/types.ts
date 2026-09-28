@@ -1921,6 +1921,27 @@ export type Database = {
           },
         ]
       }
+      newsletter_inscricoes: {
+        Row: {
+          criado_em: string
+          email: string
+          id: string
+          origem: string
+        }
+        Insert: {
+          criado_em?: string
+          email: string
+          id?: string
+          origem?: string
+        }
+        Update: {
+          criado_em?: string
+          email?: string
+          id?: string
+          origem?: string
+        }
+        Relationships: []
+      }
       perfis: {
         Row: {
           avatar_path: string | null
