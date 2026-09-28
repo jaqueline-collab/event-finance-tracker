@@ -13,10 +13,10 @@ O blog já existe (lista, página de artigo, barra de leitura, cartões). Reapro
 - O artigo do WebChat aparece no topo como destaque.
 - Filtros por categoria: Todos, Artigos, Novidades e Tutoriais. Os 5 artigos atuais ficam em "Artigos" e o WebChat em "Novidades". A categoria atual de cada artigo continua aparecendo no selo do cartão.
 - A busca continua funcionando. Os cartões mostram o autor "Equipe Elora CRM" no WebChat.
-- Bloco de newsletter antes do rodapé, só visual por enquanto: mostra uma mensagem de confirmação e não guarda o e-mail. Se quiser guardar os e-mails, isso pode vir num próximo passo.
+- Bloco de newsletter antes do rodapé. O e-mail fica salvo numa lista de inscrições (e-mail, data e página de origem), e a confirmação só aparece depois que ele foi salvo. Se o e-mail já estiver na lista, não é repetido. Só a equipe interna pode ver essa lista.
 
 ## 3. Página do artigo (`/blog/webchat-elora-crm-guia-completo`)
-- Barra de leitura amarela, trilha de navegação (Início > Blog > Novidades), selo, título, subtítulo, autor, data e tempo de leitura calculado pelo texto.
+- Barra de leitura amarela, trilha de navegação (Início > Blog > Novidades), selo, título, subtítulo, autor, data de publicação 10/09/2026 e tempo de leitura calculado pelo texto.
 - Capa ilustrativa nas cores da marca: um navegador com chat e um QR Code.
 - No computador, sumário fixo à direita que marca em amarelo a seção atual. No celular, o sumário vira um menu que abre e fecha no topo.
 - O texto do documento entra exatamente como está, com: grades de cartões com ícones, passo a passo numerado, caixas "Dica" e "Atenção", tabelas com cabeçalho azul (que rolam para o lado no celular), bloco de código com botão Copiar, FAQ que abre uma pergunta por vez, chamada no meio e chamada final em azul.
@@ -28,11 +28,12 @@ O blog já existe (lista, página de artigo, barra de leitura, cartões). Reapro
 Título, descrição e endereço como no documento, dados estruturados de Artigo e de Perguntas frequentes, e imagem de capa na prévia das redes sociais.
 
 ## Validação
-Celular (375), tablet (768) e computador (1440), no tema claro. Conferir que o simulador calcula certo, que o sumário acompanha a leitura, que o botão Copiar funciona, que não há travessão longo nos textos novos e que nenhum texto sobre amarelo fica branco.
+Celular (375), tablet (768) e computador (1440), nos temas claro e escuro. Conferir que o simulador calcula certo, que o sumário acompanha a leitura, que o botão Copiar funciona, que não há travessão longo nos textos novos e que nenhum texto sobre amarelo fica branco.
 
 ## Detalhes técnicos
 - `src/lib/landing/posts.ts`: tipo `Bloco` ganha `h3`, `cards`, `passos`, `callout` (dica/atencao), `tabela` (linha de destaque opcional), `codigo`, `simulador`, `faq`, `cta`. `Post` ganha `subtitulo?`, `grupo` (Artigos/Novidades/Tutoriais), `destaque?`. O tempo de leitura é calculado pelas palavras. O WebChat fica primeiro em `POSTS`.
 - Novos componentes em `src/components/landing/blog/`: `BlocoArtigo`, `SumarioArtigo` (IntersectionObserver), `SimuladorWebchat`, `CodigoCopiar`, `CarrosselRelacionados`, `Compartilhar`, `Newsletter`. O FAQ usa o `FaqLista` existente.
 - `WebchatDestaque` na home, entre o topo e o vídeo. `BlogCard` ganha o selo "Destaque".
-- A capa é um SVG novo em `src/assets/blog/`. A imagem nas redes sociais precisa de um endereço https completo, então uso o domínio eloracrm.com.br mais o caminho publicado do arquivo. Se o endereço não sair completo, a imagem fica de fora.
+- A capa é um SVG novo em `src/assets/blog/`, com uma versão PNG 1200x630 enviada via lovable-assets. og:image e twitter:image usam `https://eloracrm.com.br` + a url do asset.
+- Tabela `newsletter_inscricoes` (id, email único case-insensitive, origem, criado_em). GRANT INSERT para anon/authenticated; SELECT só com is_equipe_interna(). A gravação passa por uma função de servidor pública, que valida com Zod e ignora duplicados.
 - O `head()` de `blog.$slug.tsx` inclui os JSON-LD `Article` e `FAQPage` quando o artigo tem FAQ.
