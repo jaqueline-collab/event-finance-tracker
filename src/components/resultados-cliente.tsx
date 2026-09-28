@@ -848,7 +848,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
 
   const matrizExport = () => {
     const celulas = (l: LinhaExibida | null): (string | number)[] =>
-      colunasExibidas.flatMap((c) => {
+      colunasExibidas.flatMap((c): (string | number)[] => {
         if (c.chave === "conversasUsuario") {
           return l ? [l.conversasUsuarioNovos, l.conversasUsuario] : [totais.conversasUsuarioNovos, totais.conversasUsuario];
         }
