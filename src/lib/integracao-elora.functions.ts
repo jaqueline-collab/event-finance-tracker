@@ -1450,7 +1450,10 @@ export type RelatorioDiarioLinha = {
   novosContatos: number;
   novosContatosAds: number;
   conversasUsuario: number;
+  conversasUsuarioNovos: number;
   conversasBot: number;
+  conversasOrigemCanal: number;
+  conversasTotalDia: number;
   consultaAgendada: number;
   consultaAgendadaAds: number;
   procedimentoVendido: number;
@@ -1493,11 +1496,15 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ linhas: RelatorioDiarioLinha[] }> => {
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ linhas: RelatorioDiarioLinha[]; socialSeller: SocialSellerValor[]; equipeInterna: boolean }> => {
     const { data: linhas, error } = await context.supabase
       .from("elora_relatorio_diario")
       .select(
-        "data, novos_contatos, novos_contatos_ads, conversas_usuario, conversas_bot, consulta_agendada, consulta_agendada_ads, procedimento_vendido, procedimento_vendido_ads, canal, atendente, equipe",
+        "data, novos_contatos, novos_contatos_ads, conversas_usuario, conversas_usuario_novos, conversas_bot, conversas_origem_canal, conversas_total_dia, consulta_agendada, consulta_agendada_ads, procedimento_vendido, procedimento_vendido_ads, canal, atendente, equipe",
       )
       .eq("cliente_id", data.clienteId)
       .gte("data", data.de)
@@ -1505,13 +1512,33 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
       .order("data", { ascending: false });
     if (error) throw new Error(`relatorio-diario: ${error.message}`);
 
+    const { data: social, error: errSocial } = await context.supabase
+      .from("elora_relatorio_social_seller")
+      .select("data, canal, equipe, valor")
+      .eq("cliente_id", data.clienteId)
+      .gte("data", data.de)
+      .lte("data", data.ate);
+    if (errSocial) throw new Error(`relatorio-diario: ${errSocial.message}`);
+
+    const { data: interna } = await context.supabase.rpc("is_equipe_interna");
+
     return {
+      equipeInterna: Boolean(interna),
+      socialSeller: (social ?? []).map((s: any) => ({
+        data: String(s.data),
+        canal: String(s.canal ?? ""),
+        equipe: String(s.equipe ?? ""),
+        valor: Number(s.valor ?? 0),
+      })),
       linhas: (linhas ?? []).map((l: any) => ({
         data: String(l.data),
         novosContatos: Number(l.novos_contatos ?? 0),
         novosContatosAds: Number(l.novos_contatos_ads ?? 0),
         conversasUsuario: Number(l.conversas_usuario ?? 0),
+        conversasUsuarioNovos: Number(l.conversas_usuario_novos ?? 0),
         conversasBot: Number(l.conversas_bot ?? 0),
+        conversasOrigemCanal: Number(l.conversas_origem_canal ?? 0),
+        conversasTotalDia: Number(l.conversas_total_dia ?? 0),
         consultaAgendada: Number(l.consulta_agendada ?? 0),
         consultaAgendadaAds: Number(l.consulta_agendada_ads ?? 0),
         procedimentoVendido: Number(l.procedimento_vendido ?? 0),
@@ -1521,4 +1548,39 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
         equipe: String(l.equipe ?? ""),
       })),
     };
+  });
+
+export type SocialSellerValor = { data: string; canal: string; equipe: string; valor: number };
+
+/** Grava o Social Seller (preenchimento manual) de um dia + canal + equipe. Só equipe interna. */
+export const salvarSocialSeller = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1).max(200),
+        data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        canal: z.string().max(200),
+        equipe: z.string().max(200),
+        valor: z.number().int().min(0).max(1_000_000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("elora_relatorio_social_seller").upsert(
+      {
+        cliente_id: data.clienteId,
+        data: data.data,
+        canal: data.canal,
+        equipe: data.equipe,
+        valor: data.valor,
+        atualizado_em: new Date().toISOString(),
+        atualizado_por: context.userId,
+      },
+      { onConflict: "cliente_id,data,canal,equipe" },
+    );
+    if (error) throw new Error(`social-seller: ${error.message}`);
+    return { ok: true };
   });
