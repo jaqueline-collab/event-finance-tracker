@@ -291,17 +291,20 @@ export function SumarioArtigo({ secoes, movel = false }: { secoes: { id: string;
   const [ativa, setAtiva] = useState<string | null>(secoes[0]?.id ?? null);
   const [aberto, setAberto] = useState(false);
   useEffect(() => {
-    const els = secoes.map((s) => document.getElementById(s.id)).filter(Boolean) as HTMLElement[];
-    if (!els.length) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (vis[0]) setAtiva(vis[0].target.id);
-      },
-      { rootMargin: "-100px 0px -65% 0px" },
-    );
-    els.forEach((e) => obs.observe(e));
-    return () => obs.disconnect();
+    let raf = 0;
+    const atualizar = () => {
+      raf = 0;
+      let atual = secoes[0]?.id ?? null;
+      for (const sec of secoes) {
+        const el = document.getElementById(sec.id);
+        if (el && el.getBoundingClientRect().top <= 140) atual = sec.id;
+      }
+      setAtiva(atual);
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(atualizar); };
+    atualizar();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [secoes]);
 
   const lista = (
