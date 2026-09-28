@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Mail, Phone, Globe, ArrowUpRight, LogIn, Rabbit, Menu } from "lucide-react";
 import { EloraMark } from "@/components/landing/EloraMark";
-import { WHATSAPP_LINK, WHATSAPP_NUMERO, EMAIL_CONTATO } from "@/lib/landing/contato";
+import { EMAIL_CONTATO } from "@/lib/landing/contato";
 import { usePerfil } from "@/hooks/use-perfil";
 import { UserMenu } from "@/components/user-menu";
 import { useDestinoPainel } from "@/lib/use-papel";

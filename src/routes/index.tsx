@@ -6,7 +6,6 @@ import { SistemaTour } from "@/components/landing/SistemaTour";
 import { FaqLista } from "@/components/landing/FaqLista";
 import { Reveal, Typewriter } from "@/components/landing/motion";
 import { BlogCard } from "@/components/landing/BlogCard";
-import { WebchatDestaque } from "@/components/landing/WebchatDestaque";
 import { FAQS } from "@/lib/landing/faqs";
 import { POSTS } from "@/lib/landing/posts";
 
