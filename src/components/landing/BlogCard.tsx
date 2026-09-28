@@ -23,9 +23,16 @@ export function BlogCard({ post, destaque = false }: { post: Post; destaque?: bo
       </div>
 
       <div className={`p-6 ${destaque ? "md:p-9 flex flex-col justify-center" : ""}`}>
-        <span className="inline-block text-[11px] font-semibold uppercase tracking-widest text-rabbit-navy bg-rabbit-navy/10 rounded-full px-3 py-1">
-          {post.categoria}
-        </span>
+        <div className="flex flex-wrap gap-2">
+          {post.destaque && (
+            <span className="inline-block text-[11px] font-bold uppercase tracking-widest text-landing-fg bg-landing-yellow-vivo rounded-full px-3 py-1">
+              Destaque
+            </span>
+          )}
+          <span className="inline-block text-[11px] font-semibold uppercase tracking-widest text-rabbit-navy bg-rabbit-navy/10 rounded-full px-3 py-1">
+            {post.categoria}
+          </span>
+        </div>
         <h3
           className={`mt-3 font-bold text-landing-fg leading-tight ${
             destaque ? "text-2xl md:text-3xl" : "text-lg"
