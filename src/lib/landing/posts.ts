@@ -71,7 +71,7 @@ export function slugificar(t: string) {
 export const CATEGORIAS = ["Atendimento", "Vendas", "Inteligência Artificial", "Gestão"];
 
 export const POSTS: Post[] = [
-  POST_WEBCHAT,
+  { ...POST_WEBCHAT, leitura: calcularLeitura(POST_WEBCHAT.corpo) },
   {
     slug: "reduzir-custos-api-oficial-whatsapp",
     titulo: "Como reduzir custos na API Oficial do WhatsApp",
