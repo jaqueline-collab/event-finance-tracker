@@ -4,11 +4,29 @@ import capa3 from "@/assets/blog/capa-funil-whatsapp.svg";
 import capa4 from "@/assets/blog/capa-indicadores.svg";
 import capa5 from "@/assets/blog/capa-custo-api-whatsapp.svg";
 
+import { POST_WEBCHAT } from "./post-webchat";
+
+export type ItemCard = { titulo: string; texto: string; icone?: string };
+
 export type Bloco =
-  | { tipo: "h2"; texto: string }
+  | { tipo: "h2"; texto: string; id?: string }
+  | { tipo: "h3"; texto: string }
   | { tipo: "p"; texto: string }
   | { tipo: "lista"; itens: string[] }
-  | { tipo: "citacao"; texto: string };
+  | { tipo: "citacao"; texto: string }
+  | { tipo: "cards"; colunas: 2 | 3; itens: ItemCard[]; compacto?: boolean }
+  | { tipo: "passos"; itens: string[] }
+  | { tipo: "fluxo"; itens: ItemCard[] }
+  | { tipo: "callout"; variante: "dica" | "atencao"; texto: string }
+  | { tipo: "tabela"; cabecalho: string[]; linhas: string[][]; destacarUltima?: boolean }
+  | { tipo: "codigo"; codigo: string }
+  | { tipo: "simulador" }
+  | { tipo: "cta"; titulo: string; texto: string; final?: boolean }
+  | { tipo: "faq"; itens: { pergunta: string; resposta: string }[] }
+  | { tipo: "nota"; texto: string };
+
+export type Grupo = "Artigos" | "Novidades" | "Tutoriais";
+export const GRUPOS: Grupo[] = ["Artigos", "Novidades", "Tutoriais"];
 
 export type Post = {
   slug: string;
@@ -20,11 +38,40 @@ export type Post = {
   leitura: number; // minutos
   capa: string;
   corpo: Bloco[];
+  subtitulo?: string;
+  grupo?: Grupo;
+  destaque?: boolean;
+  /** Título para busca/SEO, se diferente do título do artigo. */
+  seoTitulo?: string;
+  seoDescricao?: string;
+  /** Imagem PNG para redes sociais (URL absoluta ou relativa ao domínio). */
+  ogImage?: string;
 };
+
+export function grupoDo(p: Post): Grupo {
+  return p.grupo ?? "Artigos";
+}
+
+/** Tempo de leitura estimado (200 palavras/min). */
+export function calcularLeitura(corpo: Bloco[]): number {
+  const txt = JSON.stringify(corpo);
+  const palavras = txt.replace(/[{}[\]",:]/g, " ").split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(palavras / 200));
+}
+
+export function slugificar(t: string) {
+  return t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
 
 export const CATEGORIAS = ["Atendimento", "Vendas", "Inteligência Artificial", "Gestão"];
 
 export const POSTS: Post[] = [
+  POST_WEBCHAT,
   {
     slug: "reduzir-custos-api-oficial-whatsapp",
     titulo: "Como reduzir custos na API Oficial do WhatsApp",
