@@ -214,10 +214,9 @@ function AreaCliente() {
           <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
             {(
               [
-                { v: "conta", l: "Conta" },
+                { v: "conta", l: "Painel" },
                 { v: "treinamento", l: "Treinamento" },
                 { v: "novidades", l: "Novidades" },
-                { v: "equipe", l: "Minha equipe" },
               ] as const
             ).map((o) => (
               <Button
@@ -227,9 +226,7 @@ function AreaCliente() {
                 className="px-1.5 text-[11px] sm:px-3 sm:text-sm"
                 onClick={() => setAba(o.v)}
               >
-                {o.v === "equipe" ? (
-                  <><span className="hidden sm:inline">Minha&nbsp;</span>equipe</>
-                ) : o.l}
+{o.l}
               </Button>
             ))}
             <Button asChild size="sm" className="px-2 sm:px-3">
@@ -249,10 +246,10 @@ function AreaCliente() {
 
         <TabsContent value="conta" className="mt-0 grid gap-4 md:grid-cols-2">
           <div className="min-w-0 md:col-span-2">
-            <ResultadosCliente clienteId={cliente.id} />
-          </div>
-
-
+            <ResultadosCliente
+              clienteId={cliente.id}
+              conta={
+                <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">O que está na sua conta</CardTitle>
@@ -289,9 +286,7 @@ function AreaCliente() {
               {!plano && <p className="text-sm text-muted-foreground">Fale com o time para vincular um plano.</p>}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="conta" className="mt-4">
+                  <div className="md:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Mudanças na conta</CardTitle>
@@ -318,37 +313,11 @@ function AreaCliente() {
               </ol>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="novidades" className="mt-4 space-y-3">
-          {d.releases.length === 0 && (
-            <Card>
-              <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                Nenhuma novidade publicada para a sua conta ainda.
-              </CardContent>
-            </Card>
-          )}
-          {d.releases.map((r) => (
-            <Card key={r.id}>
-              <CardHeader>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <CardTitle className="text-base">{r.titulo}</CardTitle>
-                  <Badge variant="secondary" className="capitalize">{r.tag}</Badge>
-                  <span className="text-xs text-muted-foreground">{dataBr(r.publicadoEm)}</span>
+                  </div>
                 </div>
-                {r.resumo && <CardDescription>{r.resumo}</CardDescription>}
-              </CardHeader>
-              {r.conteudo && (
-                <CardContent>
-                  <p className="whitespace-pre-line text-sm text-muted-foreground">{r.conteudo}</p>
-                </CardContent>
-              )}
-            </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="equipe" className="mt-4">
+              }
+              equipe={
+                <>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -394,8 +363,44 @@ function AreaCliente() {
               </div>
             </CardContent>
           </Card>
+                </>
+              }
+            />
+          </div>
+
+
         </TabsContent>
-      </Tabs>
+
+
+        <TabsContent value="novidades" className="mt-4 space-y-3">
+          {d.releases.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                Nenhuma novidade publicada para a sua conta ainda.
+              </CardContent>
+            </Card>
+          )}
+          {d.releases.map((r) => (
+            <Card key={r.id}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-base">{r.titulo}</CardTitle>
+                  <Badge variant="secondary" className="capitalize">{r.tag}</Badge>
+                  <span className="text-xs text-muted-foreground">{dataBr(r.publicadoEm)}</span>
+                </div>
+                {r.resumo && <CardDescription>{r.resumo}</CardDescription>}
+              </CardHeader>
+              {r.conteudo && (
+                <CardContent>
+                  <p className="whitespace-pre-line text-sm text-muted-foreground">{r.conteudo}</p>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </TabsContent>
+
+              </Tabs>
     </div>
   );
 }
