@@ -1640,7 +1640,10 @@ export type Database = {
           consulta_agendada: number
           consulta_agendada_ads: number
           conversas_bot: number
+          conversas_origem_canal: number
+          conversas_total_dia: number
           conversas_usuario: number
+          conversas_usuario_novos: number
           criado_em: string
           data: string
           equipe: string
@@ -1658,7 +1661,10 @@ export type Database = {
           consulta_agendada?: number
           consulta_agendada_ads?: number
           conversas_bot?: number
+          conversas_origem_canal?: number
+          conversas_total_dia?: number
           conversas_usuario?: number
+          conversas_usuario_novos?: number
           criado_em?: string
           data: string
           equipe?: string
@@ -1676,7 +1682,10 @@ export type Database = {
           consulta_agendada?: number
           consulta_agendada_ads?: number
           conversas_bot?: number
+          conversas_origem_canal?: number
+          conversas_total_dia?: number
           conversas_usuario?: number
+          conversas_usuario_novos?: number
           criado_em?: string
           data?: string
           equipe?: string
@@ -1689,6 +1698,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "elora_relatorio_diario_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_relatorio_social_seller: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          canal: string
+          cliente_id: string
+          data: string
+          equipe: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          canal?: string
+          cliente_id: string
+          data: string
+          equipe?: string
+          id?: string
+          valor?: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          canal?: string
+          cliente_id?: string
+          data?: string
+          equipe?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_relatorio_social_seller_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "elora_clientes"

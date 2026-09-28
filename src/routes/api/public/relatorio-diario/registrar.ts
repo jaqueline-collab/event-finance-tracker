@@ -16,6 +16,9 @@ const corpoBaseSchema = z
     consulta_agendada_ads: contador,
     procedimento_vendido: contador,
     procedimento_vendido_ads: contador,
+    conversas_usuario_novos: contador,
+    conversas_origem_canal: contador,
+    conversas_total_dia: contador,
     // Opcionais para compatibilidade com chamadas antigas da automação que
     // ainda não enviam canal/atendente. '' é o valor "não informado" — o
     // mesmo sentinela usado na constraint única da tabela (ver migração
@@ -87,6 +90,9 @@ export const Route = createFileRoute("/api/public/relatorio-diario/registrar")({
             consulta_agendada_ads: d.consulta_agendada_ads,
             procedimento_vendido: d.procedimento_vendido,
             procedimento_vendido_ads: d.procedimento_vendido_ads,
+            conversas_usuario_novos: d.conversas_usuario_novos,
+            conversas_origem_canal: d.conversas_origem_canal,
+            conversas_total_dia: d.conversas_total_dia,
             // '' é o sentinela de "não informado" (ver migração 0022) —
             // mantém o onConflict funcionando mesmo sem canal/atendente.
             canal: d.canal ?? "",

@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, Info, Loader2, Lock, Megaphone, Snowflake, UserRound, Users, Wallet } from "lucide-react";
+import { BarChart3, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, Info, Loader2, Lock, Megaphone, Pencil, Snowflake, UserRound, Users, Wallet, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
@@ -51,7 +52,9 @@ import { toast } from "sonner";
 import {
   getRelatorioDiarioCliente,
   getResultadosCliente,
+  salvarSocialSeller,
   type RelatorioDiarioLinha,
+  type SocialSellerValor,
   type WidgetRenderizado,
 } from "@/lib/integracao-elora.functions";
 import { DashboardGrid } from "@/components/dashboard-grid";
@@ -414,8 +417,17 @@ function WidgetTabela({
   );
 }
 
+/** Linha exibida (já agrupada), com o Social Seller anexado. */
+type LinhaExibida = RelatorioDiarioLinha & {
+  socialSeller: number;
+  /** Mostra o Social Seller nesta linha (evita contar em dobro quando Atendente está visível). */
+  socialVisivel: boolean;
+  /** A linha representa exatamente um dia + canal + equipe (dá para editar). */
+  socialEditavel: boolean;
+};
+
 type ColunaRelatorio = {
-  chave: keyof Omit<RelatorioDiarioLinha, "data">;
+  chave: keyof Omit<LinhaExibida, "data" | "socialVisivel" | "socialEditavel" | "conversasUsuarioNovos">;
   titulo: string;
   dica: string;
   tipo: "numero" | "texto";
@@ -424,16 +436,35 @@ type ColunaRelatorio = {
 const COLUNAS_RELATORIO: ColunaRelatorio[] = [
   { chave: "novosContatos", titulo: "Novos contatos", dica: "Contatos criados pela primeira vez no dia.", tipo: "numero" },
   { chave: "novosContatosAds", titulo: "Novos contatos/ADS", dica: "Novos contatos do dia que chegaram com UTM de campanha.", tipo: "numero" },
-  { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "Contatos únicos atendidos por um atendente humano no dia.", tipo: "numero" },
+  { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "À esquerda, conversas com contatos novos do dia; à direita, o total (novos + antigos) atendido por humano.", tipo: "numero" },
   { chave: "conversasBot", titulo: "Conversas do bot", dica: "Contatos únicos atendidos pelo bot no dia. Um contato pode contar nas duas colunas de conversas.", tipo: "numero" },
+  { chave: "conversasOrigemCanal", titulo: "Origem Canal", dica: "Conversas do dia com resposta humana real, mas sem o Elora identificar qual atendente.", tipo: "numero" },
+  { chave: "conversasTotalDia", titulo: "Novas conversas no dia", dica: "Contatos únicos que tiveram alguma conversa no dia, novos ou já existentes.", tipo: "numero" },
   { chave: "consultaAgendada", titulo: "Consulta agendada", dica: "Conversas classificadas como ganho com a etiqueta de consulta agendada no dia.", tipo: "numero" },
   { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com UTM preenchido.", tipo: "numero" },
   { chave: "procedimentoVendido", titulo: "Procedimento vendido", dica: "Conversas classificadas como ganho com a etiqueta de procedimento vendido no dia.", tipo: "numero" },
   { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido.", tipo: "numero" },
+  { chave: "socialSeller", titulo: "Social Seller", dica: "Preenchido manualmente pela equipe, por dia, canal e equipe.", tipo: "numero" },
   { chave: "canal", titulo: "Canal", dica: "Canal/plataforma da conversa (WhatsApp, Instagram, Messenger...).", tipo: "texto" },
-  { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa, ou \"Bot\"/\"Automação\" quando não houve humano envolvido.", tipo: "texto" },
+  { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa.", tipo: "texto" },
   { chave: "equipe", titulo: "Equipe", dica: "Equipe/departamento responsável pela conversa.", tipo: "texto" },
 ];
+
+const COLUNAS_ADS = COLUNAS_RELATORIO.filter((c) => c.titulo.endsWith("/ADS")).map((c) => c.chave as string);
+const CAMPOS_SOMA = [
+  "novosContatos",
+  "novosContatosAds",
+  "conversasUsuario",
+  "conversasUsuarioNovos",
+  "conversasBot",
+  "conversasOrigemCanal",
+  "conversasTotalDia",
+  "consultaAgendada",
+  "consultaAgendadaAds",
+  "procedimentoVendido",
+  "procedimentoVendidoAds",
+] as const;
+const TAMANHOS_PAGINA = [7, 15, 30, 60];
 
 const NAO_INFORMADO = "Não informado";
 const VALOR_NAO_INFORMADO = "nao_informado";
@@ -549,6 +580,12 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
   const [de, setDe] = useState(diasAtrasIso(30));
   const [ate, setAte] = useState(hojeIso());
   const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
+  const [social, setSocial] = useState<SocialSellerValor[]>([]);
+  const [equipeInterna, setEquipeInterna] = useState(false);
+  const [editSocial, setEditSocial] = useState<{ chave: string; valor: string } | null>(null);
+  const [salvandoSocial, setSalvandoSocial] = useState(false);
+  const [porPagina, setPorPagina] = useState(15);
+  const [paginaRel, setPaginaRel] = useState(1);
   const [carregando, setCarregando] = useState(true);
   const [canalSel, setCanalSel] = useState<string[]>([]);
   const [atendenteSel, setAtendenteSel] = useState<string[]>([]);
@@ -614,7 +651,11 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
     if (periodoInvalido) return;
     setCarregando(true);
     getRelatorioDiarioCliente({ data: { clienteId, de, ate } })
-      .then((r) => setLinhas(r.linhas))
+      .then((r) => {
+        setLinhas(r.linhas);
+        setSocial(r.socialSeller);
+        setEquipeInterna(r.equipeInterna);
+      })
       .catch((e) => {
         setLinhas(null);
         toast.error(e instanceof Error ? e.message : String(e));
@@ -628,7 +669,8 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
     [linhas],
   );
   const canais = useMemo(() => distintos("canal"), [distintos]);
-  const atendentes = useMemo(() => distintos("atendente"), [distintos]);
+  // Atendente em branco não representa uma pessoa: fica fora das opções.
+  const atendentes = useMemo(() => distintos("atendente").filter((a) => a !== ""), [distintos]);
   const equipes = useMemo(() => distintos("equipe"), [distintos]);
 
   const linhasFiltradas = useMemo(
@@ -647,6 +689,83 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
     [colunasVisiveis, ordem],
   );
 
+  const verCanal = colunasVisiveis.canal !== false;
+  const verAtendente = colunasVisiveis.atendente !== false;
+  const verEquipe = colunasVisiveis.equipe !== false;
+
+  // Reagrupa pelas dimensões visíveis (Data é sempre a base) e anexa o Social Seller.
+  const linhasAgrupadas = useMemo<LinhaExibida[]>(() => {
+    const mapaSocial = new Map(social.map((s) => [`${s.data}|${s.canal}|${s.equipe}`, s.valor]));
+    const grupos = new Map<string, { linha: RelatorioDiarioLinha; pares: Set<string> }>();
+    for (const l of linhasFiltradas) {
+      const k = [l.data, verCanal ? l.canal : "", verAtendente ? l.atendente : "", verEquipe ? l.equipe : ""].join("|");
+      const par = `${l.data}|${l.canal}|${l.equipe}`;
+      const g = grupos.get(k);
+      if (!g) {
+        grupos.set(k, {
+          linha: {
+            ...l,
+            canal: verCanal ? l.canal : "",
+            atendente: verAtendente ? l.atendente : "",
+            equipe: verEquipe ? l.equipe : "",
+          },
+          pares: new Set([par]),
+        });
+      } else {
+        for (const c of CAMPOS_SOMA) g.linha[c] += l[c];
+        g.pares.add(par);
+      }
+    }
+    const usados = new Set<string>();
+    const editavelBase = verCanal && verEquipe && !verAtendente;
+    return [...grupos.values()]
+      .sort((a, b) => (a.linha.data < b.linha.data ? 1 : a.linha.data > b.linha.data ? -1 : 0))
+      .map(({ linha, pares }) => {
+        let soma = 0;
+        let algum = false;
+        for (const p of pares) {
+          if (usados.has(p)) continue;
+          usados.add(p);
+          algum = true;
+          soma += mapaSocial.get(p) ?? 0;
+        }
+        return { ...linha, socialSeller: soma, socialVisivel: algum, socialEditavel: editavelBase && algum };
+      });
+  }, [linhasFiltradas, social, verCanal, verAtendente, verEquipe]);
+
+  const totalPaginasRel = Math.max(1, Math.ceil(linhasAgrupadas.length / porPagina));
+  useEffect(() => {
+    setPaginaRel(1);
+  }, [canalSel, atendenteSel, equipeSel, colunasVisiveis, de, ate, porPagina]);
+  const paginaAtual = Math.min(paginaRel, totalPaginasRel);
+  const linhasPagina = linhasAgrupadas.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+
+  const adsVisiveis = COLUNAS_ADS.every((k) => colunasVisiveis[k] !== false);
+  const alternarAds = (v: boolean) =>
+    setColunasVisiveis((s) => ({ ...s, ...Object.fromEntries(COLUNAS_ADS.map((k) => [k, v])) }));
+
+  const salvarSocial = async (l: LinhaExibida, texto: string) => {
+    const valor = Number(texto);
+    if (!Number.isInteger(valor) || valor < 0 || valor > 1_000_000) {
+      toast.error("Informe um número inteiro de 0 a 1.000.000.");
+      return;
+    }
+    setSalvandoSocial(true);
+    try {
+      await salvarSocialSeller({ data: { clienteId, data: l.data, canal: l.canal, equipe: l.equipe, valor } });
+      setSocial((s) => [
+        ...s.filter((x) => !(x.data === l.data && x.canal === l.canal && x.equipe === l.equipe)),
+        { data: l.data, canal: l.canal, equipe: l.equipe, valor },
+      ]);
+      setEditSocial(null);
+      toast.success("Social Seller salvo.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
+    } finally {
+      setSalvandoSocial(false);
+    }
+  };
+
   const aoSoltar = (e: DragEndEvent) => {
     if (travado || !e.over || e.active.id === e.over.id) return;
     const nova = arrayMove(ordem, ordem.indexOf(String(e.active.id)), ordem.indexOf(String(e.over.id)));
@@ -660,12 +779,19 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
 
   const totais = useMemo(() => {
     const t = {} as Record<string, number>;
-    for (const c of COLUNAS_RELATORIO) {
-      if (c.tipo !== "numero") continue;
-      t[c.chave] = linhasFiltradas.reduce((s, l) => s + (Number(l[c.chave]) || 0), 0);
-    }
+    for (const c of CAMPOS_SOMA) t[c] = linhasAgrupadas.reduce((s, l) => s + l[c], 0);
+    t.socialSeller = linhasAgrupadas.reduce((s, l) => s + l.socialSeller, 0);
     return t;
-  }, [linhasFiltradas]);
+  }, [linhasAgrupadas]);
+
+  const valorCelula = (c: ColunaRelatorio, l: LinhaExibida | null): string => {
+    if (c.chave === "conversasUsuario") {
+      return l ? `${l.conversasUsuarioNovos} - ${l.conversasUsuario}` : `${totais.conversasUsuarioNovos} - ${totais.conversasUsuario}`;
+    }
+    if (c.tipo === "texto") return l ? rotuloDimensao(String(l[c.chave])) : "—";
+    if (c.chave === "socialSeller" && l && !l.socialVisivel) return "—";
+    return String(l ? l[c.chave] : totais[c.chave]);
+  };
 
   const abrirDialogo = () => {
     setAlvo("eu");
@@ -721,12 +847,23 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
   };
 
   const matrizExport = () => {
-    const cab = ["Data", ...colunasExibidas.map((c) => c.titulo)];
-    const total = ["Total", ...colunasExibidas.map((c) => (c.tipo === "numero" ? totais[c.chave] : "—"))];
-    const corpo = linhasFiltradas.map((l) => [
-      formatarDataBr(l.data),
-      ...colunasExibidas.map((c) => (c.tipo === "texto" ? rotuloDimensao(String(l[c.chave])) : Number(l[c.chave]))),
-    ]);
+    const celulas = (l: LinhaExibida | null): (string | number)[] =>
+      colunasExibidas.flatMap((c): (string | number)[] => {
+        if (c.chave === "conversasUsuario") {
+          return l ? [l.conversasUsuarioNovos, l.conversasUsuario] : [totais.conversasUsuarioNovos, totais.conversasUsuario];
+        }
+        if (c.tipo === "texto") return [l ? rotuloDimensao(String(l[c.chave])) : "—"];
+        if (c.chave === "socialSeller" && l && !l.socialVisivel) return ["—"];
+        return [Number(l ? l[c.chave] : totais[c.chave])];
+      });
+    const cab = [
+      "Data",
+      ...colunasExibidas.flatMap((c) =>
+        c.chave === "conversasUsuario" ? ["Conversas do Usuário (novos)", "Conversas do Usuário (total)"] : [c.titulo],
+      ),
+    ];
+    const total = ["Total", ...celulas(null)];
+    const corpo = linhasAgrupadas.map((l) => [formatarDataBr(l.data), ...celulas(l)]);
     return { cab, total, corpo };
   };
   const nomeArquivo = `relatorio-diario-${clienteId}-${de}-a-${ate}`;
@@ -789,6 +926,10 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
           </div>
           <UiTooltipProvider delayDuration={300}>
             <div className="flex items-center gap-1">
+              <label className="mr-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Switch checked={adsVisiveis} onCheckedChange={alternarAds} disabled={travado} aria-label="Mostrar colunas de ADS" />
+                ADS
+              </label>
               <Popover>
                 <UiTooltip>
                   <UiTooltipTrigger asChild>
@@ -816,7 +957,7 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                 <UiTooltip>
                   <UiTooltipTrigger asChild>
                     <PopoverTrigger asChild>
-                      <Button size="icon" variant="outline" className="h-9 w-9" disabled={linhasFiltradas.length === 0} aria-label="Exportar">
+                      <Button size="icon" variant="outline" className="h-9 w-9" disabled={linhasAgrupadas.length === 0} aria-label="Exportar">
                         <Download className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
@@ -886,12 +1027,13 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
           </p>
         )}
         {!carregando && !periodoInvalido && linhas && linhas.length > 0 && (
+          <div className="space-y-2">
           <div className="max-h-[70vh] overflow-auto rounded-lg border border-border/60">
             <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoSoltar}>
               <table className="w-full caption-bottom text-sm">
-                <thead className="sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--border)]">
+                <thead className="sticky top-0 z-20 bg-card shadow-[0_1px_0_var(--border)]">
                   <TableRow className="bg-card hover:bg-card">
-                    <TableHead className="whitespace-nowrap">Data</TableHead>
+                    <TableHead className="sticky left-0 z-30 whitespace-nowrap bg-card">Data</TableHead>
                     <SortableContext items={colunasExibidas.map((c) => c.chave)} strategy={horizontalListSortingStrategy}>
                       {colunasExibidas.map((c) => (
                         <CabecalhoOrdenavel key={c.chave} c={c} travado={travado} />
@@ -899,29 +1041,105 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
                     </SortableContext>
                   </TableRow>
                   <TableRow className="bg-muted font-semibold hover:bg-muted">
-                    <TableCell className="whitespace-nowrap">Total</TableCell>
+                    <TableCell className="sticky left-0 z-30 whitespace-nowrap bg-muted">Total</TableCell>
                     {colunasExibidas.map((c) => (
-                      <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left"}>
-                        {c.tipo === "numero" ? totais[c.chave] : "—"}
+                      <TableCell key={c.chave} className={c.tipo === "numero" ? "whitespace-nowrap text-right tabular-nums" : "text-left"}>
+                        {valorCelula(c, null)}
                       </TableCell>
                     ))}
                   </TableRow>
                 </thead>
                 <TableBody>
-                  {linhasFiltradas.map((l, i) => (
-                    <TableRow key={`${l.data}-${l.canal}-${l.atendente}-${l.equipe}-${i}`}>
-                      <TableCell className="whitespace-nowrap">{formatarDataBr(l.data)}</TableCell>
-                      {colunasExibidas.map((c) => (
-                        <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left whitespace-nowrap"}>
-                          {c.tipo === "texto" ? rotuloDimensao(String(l[c.chave])) : l[c.chave]}
+                  {linhasPagina.map((l) => {
+                    const chaveLinha = `${l.data}|${l.canal}|${l.atendente}|${l.equipe}`;
+                    return (
+                      <TableRow key={chaveLinha} className="group">
+                        <TableCell className="sticky left-0 z-10 whitespace-nowrap bg-card group-hover:bg-muted">
+                          {formatarDataBr(l.data)}
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
+                        {colunasExibidas.map((c) => (
+                          <TableCell
+                            key={c.chave}
+                            className={c.tipo === "numero" ? "whitespace-nowrap text-right tabular-nums" : "text-left whitespace-nowrap"}
+                          >
+                            {c.chave === "socialSeller" && editSocial?.chave === chaveLinha ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  autoFocus
+                                  className="h-7 w-20 text-right"
+                                  value={editSocial.valor}
+                                  aria-label="Valor do Social Seller"
+                                  onChange={(e) => setEditSocial({ chave: chaveLinha, valor: e.target.value })}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") void salvarSocial(l, editSocial.valor);
+                                    if (e.key === "Escape") setEditSocial(null);
+                                  }}
+                                />
+                                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={salvandoSocial} aria-label="Salvar" onClick={() => void salvarSocial(l, editSocial.valor)}>
+                                  {salvandoSocial ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Cancelar" onClick={() => setEditSocial(null)}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1">
+                                {valorCelula(c, l)}
+                                {c.chave === "socialSeller" && equipeInterna && l.socialEditavel && (
+                                  <button
+                                    type="button"
+                                    aria-label="Editar Social Seller"
+                                    className="text-muted-foreground hover:text-foreground"
+                                    onClick={() => setEditSocial({ chave: chaveLinha, valor: String(l.socialSeller) })}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </span>
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </table>
             </DndContext>
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              Linhas por página
+              <Select value={String(porPagina)} onValueChange={(v) => setPorPagina(Number(v))}>
+                <SelectTrigger className="h-8 w-20" aria-label="Linhas por página">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TAMANHOS_PAGINA.map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {totalPaginasRel > 1 && (
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" disabled={paginaAtual <= 1} onClick={() => setPaginaRel(paginaAtual - 1)}>
+                  <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Página {paginaAtual} de {totalPaginasRel}
+                </span>
+                <Button size="sm" variant="outline" disabled={paginaAtual >= totalPaginasRel} onClick={() => setPaginaRel(paginaAtual + 1)}>
+                  Próxima <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          </div>
+        )}
+        {!carregando && !periodoInvalido && linhas && linhas.length > 0 && linhasAgrupadas.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhuma linha com esses filtros.</p>
         )}
       </CardContent>
 

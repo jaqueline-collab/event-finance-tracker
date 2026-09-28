@@ -176,6 +176,13 @@
       "when": 1790558670396,
       "tag": "0024_newsletter_inscricoes",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790563164936,
+      "tag": "0025_relatorio_diario_novos_campos_social_seller",
+      "breakpoints": true
     }
   ]
 }
