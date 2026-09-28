@@ -446,11 +446,13 @@ function FiltroMultiplo({
   valores,
   selecionados,
   onChange,
+  desabilitado = false,
 }: {
   rotulo: string;
   valores: string[];
   selecionados: string[];
   onChange: (v: string[]) => void;
+  desabilitado?: boolean;
 }) {
   const texto =
     selecionados.length === 0
@@ -463,7 +465,7 @@ function FiltroMultiplo({
       <Label className="block text-xs text-muted-foreground">{rotulo}</Label>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="h-9 w-40 justify-between font-normal">
+          <Button variant="outline" size="sm" className="h-9 w-40 justify-between font-normal" disabled={desabilitado}>
             <span className="truncate">{texto}</span>
             <ChevronDown className="h-4 w-4 opacity-60" />
           </Button>
@@ -498,8 +500,52 @@ const formatarDataBr = (iso: string) => {
   return `${d}/${m}/${a}`;
 };
 
+const ORDEM_PADRAO = COLUNAS_RELATORIO.map((c) => c.chave as string);
+const normalizarOrdem = (o: unknown): string[] => {
+  const lista = Array.isArray(o) ? o.filter((x): x is string => ORDEM_PADRAO.includes(x as string)) : [];
+  const unicos = [...new Set(lista)];
+  return [...unicos, ...ORDEM_PADRAO.filter((k) => !unicos.includes(k))];
+};
+
+function CabecalhoOrdenavel({ c, travado }: { c: ColunaRelatorio; travado: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.chave, disabled: travado });
+  return (
+    <TableHead
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+      className={`whitespace-nowrap ${c.tipo === "numero" ? "text-right" : "text-left"}`}
+    >
+      <span className="inline-flex items-center gap-1">
+        {!travado && (
+          <button
+            type="button"
+            aria-label={`Arrastar coluna ${c.titulo}`}
+            className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <UiTooltipProvider>
+          <UiTooltip>
+            <UiTooltipTrigger asChild>
+              <span className="inline-flex cursor-help items-center gap-1">
+                {c.titulo}
+                <Info className="h-3 w-3 text-muted-foreground" />
+              </span>
+            </UiTooltipTrigger>
+            <UiTooltipContent className="max-w-64">{c.dica}</UiTooltipContent>
+          </UiTooltip>
+        </UiTooltipProvider>
+      </span>
+    </TableHead>
+  );
+}
+
 /** Matriz do relatório diário: uma linha por dia, mais recente no topo. */
 function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
+  const chaveOrdem = `elora.relatorio.ordem.${clienteId}`;
   const [de, setDe] = useState(diasAtrasIso(30));
   const [ate, setAte] = useState(hojeIso());
   const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
@@ -510,6 +556,57 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
   const [colunasVisiveis, setColunasVisiveis] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(COLUNAS_RELATORIO.map((c) => [c.chave, true])),
   );
+  const [ordem, setOrdem] = useState<string[]>(ORDEM_PADRAO);
+  const [congelado, setCongelado] = useState<FiltrosCongelados | null>(null);
+  const [podeCongelar, setPodeCongelar] = useState(false);
+  const [meuId, setMeuId] = useState<string | null>(null);
+  const [dialogo, setDialogo] = useState(false);
+  const [alvo, setAlvo] = useState<"eu" | "usuario">("eu");
+  const [usuarioAlvo, setUsuarioAlvo] = useState("");
+  const [usuarios, setUsuarios] = useState<{ userId: string; nome: string; email: string; congelado: boolean }[]>([]);
+  const [salvandoCong, setSalvandoCong] = useState(false);
+
+  const travado = Boolean(congelado);
+  const sensores = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // Ordem salva no navegador (fora do modo congelado).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(chaveOrdem);
+      if (raw) setOrdem(normalizarOrdem(JSON.parse(raw)));
+    } catch {
+      /* ignore */
+    }
+  }, [chaveOrdem]);
+
+  const aplicarCongelado = (f: FiltrosCongelados) => {
+    setCanalSel(f.canais);
+    setAtendenteSel(f.atendentes);
+    setEquipeSel(f.equipes);
+    setDe(f.data_inicial);
+    setAte(f.data_final);
+    setColunasVisiveis(Object.fromEntries(COLUNAS_RELATORIO.map((c) => [c.chave, f.colunas_visiveis.includes(c.chave)])));
+    setOrdem(normalizarOrdem(f.ordem_colunas));
+  };
+
+  const carregarCongelado = useCallback(() => {
+    getFiltroCongelado({ data: { clienteId } })
+      .then((r) => {
+        setPodeCongelar(r.podeCongelar);
+        setMeuId(r.userId);
+        setCongelado(r.filtros);
+        if (r.filtros) aplicarCongelado(r.filtros);
+      })
+      .catch(() => {
+        /* sem trava */
+      });
+  }, [clienteId]);
+
+  useEffect(carregarCongelado, [carregarCongelado]);
 
   const periodoInvalido = !de || !ate || de > ate;
 
@@ -542,7 +639,24 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
     [linhas, canalSel, atendenteSel, equipeSel],
   );
 
-  const colunasExibidas = useMemo(() => COLUNAS_RELATORIO.filter((c) => colunasVisiveis[c.chave] !== false), [colunasVisiveis]);
+  const colunasExibidas = useMemo(
+    () =>
+      ordem
+        .map((k) => COLUNAS_RELATORIO.find((c) => c.chave === k)!)
+        .filter((c) => c && colunasVisiveis[c.chave] !== false),
+    [colunasVisiveis, ordem],
+  );
+
+  const aoSoltar = (e: DragEndEvent) => {
+    if (travado || !e.over || e.active.id === e.over.id) return;
+    const nova = arrayMove(ordem, ordem.indexOf(String(e.active.id)), ordem.indexOf(String(e.over.id)));
+    setOrdem(nova);
+    try {
+      window.localStorage.setItem(chaveOrdem, JSON.stringify(nova));
+    } catch {
+      /* ignore */
+    }
+  };
 
   const totais = useMemo(() => {
     const t = {} as Record<string, number>;
@@ -552,6 +666,59 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
     }
     return t;
   }, [linhasFiltradas]);
+
+  const abrirDialogo = () => {
+    setAlvo("eu");
+    setUsuarioAlvo("");
+    setDialogo(true);
+    listarUsuariosCongelaveis({ data: { clienteId } })
+      .then(setUsuarios)
+      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+  };
+
+  const confirmarCongelar = async () => {
+    const usuarioAlvoId = alvo === "eu" ? meuId : usuarioAlvo;
+    if (!usuarioAlvoId) {
+      toast.error("Escolha um usuário.");
+      return;
+    }
+    setSalvandoCong(true);
+    try {
+      await congelarVisualizacao({
+        data: {
+          clienteId,
+          usuarioAlvoId,
+          filtros: {
+            canais: canalSel,
+            atendentes: atendenteSel,
+            equipes: equipeSel,
+            data_inicial: de,
+            data_final: ate,
+            colunas_visiveis: COLUNAS_RELATORIO.filter((c) => colunasVisiveis[c.chave] !== false).map((c) => c.chave),
+            ordem_colunas: ordem,
+          },
+        },
+      });
+      toast.success("Visualização congelada.");
+      setDialogo(false);
+      if (usuarioAlvoId === meuId) carregarCongelado();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível congelar.");
+    } finally {
+      setSalvandoCong(false);
+    }
+  };
+
+  const descongelar = async (usuarioAlvoId: string) => {
+    try {
+      await descongelarVisualizacao({ data: { clienteId, usuarioAlvoId } });
+      toast.success("Visualização liberada.");
+      if (usuarioAlvoId === meuId) setCongelado(null);
+      setUsuarios((u) => u.map((x) => (x.userId === usuarioAlvoId ? { ...x, congelado: false } : x)));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível descongelar.");
+    }
+  };
 
   const matrizExport = () => {
     const cab = ["Data", ...colunasExibidas.map((c) => c.titulo)];
@@ -622,18 +789,18 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="rel-de" className="text-xs text-muted-foreground">Data inicial</Label>
-            <Input id="rel-de" type="date" className="w-40" value={de} onChange={(e) => setDe(e.target.value)} />
+            <Input id="rel-de" type="date" className="w-40" value={de} disabled={travado} onChange={(e) => setDe(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="rel-ate" className="text-xs text-muted-foreground">Data final</Label>
-            <Input id="rel-ate" type="date" className="w-40" value={ate} onChange={(e) => setAte(e.target.value)} />
+            <Input id="rel-ate" type="date" className="w-40" value={ate} disabled={travado} onChange={(e) => setAte(e.target.value)} />
           </div>
-          <FiltroMultiplo rotulo="Canal" valores={canais} selecionados={canalSel} onChange={setCanalSel} />
-          <FiltroMultiplo rotulo="Atendente" valores={atendentes} selecionados={atendenteSel} onChange={setAtendenteSel} />
-          <FiltroMultiplo rotulo="Equipe" valores={equipes} selecionados={equipeSel} onChange={setEquipeSel} />
+          <FiltroMultiplo rotulo="Canal" valores={canais} selecionados={canalSel} onChange={setCanalSel} desabilitado={travado} />
+          <FiltroMultiplo rotulo="Atendente" valores={atendentes} selecionados={atendenteSel} onChange={setAtendenteSel} desabilitado={travado} />
+          <FiltroMultiplo rotulo="Equipe" valores={equipes} selecionados={equipeSel} onChange={setEquipeSel} desabilitado={travado} />
           <Popover>
             <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-9 gap-1.5">
+              <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={travado}>
                 <Columns3 className="h-4 w-4" /> Colunas
               </Button>
             </PopoverTrigger>
@@ -663,7 +830,24 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
               ))}
             </PopoverContent>
           </Popover>
+          {podeCongelar && (
+            <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={abrirDialogo}>
+              <Snowflake className="h-4 w-4" /> Congelar visualização
+            </Button>
+          )}
         </div>
+        {travado && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5" /> Visualização congelada
+            </span>
+            {podeCongelar && meuId && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => void descongelar(meuId)}>
+                Descongelar
+              </Button>
+            )}
+          </div>
+        )}
         {periodoInvalido && (
           <p className="text-sm text-destructive">A data inicial precisa ser anterior ou igual à data final.</p>
         )}
@@ -680,54 +864,94 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
         )}
         {!carregando && !periodoInvalido && linhas && linhas.length > 0 && (
           <div className="max-h-[70vh] overflow-auto rounded-lg border border-border/60">
-            <table className="w-full caption-bottom text-sm">
-              <thead className="sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--border)]">
-                <TableRow className="bg-card hover:bg-card">
-                  <TableHead className="whitespace-nowrap">Data</TableHead>
-                  {colunasExibidas.map((c) => (
-                    <TableHead
-                      key={c.chave}
-                      className={`whitespace-nowrap ${c.tipo === "numero" ? "text-right" : "text-left"}`}
-                    >
-                      <UiTooltipProvider>
-                        <UiTooltip>
-                          <UiTooltipTrigger asChild>
-                            <span className="inline-flex cursor-help items-center gap-1">
-                              {c.titulo}
-                              <Info className="h-3 w-3 text-muted-foreground" />
-                            </span>
-                          </UiTooltipTrigger>
-                          <UiTooltipContent className="max-w-64">{c.dica}</UiTooltipContent>
-                        </UiTooltip>
-                      </UiTooltipProvider>
-                    </TableHead>
-                  ))}
-                </TableRow>
-                <TableRow className="bg-muted font-semibold hover:bg-muted">
-                  <TableCell className="whitespace-nowrap">Total</TableCell>
-                  {colunasExibidas.map((c) => (
-                    <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left"}>
-                      {c.tipo === "numero" ? totais[c.chave] : "—"}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </thead>
-              <TableBody>
-                {linhasFiltradas.map((l, i) => (
-                  <TableRow key={`${l.data}-${l.canal}-${l.atendente}-${l.equipe}-${i}`}>
-                    <TableCell className="whitespace-nowrap">{formatarDataBr(l.data)}</TableCell>
+            <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoSoltar}>
+              <table className="w-full caption-bottom text-sm">
+                <thead className="sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--border)]">
+                  <TableRow className="bg-card hover:bg-card">
+                    <TableHead className="whitespace-nowrap">Data</TableHead>
+                    <SortableContext items={colunasExibidas.map((c) => c.chave)} strategy={horizontalListSortingStrategy}>
+                      {colunasExibidas.map((c) => (
+                        <CabecalhoOrdenavel key={c.chave} c={c} travado={travado} />
+                      ))}
+                    </SortableContext>
+                  </TableRow>
+                  <TableRow className="bg-muted font-semibold hover:bg-muted">
+                    <TableCell className="whitespace-nowrap">Total</TableCell>
                     {colunasExibidas.map((c) => (
-                      <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left whitespace-nowrap"}>
-                        {c.tipo === "texto" ? rotuloDimensao(String(l[c.chave])) : l[c.chave]}
+                      <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left"}>
+                        {c.tipo === "numero" ? totais[c.chave] : "—"}
                       </TableCell>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </table>
+                </thead>
+                <TableBody>
+                  {linhasFiltradas.map((l, i) => (
+                    <TableRow key={`${l.data}-${l.canal}-${l.atendente}-${l.equipe}-${i}`}>
+                      <TableCell className="whitespace-nowrap">{formatarDataBr(l.data)}</TableCell>
+                      {colunasExibidas.map((c) => (
+                        <TableCell key={c.chave} className={c.tipo === "numero" ? "text-right tabular-nums" : "text-left whitespace-nowrap"}>
+                          {c.tipo === "texto" ? rotuloDimensao(String(l[c.chave])) : l[c.chave]}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </table>
+            </DndContext>
           </div>
         )}
       </CardContent>
+
+      <Dialog open={dialogo} onOpenChange={setDialogo}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Congelar visualização</DialogTitle>
+            <DialogDescription>
+              Os filtros, o período, as colunas e a ordem que estão na tela ficam travados para quem você escolher.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Aplicar para:</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button variant={alvo === "eu" ? "secondary" : "outline"} onClick={() => setAlvo("eu")} className="justify-start gap-2">
+                <UserRound className="h-4 w-4" /> Minha própria visualização
+              </Button>
+              <Button variant={alvo === "usuario" ? "secondary" : "outline"} onClick={() => setAlvo("usuario")} className="justify-start gap-2">
+                <Users className="h-4 w-4" /> Selecionar usuário
+              </Button>
+            </div>
+            {alvo === "usuario" && (
+              <div className="max-h-60 space-y-1 overflow-auto rounded-md border border-border/60 p-1">
+                {usuarios.length === 0 && (
+                  <p className="p-2 text-sm text-muted-foreground">Nenhum login deste cliente entrou ainda.</p>
+                )}
+                {usuarios.map((u) => (
+                  <div
+                    key={u.userId}
+                    className={`flex items-center justify-between gap-2 rounded px-2 py-1.5 text-sm ${usuarioAlvo === u.userId ? "bg-secondary" : "hover:bg-muted"}`}
+                  >
+                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setUsuarioAlvo(u.userId)}>
+                      <p className="truncate font-medium">{u.nome}</p>
+                      <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                    </button>
+                    {u.congelado && (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => void descongelar(u.userId)}>
+                        Descongelar
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogo(false)}>Cancelar</Button>
+            <Button onClick={() => void confirmarCongelar()} disabled={salvandoCong}>
+              {salvandoCong && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Congelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
