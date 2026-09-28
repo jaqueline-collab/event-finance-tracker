@@ -414,8 +414,17 @@ function WidgetTabela({
   );
 }
 
+/** Linha exibida (já agrupada), com o Social Seller anexado. */
+type LinhaExibida = RelatorioDiarioLinha & {
+  socialSeller: number;
+  /** Mostra o Social Seller nesta linha (evita contar em dobro quando Atendente está visível). */
+  socialVisivel: boolean;
+  /** A linha representa exatamente um dia + canal + equipe (dá para editar). */
+  socialEditavel: boolean;
+};
+
 type ColunaRelatorio = {
-  chave: keyof Omit<RelatorioDiarioLinha, "data">;
+  chave: keyof Omit<LinhaExibida, "data" | "socialVisivel" | "socialEditavel" | "conversasUsuarioNovos">;
   titulo: string;
   dica: string;
   tipo: "numero" | "texto";
@@ -424,16 +433,35 @@ type ColunaRelatorio = {
 const COLUNAS_RELATORIO: ColunaRelatorio[] = [
   { chave: "novosContatos", titulo: "Novos contatos", dica: "Contatos criados pela primeira vez no dia.", tipo: "numero" },
   { chave: "novosContatosAds", titulo: "Novos contatos/ADS", dica: "Novos contatos do dia que chegaram com UTM de campanha.", tipo: "numero" },
-  { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "Contatos únicos atendidos por um atendente humano no dia.", tipo: "numero" },
+  { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "À esquerda, conversas com contatos novos do dia; à direita, o total (novos + antigos) atendido por humano.", tipo: "numero" },
   { chave: "conversasBot", titulo: "Conversas do bot", dica: "Contatos únicos atendidos pelo bot no dia. Um contato pode contar nas duas colunas de conversas.", tipo: "numero" },
+  { chave: "conversasOrigemCanal", titulo: "Origem Canal", dica: "Conversas do dia com resposta humana real, mas sem o Elora identificar qual atendente.", tipo: "numero" },
+  { chave: "conversasTotalDia", titulo: "Novas conversas no dia", dica: "Contatos únicos que tiveram alguma conversa no dia, novos ou já existentes.", tipo: "numero" },
   { chave: "consultaAgendada", titulo: "Consulta agendada", dica: "Conversas classificadas como ganho com a etiqueta de consulta agendada no dia.", tipo: "numero" },
   { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com UTM preenchido.", tipo: "numero" },
   { chave: "procedimentoVendido", titulo: "Procedimento vendido", dica: "Conversas classificadas como ganho com a etiqueta de procedimento vendido no dia.", tipo: "numero" },
   { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido.", tipo: "numero" },
+  { chave: "socialSeller", titulo: "Social Seller", dica: "Preenchido manualmente pela equipe, por dia, canal e equipe.", tipo: "numero" },
   { chave: "canal", titulo: "Canal", dica: "Canal/plataforma da conversa (WhatsApp, Instagram, Messenger...).", tipo: "texto" },
-  { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa, ou \"Bot\"/\"Automação\" quando não houve humano envolvido.", tipo: "texto" },
+  { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa.", tipo: "texto" },
   { chave: "equipe", titulo: "Equipe", dica: "Equipe/departamento responsável pela conversa.", tipo: "texto" },
 ];
+
+const COLUNAS_ADS = COLUNAS_RELATORIO.filter((c) => c.titulo.endsWith("/ADS")).map((c) => c.chave as string);
+const CAMPOS_SOMA = [
+  "novosContatos",
+  "novosContatosAds",
+  "conversasUsuario",
+  "conversasUsuarioNovos",
+  "conversasBot",
+  "conversasOrigemCanal",
+  "conversasTotalDia",
+  "consultaAgendada",
+  "consultaAgendadaAds",
+  "procedimentoVendido",
+  "procedimentoVendidoAds",
+] as const;
+const TAMANHOS_PAGINA = [7, 15, 30, 60];
 
 const NAO_INFORMADO = "Não informado";
 const VALOR_NAO_INFORMADO = "nao_informado";
