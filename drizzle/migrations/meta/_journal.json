@@ -162,6 +162,13 @@
       "when": 1790546904079,
       "tag": "0022_relatorio_diario_canal_atendente",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790554709521,
+      "tag": "0023_relatorio_diario_filtro_congelado",
+      "breakpoints": true
     }
   ]
 }

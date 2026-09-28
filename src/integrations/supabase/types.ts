@@ -1948,6 +1948,41 @@ export type Database = {
         }
         Relationships: []
       }
+      relatorio_diario_filtro_congelado: {
+        Row: {
+          cliente_id: string
+          congelado_em: string
+          congelado_por: string | null
+          filtros: Json
+          id: string
+          usuario_alvo_id: string
+        }
+        Insert: {
+          cliente_id: string
+          congelado_em?: string
+          congelado_por?: string | null
+          filtros?: Json
+          id?: string
+          usuario_alvo_id: string
+        }
+        Update: {
+          cliente_id?: string
+          congelado_em?: string
+          congelado_por?: string | null
+          filtros?: Json
+          id?: string
+          usuario_alvo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorio_diario_filtro_congelado_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       elora_planos_parceiro: {
