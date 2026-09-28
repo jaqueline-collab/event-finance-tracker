@@ -16,7 +16,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Info, Loader2, Megaphone } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, Info, Loader2, Lock, Megaphone, Snowflake, UserRound, Users, Wallet } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  congelarVisualizacao,
+  descongelarVisualizacao,
+  getFiltroCongelado,
+  listarUsuariosCongelaveis,
+  type FiltrosCongelados,
+} from "@/lib/relatorio-congelado.functions";
 import {
   Tooltip as UiTooltip,
   TooltipContent as UiTooltipContent,
