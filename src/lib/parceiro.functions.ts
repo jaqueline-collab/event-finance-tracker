@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { mapDbToCliente, mapDbToMovimento, mapDbToPlano } from "@/lib/mappers";
+import { mapDbToCliente, mapDbToFechamentoItem, mapDbToMovimento, mapDbToPlano } from "@/lib/mappers";
+import { composicaoDoFechamento } from "@/lib/calc/composicao-fechamento";
+import { z } from "zod";
+
+const auditoriaFechamentoParceiroSchema = z.object({
+  fechamentoId: z.string().uuid(),
+  verComoParceiroId: z.string().min(1).max(100).optional(),
+});
 import { detalharCicloCliente, explicarReceitaCliente } from "@/lib/calc/receita";
 import {
   concederAcessoSchema,
@@ -628,3 +635,143 @@ export const alternarEnvioFechamentoParceiro = createServerFn({ method: "POST" }
     if (!row?.id) throw new Error("envio-parceiro: fechamento não encontrado.");
     return { id: row.id as string, enviadoEm: (row.enviado_parceiro_em as string | null) ?? null };
   });
+
+/**
+ * Auditoria de um fechamento para o parceiro (sob demanda, para o PDF).
+ * Só com mostrar_valores_cliente = true. Lista branca: composição de cobrança
+ * gravada e impacto de venda dos movimentos — nunca custo, margem, lucro, WTS
+ * ou desconto de escala.
+ */
+export const getAuditoriaFechamentoParceiro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => auditoriaFechamentoParceiroSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    let parceiroId: string;
+    if (data.verComoParceiroId) {
+      const { data: interno } = await db.rpc("is_equipe_interna");
+      if (!interno) throw new Error("acesso-negado: modo de visualização é exclusivo da equipe interna.");
+      parceiroId = data.verComoParceiroId;
+    } else {
+      const { data: proprio } = await db.rpc("parceiro_do_usuario");
+      if (!proprio) throw new Error("acesso-parceiro: este login não está vinculado a nenhum parceiro.");
+      parceiroId = proprio as string;
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adm = supabaseAdmin as any;
+
+    const { data: parc } = await adm
+      .from("elora_parceiros")
+      .select("id, pode_ver_fechamentos, mostrar_valores_cliente")
+      .eq("id", parceiroId)
+      .maybeSingle();
+    if (!parc?.pode_ver_fechamentos || !parc?.mostrar_valores_cliente) {
+      throw new Error("acesso-negado: auditoria não liberada para este parceiro.");
+    }
+
+    const { data: fech } = await adm
+      .from("elora_fechamentos")
+      .select("id")
+      .eq("id", data.fechamentoId)
+      .not("enviado_parceiro_em", "is", null)
+      .is("deletado_em", null)
+      .maybeSingle();
+    if (!fech?.id) throw new Error("fechamento: não disponível.");
+
+    const { data: cliRows } = await adm.from("elora_clientes").select("*").eq("parceiro_id", parceiroId);
+    const clientes = ((cliRows ?? []) as any[]).map(mapDbToCliente);
+    const ids = clientes.map((c) => c.id);
+    if (ids.length === 0) return { clientes: [] as AuditoriaClienteParceiro[] };
+
+    const [itRes, mvRes, plRes] = await Promise.all([
+      adm.from("elora_fechamento_itens").select("*").eq("fechamento_id", data.fechamentoId).in("cliente_id", ids),
+      adm.from("elora_movimentos").select("*").in("cliente_id", ids),
+      adm.from("elora_planos").select("*"),
+    ]);
+    if (itRes.error) throw new Error(`itens: ${itRes.error.message}`);
+    const itens = ((itRes.data ?? []) as any[]).map(mapDbToFechamentoItem);
+    const movimentos = ((mvRes.data ?? []) as any[]).map(mapDbToMovimento);
+    const planos = ((plRes.data ?? []) as any[]).map(mapDbToPlano);
+
+    const out: AuditoriaClienteParceiro[] = itens.map((it) => {
+      const cli = clientes.find((c) => c.id === it.clienteId);
+      const comp = composicaoDoFechamento(it, cli, planos, movimentos);
+      const plano = planos.find((p) => p.id === (it.planoId ?? cli?.planoId));
+      const movs = movimentos
+        .filter((m) => m.clienteId === it.clienteId && (!it.cicloFim || m.data <= it.cicloFim))
+        .sort((a, b) => a.data.localeCompare(b.data))
+        .map((m) => ({
+          data: m.data,
+          tipo: m.tipo,
+          descricao: m.observacao ?? "",
+          valor: plano ? impactoVendaMovimento(plano, m) : 0,
+        }));
+      return {
+        clienteNome: cli?.nome ?? "—",
+        cicloInicio: it.cicloInicio ?? null,
+        cicloFim: it.cicloFim ?? null,
+        valorBruto: it.valorBruto,
+        valorDesconto: it.valorDesconto,
+        valorLiquido: it.valorLiquido,
+        composicao: {
+          fonte: comp.fonte,
+          planoNome: comp.planoNome,
+          itens: comp.itens.map((i) => ({ label: i.label, qtd: i.qtd, unit: i.unit, total: i.total, incluso: i.incluso })),
+          subtotalSistema: comp.subtotalSistema,
+          acompanhamento: comp.acompanhamento,
+          mauExcedenteValor: comp.mauExcedenteValor,
+          desconto: comp.desconto,
+          total: comp.total,
+          aviso: comp.aviso ?? null,
+        },
+        movimentos: movs,
+      };
+    });
+    out.sort((a, b) => a.clienteNome.localeCompare(b.clienteNome, "pt-BR"));
+    return { clientes: out };
+  });
+
+export type AuditoriaClienteParceiro = {
+  clienteNome: string;
+  cicloInicio: string | null;
+  cicloFim: string | null;
+  valorBruto: number;
+  valorDesconto: number;
+  valorLiquido: number;
+  composicao: {
+    fonte: string;
+    planoNome: string | null;
+    itens: { label: string; qtd: number; unit: number; total: number; incluso?: string }[];
+    subtotalSistema: number;
+    acompanhamento: number;
+    mauExcedenteValor: number;
+    desconto: number;
+    total: number;
+    aviso: string | null;
+  };
+  movimentos: { data: string; tipo: string; descricao: string; valor: number }[];
+};
+
+/** Mesmo cálculo de impacto de venda do `deltaMovto` da tela interna. */
+function impactoVendaMovimento(plano: any, mv: any): number {
+  const vWhats = plano.valorCanalWhatsExc ?? plano.valorCanaisExc ?? 59.9;
+  const vInsta = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.9;
+  const vMsg = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.9;
+  const vUsers = plano.valorUsuariosExc ?? 39.9;
+  const vCont = plano.valorContatosExc ?? 0.095;
+  const vZapi = plano.valorZapi ?? 149.0;
+  const vIA = plano.valorIA ?? 99.0;
+  const vAsaas = plano.valorAsaas ?? 89.0;
+  let d = 0;
+  d += (mv.canaisWhats ?? 0) * vWhats;
+  d += (mv.canaisInsta ?? 0) * vInsta;
+  d += (mv.canaisMessenger ?? 0) * vMsg;
+  d += (mv.canaisZapi ?? 0) * vZapi;
+  d += (mv.usuariosAtivos ?? 0) * vUsers;
+  d += (mv.contatosAtivos ?? 0) * vCont;
+  if (mv.agentesIA === true && !plano.incluiIA) d += vIA;
+  if (mv.agentesIA === false && !plano.incluiIA) d -= vIA;
+  if (mv.asaas === true && !plano.incluiAsaas) d += vAsaas;
+  if (mv.asaas === false && !plano.incluiAsaas) d -= vAsaas;
+  return d;
+}
