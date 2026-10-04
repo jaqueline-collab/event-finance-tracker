@@ -1086,6 +1086,63 @@ function ResumoPage() {
 
   const exportarFechamentoPdf = () => {
     if (!fechamentoData || !fechamentoSelecionado) return;
+    // Fonte dos números: fechamento(s) gravado(s) da competência, quando existem.
+    // Só sem fechamento gravado o PDF usa o cálculo atual — e sai marcado como prévia.
+    const idsFechComp = new Set(
+      fechamentosVisiveis.filter((f) => f.competencia === fechamentoData.competenciaKey).map((f) => f.id),
+    );
+    const idsClientesFiltro = new Set(clientesFiltrados.map((c) => c.id));
+    const itensGravados = fechamentoItensVisiveis.filter(
+      (i) => idsFechComp.has(i.fechamentoId) && idsClientesFiltro.has(i.clienteId),
+    );
+    const usarGravado = idsFechComp.size > 0;
+    type LinhaPdf = { nome: string; plano: string; venc: string; ltv: string; sistema: number; acomp: number; desconto: number; total: number; bruto: number };
+    const linhasPdf: LinhaPdf[] = usarGravado
+      ? itensGravados
+          .map((it) => {
+            const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+            const cli = clientes.find((c) => c.id === it.clienteId);
+            return {
+              nome: cli?.nomeFinanceiro || cli?.nome || snap.clienteNome || "—",
+              plano: abreviarPlano(snap.planoNome ?? planos.find((p) => p.id === it.planoId)?.nome),
+              venc: it.vencimento ? new Date(`${it.vencimento}T12:00:00`).toLocaleDateString("pt-BR") : "—",
+              ltv: snap.ltvDias != null ? String(snap.ltvDias) : "—",
+              sistema: Number(snap.sistema ?? 0) + Number(snap.mauExcedenteValor ?? 0),
+              acomp: Number(snap.acompanhamento ?? 0),
+              desconto: Number(it.valorDesconto || 0),
+              total: Number(it.valorLiquido || 0),
+              bruto: Number(it.valorBruto || 0),
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      : fechamentoSelecionado.detalhes.map((d) => ({
+          nome: d.cliente.nomeFinanceiro || d.cliente.nome,
+          plano: abreviarPlano(d.plano?.nome),
+          venc: d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
+          ltv: String(d.ltvDias),
+          sistema: d.sistema,
+          acomp: d.acomp,
+          desconto: d.descontoCliente,
+          total: d.receita,
+          bruto: d.subtotal,
+        }));
+    const resumoPdf = usarGravado
+      ? (() => {
+          const count = linhasPdf.length;
+          const totalReceita = linhasPdf.reduce((s, l) => s + l.total, 0);
+          const ltvs = itensGravados.map((i) => Number(((i.payloadSnapshot ?? {}) as Record<string, any>).ltvDias)).filter((v) => Number.isFinite(v));
+          return {
+            count,
+            totalSistema: linhasPdf.reduce((s, l) => s + l.sistema, 0),
+            totalAcompanhamento: linhasPdf.reduce((s, l) => s + l.acomp, 0),
+            totalReceita,
+            subtotalBruto: linhasPdf.reduce((s, l) => s + l.bruto, 0),
+            descontoTotal: linhasPdf.reduce((s, l) => s + l.desconto, 0),
+            ltvMedioDias: ltvs.length ? ltvs.reduce((s, v) => s + v, 0) / ltvs.length : 0,
+            ticketMedio: count > 0 ? totalReceita / count : 0,
+          };
+        })()
+      : fechamentoSelecionado;
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
@@ -1099,7 +1156,7 @@ function ResumoPage() {
     pdf.text("Elora", 40, 36);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(12);
-    pdf.text(`Fechamento Mensal · Competência ${fechamentoData.labelMes}`, 40, 58);
+    pdf.text(`${usarGravado ? "" : "Prévia · "}Fechamento Mensal · Competência ${fechamentoData.labelMes}`, 40, 58);
 
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(10);
