@@ -38,7 +38,7 @@ import { explicarReceitaCliente } from "@/lib/calc/receita";
 import { composicaoDoFechamento } from "@/lib/calc/composicao-fechamento";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
 import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
-import { getCicloCliente } from "@/lib/calc/ciclo";
+import { getCicloCliente, isoFromDate } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
 import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2, Share2, Undo2 } from "lucide-react";
 import { alternarEnvioFechamentoParceiro } from "@/lib/parceiro.functions";
