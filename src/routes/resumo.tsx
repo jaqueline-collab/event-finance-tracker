@@ -1168,12 +1168,12 @@ function ResumoPage() {
       startY: 146,
       head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
       body: [[
-        String(fechamentoSelecionado.count),
+        String(resumoPdf.count),
         `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
         String(fechamentoData.churnsNoMes.length),
-        formatBRL(fechamentoSelecionado.totalSistema),
-        formatBRL(fechamentoSelecionado.totalAcompanhamento),
-        formatBRL(fechamentoSelecionado.totalReceita),
+        formatBRL(resumoPdf.totalSistema),
+        formatBRL(resumoPdf.totalAcompanhamento),
+        formatBRL(resumoPdf.totalReceita),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [15, 15, 15], textColor: 255 },
@@ -1184,8 +1184,8 @@ function ResumoPage() {
       startY: (pdf as any).lastAutoTable.finalY + 10,
       head: [["LTV médio (dias)", "Ticket médio / cliente"]],
       body: [[
-        String(Math.round(fechamentoSelecionado.ltvMedioDias)),
-        formatBRL(fechamentoSelecionado.ticketMedio),
+        String(Math.round(resumoPdf.ltvMedioDias)),
+        formatBRL(resumoPdf.ticketMedio),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
@@ -1194,15 +1194,11 @@ function ResumoPage() {
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
       head: [["Cliente", "Plano", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
-      body: fechamentoSelecionado.detalhes.map((d) => [
-        d.cliente.nomeFinanceiro || d.cliente.nome,
-        abreviarPlano(d.plano?.nome),
-        d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
-        String(d.ltvDias),
-        formatBRL(d.sistema),
-        formatBRL(d.acomp),
-        d.descontoCliente > 0 ? `-${formatBRL(d.descontoCliente)}` : "—",
-        formatBRL(d.receita),
+      body: linhasPdf.map((l) => [
+        l.nome, l.plano, l.venc, l.ltv,
+        formatBRL(l.sistema), formatBRL(l.acomp),
+        l.desconto > 0 ? `-${formatBRL(l.desconto)}` : "—",
+        formatBRL(l.total),
       ]),
       styles: { fontSize: 10, cellPadding: 6 },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
@@ -1214,11 +1210,11 @@ function ResumoPage() {
       head: [["", "Valor"]],
       showHead: "never",
       body: [
-        ["Subtotal", formatBRL(fechamentoSelecionado.subtotalBruto)],
-        ...(fechamentoSelecionado.descontoTotal > 0
-          ? [["Descontos aplicados", `-${formatBRL(fechamentoSelecionado.descontoTotal)}`]]
+        ["Subtotal", formatBRL(resumoPdf.subtotalBruto)],
+        ...(resumoPdf.descontoTotal > 0
+          ? [["Descontos aplicados", `-${formatBRL(resumoPdf.descontoTotal)}`]]
           : []),
-        ["Total do fechamento", formatBRL(fechamentoSelecionado.totalReceita)],
+        ["Total do fechamento", formatBRL(resumoPdf.totalReceita)],
       ],
       styles: { fontSize: 10, cellPadding: 6 },
       columnStyles: { 0: { halign: "right", fontStyle: "bold" }, 1: { halign: "right" } },
