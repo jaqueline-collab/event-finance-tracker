@@ -35,6 +35,7 @@ import {
   mensagemErroPersistencia,
 } from "@/lib/store";
 import { explicarReceitaCliente } from "@/lib/calc/receita";
+import { composicaoDoFechamento } from "@/lib/calc/composicao-fechamento";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
 import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
 import { getCicloCliente } from "@/lib/calc/ciclo";
@@ -2708,11 +2709,12 @@ function ResumoPage() {
               );
 
               const resumoBody = validos.map(({ cli, it, nome }, idx) => {
-                const planoAtual = planos.find((p) => p.id === cli!.planoId);
+                const snapIt = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                const planoNomeGravado = snapIt.planoNome ?? planos.find((p) => p.id === cli!.planoId)?.nome ?? "—";
                 return [
                   String(idx + 1),
                   nome,
-                  abreviarPlano(planoAtual?.nome),
+                  abreviarPlano(planoNomeGravado),
                   formatBRL(it.valorBruto || 0),
                   it.valorDesconto > 0 ? `-${formatBRL(it.valorDesconto)}` : "—",
                   formatBRL(it.valorLiquido || 0),
@@ -2752,8 +2754,8 @@ function ResumoPage() {
 
               validos.forEach(({ cli, it, nome }, idx) => {
                 if (!cli) return;
-                const planoAtual = planos.find((p) => p.id === cli.planoId);
-                const exp = explicarReceitaCliente(cli, planos);
+                const comp = composicaoDoFechamento(it, cli, planos, movimentos);
+                const planoAtual = { nome: comp.planoNome ?? undefined };
                 const movs = movimentos
                   .filter((m) => m.clienteId === cli.id)
                   .filter((m) => !it.cicloFim || m.data <= it.cicloFim)
@@ -2812,7 +2814,7 @@ function ResumoPage() {
                 pdf.text(meta.join("     "), 20, bannerY + 36);
 
                 // Total do cliente à direita do banner
-                const totalTxt = `${formatBRL(exp.total)}/mês`;
+                const totalTxt = `${formatBRL(comp.total)}/mês`;
                 pdf.setFont("helvetica", "bold");
                 pdf.setFontSize(13);
                 pdf.text(totalTxt, pageW - 40, bannerY + 28, { align: "right" });
@@ -2887,15 +2889,25 @@ function ResumoPage() {
 
                 // Composição
                 if (cursorY > pageH - 140) { pdf.addPage(); cursorY = 60; }
-                sectionTitle("Composição da mensalidade (hoje)", cursorY);
+                sectionTitle("Composição da mensalidade no fechamento", cursorY);
+                if (comp.aviso) {
+                  pdf.setTextColor(110, 110, 110);
+                  pdf.setFont("helvetica", "italic");
+                  pdf.setFontSize(8);
+                  pdf.text(comp.aviso, 40, cursorY + 16);
+                  cursorY += 12;
+                }
+                const linhaSimples = (label: string, valor: string) => [label, "", "", { content: valor, styles: { halign: "right" } }];
                 autoTable(pdf, {
                   startY: cursorY + 8,
                   head: [["Item de cobrança", "Qtd", "Unit.", "Total"]],
                   body: [
-                    ...exp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
-                    [{ content: "Custo Sistema", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: formatBRL(exp.subtotalSistema), styles: { fontStyle: "bold", fillColor: [240, 240, 240], halign: "right" } }],
-                    ["Custo Acompanhamento", "", "", { content: formatBRL(exp.acompanhamento), styles: { halign: "right" } }],
-                    [{ content: "Custo Mês (total)", styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255 } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: formatBRL(exp.total), styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255, halign: "right" } }],
+                    ...comp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
+                    [{ content: "Custo Sistema", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: formatBRL(comp.subtotalSistema), styles: { fontStyle: "bold", fillColor: [240, 240, 240], halign: "right" } }],
+                    linhaSimples("Custo Acompanhamento", formatBRL(comp.acompanhamento)),
+                    ...(comp.mauExcedenteValor > 0 ? [linhaSimples("MAU excedente", formatBRL(comp.mauExcedenteValor))] : []),
+                    ...(comp.desconto > 0 ? [linhaSimples("Desconto", `-${formatBRL(comp.desconto)}`)] : []),
+                    [{ content: "Custo Mês (total)", styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255 } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: formatBRL(comp.total), styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255, halign: "right" } }],
                   ] as any,
                   styles: { fontSize: 9, cellPadding: 5 },
                   headStyles: { fillColor: [40, 40, 40], textColor: 255 },
@@ -2943,6 +2955,7 @@ function ResumoPage() {
                       </div>
                     );
                     const comp = composicaoDoFechamento(it, cli, planos, movimentos);
+                    const planoAtual = planos.find((p) => p.id === (it.planoId ?? cli.planoId));
                     const cicloFimIso = it.cicloFim ?? undefined;
                     const movs = movimentos
                       .filter((m) => m.clienteId === cli.id)
@@ -2957,7 +2970,7 @@ function ResumoPage() {
                           {cli.dataChurn && (
                             <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">churn {fmtDate(cli.dataChurn)}</Badge>
                           )}
-                          <span className="ml-auto text-sm font-semibold text-primary">{formatBRL(exp.total)}/mês</span>
+                          <span className="ml-auto text-sm font-semibold text-primary">{formatBRL(comp.total)}/mês</span>
                         </summary>
 
                         <div className="border-t border-border/40 px-3 py-3 space-y-4">
@@ -3020,7 +3033,7 @@ function ResumoPage() {
                               </div>
                               <div className="rounded border border-border/40 px-2 py-1.5">
                                 <div className="text-muted-foreground text-[10px]">Plano</div>
-                                <div className="font-medium">{planoAtual?.nome ?? "—"}</div>
+                                <div className="font-medium">{comp.planoNome ?? "—"}</div>
                               </div>
                               <div className="rounded border border-border/40 px-2 py-1.5">
                                 <div className="text-muted-foreground text-[10px]">Valor setup pago</div>
