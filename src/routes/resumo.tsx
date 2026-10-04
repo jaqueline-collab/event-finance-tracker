@@ -35,9 +35,10 @@ import {
   mensagemErroPersistencia,
 } from "@/lib/store";
 import { explicarReceitaCliente } from "@/lib/calc/receita";
+import { composicaoDoFechamento } from "@/lib/calc/composicao-fechamento";
 import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
 import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
-import { getCicloCliente } from "@/lib/calc/ciclo";
+import { getCicloCliente, isoFromDate } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
 import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2, Share2, Undo2 } from "lucide-react";
 import { alternarEnvioFechamentoParceiro } from "@/lib/parceiro.functions";
@@ -1085,6 +1086,63 @@ function ResumoPage() {
 
   const exportarFechamentoPdf = () => {
     if (!fechamentoData || !fechamentoSelecionado) return;
+    // Fonte dos números: fechamento(s) gravado(s) da competência, quando existem.
+    // Só sem fechamento gravado o PDF usa o cálculo atual — e sai marcado como prévia.
+    const idsFechComp = new Set(
+      fechamentosVisiveis.filter((f) => f.competencia === fechamentoData.competenciaKey).map((f) => f.id),
+    );
+    const idsClientesFiltro = new Set(clientesFiltrados.map((c) => c.id));
+    const itensGravados = fechamentoItensVisiveis.filter(
+      (i) => idsFechComp.has(i.fechamentoId) && idsClientesFiltro.has(i.clienteId),
+    );
+    const usarGravado = idsFechComp.size > 0;
+    type LinhaPdf = { nome: string; plano: string; venc: string; ltv: string; sistema: number; acomp: number; desconto: number; total: number; bruto: number };
+    const linhasPdf: LinhaPdf[] = usarGravado
+      ? itensGravados
+          .map((it) => {
+            const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+            const cli = clientes.find((c) => c.id === it.clienteId);
+            return {
+              nome: cli?.nomeFinanceiro || cli?.nome || snap.clienteNome || "—",
+              plano: abreviarPlano(snap.planoNome ?? planos.find((p) => p.id === it.planoId)?.nome),
+              venc: it.vencimento ? new Date(`${it.vencimento}T12:00:00`).toLocaleDateString("pt-BR") : "—",
+              ltv: snap.ltvDias != null ? String(snap.ltvDias) : "—",
+              sistema: Number(snap.sistema ?? 0) + Number(snap.mauExcedenteValor ?? 0),
+              acomp: Number(snap.acompanhamento ?? 0),
+              desconto: Number(it.valorDesconto || 0),
+              total: Number(it.valorLiquido || 0),
+              bruto: Number(it.valorBruto || 0),
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      : fechamentoSelecionado.detalhes.map((d) => ({
+          nome: d.cliente.nomeFinanceiro || d.cliente.nome,
+          plano: abreviarPlano(d.plano?.nome),
+          venc: d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
+          ltv: String(d.ltvDias),
+          sistema: d.sistema,
+          acomp: d.acomp,
+          desconto: d.descontoCliente,
+          total: d.receita,
+          bruto: d.subtotal,
+        }));
+    const resumoPdf = usarGravado
+      ? (() => {
+          const count = linhasPdf.length;
+          const totalReceita = linhasPdf.reduce((s, l) => s + l.total, 0);
+          const ltvs = itensGravados.map((i) => Number(((i.payloadSnapshot ?? {}) as Record<string, any>).ltvDias)).filter((v) => Number.isFinite(v));
+          return {
+            count,
+            totalSistema: linhasPdf.reduce((s, l) => s + l.sistema, 0),
+            totalAcompanhamento: linhasPdf.reduce((s, l) => s + l.acomp, 0),
+            totalReceita,
+            subtotalBruto: linhasPdf.reduce((s, l) => s + l.bruto, 0),
+            descontoTotal: linhasPdf.reduce((s, l) => s + l.desconto, 0),
+            ltvMedioDias: ltvs.length ? ltvs.reduce((s, v) => s + v, 0) / ltvs.length : 0,
+            ticketMedio: count > 0 ? totalReceita / count : 0,
+          };
+        })()
+      : fechamentoSelecionado;
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
@@ -1098,7 +1156,7 @@ function ResumoPage() {
     pdf.text("Elora", 40, 36);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(12);
-    pdf.text(`Fechamento Mensal · Competência ${fechamentoData.labelMes}`, 40, 58);
+    pdf.text(`${usarGravado ? "" : "Prévia · "}Fechamento Mensal · Competência ${fechamentoData.labelMes}`, 40, 58);
 
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(10);
@@ -1110,12 +1168,12 @@ function ResumoPage() {
       startY: 146,
       head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
       body: [[
-        String(fechamentoSelecionado.count),
+        String(resumoPdf.count),
         `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
         String(fechamentoData.churnsNoMes.length),
-        formatBRL(fechamentoSelecionado.totalSistema),
-        formatBRL(fechamentoSelecionado.totalAcompanhamento),
-        formatBRL(fechamentoSelecionado.totalReceita),
+        formatBRL(resumoPdf.totalSistema),
+        formatBRL(resumoPdf.totalAcompanhamento),
+        formatBRL(resumoPdf.totalReceita),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [15, 15, 15], textColor: 255 },
@@ -1126,8 +1184,8 @@ function ResumoPage() {
       startY: (pdf as any).lastAutoTable.finalY + 10,
       head: [["LTV médio (dias)", "Ticket médio / cliente"]],
       body: [[
-        String(Math.round(fechamentoSelecionado.ltvMedioDias)),
-        formatBRL(fechamentoSelecionado.ticketMedio),
+        String(Math.round(resumoPdf.ltvMedioDias)),
+        formatBRL(resumoPdf.ticketMedio),
       ]],
       styles: { fontSize: 10, cellPadding: 7, halign: "center" },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
@@ -1136,15 +1194,11 @@ function ResumoPage() {
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 16,
       head: [["Cliente", "Plano", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
-      body: fechamentoSelecionado.detalhes.map((d) => [
-        d.cliente.nomeFinanceiro || d.cliente.nome,
-        abreviarPlano(d.plano?.nome),
-        d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
-        String(d.ltvDias),
-        formatBRL(d.sistema),
-        formatBRL(d.acomp),
-        d.descontoCliente > 0 ? `-${formatBRL(d.descontoCliente)}` : "—",
-        formatBRL(d.receita),
+      body: linhasPdf.map((l) => [
+        l.nome, l.plano, l.venc, l.ltv,
+        formatBRL(l.sistema), formatBRL(l.acomp),
+        l.desconto > 0 ? `-${formatBRL(l.desconto)}` : "—",
+        formatBRL(l.total),
       ]),
       styles: { fontSize: 10, cellPadding: 6 },
       headStyles: { fillColor: [60, 60, 60], textColor: 255 },
@@ -1156,11 +1210,11 @@ function ResumoPage() {
       head: [["", "Valor"]],
       showHead: "never",
       body: [
-        ["Subtotal", formatBRL(fechamentoSelecionado.subtotalBruto)],
-        ...(fechamentoSelecionado.descontoTotal > 0
-          ? [["Descontos aplicados", `-${formatBRL(fechamentoSelecionado.descontoTotal)}`]]
+        ["Subtotal", formatBRL(resumoPdf.subtotalBruto)],
+        ...(resumoPdf.descontoTotal > 0
+          ? [["Descontos aplicados", `-${formatBRL(resumoPdf.descontoTotal)}`]]
           : []),
-        ["Total do fechamento", formatBRL(fechamentoSelecionado.totalReceita)],
+        ["Total do fechamento", formatBRL(resumoPdf.totalReceita)],
       ],
       styles: { fontSize: 10, cellPadding: 6 },
       columnStyles: { 0: { halign: "right", fontStyle: "bold" }, 1: { halign: "right" } },
@@ -1363,6 +1417,12 @@ function ResumoPage() {
           d.detalheCiclo?.valorTrechoAntigo != null ? Number(d.detalheCiclo.valorTrechoAntigo.toFixed(2)) : null,
         trocaValorTrechoNovo:
           d.detalheCiclo?.valorTrechoNovo != null ? Number(d.detalheCiclo.valorTrechoNovo.toFixed(2)) : null,
+        // Composição completa no momento do fechamento (lida pelos relatórios depois).
+        composicao: (() => {
+          const fimIso = isoFromDate(cicloDoCliente(d.cliente, y, m).fim);
+          const expD = explicarReceitaCliente(clienteSnapshotAt(d.cliente, movimentos, fimIso), planos);
+          return { itens: expD.itens, subtotalSistema: d.sistema, acompanhamento: d.acomp };
+        })(),
       } as Record<string, unknown>,
     }));
     // Preenche ciclo por item
@@ -2708,11 +2768,12 @@ function ResumoPage() {
               );
 
               const resumoBody = validos.map(({ cli, it, nome }, idx) => {
-                const planoAtual = planos.find((p) => p.id === cli!.planoId);
+                const snapIt = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                const planoNomeGravado = snapIt.planoNome ?? planos.find((p) => p.id === cli!.planoId)?.nome ?? "—";
                 return [
                   String(idx + 1),
                   nome,
-                  abreviarPlano(planoAtual?.nome),
+                  abreviarPlano(planoNomeGravado),
                   formatBRL(it.valorBruto || 0),
                   it.valorDesconto > 0 ? `-${formatBRL(it.valorDesconto)}` : "—",
                   formatBRL(it.valorLiquido || 0),
@@ -2752,8 +2813,8 @@ function ResumoPage() {
 
               validos.forEach(({ cli, it, nome }, idx) => {
                 if (!cli) return;
-                const planoAtual = planos.find((p) => p.id === cli.planoId);
-                const exp = explicarReceitaCliente(cli, planos);
+                const comp = composicaoDoFechamento(it, cli, planos, movimentos);
+                const planoAtual = { nome: comp.planoNome ?? undefined };
                 const movs = movimentos
                   .filter((m) => m.clienteId === cli.id)
                   .filter((m) => !it.cicloFim || m.data <= it.cicloFim)
@@ -2812,7 +2873,7 @@ function ResumoPage() {
                 pdf.text(meta.join("     "), 20, bannerY + 36);
 
                 // Total do cliente à direita do banner
-                const totalTxt = `${formatBRL(exp.total)}/mês`;
+                const totalTxt = `${formatBRL(comp.total)}/mês`;
                 pdf.setFont("helvetica", "bold");
                 pdf.setFontSize(13);
                 pdf.text(totalTxt, pageW - 40, bannerY + 28, { align: "right" });
@@ -2887,15 +2948,25 @@ function ResumoPage() {
 
                 // Composição
                 if (cursorY > pageH - 140) { pdf.addPage(); cursorY = 60; }
-                sectionTitle("Composição da mensalidade (hoje)", cursorY);
+                sectionTitle("Composição da mensalidade no fechamento", cursorY);
+                if (comp.aviso) {
+                  pdf.setTextColor(110, 110, 110);
+                  pdf.setFont("helvetica", "italic");
+                  pdf.setFontSize(8);
+                  pdf.text(comp.aviso, 40, cursorY + 16);
+                  cursorY += 12;
+                }
+                const linhaSimples = (label: string, valor: string) => [label, "", "", { content: valor, styles: { halign: "right" } }];
                 autoTable(pdf, {
                   startY: cursorY + 8,
                   head: [["Item de cobrança", "Qtd", "Unit.", "Total"]],
                   body: [
-                    ...exp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
-                    [{ content: "Custo Sistema", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: formatBRL(exp.subtotalSistema), styles: { fontStyle: "bold", fillColor: [240, 240, 240], halign: "right" } }],
-                    ["Custo Acompanhamento", "", "", { content: formatBRL(exp.acompanhamento), styles: { halign: "right" } }],
-                    [{ content: "Custo Mês (total)", styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255 } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: formatBRL(exp.total), styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255, halign: "right" } }],
+                    ...comp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
+                    [{ content: "Custo Sistema", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: formatBRL(comp.subtotalSistema), styles: { fontStyle: "bold", fillColor: [240, 240, 240], halign: "right" } }],
+                    linhaSimples("Custo Acompanhamento", formatBRL(comp.acompanhamento)),
+                    ...(comp.mauExcedenteValor > 0 ? [linhaSimples("MAU excedente", formatBRL(comp.mauExcedenteValor))] : []),
+                    ...(comp.desconto > 0 ? [linhaSimples("Desconto", `-${formatBRL(comp.desconto)}`)] : []),
+                    [{ content: "Custo Mês (total)", styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255 } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: formatBRL(comp.total), styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255, halign: "right" } }],
                   ] as any,
                   styles: { fontSize: 9, cellPadding: 5 },
                   headStyles: { fillColor: [40, 40, 40], textColor: 255 },
@@ -2942,8 +3013,8 @@ function ResumoPage() {
                         {nome} — cliente removido do cadastro.
                       </div>
                     );
-                    const planoAtual = planos.find((p) => p.id === cli.planoId);
-                    const exp = explicarReceitaCliente(cli, planos);
+                    const comp = composicaoDoFechamento(it, cli, planos, movimentos);
+                    const planoAtual = planos.find((p) => p.id === (it.planoId ?? cli.planoId));
                     const cicloFimIso = it.cicloFim ?? undefined;
                     const movs = movimentos
                       .filter((m) => m.clienteId === cli.id)
@@ -2954,11 +3025,11 @@ function ResumoPage() {
                         <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30 rounded-t-lg select-none">
                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90" />
                           <span className="font-medium text-sm">{nome}</span>
-                          <Badge variant="outline" className="text-[10px]">{abreviarPlano(planoAtual?.nome)}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{abreviarPlano(comp.planoNome ?? undefined)}</Badge>
                           {cli.dataChurn && (
                             <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">churn {fmtDate(cli.dataChurn)}</Badge>
                           )}
-                          <span className="ml-auto text-sm font-semibold text-primary">{formatBRL(exp.total)}/mês</span>
+                          <span className="ml-auto text-sm font-semibold text-primary">{formatBRL(comp.total)}/mês</span>
                         </summary>
 
                         <div className="border-t border-border/40 px-3 py-3 space-y-4">
@@ -3021,7 +3092,7 @@ function ResumoPage() {
                               </div>
                               <div className="rounded border border-border/40 px-2 py-1.5">
                                 <div className="text-muted-foreground text-[10px]">Plano</div>
-                                <div className="font-medium">{planoAtual?.nome ?? "—"}</div>
+                                <div className="font-medium">{comp.planoNome ?? "—"}</div>
                               </div>
                               <div className="rounded border border-border/40 px-2 py-1.5">
                                 <div className="text-muted-foreground text-[10px]">Valor setup pago</div>
@@ -3084,9 +3155,10 @@ function ResumoPage() {
                             )}
                           </div>
 
-                          {/* Composição atual */}
+                          {/* Composição no fechamento */}
                           <div>
-                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Composição da mensalidade (hoje)</h5>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Composição da mensalidade no fechamento</h5>
+                            {comp.aviso && <p className="text-xs text-muted-foreground italic mb-2">{comp.aviso}</p>}
                             <div className="overflow-x-auto">
                               <table className="w-full text-xs">
                                 <thead>
@@ -3098,7 +3170,7 @@ function ResumoPage() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {exp.itens.map((item, idx) => (
+                                  {comp.itens.map((item, idx) => (
                                     <tr key={idx} className="border-b border-border/20">
                                       <td className="py-1.5">
                                         {item.label}
@@ -3112,17 +3184,31 @@ function ResumoPage() {
                                   <tr className="border-b border-border/40 bg-muted/20">
                                     <td className="py-1.5 font-semibold">Custo Sistema</td>
                                     <td colSpan={2}></td>
-                                    <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(exp.subtotalSistema)}</td>
+                                    <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(comp.subtotalSistema)}</td>
                                   </tr>
                                   <tr className="border-b border-border/20">
                                     <td className="py-1.5">Custo Acompanhamento</td>
                                     <td colSpan={2}></td>
-                                    <td className="py-1.5 text-right tabular-nums">{formatBRL(exp.acompanhamento)}</td>
+                                    <td className="py-1.5 text-right tabular-nums">{formatBRL(comp.acompanhamento)}</td>
                                   </tr>
+                                  {comp.mauExcedenteValor > 0 && (
+                                    <tr className="border-b border-border/20">
+                                      <td className="py-1.5">MAU excedente</td>
+                                      <td colSpan={2}></td>
+                                      <td className="py-1.5 text-right tabular-nums">{formatBRL(comp.mauExcedenteValor)}</td>
+                                    </tr>
+                                  )}
+                                  {comp.desconto > 0 && (
+                                    <tr className="border-b border-border/20">
+                                      <td className="py-1.5">Desconto</td>
+                                      <td colSpan={2}></td>
+                                      <td className="py-1.5 text-right tabular-nums">-{formatBRL(comp.desconto)}</td>
+                                    </tr>
+                                  )}
                                   <tr className="bg-primary/5">
                                     <td className="py-2 font-semibold">Custo Mês (total)</td>
                                     <td colSpan={2}></td>
-                                    <td className="py-2 text-right font-bold text-primary tabular-nums">{formatBRL(exp.total)}</td>
+                                    <td className="py-2 text-right font-bold text-primary tabular-nums">{formatBRL(comp.total)}</td>
                                   </tr>
                                 </tbody>
                               </table>

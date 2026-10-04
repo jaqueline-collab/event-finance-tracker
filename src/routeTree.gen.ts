@@ -9,138 +9,43 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VerComoRouteImport } from './routes/ver-como'
-import { Route as UsuariosRouteImport } from './routes/usuarios'
-import { Route as TreinamentoRouteImport } from './routes/treinamento'
-import { Route as SimuladorRouteImport } from './routes/simulador'
-import { Route as ResumoRouteImport } from './routes/resumo'
-import { Route as PlanosRouteImport } from './routes/planos'
-import { Route as PerfilRouteImport } from './routes/perfil'
-import { Route as ParceirosRouteImport } from './routes/parceiros'
-import { Route as ParceiroRouteImport } from './routes/parceiro'
-import { Route as OrcamentosRouteImport } from './routes/orcamentos'
-import { Route as NovidadesRouteImport } from './routes/novidades'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as GestaoParceirosRouteImport } from './routes/gestao-parceiros'
-import { Route as FinanceiroRouteImport } from './routes/financeiro'
-import { Route as FaqRouteImport } from './routes/faq'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ConfigurarApiRouteImport } from './routes/configurar-api'
-import { Route as ClientesRouteImport } from './routes/clientes'
-import { Route as ClienteRouteImport } from './routes/cliente'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AreaDoClienteRouteImport } from './routes/area-do-cliente'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BlogIndexRouteImport } from './routes/blog.index'
-import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidades.$slug'
-import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AreaDoClienteRouteImport } from './routes/area-do-cliente'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ClienteRouteImport } from './routes/cliente'
+import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as ConfigurarApiRouteImport } from './routes/configurar-api'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as GestaoParceirosRouteImport } from './routes/gestao-parceiros'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as NovidadesRouteImport } from './routes/novidades'
+import { Route as OrcamentosRouteImport } from './routes/orcamentos'
+import { Route as ParceiroRouteImport } from './routes/parceiro'
+import { Route as ParceirosRouteImport } from './routes/parceiros'
+import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as ResumoRouteImport } from './routes/resumo'
+import { Route as SimuladorRouteImport } from './routes/simulador'
+import { Route as TreinamentoRouteImport } from './routes/treinamento'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as VerComoRouteImport } from './routes/ver-como'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as ClientesIdIntegracaoEloraRouteImport } from './routes/clientes_.$id.integracao-elora'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
+import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidades.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as ApiPublicRelatorioDiarioRegistrarRouteImport } from './routes/api/public/relatorio-diario/registrar'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as ClientesIdIntegracaoEloraRouteImport } from './routes/clientes_.$id.integracao-elora'
 import { Route as ApiPublicRelatorioDiarioListarClientesRouteImport } from './routes/api/public/relatorio-diario/listar-clientes'
+import { Route as ApiPublicRelatorioDiarioRegistrarRouteImport } from './routes/api/public/relatorio-diario/registrar'
 
-const VerComoRoute = VerComoRouteImport.update({
-  id: '/ver-como',
-  path: '/ver-como',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UsuariosRoute = UsuariosRouteImport.update({
-  id: '/usuarios',
-  path: '/usuarios',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TreinamentoRoute = TreinamentoRouteImport.update({
-  id: '/treinamento',
-  path: '/treinamento',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SimuladorRoute = SimuladorRouteImport.update({
-  id: '/simulador',
-  path: '/simulador',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResumoRoute = ResumoRouteImport.update({
-  id: '/resumo',
-  path: '/resumo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlanosRoute = PlanosRouteImport.update({
-  id: '/planos',
-  path: '/planos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PerfilRoute = PerfilRouteImport.update({
-  id: '/perfil',
-  path: '/perfil',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ParceirosRoute = ParceirosRouteImport.update({
-  id: '/parceiros',
-  path: '/parceiros',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ParceiroRoute = ParceiroRouteImport.update({
-  id: '/parceiro',
-  path: '/parceiro',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrcamentosRoute = OrcamentosRouteImport.update({
-  id: '/orcamentos',
-  path: '/orcamentos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NovidadesRoute = NovidadesRouteImport.update({
-  id: '/novidades',
-  path: '/novidades',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GestaoParceirosRoute = GestaoParceirosRouteImport.update({
-  id: '/gestao-parceiros',
-  path: '/gestao-parceiros',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FinanceiroRoute = FinanceiroRouteImport.update({
-  id: '/financeiro',
-  path: '/financeiro',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FaqRoute = FaqRouteImport.update({
-  id: '/faq',
-  path: '/faq',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigurarApiRoute = ConfigurarApiRouteImport.update({
-  id: '/configurar-api',
-  path: '/configurar-api',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientesRoute = ClientesRouteImport.update({
-  id: '/clientes',
-  path: '/clientes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClienteRoute = ClienteRouteImport.update({
-  id: '/cliente',
-  path: '/cliente',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AreaDoClienteRoute = AreaDoClienteRouteImport.update({
@@ -148,19 +53,126 @@ const AreaDoClienteRoute = AreaDoClienteRouteImport.update({
   path: '/area-do-cliente',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ClienteRoute = ClienteRouteImport.update({
+  id: '/cliente',
+  path: '/cliente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientesRoute = ClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfigurarApiRoute = ConfigurarApiRouteImport.update({
+  id: '/configurar-api',
+  path: '/configurar-api',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceiroRoute = FinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoParceirosRoute = GestaoParceirosRouteImport.update({
+  id: '/gestao-parceiros',
+  path: '/gestao-parceiros',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NovidadesRoute = NovidadesRouteImport.update({
+  id: '/novidades',
+  path: '/novidades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrcamentosRoute = OrcamentosRouteImport.update({
+  id: '/orcamentos',
+  path: '/orcamentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParceiroRoute = ParceiroRouteImport.update({
+  id: '/parceiro',
+  path: '/parceiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParceirosRoute = ParceirosRouteImport.update({
+  id: '/parceiros',
+  path: '/parceiros',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanosRoute = PlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumoRoute = ResumoRouteImport.update({
+  id: '/resumo',
+  path: '/resumo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimuladorRoute = SimuladorRouteImport.update({
+  id: '/simulador',
+  path: '/simulador',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TreinamentoRoute = TreinamentoRouteImport.update({
+  id: '/treinamento',
+  path: '/treinamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerComoRoute = VerComoRouteImport.update({
+  id: '/ver-como',
+  path: '/ver-como',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
   path: '/blog/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FuncionalidadesSlugRoute = FuncionalidadesSlugRouteImport.update({
-  id: '/funcionalidades/$slug',
-  path: '/funcionalidades/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogSlugRoute = BlogSlugRouteImport.update({
@@ -168,21 +180,20 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
   path: '/blog/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => AuthRoute,
+const FuncionalidadesSlugRoute = FuncionalidadesSlugRouteImport.update({
+  id: '/funcionalidades/$slug',
+  path: '/funcionalidades/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ClientesIdIntegracaoEloraRoute =
@@ -191,27 +202,16 @@ const ClientesIdIntegracaoEloraRoute =
     path: '/clientes/$id/integracao-elora',
     getParentRoute: () => rootRouteImport,
   } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicRelatorioDiarioRegistrarRoute =
-  ApiPublicRelatorioDiarioRegistrarRouteImport.update({
-    id: '/api/public/relatorio-diario/registrar',
-    path: '/api/public/relatorio-diario/registrar',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicRelatorioDiarioListarClientesRoute =
   ApiPublicRelatorioDiarioListarClientesRouteImport.update({
     id: '/api/public/relatorio-diario/listar-clientes',
     path: '/api/public/relatorio-diario/listar-clientes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicRelatorioDiarioRegistrarRoute =
+  ApiPublicRelatorioDiarioRegistrarRouteImport.update({
+    id: '/api/public/relatorio-diario/registrar',
+    path: '/api/public/relatorio-diario/registrar',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -466,144 +466,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/ver-como': {
-      id: '/ver-como'
-      path: '/ver-como'
-      fullPath: '/ver-como'
-      preLoaderRoute: typeof VerComoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/usuarios': {
-      id: '/usuarios'
-      path: '/usuarios'
-      fullPath: '/usuarios'
-      preLoaderRoute: typeof UsuariosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/treinamento': {
-      id: '/treinamento'
-      path: '/treinamento'
-      fullPath: '/treinamento'
-      preLoaderRoute: typeof TreinamentoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/simulador': {
-      id: '/simulador'
-      path: '/simulador'
-      fullPath: '/simulador'
-      preLoaderRoute: typeof SimuladorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/resumo': {
-      id: '/resumo'
-      path: '/resumo'
-      fullPath: '/resumo'
-      preLoaderRoute: typeof ResumoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/planos': {
-      id: '/planos'
-      path: '/planos'
-      fullPath: '/planos'
-      preLoaderRoute: typeof PlanosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/perfil': {
-      id: '/perfil'
-      path: '/perfil'
-      fullPath: '/perfil'
-      preLoaderRoute: typeof PerfilRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/parceiros': {
-      id: '/parceiros'
-      path: '/parceiros'
-      fullPath: '/parceiros'
-      preLoaderRoute: typeof ParceirosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/parceiro': {
-      id: '/parceiro'
-      path: '/parceiro'
-      fullPath: '/parceiro'
-      preLoaderRoute: typeof ParceiroRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orcamentos': {
-      id: '/orcamentos'
-      path: '/orcamentos'
-      fullPath: '/orcamentos'
-      preLoaderRoute: typeof OrcamentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/novidades': {
-      id: '/novidades'
-      path: '/novidades'
-      fullPath: '/novidades'
-      preLoaderRoute: typeof NovidadesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/gestao-parceiros': {
-      id: '/gestao-parceiros'
-      path: '/gestao-parceiros'
-      fullPath: '/gestao-parceiros'
-      preLoaderRoute: typeof GestaoParceirosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/financeiro': {
-      id: '/financeiro'
-      path: '/financeiro'
-      fullPath: '/financeiro'
-      preLoaderRoute: typeof FinanceiroRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faq': {
-      id: '/faq'
-      path: '/faq'
-      fullPath: '/faq'
-      preLoaderRoute: typeof FaqRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/configurar-api': {
-      id: '/configurar-api'
-      path: '/configurar-api'
-      fullPath: '/configurar-api'
-      preLoaderRoute: typeof ConfigurarApiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clientes': {
-      id: '/clientes'
-      path: '/clientes'
-      fullPath: '/clientes'
-      preLoaderRoute: typeof ClientesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cliente': {
-      id: '/cliente'
-      path: '/cliente'
-      fullPath: '/cliente'
-      preLoaderRoute: typeof ClienteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/area-do-cliente': {
@@ -613,46 +480,144 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AreaDoClienteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/blog/': {
-      id: '/blog/'
-      path: '/blog'
-      fullPath: '/blog/'
-      preLoaderRoute: typeof BlogIndexRouteImport
+    '/cliente': {
+      id: '/cliente'
+      path: '/cliente'
+      fullPath: '/cliente'
+      preLoaderRoute: typeof ClienteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/funcionalidades/$slug': {
-      id: '/funcionalidades/$slug'
-      path: '/funcionalidades/$slug'
-      fullPath: '/funcionalidades/$slug'
-      preLoaderRoute: typeof FuncionalidadesSlugRouteImport
+    '/clientes': {
+      id: '/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof ClientesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/blog/$slug': {
-      id: '/blog/$slug'
-      path: '/blog/$slug'
-      fullPath: '/blog/$slug'
-      preLoaderRoute: typeof BlogSlugRouteImport
+    '/configurar-api': {
+      id: '/configurar-api'
+      path: '/configurar-api'
+      fullPath: '/configurar-api'
+      preLoaderRoute: typeof ConfigurarApiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof AuthRoute
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financeiro': {
+      id: '/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-parceiros': {
+      id: '/gestao-parceiros'
+      path: '/gestao-parceiros'
+      fullPath: '/gestao-parceiros'
+      preLoaderRoute: typeof GestaoParceirosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/novidades': {
+      id: '/novidades'
+      path: '/novidades'
+      fullPath: '/novidades'
+      preLoaderRoute: typeof NovidadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orcamentos': {
+      id: '/orcamentos'
+      path: '/orcamentos'
+      fullPath: '/orcamentos'
+      preLoaderRoute: typeof OrcamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parceiro': {
+      id: '/parceiro'
+      path: '/parceiro'
+      fullPath: '/parceiro'
+      preLoaderRoute: typeof ParceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parceiros': {
+      id: '/parceiros'
+      path: '/parceiros'
+      fullPath: '/parceiros'
+      preLoaderRoute: typeof ParceirosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planos': {
+      id: '/planos'
+      path: '/planos'
+      fullPath: '/planos'
+      preLoaderRoute: typeof PlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resumo': {
+      id: '/resumo'
+      path: '/resumo'
+      fullPath: '/resumo'
+      preLoaderRoute: typeof ResumoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulador': {
+      id: '/simulador'
+      path: '/simulador'
+      fullPath: '/simulador'
+      preLoaderRoute: typeof SimuladorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/treinamento': {
+      id: '/treinamento'
+      path: '/treinamento'
+      fullPath: '/treinamento'
+      preLoaderRoute: typeof TreinamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ver-como': {
+      id: '/ver-como'
+      path: '/ver-como'
+      fullPath: '/ver-como'
+      preLoaderRoute: typeof VerComoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -662,18 +627,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/clientes_/$id/integracao-elora': {
-      id: '/clientes_/$id/integracao-elora'
-      path: '/clientes/$id/integracao-elora'
-      fullPath: '/clientes/$id/integracao-elora'
-      preLoaderRoute: typeof ClientesIdIntegracaoEloraRouteImport
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/funcionalidades/$slug': {
+      id: '/funcionalidades/$slug'
+      path: '/funcionalidades/$slug'
+      fullPath: '/funcionalidades/$slug'
+      preLoaderRoute: typeof FuncionalidadesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -683,11 +669,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/relatorio-diario/registrar': {
-      id: '/api/public/relatorio-diario/registrar'
-      path: '/api/public/relatorio-diario/registrar'
-      fullPath: '/api/public/relatorio-diario/registrar'
-      preLoaderRoute: typeof ApiPublicRelatorioDiarioRegistrarRouteImport
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clientes_/$id/integracao-elora': {
+      id: '/clientes_/$id/integracao-elora'
+      path: '/clientes/$id/integracao-elora'
+      fullPath: '/clientes/$id/integracao-elora'
+      preLoaderRoute: typeof ClientesIdIntegracaoEloraRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/relatorio-diario/listar-clientes': {
@@ -695,6 +688,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/relatorio-diario/listar-clientes'
       fullPath: '/api/public/relatorio-diario/listar-clientes'
       preLoaderRoute: typeof ApiPublicRelatorioDiarioListarClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/relatorio-diario/registrar': {
+      id: '/api/public/relatorio-diario/registrar'
+      path: '/api/public/relatorio-diario/registrar'
+      fullPath: '/api/public/relatorio-diario/registrar'
+      preLoaderRoute: typeof ApiPublicRelatorioDiarioRegistrarRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

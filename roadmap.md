@@ -21,3 +21,6 @@
 - [x] Migração 0011: campos_personalizados, elora_dashboard_widgets com RLS/grants, índices por cliente/data e widgets padrão
 - [x] Sincronização seletiva (só campos referenciados por widgets) e filtros aplicados apenas na leitura
 - [x] Churn: diálogo de exportar (CSV/XLSX/Google Sheets) e apagar apenas dados da integração, preservando o financeiro
+
+- [x] Relatórios de fechamento fiéis ao que foi faturado (PDFs leem o fechamento gravado)
+- [ ] Corrigir movimento WhatsApp +1 da DISTRIBOX (aguarda aprovação)
