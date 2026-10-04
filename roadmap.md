@@ -24,3 +24,4 @@
 
 - [x] Relatórios de fechamento fiéis ao que foi faturado (PDFs leem o fechamento gravado)
 - [ ] Corrigir movimento WhatsApp +1 da DISTRIBOX (aguarda aprovação)
+- [x] Disponibilizar auditoria do fechamento para o parceiro

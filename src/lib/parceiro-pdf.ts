@@ -140,3 +140,115 @@ export function gerarPdfResumoFechamento(d: PdfResumoFechamento) {
   const nome = `${d.titulo}-${d.competencia}`.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
   doc.save(`resumo-${nome}.pdf`);
 }
+
+export type PdfAuditoriaFechamento = {
+  titulo: string;
+  competencia: string;
+  ciclo: string;
+  geradoEm: string;
+  clientes: {
+    clienteNome: string;
+    ciclo: string;
+    bruto: number;
+    desconto: number;
+    liquido: number;
+    composicao: {
+      planoNome: string | null;
+      itens: { label: string; qtd: number; unit: number; total: number; incluso?: string }[];
+      subtotalSistema: number;
+      acompanhamento: number;
+      mauExcedenteValor: number;
+      desconto: number;
+      total: number;
+      aviso: string | null;
+    };
+    movimentos: { data: string; tipo: string; descricao: string; valor: number }[];
+  }[];
+};
+
+const brlPdf = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const dataPdf = (iso: string) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—");
+
+/** PDF de auditoria do fechamento: resumo + composição e linha do tempo por cliente. */
+export function gerarPdfAuditoriaFechamento(d: PdfAuditoriaFechamento) {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const m = 40;
+  let y = m;
+  doc.setFontSize(16);
+  doc.text(`Auditoria do fechamento · ${d.titulo}`, m, y);
+  y += 18;
+  doc.setFontSize(10);
+  for (const t of [`Competência: ${d.competencia}`, `Ciclo: ${d.ciclo}`, `Gerado em: ${d.geradoEm}`]) {
+    doc.text(t, m, y);
+    y += 14;
+  }
+  const tot = d.clientes.reduce(
+    (s, c) => ({ b: s.b + c.bruto, d: s.d + c.desconto, l: s.l + c.liquido }),
+    { b: 0, d: 0, l: 0 },
+  );
+  autoTable(doc, {
+    startY: y + 4,
+    head: [["Cliente", "Plano", "Bruto", "Desconto", "Líquido"]],
+    body: d.clientes.map((c) => [c.clienteNome, c.composicao.planoNome ?? "—", brlPdf(c.bruto), brlPdf(c.desconto), brlPdf(c.liquido)]),
+    foot: [["Total da sua carteira", "", brlPdf(tot.b), brlPdf(tot.d), brlPdf(tot.l)]],
+    styles: { fontSize: 8, cellPadding: 4 },
+    headStyles: { fillColor: [30, 41, 59] },
+    footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: "bold" },
+    columnStyles: { 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
+    margin: { left: m, right: m },
+  });
+
+  for (const c of d.clientes) {
+    doc.addPage();
+    doc.setFontSize(13);
+    doc.text(`${c.clienteNome} · ${brlPdf(c.liquido)}/mês`, m, m);
+    doc.setFontSize(9);
+    doc.text(`Plano: ${c.composicao.planoNome ?? "—"}   Ciclo: ${c.ciclo}`, m, m + 16);
+    doc.setFontSize(11);
+    doc.text("Composição da mensalidade no fechamento", m, m + 36);
+    const comp = c.composicao;
+    const corpo: string[][] = comp.itens.map((i) => [
+      i.label + (i.incluso ? ` (${i.incluso})` : ""),
+      String(i.qtd),
+      brlPdf(i.unit),
+      brlPdf(i.total),
+    ]);
+    corpo.push(["Sistema", "", "", brlPdf(comp.subtotalSistema)]);
+    if (comp.acompanhamento) corpo.push(["Acompanhamento", "", "", brlPdf(comp.acompanhamento)]);
+    if (comp.mauExcedenteValor) corpo.push(["MAU excedente", "", "", brlPdf(comp.mauExcedenteValor)]);
+    if (comp.desconto) corpo.push(["Desconto", "", "", `- ${brlPdf(comp.desconto)}`]);
+    autoTable(doc, {
+      startY: m + 44,
+      head: [["Item", "Qtd", "Unitário", "Total"]],
+      body: corpo,
+      foot: [["Total", "", "", brlPdf(comp.total)]],
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [30, 41, 59] },
+      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: "bold" },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      margin: { left: m, right: m },
+    });
+    let yy = (doc as any).lastAutoTable.finalY + 14;
+    if (comp.aviso) {
+      doc.setFontSize(8);
+      doc.text(comp.aviso, m, yy);
+      yy += 12;
+    }
+    doc.setFontSize(11);
+    doc.text("Linha do tempo de movimentos (até o fim do ciclo)", m, yy + 6);
+    autoTable(doc, {
+      startY: yy + 14,
+      head: [["Data", "Movimento", "Descrição", "Impacto"]],
+      body:
+        c.movimentos.length > 0
+          ? c.movimentos.map((mv) => [dataPdf(mv.data), mv.tipo, mv.descricao || "—", mv.valor ? brlPdf(mv.valor) : "—"])
+          : [["—", "—", "Sem movimentos registrados.", "—"]],
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [30, 41, 59] },
+      columnStyles: { 0: { cellWidth: 60 }, 1: { cellWidth: 90 }, 3: { halign: "right", cellWidth: 80 } },
+      margin: { left: m, right: m },
+    });
+  }
+  const nome = `${d.titulo}-${d.competencia}`.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
+  doc.save(`auditoria-${nome}.pdf`);
+}
