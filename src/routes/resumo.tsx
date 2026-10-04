@@ -2942,8 +2942,7 @@ function ResumoPage() {
                         {nome} — cliente removido do cadastro.
                       </div>
                     );
-                    const planoAtual = planos.find((p) => p.id === cli.planoId);
-                    const exp = explicarReceitaCliente(cli, planos);
+                    const comp = composicaoDoFechamento(it, cli, planos, movimentos);
                     const cicloFimIso = it.cicloFim ?? undefined;
                     const movs = movimentos
                       .filter((m) => m.clienteId === cli.id)
@@ -2954,7 +2953,7 @@ function ResumoPage() {
                         <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30 rounded-t-lg select-none">
                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90" />
                           <span className="font-medium text-sm">{nome}</span>
-                          <Badge variant="outline" className="text-[10px]">{abreviarPlano(planoAtual?.nome)}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{abreviarPlano(comp.planoNome ?? undefined)}</Badge>
                           {cli.dataChurn && (
                             <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">churn {fmtDate(cli.dataChurn)}</Badge>
                           )}
@@ -3084,9 +3083,10 @@ function ResumoPage() {
                             )}
                           </div>
 
-                          {/* Composição atual */}
+                          {/* Composição no fechamento */}
                           <div>
-                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Composição da mensalidade (hoje)</h5>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Composição da mensalidade no fechamento</h5>
+                            {comp.aviso && <p className="text-xs text-muted-foreground italic mb-2">{comp.aviso}</p>}
                             <div className="overflow-x-auto">
                               <table className="w-full text-xs">
                                 <thead>
@@ -3098,7 +3098,7 @@ function ResumoPage() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {exp.itens.map((item, idx) => (
+                                  {comp.itens.map((item, idx) => (
                                     <tr key={idx} className="border-b border-border/20">
                                       <td className="py-1.5">
                                         {item.label}
@@ -3112,17 +3112,31 @@ function ResumoPage() {
                                   <tr className="border-b border-border/40 bg-muted/20">
                                     <td className="py-1.5 font-semibold">Custo Sistema</td>
                                     <td colSpan={2}></td>
-                                    <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(exp.subtotalSistema)}</td>
+                                    <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(comp.subtotalSistema)}</td>
                                   </tr>
                                   <tr className="border-b border-border/20">
                                     <td className="py-1.5">Custo Acompanhamento</td>
                                     <td colSpan={2}></td>
-                                    <td className="py-1.5 text-right tabular-nums">{formatBRL(exp.acompanhamento)}</td>
+                                    <td className="py-1.5 text-right tabular-nums">{formatBRL(comp.acompanhamento)}</td>
                                   </tr>
+                                  {comp.mauExcedenteValor > 0 && (
+                                    <tr className="border-b border-border/20">
+                                      <td className="py-1.5">MAU excedente</td>
+                                      <td colSpan={2}></td>
+                                      <td className="py-1.5 text-right tabular-nums">{formatBRL(comp.mauExcedenteValor)}</td>
+                                    </tr>
+                                  )}
+                                  {comp.desconto > 0 && (
+                                    <tr className="border-b border-border/20">
+                                      <td className="py-1.5">Desconto</td>
+                                      <td colSpan={2}></td>
+                                      <td className="py-1.5 text-right tabular-nums">-{formatBRL(comp.desconto)}</td>
+                                    </tr>
+                                  )}
                                   <tr className="bg-primary/5">
                                     <td className="py-2 font-semibold">Custo Mês (total)</td>
                                     <td colSpan={2}></td>
-                                    <td className="py-2 text-right font-bold text-primary tabular-nums">{formatBRL(exp.total)}</td>
+                                    <td className="py-2 text-right font-bold text-primary tabular-nums">{formatBRL(comp.total)}</td>
                                   </tr>
                                 </tbody>
                               </table>
