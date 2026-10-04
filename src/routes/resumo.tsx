@@ -1417,6 +1417,12 @@ function ResumoPage() {
           d.detalheCiclo?.valorTrechoAntigo != null ? Number(d.detalheCiclo.valorTrechoAntigo.toFixed(2)) : null,
         trocaValorTrechoNovo:
           d.detalheCiclo?.valorTrechoNovo != null ? Number(d.detalheCiclo.valorTrechoNovo.toFixed(2)) : null,
+        // Composição completa no momento do fechamento (lida pelos relatórios depois).
+        composicao: (() => {
+          const fimIso = isoFromDate(cicloDoCliente(d.cliente, y, m).fim);
+          const expD = explicarReceitaCliente(clienteSnapshotAt(d.cliente, movimentos, fimIso), planos);
+          return { itens: expD.itens, subtotalSistema: d.sistema, acompanhamento: d.acomp };
+        })(),
       } as Record<string, unknown>,
     }));
     // Preenche ciclo por item
