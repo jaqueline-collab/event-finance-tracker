@@ -52,7 +52,7 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
-  const errorMessage = error?.message || String(error || "Erro desconhecido");
+  const errorMessage = (error instanceof Error ? error.message : "") || String(error || "Erro desconhecido");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
