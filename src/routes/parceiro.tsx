@@ -4,13 +4,14 @@ import { z } from "zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  getAuditoriaFechamentoParceiro,
   getFinanceiroParceiro,
   getPainelParceiro,
   getPlanosCalculadoraParceiro,
 } from "@/lib/parceiro.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { baixarNotaFiscal } from "@/lib/notas-fiscais.functions";
-import { gerarPdfClientesParceiro, gerarPdfResumoFechamento } from "@/lib/parceiro-pdf";
+import { gerarPdfAuditoriaFechamento, gerarPdfClientesParceiro, gerarPdfResumoFechamento } from "@/lib/parceiro-pdf";
 import {
   calcularMargemParceiro,
   calcularOrcamentoParceiro,
@@ -1050,6 +1051,7 @@ function AreaParceiro() {
               setFechAberto={setFechAberto}
               sub={sub}
               onSub={(v) => navigate({ search: (s: any) => ({ ...s, sub: v }) })}
+              verComoParceiroId={modoAdmin ? como.trim() : undefined}
             />
           ) : aba === "treinamento" ? (
             <PainelTreinamento audiencia="parceiro" />
@@ -1397,6 +1399,7 @@ function FinanceiroParceiro({
   setFechAberto,
   sub,
   onSub,
+  verComoParceiroId,
 }: {
   carregando: boolean;
   erro: string | null;
@@ -1405,8 +1408,11 @@ function FinanceiroParceiro({
   setFechAberto: (v: string | null) => void;
   sub: SubFinanceiro;
   onSub: (v: SubFinanceiro) => void;
+  verComoParceiroId?: string;
 }) {
   const fnBaixar = useServerFn(baixarNotaFiscal);
+  const fnAuditoria = useServerFn(getAuditoriaFechamentoParceiro);
+  const [auditandoId, setAuditandoId] = useState<string | null>(null);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
   const [previa, setPrevia] = useState<{
     id: string;
@@ -1672,6 +1678,44 @@ function FinanceiroParceiro({
                 >
                   <Download className="h-4 w-4" />
                 </Button>
+                {dados?.veValores && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    disabled={auditandoId === f.id}
+                    aria-label={`Baixar auditoria de ${f.titulo}`}
+                    title="Baixar auditoria do fechamento (PDF)"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setAuditandoId(f.id);
+                      try {
+                        const r = await fnAuditoria({ data: { fechamentoId: f.id, verComoParceiroId } });
+                        gerarPdfAuditoriaFechamento({
+                          titulo: f.titulo,
+                          competencia: f.competencia,
+                          ciclo: f.cicloInicio && f.cicloFim ? `${dataBr(f.cicloInicio)} a ${dataBr(f.cicloFim)}` : "—",
+                          geradoEm: new Date().toLocaleString("pt-BR"),
+                          clientes: r.clientes.map((c) => ({
+                            clienteNome: c.clienteNome,
+                            ciclo: c.cicloInicio && c.cicloFim ? `${dataBr(c.cicloInicio)} a ${dataBr(c.cicloFim)}` : "—",
+                            bruto: c.valorBruto,
+                            desconto: c.valorDesconto,
+                            liquido: c.valorLiquido,
+                            composicao: c.composicao,
+                            movimentos: c.movimentos,
+                          })),
+                        });
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Não foi possível gerar a auditoria.");
+                      } finally {
+                        setAuditandoId(null);
+                      }
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" /> Auditoria
+                  </Button>
+                )}
               </div>
             </CardHeader>
             {expandido && (
