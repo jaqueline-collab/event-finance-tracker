@@ -246,3 +246,60 @@ export function montarRelatorioParceiro(params: {
     composicao: veValores ? { sistema, acompanhamento } : null,
   };
 }
+
+export type SituacaoComparacao = "novo" | "saiu" | "aumentou" | "reduziu" | "igual";
+
+export type LinhaComparacao = {
+  clienteId: string;
+  clienteNome: string;
+  liquidoA: number | null;
+  liquidoB: number | null;
+  diferenca: number;
+  situacao: SituacaoComparacao;
+};
+
+/** Compara dois fechamentos do parceiro por cliente, usando só o líquido gravado. */
+export function compararFechamentos(a: FechamentoParceiro, b: FechamentoParceiro) {
+  const soma = (f: FechamentoParceiro) => {
+    const m = new Map<string, { nome: string; v: number }>();
+    for (const l of f.linhas) {
+      const atual = m.get(l.clienteId) ?? { nome: l.clienteNome, v: 0 };
+      atual.v += l.valorLiquido;
+      m.set(l.clienteId, atual);
+    }
+    return m;
+  };
+  const ma = soma(a);
+  const mb = soma(b);
+  const ids = new Set([...ma.keys(), ...mb.keys()]);
+  const linhas: LinhaComparacao[] = [...ids].map((id) => {
+    const va = ma.get(id);
+    const vb = mb.get(id);
+    const liquidoA = va ? va.v : null;
+    const liquidoB = vb ? vb.v : null;
+    const diferenca = Math.round(((liquidoB ?? 0) - (liquidoA ?? 0)) * 100) / 100;
+    const situacao: SituacaoComparacao = !va
+      ? "novo"
+      : !vb
+        ? "saiu"
+        : diferenca > 0
+          ? "aumentou"
+          : diferenca < 0
+            ? "reduziu"
+            : "igual";
+    return { clienteId: id, clienteNome: (vb ?? va)!.nome, liquidoA, liquidoB, diferenca, situacao };
+  });
+  linhas.sort((x, y) => x.clienteNome.localeCompare(y.clienteNome, "pt-BR"));
+  const totalA = a.totalLiquido;
+  const totalB = b.totalLiquido;
+  const diferenca = Math.round((totalB - totalA) * 100) / 100;
+  return {
+    totalA,
+    totalB,
+    diferenca,
+    percentual: totalA ? (diferenca / totalA) * 100 : null,
+    clientesA: ma.size,
+    clientesB: mb.size,
+    linhas,
+  };
+}
