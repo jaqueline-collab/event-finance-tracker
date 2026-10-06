@@ -63,9 +63,13 @@ import {
   YAxis,
 } from "recharts";
 import {
+  compararFechamentos,
   montarRelatorioParceiro,
+  type FechamentoParceiro,
   type ItemRelatorioParceiro,
+  type SituacaoComparacao,
 } from "@/lib/parceiro.financeiro";
+import type { AuditoriaClienteParceiro } from "@/lib/parceiro.functions";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -1413,6 +1417,8 @@ function FinanceiroParceiro({
   const fnBaixar = useServerFn(baixarNotaFiscal);
   const fnAuditoria = useServerFn(getAuditoriaFechamentoParceiro);
   const [auditandoId, setAuditandoId] = useState<string | null>(null);
+  const [verAuditoria, setVerAuditoria] = useState<FechamentoParceiro | null>(null);
+  const [comparando, setComparando] = useState(false);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
   const [previa, setPrevia] = useState<{
     id: string;
@@ -1626,6 +1632,23 @@ function FinanceiroParceiro({
   return (
     <div className="space-y-3">
       <AlternadorSub sub={sub} onSub={onSub} />
+      {fechamentos.length >= 2 && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setComparando(true)}>
+            Comparar fechamentos
+          </Button>
+        </div>
+      )}
+      <ComparacaoFechamentosDialog
+        aberto={comparando}
+        onFechar={() => setComparando(false)}
+        fechamentos={fechamentos}
+      />
+      <AuditoriaFechamentoDialog
+        fechamento={verAuditoria}
+        onFechar={() => setVerAuditoria(null)}
+        verComoParceiroId={verComoParceiroId}
+      />
       {fechamentos.map((f) => {
         const expandido = fechAberto === f.id;
         const vencLabel = f.vencimento
@@ -1691,21 +1714,7 @@ function FinanceiroParceiro({
                       setAuditandoId(f.id);
                       try {
                         const r = await fnAuditoria({ data: { fechamentoId: f.id, verComoParceiroId } });
-                        gerarPdfAuditoriaFechamento({
-                          titulo: f.titulo,
-                          competencia: f.competencia,
-                          ciclo: f.cicloInicio && f.cicloFim ? `${dataBr(f.cicloInicio)} a ${dataBr(f.cicloFim)}` : "—",
-                          geradoEm: new Date().toLocaleString("pt-BR"),
-                          clientes: r.clientes.map((c) => ({
-                            clienteNome: c.clienteNome,
-                            ciclo: c.cicloInicio && c.cicloFim ? `${dataBr(c.cicloInicio)} a ${dataBr(c.cicloFim)}` : "—",
-                            bruto: c.valorBruto,
-                            desconto: c.valorDesconto,
-                            liquido: c.valorLiquido,
-                            composicao: c.composicao,
-                            movimentos: c.movimentos,
-                          })),
-                        });
+                        baixarPdfAuditoria(f, r.clientes);
                       } catch (err) {
                         toast.error(err instanceof Error ? err.message : "Não foi possível gerar a auditoria.");
                       } finally {
@@ -1714,6 +1723,19 @@ function FinanceiroParceiro({
                     }}
                   >
                     <Download className="h-3.5 w-3.5" /> Auditoria
+                  </Button>
+                )}
+                {dados?.veValores && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVerAuditoria(f);
+                    }}
+                  >
+                    Ver auditoria
                   </Button>
                 )}
               </div>
@@ -1909,5 +1931,347 @@ function RelatoriosParceiro({
         </Card>
       )}
     </div>
+  );
+}
+
+function baixarPdfAuditoria(f: FechamentoParceiro, clientes: AuditoriaClienteParceiro[]) {
+  gerarPdfAuditoriaFechamento({
+    titulo: f.titulo,
+    competencia: f.competencia,
+    ciclo: f.cicloInicio && f.cicloFim ? `${dataBr(f.cicloInicio)} a ${dataBr(f.cicloFim)}` : "—",
+    geradoEm: new Date().toLocaleString("pt-BR"),
+    clientes: clientes.map((c) => ({
+      clienteNome: c.clienteNome,
+      ciclo: c.cicloInicio && c.cicloFim ? `${dataBr(c.cicloInicio)} a ${dataBr(c.cicloFim)}` : "—",
+      bruto: c.valorBruto,
+      desconto: c.valorDesconto,
+      liquido: c.valorLiquido,
+      composicao: c.composicao,
+      movimentos: c.movimentos,
+    })),
+  });
+}
+
+function AuditoriaFechamentoDialog({
+  fechamento,
+  onFechar,
+  verComoParceiroId,
+}: {
+  fechamento: FechamentoParceiro | null;
+  onFechar: () => void;
+  verComoParceiroId?: string;
+}) {
+  const fn = useServerFn(getAuditoriaFechamentoParceiro);
+  const [clientes, setClientes] = useState<AuditoriaClienteParceiro[] | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState<string | null>(null);
+  const pedido = useRef(0);
+
+  useEffect(() => {
+    setClientes(null);
+    setErro(null);
+    setBusca("");
+    setAberto(null);
+    if (!fechamento) return;
+    const n = ++pedido.current;
+    fn({ data: { fechamentoId: fechamento.id, verComoParceiroId } })
+      .then((r) => n === pedido.current && setClientes(r.clientes))
+      .catch((e) => n === pedido.current && setErro(e instanceof Error ? e.message : "Erro ao carregar."));
+  }, [fechamento?.id, verComoParceiroId]);
+
+  const filtrados = (clientes ?? []).filter((c) =>
+    c.clienteNome.toLowerCase().includes(busca.trim().toLowerCase()),
+  );
+  const tot = (clientes ?? []).reduce(
+    (s, c) => ({ b: s.b + c.valorBruto, d: s.d + c.valorDesconto, l: s.l + c.valorLiquido }),
+    { b: 0, d: 0, l: 0 },
+  );
+
+  return (
+    <Dialog open={Boolean(fechamento)} onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-4xl flex-col gap-3 overflow-hidden sm:h-auto sm:max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Auditoria · {fechamento?.titulo}</DialogTitle>
+          <DialogDescription>
+            Competência {fechamento?.competencia}. Valores gravados no fechamento.
+          </DialogDescription>
+        </DialogHeader>
+        {erro && <p className="text-sm text-destructive">{erro}</p>}
+        {!clientes && !erro && <Skeleton className="h-40 w-full" />}
+        {clientes && (
+          <>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                ["Bruto", tot.b],
+                ["Desconto", tot.d],
+                ["Líquido", tot.l],
+              ].map(([k, v]) => (
+                <div key={k as string} className="rounded-md border bg-muted/40 p-2">
+                  <p className="text-[11px] text-muted-foreground">{k}</p>
+                  <p className="text-sm font-semibold">{brl(v as number)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                placeholder="Buscar cliente"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="h-9 flex-1"
+              />
+              <span className="text-xs text-muted-foreground">{clientes.length} clientes</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                onClick={() => fechamento && baixarPdfAuditoria(fechamento, clientes)}
+              >
+                <Download className="h-3.5 w-3.5" /> Baixar PDF
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              {filtrados.map((c) => {
+                const exp = aberto === c.clienteNome;
+                const comp = c.composicao;
+                return (
+                  <div key={c.clienteNome} className="rounded-md border">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 p-3 text-left"
+                      onClick={() => setAberto(exp ? null : c.clienteNome)}
+                    >
+                      {exp ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <span className="flex-1 text-sm font-medium">
+                        {c.clienteNome}
+                        {comp.planoNome && (
+                          <span className="block text-xs font-normal text-muted-foreground">{comp.planoNome}</span>
+                        )}
+                      </span>
+                      <span className="text-sm font-semibold">{brl(c.valorLiquido)}/mês</span>
+                    </button>
+                    {exp && (
+                      <div className="space-y-3 border-t p-3">
+                        <p className="text-xs font-semibold">Composição da mensalidade no fechamento</p>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Item</TableHead>
+                                <TableHead className="text-right">Qtd</TableHead>
+                                <TableHead className="text-right">Unitário</TableHead>
+                                <TableHead className="text-right">Total</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {comp.itens.map((i, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="text-xs">
+                                    {i.label}
+                                    {i.incluso && <span className="text-muted-foreground"> ({i.incluso})</span>}
+                                  </TableCell>
+                                  <TableCell className="text-right text-xs">{i.qtd}</TableCell>
+                                  <TableCell className="text-right text-xs">{brl(i.unit)}</TableCell>
+                                  <TableCell className="text-right text-xs">{brl(i.total)}</TableCell>
+                                </TableRow>
+                              ))}
+                              {(
+                                [
+                                  ["Sistema", comp.subtotalSistema],
+                                  ["Acompanhamento", comp.acompanhamento],
+                                  ["MAU excedente", comp.mauExcedenteValor],
+                                  ["Desconto", -comp.desconto],
+                                ] as [string, number][]
+                              )
+                                .filter(([k, v]) => k === "Sistema" || v !== 0)
+                                .map(([k, v]) => (
+                                  <TableRow key={k}>
+                                    <TableCell colSpan={3} className="text-xs">{k}</TableCell>
+                                    <TableCell className="text-right text-xs">{brl(v)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              <TableRow>
+                                <TableCell colSpan={3} className="text-xs font-semibold">Total</TableCell>
+                                <TableCell className="text-right text-xs font-semibold">{brl(comp.total)}</TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </div>
+                        {comp.aviso && <p className="text-xs text-muted-foreground">{comp.aviso}</p>}
+                        <p className="text-xs font-semibold">Linha do tempo (até o fim do ciclo)</p>
+                        {c.movimentos.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Sem movimentos registrados.</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {c.movimentos.map((m, idx) => (
+                              <li key={idx} className="flex flex-wrap gap-x-3 text-xs">
+                                <span className="w-20 text-muted-foreground">{dataBr(m.data)}</span>
+                                <Badge variant="outline" className="text-[10px]">{m.tipo}</Badge>
+                                <span className="flex-1">{m.descricao || "—"}</span>
+                                {m.valor !== 0 && <span className="font-medium">{brl(m.valor)}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {filtrados.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+              )}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const ROTULO_SITUACAO: Record<SituacaoComparacao, string> = {
+  novo: "Novo",
+  saiu: "Saiu",
+  aumentou: "Aumentou",
+  reduziu: "Reduziu",
+  igual: "Igual",
+};
+
+function ComparacaoFechamentosDialog({
+  aberto,
+  onFechar,
+  fechamentos,
+}: {
+  aberto: boolean;
+  onFechar: () => void;
+  fechamentos: FechamentoParceiro[];
+}) {
+  const [idA, setIdA] = useState("");
+  const [idB, setIdB] = useState("");
+  const [filtro, setFiltro] = useState<"todas" | SituacaoComparacao>("todas");
+  useEffect(() => {
+    if (aberto && fechamentos.length >= 2) {
+      setIdB(fechamentos[0].id);
+      setIdA(fechamentos[1].id);
+      setFiltro("todas");
+    }
+  }, [aberto]);
+  const a = fechamentos.find((f) => f.id === idA);
+  const b = fechamentos.find((f) => f.id === idB);
+  const r = a && b ? compararFechamentos(a, b) : null;
+  const linhas = r ? r.linhas.filter((l) => filtro === "todas" || l.situacao === filtro) : [];
+  const corDif = (v: number) => (v > 0 ? "text-success" : v < 0 ? "text-destructive" : "text-muted-foreground");
+  const sinal = (v: number) => (v > 0 ? `+${brl(v)}` : brl(v));
+
+  return (
+    <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-4xl flex-col gap-3 overflow-hidden sm:h-auto sm:max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Comparar fechamentos</DialogTitle>
+          <DialogDescription>Valores líquidos gravados de cada competência, só da sua carteira.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ["Base (A)", idA, setIdA],
+              ["Comparado (B)", idB, setIdB],
+            ] as const
+          ).map(([rot, val, set]) => (
+            <div key={rot} className="space-y-1">
+              <Label className="text-xs">{rot}</Label>
+              <Select value={val} onValueChange={set}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Escolha" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fechamentos.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.titulo} · {f.competencia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
+        {r && (
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Líquido A</p>
+                <p className="text-sm font-semibold">{brl(r.totalA)}</p>
+                <p className="text-[11px] text-muted-foreground">{r.clientesA} clientes</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Líquido B</p>
+                <p className="text-sm font-semibold">{brl(r.totalB)}</p>
+                <p className="text-[11px] text-muted-foreground">{r.clientesB} clientes</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Diferença</p>
+                <p className={`text-sm font-semibold ${corDif(r.diferenca)}`}>{sinal(r.diferenca)}</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Variação</p>
+                <p className={`text-sm font-semibold ${corDif(r.diferenca)}`}>
+                  {r.percentual === null ? "—" : `${r.percentual.toFixed(1).replace(".", ",")}%`}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {(["todas", "novo", "saiu", "aumentou", "reduziu", "igual"] as const).map((k) => {
+                const n = k === "todas" ? r.linhas.length : r.linhas.filter((l) => l.situacao === k).length;
+                return (
+                  <Button
+                    key={k}
+                    size="sm"
+                    variant={filtro === k ? "default" : "outline"}
+                    className="h-7 text-xs"
+                    onClick={() => setFiltro(k)}
+                  >
+                    {k === "todas" ? "Todas" : ROTULO_SITUACAO[k]} ({n})
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead className="text-right">A</TableHead>
+                    <TableHead className="text-right">B</TableHead>
+                    <TableHead className="text-right">Diferença</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {linhas.map((l) => (
+                    <TableRow key={l.clienteId}>
+                      <TableCell className="text-xs font-medium">{l.clienteNome}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px]">{ROTULO_SITUACAO[l.situacao]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right text-xs">{l.liquidoA === null ? "—" : brl(l.liquidoA)}</TableCell>
+                      <TableCell className="text-right text-xs">{l.liquidoB === null ? "—" : brl(l.liquidoB)}</TableCell>
+                      <TableCell className={`text-right text-xs font-medium ${corDif(l.diferenca)}`}>
+                        {sinal(l.diferenca)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {linhas.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-6 text-center text-xs text-muted-foreground">
+                        Nenhum cliente nesta situação.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
