@@ -21,6 +21,7 @@ import {
   Plug,
   GraduationCap,
   Eye,
+  ChevronsLeft,
 } from "lucide-react";
 import {
   Sidebar,
@@ -86,9 +87,7 @@ export function AppSidebar() {
   const configItems = configItemsAll.filter((i) =>
     i.adminOnly ? access.isAdmin : access.isAdmin || access.canView(i.moduleKey),
   );
-  const isConfigActive = configItems.some((item) => item.url === pathname);
-  const [configOpen, setConfigOpen] = useState(isConfigActive);
-  const { state, setOpen } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
 
   const [gestaoItems, setGestaoItems] = useState(defaultGestaoItems);
@@ -122,141 +121,156 @@ export function AppSidebar() {
     setDragUrl(null);
   };
 
-  const handleConfigClick = () => {
-    if (isCollapsed) {
-      // Se o sidebar está recolhido: abre o sidebar E o submenu juntos
-      setOpen(true);
-      setConfigOpen(true);
-    } else {
-      setConfigOpen((v) => !v);
-    }
-  };
+  const grupos: { label: string; urls: string[] }[] = [
+    { label: "Monitorar", urls: ["/dashboard", "/clientes", "/orcamentos", "/configurar-api"] },
+    { label: "Financeiro", urls: ["/resumo", "/financeiro"] },
+  ];
+
+  const renderItem = (item: (typeof defaultGestaoItems)[number]) => (
+    <SidebarMenuItem
+      key={item.url}
+      draggable={!isCollapsed}
+      onDragStart={() => setDragUrl(item.url)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={() => handleDrop(item.url)}
+      onDragEnd={() => setDragUrl(null)}
+      className={cn("group/drag", dragUrl === item.url && "opacity-50")}
+    >
+      <SidebarMenuButton
+        asChild
+        isActive={pathname === item.url}
+        tooltip={item.title}
+        className="h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-brand-soft data-[active=true]:text-sidebar-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]"
+      >
+        <Link to={item.url}>
+          <item.icon />
+          <span>{item.title}</span>
+          {!isCollapsed && (
+            <GripVertical className="ml-auto h-3.5 w-3.5 text-muted-foreground/40 opacity-0 group-hover/drag:opacity-100 transition-opacity cursor-grab" />
+          )}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+
+  const labelCls = "px-3 text-[10.5px] font-semibold tracking-[0.12em] uppercase text-muted-foreground/80";
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="px-4 py-4">
-        <div className="flex items-center gap-2">
-          <EloraMark className="h-7 w-7 flex-shrink-0 text-landing-yellow-vivo" />
-          <div className="flex flex-col">
-            <span
-              className="text-sm font-bold tracking-tight"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              EloraCRM
-            </span>
-            <span className="text-[10px] text-muted-foreground uppercase">Painel administrativo</span>
-          </div>
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
+      <SidebarHeader className="px-4 py-5">
+        <div className="flex items-center gap-2.5">
+          <EloraMark className="h-8 w-8 flex-shrink-0 text-brand" />
+          {!isCollapsed && (
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[15px] font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+                EloraCRM
+              </span>
+              <span className="text-[10.5px] text-muted-foreground">Painel administrativo</span>
+            </div>
+          )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Gestão</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {access.isAdmin && !isCollapsed && <VerComoBusca />}
+      <SidebarContent className="gap-2 px-1">
+        {access.isAdmin && !isCollapsed && (
+          <div className="px-2 pt-1">
+            <VerComoBusca />
+          </div>
+        )}
 
+        {showGestaoSkeleton && (
+          <SidebarGroup>
             <SidebarMenu>
-              {showGestaoSkeleton &&
-                [0, 1, 2, 3, 4].map((i) => (
-                  <SidebarMenuItem key={`sk-${i}`}>
-                    <div className="flex items-center gap-2 px-2 py-1.5">
-                      <Skeleton className="h-4 w-4 rounded" />
-                      {!isCollapsed && <Skeleton className="h-3.5 flex-1" />}
-                    </div>
-                  </SidebarMenuItem>
-                ))}
-              {visibleGestao.map((item) => (
-                <SidebarMenuItem
-                  key={item.url}
-                  draggable={!isCollapsed}
-                  onDragStart={() => setDragUrl(item.url)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => handleDrop(item.url)}
-                  onDragEnd={() => setDragUrl(null)}
-                  className={cn(
-                    "group/drag",
-                    dragUrl === item.url && "opacity-50",
-                  )}
-                >
-                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                      {!isCollapsed && (
-                        <GripVertical className="ml-auto h-3.5 w-3.5 text-muted-foreground/40 opacity-0 group-hover/drag:opacity-100 transition-opacity cursor-grab" />
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <SidebarMenuItem key={`sk-${i}`}>
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    {!isCollapsed && <Skeleton className="h-3.5 flex-1" />}
+                  </div>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
-            {!access.loading && access.error && !isCollapsed && (
-              <div className="mx-2 mt-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-muted-foreground">
-                <p className="flex items-start gap-1.5">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-destructive" />
-                  <span>{access.error}</span>
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void access.refresh()}
-                  className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-foreground underline underline-offset-2"
-                >
-                  <RefreshCw className="h-3 w-3" /> Tentar novamente
-                </button>
-              </div>
-            )}
-            {!access.loading && !access.error && visibleGestao.length === 0 && !isCollapsed && (
-              <p className="mx-2 mt-2 text-[11px] text-muted-foreground">
-                Nenhum módulo liberado para o seu acesso. Peça a um administrador para liberar em Usuários.
-              </p>
-            )}
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+          </SidebarGroup>
+        )}
 
-      {/* Footer: Configurações expande para CIMA */}
-      <SidebarFooter className="mt-auto pb-2">
-        <SidebarSeparator className="mb-1" />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Site">
-              <Link to="/">
-                <Globe />
-                <span>Site</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            {/* Submenu renderizado ANTES do botão = expande para cima. Oculto se sidebar colapsado. */}
-            {configOpen && !isCollapsed && (
-              <SidebarMenuSub className="mb-1 border-l border-sidebar-border">
+        {grupos.map((g) => {
+          const itens = visibleGestao.filter((i) => g.urls.includes(i.url));
+          if (itens.length === 0) return null;
+          return (
+            <SidebarGroup key={g.label}>
+              <SidebarGroupLabel className={labelCls}>{g.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">{itens.map(renderItem)}</SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
+
+        {configItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={labelCls}>Configurar</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1">
                 {configItems.map((item) => (
-                  <SidebarMenuSubItem key={item.url}>
-                    <SidebarMenuSubButton asChild isActive={pathname === item.url}>
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.url}
+                      tooltip={item.title}
+                      className="h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-brand-soft data-[active=true]:text-sidebar-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]"
+                    >
                       <Link to={item.url}>
                         <item.icon />
                         <span>{item.title}</span>
                       </Link>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 ))}
-              </SidebarMenuSub>
-            )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-            <SidebarMenuButton
-              onClick={handleConfigClick}
-              isActive={isConfigActive}
-              tooltip="Configurações"
-              className="w-full"
+        {!access.loading && access.error && !isCollapsed && (
+          <div className="mx-3 mt-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-muted-foreground">
+            <p className="flex items-start gap-1.5">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-destructive" />
+              <span>{access.error}</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => void access.refresh()}
+              className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-foreground underline underline-offset-2"
             >
-              <Settings />
-              <span>Configurações</span>
-              <ChevronDown
-                className={cn(
-                  "ml-auto h-4 w-4 transition-transform duration-200",
-                  configOpen && !isCollapsed && "rotate-180"
-                )}
-              />
+              <RefreshCw className="h-3 w-3" /> Tentar novamente
+            </button>
+          </div>
+        )}
+        {!access.loading && !access.error && visibleGestao.length === 0 && !isCollapsed && (
+          <p className="mx-3 mt-2 text-[11px] text-muted-foreground">
+            Nenhum módulo liberado para o seu acesso. Peça a um administrador para liberar em Usuários.
+          </p>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter className="mt-auto pb-3">
+        <SidebarMenu className="gap-1">
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Site" className="h-10 rounded-lg px-3 text-[13.5px] text-sidebar-foreground/70">
+              <Link to="/">
+                <Globe />
+                <span>Ver site</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={toggleSidebar}
+              tooltip={isCollapsed ? "Expandir menu" : "Resumir menu"}
+              className="h-10 rounded-lg px-3 text-[13.5px] text-sidebar-foreground/70"
+            >
+              <ChevronsLeft className={cn("transition-transform", isCollapsed && "rotate-180")} />
+              <span>Resumir menu</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
