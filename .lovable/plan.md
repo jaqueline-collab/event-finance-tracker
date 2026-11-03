@@ -5,23 +5,26 @@ Somente correção de carregamento. Nenhum valor, permissão ou cálculo muda. P
 ## O que muda
 
 **1. `src/lib/permissions.ts` (`useCurrentUserAccess`)**
-- Estado inicial vem do cache `elora.access.cache.v1` (lido após hidratação, no primeiro efeito). Com cache: `loading=false` de imediato e a rede atualiza em segundo plano.
-- `setLoading(true)` só na primeira leitura (ref `primeiraLeitura`). `refresh` e `onAuthStateChange` recarregam em segundo plano, sem voltar `loading` para true.
-- `onAuthStateChange`: ignora `TOKEN_REFRESHED`, `INITIAL_SESSION` e qualquer evento cujo e-mail seja igual ao último carregado. Recarrega só em mudança real (SIGNED_IN de outro e-mail, SIGNED_OUT, USER_UPDATED).
-- Guarda contra leituras simultâneas: se uma leitura já está em andamento, reaproveita a mesma promessa.
-- Regra de decisão "deve mostrar loading?" extraída para uma função pura testável.
+- Estado inicial vem do cache `elora.access.cache.v1` (lido no primeiro efeito, após hidratação), mas só é aplicado se o e-mail da sessão atual for igual ao e-mail guardado no cache. Com cache válido: `loading=false` de imediato e a rede atualiza em segundo plano.
+- `setLoading(true)` só na primeira leitura. `refresh` e `onAuthStateChange` recarregam em segundo plano, sem voltar `loading` para true.
+- `onAuthStateChange`: ignora `TOKEN_REFRESHED`, `INITIAL_SESSION` e eventos com o mesmo e-mail já carregado. Em `SIGNED_OUT`: apaga o cache e zera acesso.
+- Leituras simultâneas reaproveitam a mesma promessa.
+- Falha com cache válido (mesmo e-mail): usa o cache e mantém `access.error` preenchido.
+- Regras ("mostrar loading?", "usar cache?", "evento recarrega?") extraídas como funções puras testáveis.
 
 **2. `src/routes/financeiro.tsx`**
-- Ref `jaCarregou`: "Carregando…" só aparece antes da primeira leitura concluída. Depois disso, abas e conteúdo ficam montados com as últimas permissões conhecidas.
-- Redirecionamento para a primeira aba permitida continua igual, só que usa `jaCarregou` em vez de `access.loading`.
+- Ref `jaCarregou`: "Carregando…" só antes da primeira leitura concluída. Depois, abas e conteúdo ficam montados com as últimas permissões conhecidas.
+- Com erro e acesso vindo do cache: aviso discreto acima das abas com o texto do erro e "Tentar de novo".
 
 **3. Falha sem cache**
-- Se a leitura falhar e não houver cache: estado "Sem acesso" mostrando `access.error` e botão "Tentar de novo" (chama `access.refresh`). Nunca carregando infinito.
+- Estado "Sem acesso" mostrando `access.error` e botão "Tentar de novo". Nunca carregando infinito.
 
 **4. Testes**
-- Novo `src/lib/__tests__/permissions-loading.test.ts`: depois da primeira leitura concluída, a regra nunca devolve `loading=true` (refresh, eventos de auth, erro); e eventos TOKEN_REFRESHED/INITIAL_SESSION do mesmo e-mail não disparam recarga.
-- Rodar a suíte inteira.
-- Conferência no navegador (preview, sessão ativa): `/financeiro`, `?aba=lancamentos`, `?aba=notas` e `/resumo`, com recarga em cada um, medindo que "Carregando…" some em menos de 2s. O site publicado só reflete a correção depois de publicar; aviso isso no fim, se não puder conferir lá.
+- Novo `src/lib/__tests__/permissions-loading.test.ts`: loading nunca volta para true após a primeira leitura; cache só vale para o mesmo e-mail; TOKEN_REFRESHED/INITIAL_SESSION do mesmo e-mail não recarregam; SIGNED_OUT limpa o cache.
+- Rodar a suíte inteira e conferir no preview `/financeiro`, `?aba=lancamentos`, `?aba=notas` e `/resumo` com recarga (menos de 2s).
+
+**5. Publicar**
+- Verificar a varredura de segurança, publicar e depois abrir eloracrm.com.br/financeiro para confirmar que a nova versão está no ar (a parte com sessão no site publicado pode exigir sua conferência).
 
 ## Arquivos
 - `src/lib/permissions.ts`
