@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Package,
   Users,
-  CalendarRange,
   FileText,
   Settings,
   Handshake,
