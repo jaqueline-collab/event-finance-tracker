@@ -1,0 +1,2228 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getAuditoriaFechamentoParceiro,
+  getFinanceiroParceiro,
+  getPainelParceiro,
+  getPlanosCalculadoraParceiro,
+} from "@/lib/parceiro.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { baixarNotaFiscal } from "@/lib/notas-fiscais.functions";
+import { gerarPdfAuditoriaFechamento, gerarPdfClientesParceiro, gerarPdfResumoFechamento } from "@/lib/parceiro-pdf";
+import {
+  calcularMargemParceiro,
+  calcularOrcamentoParceiro,
+  canaisZapiDerivados,
+  type ConfiguracaoCalculadoraParceiro,
+  type MargemParceiro,
+  type PlanoCalculadoraParceiro,
+} from "@/lib/parceiro.calculadora";
+import { PainelTreinamento } from "@/components/treinamento/painel-treinamento";
+import { PdfPreview } from "@/components/pdf-preview";
+import { useDefinirMenuArea } from "@/components/area-externa-layout";
+import { itensFinanceiroParceiro, mostrarEsqueletoArea } from "@/lib/area-externa";
+import { usePapelUsuario } from "@/lib/use-papel";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  compararFechamentos,
+  montarRelatorioParceiro,
+  type FechamentoParceiro,
+  type ItemRelatorioParceiro,
+  type SituacaoComparacao,
+} from "@/lib/parceiro.financeiro";
+import type { AuditoriaClienteParceiro } from "@/lib/parceiro.functions";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  Eye,
+  FileDown,
+  FileText,
+  GraduationCap,
+  History,
+  PackageOpen,
+  Globe,
+  Calculator,
+  LayoutGrid,
+  Receipt,
+  Users,
+  X,
+} from "lucide-react";
+
+type SubFinanceiro = "fechamentos" | "relatorios" | "notas";
+
+const ANO_INICIAL = 2026;
+
+
+
+type Periodo = "mes" | "mesPassado" | "trimestre" | "custom";
+const PERIODOS: { valor: Periodo; label: string }[] = [
+  { valor: "mes", label: "Este mês" },
+  { valor: "mesPassado", label: "Mês passado" },
+  { valor: "trimestre", label: "Trimestre" },
+  { valor: "custom", label: "Personalizado" },
+];
+
+export const Route = createFileRoute("/parceiro/")({
+  component: AreaParceiro,
+});
+
+const APP_LOGIN_URL = "https://app.eloracrm.com.br/";
+// Link da apresentação — desligado temporariamente (ver botão "Apresentar ferramenta").
+const APRESENTACAO_URL =
+  "https://docs.google.com/presentation/d/1roYM3Uw23zYmkZq0hzOQFbDKtMzuyPiUU4--BBKij-s/edit?usp=drive_link";
+
+const brl = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const dataBr = (v?: string | null) =>
+  v ? new Date(`${v}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+
+/** Rótulo amigável do tipo de movimento no histórico (nunca exibe valores). */
+const rotuloTipoMovimento = (tipo: string) =>
+  ({
+    setup: "Setup / Ativação",
+    upgrade: "Upgrade",
+    downgrade: "Downgrade",
+    alterar_plano: "Alteração de plano",
+    churn: "Churn",
+    servico: "Serviço avulso",
+    acompanhamento: "Ajuste de acompanhamento",
+    parceiro: "Alteração de parceiro",
+  })[tipo] ?? tipo;
+
+const mesLabel = (chave: string) => {
+  const [a, m] = chave.split("-");
+  return `${m}/${a.slice(2)}`;
+};
+
+const hojeIso = () => new Date().toISOString().slice(0, 10);
+const umAnoAtrasIso = () => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 11);
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+};
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Intervalo de datas de cada opção do seletor de período. */
+const intervaloPeriodo = (periodo: Periodo, de: string, ate: string) => {
+  const hoje = new Date();
+  if (periodo === "mes") {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    return { de: iso(ini), ate: iso(fim) };
+  }
+  if (periodo === "mesPassado") {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+    return { de: iso(ini), ate: iso(fim) };
+  }
+  if (periodo === "trimestre") {
+    // Últimos 3 meses corridos a partir de hoje.
+    const ini = new Date(hoje);
+    ini.setMonth(ini.getMonth() - 3);
+    return { de: iso(ini), ate: iso(hoje) };
+  }
+  return { de, ate };
+};
+
+const mediana = (valores: number[]) => {
+  if (valores.length === 0) return 0;
+  const ord = [...valores].sort((a, b) => a - b);
+  const meio = Math.floor(ord.length / 2);
+  return ord.length % 2 === 0 ? (ord[meio - 1] + ord[meio]) / 2 : ord[meio];
+};
+
+/** Tempo de vida em dias: do setup até hoje (ativo) ou até o churn. */
+const ltvDias = (c: { dataInicio?: string | null; dataChurn?: string | null }) => {
+  if (!c.dataInicio) return null;
+  const inicio = new Date(`${c.dataInicio}T12:00:00`).getTime();
+  const fim = new Date(`${c.dataChurn ?? hojeIso()}T12:00:00`).getTime();
+  return Math.max(0, Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)));
+};
+
+type PainelData = Awaited<ReturnType<typeof getPainelParceiro>>;
+type FinanceiroData = Awaited<ReturnType<typeof getFinanceiroParceiro>>;
+type CalculadoraData = Awaited<ReturnType<typeof getPlanosCalculadoraParceiro>>;
+
+function AreaParceiro() {
+  const { como, aba, grafico, ano, periodo: periodoRaw, indicador: indicadorRaw, sub: subRaw } =
+    Route.useSearch();
+  const periodo = (PERIODOS.some((p) => p.valor === periodoRaw) ? periodoRaw : "mes") as Periodo;
+  const indicador = (["entradas", "saidas", "excedentes"].includes(indicadorRaw)
+    ? indicadorRaw
+    : "") as "" | "entradas" | "saidas" | "excedentes";
+  const sub = (["relatorios", "notas"].includes(subRaw) ? subRaw : "fechamentos") as SubFinanceiro;
+  const anoAtual = new Date().getFullYear();
+  const anoGrafico = ano && ano >= ANO_INICIAL ? ano : anoAtual;
+  const anosDisponiveis = useMemo(() => {
+    const fim = Math.max(ANO_INICIAL, anoAtual);
+    return Array.from({ length: fim - ANO_INICIAL + 1 }, (_, i) => ANO_INICIAL + i);
+  }, [anoAtual]);
+  const navigate = Route.useNavigate();
+  const modoAdmin = como.trim().length > 0;
+  const papel = usePapelUsuario();
+  const semParceiro = !modoAdmin && !papel.loading && !papel.parceiroId;
+  const [dados, setDados] = useState<PainelData | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [aberto, setAberto] = useState<string | null>(null);
+  const [planoAberto, setPlanoAberto] = useState<string | null>(null);
+
+  const [financeiro, setFinanceiro] = useState<FinanceiroData | null>(null);
+  const [carregandoFin, setCarregandoFin] = useState(false);
+  const [erroFin, setErroFin] = useState<string | null>(null);
+  const [fechAberto, setFechAberto] = useState<string | null>(null);
+  const [calculadora, setCalculadora] = useState<CalculadoraData | null>(null);
+  const [carregandoCalc, setCarregandoCalc] = useState(false);
+  const [erroCalc, setErroCalc] = useState<string | null>(null);
+
+  const [busca, setBusca] = useState("");
+  const [status, setStatus] = useState<"todos" | "ativos" | "inativos">("todos");
+  // Datas manuais: usadas apenas na opção "Personalizado".
+  const [deManual, setDeManual] = useState(umAnoAtrasIso());
+  const [ateManual, setAteManual] = useState(hojeIso());
+  const { de, ate } = useMemo(
+    () => intervaloPeriodo(periodo, deManual, ateManual),
+    [periodo, deManual, ateManual],
+  );
+
+  useEffect(() => {
+    if (papel.loading || semParceiro) return;
+    let cancelado = false;
+    setCarregando(true);
+    setErro(null);
+    getPainelParceiro({ data: modoAdmin ? { verComoParceiroId: como.trim() } : {} })
+      .then((r) => !cancelado && setDados(r))
+      .catch((e) => !cancelado && setErro(e instanceof Error ? e.message : String(e)))
+      .finally(() => !cancelado && setCarregando(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [como, modoAdmin, papel.loading, semParceiro]);
+
+  const podeVerFechamentos = Boolean((dados as any)?.podeVerFechamentos);
+
+  useEffect(() => {
+    if (papel.loading || semParceiro || aba !== "financeiro" || !podeVerFechamentos) return;
+    let cancelado = false;
+    setCarregandoFin(true);
+    setErroFin(null);
+    getFinanceiroParceiro({ data: modoAdmin ? { verComoParceiroId: como.trim() } : {} })
+      .then((r) => !cancelado && setFinanceiro(r))
+      .catch((e) => !cancelado && setErroFin(e instanceof Error ? e.message : String(e)))
+      .finally(() => !cancelado && setCarregandoFin(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [aba, como, modoAdmin, podeVerFechamentos, papel.loading, semParceiro]);
+
+  useEffect(() => {
+    if (papel.loading || semParceiro || aba !== "calculadora") return;
+    let cancelado = false;
+    setCarregandoCalc(true);
+    setErroCalc(null);
+    getPlanosCalculadoraParceiro({ data: modoAdmin ? { verComoParceiroId: como.trim() } : {} })
+      .then((r) => !cancelado && setCalculadora(r))
+      .catch((e) => !cancelado && setErroCalc(e instanceof Error ? e.message : String(e)))
+      .finally(() => !cancelado && setCarregandoCalc(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [aba, como, modoAdmin, papel.loading, semParceiro]);
+
+  const banner = modoAdmin ? (
+    <div className="sticky top-0 z-40 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b-2 border-landing-yellow-vivo bg-landing-dark px-4 py-3 backdrop-blur">
+      <p className="flex items-center gap-2 text-sm font-medium text-landing-yellow-vivo">
+        <Eye className="h-4 w-4" />
+        Visualizando como: {dados?.parceiro.nome ?? "…"} (modo admin, somente leitura)
+      </p>
+      <Button asChild variant="outline" size="sm">
+        <Link to="/gestao-parceiros">
+          <X className="mr-2 h-4 w-4" /> Sair desse modo
+        </Link>
+      </Button>
+    </div>
+  ) : null;
+
+  const veValores = Boolean(dados?.veValores);
+  // Vem sempre do banco no carregamento — sem cache local, para o botão nunca ficar desatualizado.
+  const podeVerPainel = Boolean((dados as any)?.podeVerPainelCliente);
+  const siteUrl = ((dados?.parceiro as any)?.siteUrl as string | null) ?? null;
+  const clientes = dados?.clientes ?? [];
+  const movimentos = dados?.movimentos ?? [];
+
+  const clientesFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return clientes.filter((c) => {
+      if (termo && !c.nome.toLowerCase().includes(termo)) return false;
+      const inativo = Boolean(c.dataChurn);
+      if (status === "ativos" && inativo) return false;
+      if (status === "inativos" && !inativo) return false;
+      return true;
+    });
+  }, [clientes, busca, status]);
+
+  const noPeriodo = (data?: string | null) => Boolean(data && data >= de && data <= ate);
+
+  const resumo = useMemo(() => {
+    const base = clientesFiltrados;
+    const ativos = base.filter((c) => !c.dataChurn || c.dataChurn > ate).length;
+    const entradas = base.filter((c) => noPeriodo(c.dataInicio)).length;
+    const saidas = base.filter((c) => noPeriodo(c.dataChurn)).length;
+
+    const ltvs = base
+      .map((c) => ltvDias(c))
+      .filter((v): v is number => v !== null);
+
+    return {
+      ativos,
+      entradas,
+      saidas,
+      ltvMedia: ltvs.length ? ltvs.reduce((s, v) => s + v, 0) / ltvs.length : 0,
+      ltvMediana: mediana(ltvs),
+      temLtv: ltvs.length > 0,
+    };
+  }, [clientesFiltrados, de, ate]);
+
+  // Indicador clicado vira filtro da tabela (os números dos cards não mudam).
+  const clientesTabela = useMemo(() => {
+    if (!indicador) return clientesFiltrados;
+    return clientesFiltrados.filter((c) => {
+      if (indicador === "entradas") return noPeriodo(c.dataInicio);
+      if (indicador === "saidas") return noPeriodo(c.dataChurn);
+      const exc = ((c as any).excedentes ?? []) as { total: number }[];
+      return exc.some((e) => Number(e.total) > 0);
+    });
+  }, [clientesFiltrados, indicador, de, ate]);
+
+  // PDF respeita exatamente os filtros ativos e a trava de composição do parceiro.
+  const baixarPdfClientes = () => {
+    if (clientesTabela.length === 0) {
+      toast.error("Nenhum cliente para exportar com os filtros atuais.");
+      return;
+    }
+    gerarPdfClientesParceiro({
+      parceiro: dados?.parceiro.nome ?? "Parceiro",
+      periodo: `${dataBr(de)} a ${dataBr(ate)}`,
+      geradoEm: new Date().toLocaleString("pt-BR"),
+      veValores,
+      clientes: clientesTabela.map((c) => ({
+        nome: c.nome,
+        plano: c.plano,
+        status: c.dataChurn ? "Churn" : c.statusComercial === "trial" ? "Trial" : "Ativo",
+        setup: dataBr(c.dataInicio),
+        ltv: (() => {
+          const d = ltvDias(c);
+          return d === null ? "—" : `${d} dias`;
+        })(),
+        churn: dataBr(c.dataChurn),
+        mensalidade: veValores ? brl(((c as any).mensalidade as number) ?? 0) : undefined,
+        historico: movimentos
+          .filter((m) => m.clienteId === c.id)
+          .map((m) => ({
+            data: dataBr(m.data),
+            tipo: rotuloTipoMovimento(m.tipo),
+            descricao:
+              [
+                m.plano ? `Plano: ${m.plano}` : null,
+                m.canaisWhats ? `WhatsApp: ${m.canaisWhats}` : null,
+                m.canaisInsta ? `Instagram: ${m.canaisInsta}` : null,
+                m.canaisMessenger ? `Messenger: ${m.canaisMessenger}` : null,
+                m.canaisZapi ? `Z-API: ${m.canaisZapi}` : null,
+                m.usuariosAtivos ? `Usuários: ${m.usuariosAtivos}` : null,
+                m.observacao ?? null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—",
+          })),
+      })),
+    });
+  };
+
+  const alternarIndicador = (qual: "entradas" | "saidas" | "excedentes") =>
+    navigate({ search: (s: any) => ({ ...s, indicador: s.indicador === qual ? "" : qual }) });
+
+  // Gráfico: independente do filtro De/Até — sempre janeiro a dezembro do ano escolhido.
+  const serieMensal = useMemo(() => {
+    const prefixo = String(anoGrafico);
+    const meses = Array.from({ length: 12 }, (_, i) => {
+      const chave = `${prefixo}-${String(i + 1).padStart(2, "0")}`;
+      return { chave, mes: mesLabel(chave), entradas: 0, saidas: 0, ativos: 0 };
+    });
+    const mapa = new Map(meses.map((m) => [m.chave, m]));
+    let acumulado = 0;
+    for (const c of clientesFiltrados) {
+      const ini = (c.dataInicio ?? "").slice(0, 7);
+      const fim = (c.dataChurn ?? "").slice(0, 7);
+      if (ini && ini < `${prefixo}-01`) {
+        if (!fim || fim >= `${prefixo}-01`) acumulado += 1;
+      }
+      const kIni = mapa.get(ini);
+      if (kIni) kIni.entradas += 1;
+      const kFim = mapa.get(fim);
+      if (kFim) kFim.saidas += 1;
+    }
+    for (const mes of meses) {
+      acumulado += mes.entradas - mes.saidas;
+      mes.ativos = Math.max(0, acumulado);
+    }
+    return meses;
+  }, [clientesFiltrados, anoGrafico]);
+
+
+  const irPara = (proxima: "clientes" | "financeiro" | "calculadora" | "treinamento") =>
+    navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
+
+  const jaCarregou = useRef(false);
+  if (!carregando && !papel.loading && (dados || erro)) jaCarregou.current = true;
+  useEffect(() => {
+    jaCarregou.current = false;
+  }, [como]);
+
+  const irSub = (proxima: SubFinanceiro) =>
+    navigate({ search: (s: any) => ({ ...s, aba: "financeiro", sub: proxima }) });
+
+  useDefinirMenuArea([
+    {
+      label: "Monitorar",
+      itens: [{ key: "clientes", label: "Clientes", icon: LayoutGrid, ativo: aba === "clientes", onSelect: () => irPara("clientes") }],
+    },
+    {
+      label: "Financeiro",
+      itens: itensFinanceiroParceiro(podeVerFechamentos).map((k) => ({
+        key: `fin-${k}`,
+        label: k === "fechamentos" ? "Fechamentos" : k === "relatorios" ? "Relatórios" : "Notas",
+        icon: k === "fechamentos" ? Receipt : k === "relatorios" ? FileText : FileDown,
+        ativo: aba === "financeiro" && sub === k,
+        onSelect: () => irSub(k),
+      })),
+    },
+    {
+      label: "Ferramentas",
+      itens: [
+        { key: "calculadora", label: "Calculadora", icon: Calculator, ativo: aba === "calculadora", onSelect: () => irPara("calculadora") },
+        { key: "treinamento", label: "Treinamento", icon: GraduationCap, ativo: aba === "treinamento", onSelect: () => irPara("treinamento") },
+      ],
+    },
+    {
+      label: "Links",
+      itens: [
+        ...(siteUrl
+          ? [{ key: "site", label: "Site do parceiro", icon: Globe, href: siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}` }]
+          : []),
+        { key: "app", label: "Elora App", icon: ExternalLink, href: APP_LOGIN_URL },
+        {
+          key: "apresentar",
+          label: "Apresentar ferramenta",
+          icon: ExternalLink,
+          // Temporário: link da apresentação (APRESENTACAO_URL) desligado até o material ficar pronto.
+          onSelect: () => toast.info("Este recurso ainda está sendo configurado."),
+        },
+      ],
+    },
+  ]);
+
+  if (semParceiro) {
+    return (
+      <div className="space-y-4">
+        <Alert>
+          <AlertTitle>Área do Parceiro indisponível para este login</AlertTitle>
+          <AlertDescription>
+            {papel.isInterno
+              ? "Para visualizar a área de um parceiro, escolha-o em Gestão de Parceiros."
+              : "Este login não está vinculado a um parceiro. Solicite o acesso à equipe Elora."}
+          </AlertDescription>
+        </Alert>
+        {papel.isInterno && <Button asChild variant="outline"><Link to="/gestao-parceiros">Ver parceiros</Link></Button>}
+      </div>
+    );
+  }
+
+  if (mostrarEsqueletoArea(jaCarregou.current)) {
+    return (
+      <div className="space-y-4">
+        {banner}
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (erro && !dados) {
+    return (
+      <div className="space-y-4">
+        {banner}
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Não foi possível carregar sua área</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>{erro}</p>
+            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Tentar de novo</Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {banner}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{dados?.parceiro.nome}</h1>
+          <p className="text-sm text-muted-foreground">
+            {modoAdmin ? "Visualização administrativa somente leitura" : "Gestão da sua parceria"}
+          </p>
+        </div>
+      </div>
+
+      <div className="min-w-0 space-y-6">
+          {aba === "clientes" ? (
+            <>
+              <Card>
+                <CardContent className="grid gap-3 pt-6 sm:grid-cols-4">
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs">Buscar cliente</Label>
+                    <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome do cliente" />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs">Período</Label>
+                    <Select
+                      value={periodo}
+                      onValueChange={(v) => navigate({ search: (s: any) => ({ ...s, periodo: v }) })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PERIODOS.map((p) => (
+                          <SelectItem key={p.valor} value={p.valor}>{p.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {periodo === "custom" && (
+                    <>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs">De</Label>
+                        <Input type="date" value={deManual} onChange={(e) => setDeManual(e.target.value)} />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs">Até</Label>
+                        <Input type="date" value={ateManual} onChange={(e) => setAteManual(e.target.value)} />
+                      </div>
+                    </>
+                  )}
+                  <div className="flex flex-wrap gap-2 sm:col-span-4">
+                    {(["todos", "ativos", "inativos"] as const).map((s) => (
+                      <Button
+                        key={s}
+                        size="sm"
+                        variant={status === s ? "secondary" : "outline"}
+                        onClick={() => setStatus(s)}
+                      >
+                        {s === "todos" ? "Todos" : s === "ativos" ? "Ativos" : "Inativos"}
+                      </Button>
+                    ))}
+                    <Button size="sm" variant="outline" className="ml-auto" onClick={baixarPdfClientes}>
+                      <FileDown className="mr-2 h-4 w-4" /> Baixar PDF
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                      <Users className="h-4 w-4" /> Clientes ativos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-semibold">{resumo.ativos}</CardContent>
+                </Card>
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={indicador === "entradas"}
+                  onClick={() => alternarIndicador("entradas")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && alternarIndicador("entradas")}
+                  className={`cursor-pointer transition hover:border-primary/60 ${
+                    indicador === "entradas" ? "border-primary bg-primary/5 ring-1 ring-primary" : ""
+                  }`}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                      <ArrowUpRight className="h-4 w-4" /> Entradas no período
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-semibold">{resumo.entradas}</CardContent>
+                </Card>
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={indicador === "saidas"}
+                  onClick={() => alternarIndicador("saidas")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && alternarIndicador("saidas")}
+                  className={`cursor-pointer transition hover:border-primary/60 ${
+                    indicador === "saidas" ? "border-primary bg-primary/5 ring-1 ring-primary" : ""
+                  }`}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                      <ArrowDownRight className="h-4 w-4" /> Saídas no período
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-semibold">{resumo.saidas}</CardContent>
+                </Card>
+                {resumo.temLtv && (
+                  <>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">LTV média</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-2xl font-semibold">{Math.round(resumo.ltvMedia)} dias</CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">LTV mediana</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-2xl font-semibold">{Math.round(resumo.ltvMediana)} dias</CardContent>
+                    </Card>
+                  </>
+                )}
+              </div>
+
+              {veValores && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Previsão da próxima fatura
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold">{brl((dados as any)?.totalCarteira ?? 0)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        competência em curso, atualizada em tempo real
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total cobrado pelo sistema
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalLicenca ?? 0)}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total de acompanhamento
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalAcompanhamento ?? 0)}
+                    </CardContent>
+                  </Card>
+                  <Card
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={indicador === "excedentes"}
+                    onClick={() => alternarIndicador("excedentes")}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && alternarIndicador("excedentes")}
+                    className={`cursor-pointer transition hover:border-primary/60 ${
+                      indicador === "excedentes" ? "border-primary bg-primary/5 ring-1 ring-primary" : ""
+                    }`}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">
+                        Total de excedentes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">
+                      {brl((dados as any)?.totalExcedentes ?? 0)}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {!veValores && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground">
+                      Previsão da próxima fatura
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold">{brl((dados as any)?.totalCarteira ?? 0)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      competência em curso, atualizada em tempo real
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Visão do gráfico">
+                    {([
+                      ["fluxo", "Entradas e saídas"],
+                      ["ativos", "Ativos no mês"],
+                    ] as const).map(([modo, rotulo]) => (
+                      <Button
+                        key={modo}
+                        size="sm"
+                        role="tab"
+                        aria-selected={grafico === modo}
+                        variant={grafico === modo ? "secondary" : "ghost"}
+                        onClick={() => navigate({ search: (s: any) => ({ ...s, grafico: modo }) })}
+                      >
+                        {rotulo}
+                      </Button>
+                    ))}
+                    <div className="ml-auto flex items-center gap-2">
+                      <Label htmlFor="grafico-ano" className="text-xs text-muted-foreground">
+                        Ano
+                      </Label>
+                      <Select
+                        value={String(anoGrafico)}
+                        onValueChange={(v) => navigate({ search: (s: any) => ({ ...s, ano: Number(v) }) })}
+                      >
+                        <SelectTrigger id="grafico-ano" className="h-8 w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {anosDisponiveis.map((a) => (
+                            <SelectItem key={a} value={String(a)}>
+                              {a}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={serieMensal}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
+                      <YAxis allowDecimals={false} stroke="var(--muted-foreground)" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--popover)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          color: "var(--foreground)",
+                        }}
+                      />
+                      <Legend />
+                      {grafico === "fluxo" ? (
+                        <>
+                          <Bar dataKey="entradas" name="Entradas" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="saidas" name="Saídas" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
+                        </>
+                      ) : (
+                        <>
+                          <Bar dataKey="ativos" name="Clientes ativos" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="saidas" name="Saídas no mês" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
+                        </>
+                      )}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Clientes</CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Plano</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Setup</TableHead>
+                        <TableHead>LTV</TableHead>
+                        <TableHead>Churn</TableHead>
+                        {veValores && <TableHead className="text-right">Mensalidade</TableHead>}
+                        <TableHead className="text-right">Ações</TableHead>
+                        {podeVerPainel && <TableHead className="text-right">Painel</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {clientesTabela.length === 0 && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={7 + (veValores ? 1 : 0) + (podeVerPainel ? 1 : 0)}
+                            className="text-sm text-muted-foreground"
+                          >
+                            Nenhum cliente encontrado com esses filtros.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {clientesTabela.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.nome}</TableCell>
+                          <TableCell>{c.plano}</TableCell>
+                          <TableCell>
+                            <Badge variant={c.dataChurn ? "destructive" : "secondary"}>
+                              {c.dataChurn ? "Churn" : c.statusComercial === "trial" ? "Trial" : "Ativo"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{dataBr(c.dataInicio)}</TableCell>
+                          <TableCell>{(() => { const d = ltvDias(c); return d === null ? "—" : `${d} dias`; })()}</TableCell>
+                          <TableCell>{dataBr(c.dataChurn)}</TableCell>
+                          {veValores && (
+                            <TableCell className="text-right">
+                              {brl(((c as any).mensalidade as number) ?? 0)}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => setAberto(c.id)}>
+                                <History className="mr-2 h-4 w-4" /> Histórico
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={Boolean(c.dataChurn)}
+                                title={c.dataChurn ? "Sem plano vigente" : undefined}
+                                onClick={() => !c.dataChurn && setPlanoAberto(c.id)}
+                              >
+                                <PackageOpen className="mr-2 h-4 w-4" /> Plano atual
+                              </Button>
+
+                            </div>
+                          </TableCell>
+                          {podeVerPainel && (
+                            <TableCell className="text-right">
+                              <Button asChild variant="outline" size="sm">
+                                <Link to="/area-do-cliente" search={{ como: c.id }}>
+                                  <Eye className="mr-2 h-4 w-4" /> Ver painel
+                                </Link>
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Dialog open={!!aberto} onOpenChange={(open) => !open && setAberto(null)}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">
+                      Histórico de movimentação · {clientes.find((c) => c.id === aberto)?.nome}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <ol className="space-y-2 text-sm">
+                      {aberto && movimentos.filter((m) => m.clienteId === aberto).length === 0 && (
+                        <li className="text-muted-foreground">Sem movimentos registrados.</li>
+                      )}
+                      {movimentos
+                        .filter((m) => m.clienteId === aberto)
+                        .map((m) => (
+                          <li key={m.id} className="flex flex-wrap items-center gap-2 border-b border-border/50 pb-2">
+                            <span className="text-muted-foreground w-24">{dataBr(m.data)}</span>
+                            <Badge variant="outline" className="uppercase">
+                              {rotuloTipoMovimento(m.tipo)}
+                            </Badge>
+                            <span className="text-muted-foreground">
+                              {[
+                                m.plano ? `Plano: ${m.plano}` : null,
+                                m.canaisWhats ? `WhatsApp: ${m.canaisWhats}` : null,
+                                m.canaisInsta ? `Instagram: ${m.canaisInsta}` : null,
+                                m.canaisMessenger ? `Messenger: ${m.canaisMessenger}` : null,
+                                m.canaisZapi ? `Z-API: ${m.canaisZapi}` : null,
+                                m.usuariosAtivos ? `Usuários: ${m.usuariosAtivos}` : null,
+                                m.observacao ?? null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || "—"}
+                            </span>
+                          </li>
+                        ))}
+                    </ol>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={!!planoAberto} onOpenChange={(open) => !open && setPlanoAberto(null)}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">
+                      Plano atual do cliente · {clientes.find((c) => c.id === planoAberto)?.nome}
+                    </DialogTitle>
+                  </DialogHeader>
+                  {(() => {
+                    const cli = clientes.find((c) => c.id === planoAberto) as any;
+                    if (!cli) return null;
+                    const r = cli.recursos ?? {};
+                    const recursos: { label: string; valor: string }[] = [
+                      { label: "Canais WhatsApp", valor: `${r.canaisWhats ?? 0} (${r.canaisWhatsInclusos ?? 0} inclusos)` },
+                      { label: "Canais Instagram", valor: `${r.canaisInsta ?? 0} (${r.canaisInstaInclusos ?? 0} inclusos)` },
+                      { label: "Canais Messenger", valor: `${r.canaisMessenger ?? 0} (${r.canaisMessengerInclusos ?? 0} inclusos)` },
+                      { label: "Canais Z-API", valor: `${r.canaisZapi ?? 0} (${r.zapiInclusos ?? 0} inclusos)` },
+                      { label: "Usuários", valor: `${r.usuariosAtivos ?? 0} (${r.usuariosInclusos ?? 0} inclusos)` },
+                      { label: "Contatos (MAU)", valor: `${r.contatosAtivos ?? 0} (${r.contatosInclusos ?? 0} inclusos)` },
+                    ];
+                    const modulos = [
+                      r.agentesIA ? "Agentes de IA" : null,
+                      r.asaas ? "Integração Asaas" : null,
+                      r.transcricaoIA ? "Transcrição IA" : null,
+                      (r.canaisZapi ?? 0) > 0 ? "Z-API" : null,
+                    ].filter(Boolean) as string[];
+                    const excedentes = (cli.excedentes ?? []) as any[];
+                    return (
+                      <div className="space-y-4">
+                        <div className="rounded-md border border-border/60 p-3">
+                          <p className="text-xs font-medium text-muted-foreground">Plano</p>
+                          <p className="text-sm font-medium">{cli.plano}</p>
+                        </div>
+
+                        <div className="rounded-md border border-border/60 p-3">
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">Pacote atual de recursos</p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {recursos.map((item) => (
+                              <div key={item.label} className="flex justify-between gap-3 text-sm">
+                                <span className="text-muted-foreground">{item.label}</span>
+                                <span className="tabular-nums">{item.valor}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {modulos.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">Sem módulos opcionais ativos.</span>
+                            ) : (
+                              modulos.map((m) => (
+                                <Badge key={m} variant="secondary">
+                                  {m}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-md border border-border/60 p-3">
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">Composição cobrada</p>
+                          <ul className="space-y-1 text-sm">
+                            {veValores ? (
+                              ((cli.itens ?? []) as any[]).map((i, idx) => (
+                                <li key={idx} className="flex justify-between gap-4">
+                                  <span>{i.label}</span>
+                                  <span className="tabular-nums">{brl(i.total)}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <>
+                                <li className="flex justify-between gap-4">
+                                  <span>Plano contratado</span>
+                                  <span className="tabular-nums">{brl(cli.totalPlano ?? 0)}</span>
+                                </li>
+                                {excedentes.map((i, idx) => (
+                                  <li key={idx} className="flex justify-between gap-4">
+                                    <span>{i.label}</span>
+                                    <span className="tabular-nums">{brl(i.total)}</span>
+                                  </li>
+                                ))}
+                              </>
+                            )}
+                            <li className="flex justify-between gap-4 border-t border-border/60 pt-1 font-medium">
+                              <span>Total</span>
+                              <span className="tabular-nums">{brl(cli.mensalidade ?? 0)}</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </DialogContent>
+              </Dialog>
+
+            </>
+          ) : aba === "financeiro" ? (
+            <FinanceiroParceiro
+              carregando={carregandoFin}
+              erro={erroFin}
+              dados={financeiro}
+              fechAberto={fechAberto}
+              setFechAberto={setFechAberto}
+              sub={sub}
+              onSub={(v) => navigate({ search: (s: any) => ({ ...s, sub: v }) })}
+              verComoParceiroId={modoAdmin ? como.trim() : undefined}
+            />
+          ) : aba === "treinamento" ? (
+            <PainelTreinamento audiencia="parceiro" />
+          ) : (
+            <CalculadoraParceiro
+              carregando={carregandoCalc}
+              erro={erroCalc}
+              planos={calculadora?.planos ?? []}
+              veValores={veValores}
+            />
+          )}
+      </div>
+    </div>
+  );
+}
+
+const configuracaoInicial = (plano?: PlanoCalculadoraParceiro): ConfiguracaoCalculadoraParceiro => ({
+  usuarios: plano?.usuariosInclusos ?? 1,
+  canaisWhatsTotal: plano?.canaisWhatsInclusos ?? 0,
+  // API Oficial sempre começa em 0 — nunca herda valor anterior nem a franquia.
+  canaisWhatsOficiais: 0,
+  canaisInsta: plano?.canaisInstaInclusos ?? 0,
+  canaisMessenger: plano?.canaisMessengerInclusos ?? 0,
+  agentesIA: Boolean(plano?.incluiIA),
+  asaas: Boolean(plano?.incluiAsaas),
+  transcricaoIA: Boolean(plano?.incluiTranscricao),
+  setup: 0,
+});
+
+function CalculadoraParceiro({
+  carregando,
+  erro,
+  planos,
+  veValores,
+}: {
+  carregando: boolean;
+  erro: string | null;
+  planos: PlanoCalculadoraParceiro[];
+  veValores: boolean;
+}) {
+  const [planoId, setPlanoId] = useState("");
+  const plano = planos.find((p) => p.id === planoId) ?? planos[0];
+  const [config, setConfig] = useState<ConfiguracaoCalculadoraParceiro>(() => configuracaoInicial());
+  const [margem, setMargem] = useState<MargemParceiro>({
+    tipo: "fixa",
+    valor: 0,
+    base: "mensalidade",
+  });
+  // Hook sempre no topo: abaixo há retornos antecipados (carregando/erro/sem plano).
+  const [licencaAberta, setLicencaAberta] = useState(false);
+
+  useEffect(() => {
+    if (!plano) return;
+    setPlanoId(plano.id);
+    setConfig(configuracaoInicial(plano));
+  }, [plano?.id]);
+
+  if (carregando) return <Skeleton className="h-96 w-full" />;
+  if (erro) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Não foi possível carregar a calculadora</AlertTitle>
+        <AlertDescription>{erro}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (!plano) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+          Nenhum plano está vinculado a este parceiro.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const resultado = calcularOrcamentoParceiro(plano, config);
+  const zapiNaoOficiais = canaisZapiDerivados(config);
+  // Mensalidade base = licença do plano + acompanhamento padrão, sem discriminar.
+  const mensalidadeBase = (resultado.itens[0]?.total ?? 0) + resultado.acompanhamento;
+  const excedentes = resultado.itens.slice(1).reduce((s, i) => s + i.total, 0);
+  const custoBase = mensalidadeBase + excedentes;
+  // Setup digitado pelo parceiro entra na base da margem só em "mensalidade + setup".
+  const valorMargem = calcularMargemParceiro(margem, custoBase, config.setup);
+  const totalCobrar = custoBase + valorMargem;
+
+  const alterarNumero = (campo: keyof ConfiguracaoCalculadoraParceiro, valor: string) => {
+    const numero = Math.max(0, Number(valor) || 0);
+    setConfig((atual) => {
+      const proximo = { ...atual, [campo]: numero };
+      if (campo === "canaisWhatsTotal") {
+        proximo.canaisWhatsOficiais = Math.min(atual.canaisWhatsOficiais, numero);
+      }
+      if (campo === "canaisWhatsOficiais") {
+        proximo.canaisWhatsOficiais = Math.min(numero, atual.canaisWhatsTotal);
+      }
+      return proximo;
+    });
+  };
+
+  const camposQuantidade: { campo: keyof ConfiguracaoCalculadoraParceiro; label: string }[] = [
+    { campo: "usuarios", label: "Usuários" },
+    { campo: "canaisInsta", label: "Canais Instagram" },
+    { campo: "canaisMessenger", label: "Canais Messenger" },
+  ];
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <Card>
+        <CardHeader>
+          <CardTitle>Calculadora de proposta</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Plano</Label>
+            <Select
+              value={plano.id}
+              onValueChange={(id) => {
+                const escolhido = planos.find((p) => p.id === id);
+                if (!escolhido) return;
+                setPlanoId(escolhido.id);
+                setConfig(configuracaoInicial(escolhido));
+              }}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-md border border-border p-4">
+            <p className="mb-3 text-sm font-medium">WhatsApp</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="calc-whats-total">Quantos números vamos conectar?</Label>
+                <Input
+                  id="calc-whats-total"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={String(config.canaisWhatsTotal)}
+                  onChange={(e) => alterarNumero("canaisWhatsTotal", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="calc-whats-oficiais">Quantos desses são API Oficial?</Label>
+                <Input
+                  id="calc-whats-oficiais"
+                  type="number"
+                  min="0"
+                  max={String(config.canaisWhatsTotal)}
+                  step="1"
+                  value={String(config.canaisWhatsOficiais)}
+                  onChange={(e) => alterarNumero("canaisWhatsOficiais", e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {zapiNaoOficiais} número(s) via Z-API{" "}
+              {zapiNaoOficiais > 0 ? `· ${brl(plano.valorZapi)} por número não oficial` : ""}
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {camposQuantidade.map(({ campo, label }) => (
+              <div key={campo} className="space-y-2">
+                <Label htmlFor={`calc-${campo}`}>{label}</Label>
+                <Input
+                  id={`calc-${campo}`}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={String(config[campo])}
+                  onChange={(e) => alterarNumero(campo, e.target.value)}
+                />
+              </div>
+            ))}
+            <div className="space-y-2">
+              <Label htmlFor="calc-setup">Setup (R$) · opcional</Label>
+              <Input
+                id="calc-setup"
+                type="number"
+                min="0"
+                step="0.01"
+                value={String(config.setup)}
+                onChange={(e) => alterarNumero("setup", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([
+              ["agentesIA", "Agentes de IA"],
+              ["asaas", "Integração Asaas"],
+              ["transcricaoIA", `Transcrição IA — ${brl(plano.valorTranscricaoUser)}/usuário`],
+            ] as const).map(([campo, label]) => (
+              <label key={campo} className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm">
+                <span>{label}</span>
+                <Switch
+                  checked={config[campo]}
+                  onCheckedChange={(checked) => setConfig((atual) => ({ ...atual, [campo]: checked }))}
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="rounded-md border border-border p-4">
+            <p className="mb-3 text-sm font-medium">Sua margem</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select
+                  value={margem.tipo}
+                  onValueChange={(v) => setMargem((m) => ({ ...m, tipo: v as MargemParceiro["tipo"] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixa">Valor fixo (R$)</SelectItem>
+                    <SelectItem value="percentual">Percentual (%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="calc-margem-valor">
+                  {margem.tipo === "percentual" ? "Percentual" : "Valor"}
+                </Label>
+                <Input
+                  id="calc-margem-valor"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={String(margem.valor)}
+                  onChange={(e) =>
+                    setMargem((m) => ({ ...m, valor: Math.max(0, Number(e.target.value) || 0) }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Aplicar sobre</Label>
+                <Select
+                  value={margem.base}
+                  onValueChange={(v) => setMargem((m) => ({ ...m, base: v as MargemParceiro["base"] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mensalidade">Só mensalidade</SelectItem>
+                    <SelectItem value="mensalidade_setup">Mensalidade + setup</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="h-fit lg:sticky lg:top-6">
+        <CardHeader>
+          <CardTitle className="text-base">Resumo da proposta</CardTitle>
+          <p className="text-sm text-muted-foreground">{plano.nome}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md bg-muted p-3">
+              <p className="text-xs text-muted-foreground">Setup</p>
+              <p className="mt-1 font-semibold tabular-nums">{brl(config.setup)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLicencaAberta(true)}
+              className="rounded-md bg-muted p-3 text-left transition hover:bg-muted/70 focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+              title="O que inclui a licença base"
+            >
+              <p className="text-xs text-muted-foreground underline decoration-dotted underline-offset-2">Mensalidade base</p>
+              <p className="mt-1 font-semibold tabular-nums">{brl(mensalidadeBase)}</p>
+            </button>
+          </div>
+
+          <Dialog open={licencaAberta} onOpenChange={setLicencaAberta}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>O que inclui a licença base</DialogTitle>
+              </DialogHeader>
+              <ul className="list-disc space-y-2 pl-5 text-sm">
+                <li>{plano.usuariosInclusos} usuário(s) incluso(s).</li>
+                {veValores && (
+                  <li>Acompanhamento: {brl(plano.valorAcompanhamento ?? 0)}.</li>
+                )}
+                <li>
+                  Canais inclusos: {plano.canaisWhatsInclusos} WhatsApp, {plano.canaisInstaInclusos} Instagram,{" "}
+                  {plano.canaisMessengerInclusos} Messenger{plano.incluiZapi > 0 ? `, ${plano.incluiZapi} Z-API` : ""}.
+                </li>
+                <li>
+                  Conversas com até {plano.contatosInclusos.toLocaleString("pt-BR")} contatos únicos no mês.
+                  Excedente: {brl(plano.valorContatosExc)} por contato.
+                </li>
+                <li>Painéis e funis ilimitados.</li>
+                <li>Chatbots ilimitados.</li>
+                <li>
+                  Sequências: com sequências você automatiza follow-up, envia newsletters e faz campanhas de
+                  disparo em massa para sua base de contatos.
+                </li>
+              </ul>
+            </DialogContent>
+          </Dialog>
+
+          <div className="space-y-2 text-sm">
+            {resultado.itens.slice(1).map((item, indice) => (
+              <div key={`${item.label}-${indice}`} className="flex items-start justify-between gap-4 border-b border-border/60 pb-2">
+                <div>
+                  <p>{item.label}</p>
+                  {item.incluso && <p className="text-xs text-muted-foreground">{item.incluso}</p>}
+                  {item.qtd > 1 && <p className="text-xs text-muted-foreground">{item.qtd} × {brl(item.unit)}</p>}
+                </div>
+                <span className="shrink-0 tabular-nums">{brl(item.total)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+              <span>Excedentes</span>
+              <span className="tabular-nums">{brl(excedentes)}</span>
+            </div>
+            <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+              <span>Margem aplicada</span>
+              <span className="tabular-nums">{brl(valorMargem)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-end justify-between gap-4 border-t border-border pt-4">
+            <span className="font-medium">Total a cobrar do cliente</span>
+            <span className="text-2xl font-semibold tabular-nums">{brl(totalCobrar)}</span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
+function FinanceiroParceiro({
+  carregando,
+  erro,
+  dados,
+  fechAberto,
+  setFechAberto,
+  sub,
+  onSub,
+  verComoParceiroId,
+}: {
+  carregando: boolean;
+  erro: string | null;
+  dados: FinanceiroData | null;
+  fechAberto: string | null;
+  setFechAberto: (v: string | null) => void;
+  sub: SubFinanceiro;
+  onSub: (v: SubFinanceiro) => void;
+  verComoParceiroId?: string;
+}) {
+  const fnBaixar = useServerFn(baixarNotaFiscal);
+  const fnAuditoria = useServerFn(getAuditoriaFechamentoParceiro);
+  const [auditandoId, setAuditandoId] = useState<string | null>(null);
+  const [verAuditoria, setVerAuditoria] = useState<FechamentoParceiro | null>(null);
+  const [comparando, setComparando] = useState(false);
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
+  const [previa, setPrevia] = useState<{
+    id: string;
+    arquivo: string;
+    competencia: string;
+    url?: string;
+    mimeType?: string;
+    erro?: string;
+  } | null>(null);
+  const requisicaoPrevia = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (previa?.url) URL.revokeObjectURL(previa.url);
+    };
+  }, [previa?.url]);
+
+  useEffect(() => {
+    if (sub !== "notas") {
+      requisicaoPrevia.current += 1;
+      setPrevia(null);
+    }
+  }, [sub]);
+
+  const fecharPrevia = () => {
+    requisicaoPrevia.current += 1;
+    setPrevia(null);
+  };
+
+  const arquivoBlob = (conteudoBase64: string, mimeType: string) => {
+    const binario = atob(conteudoBase64);
+    const bytes = new Uint8Array(binario.length);
+    for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+    return new Blob([bytes], { type: mimeType });
+  };
+
+  const abrirPrevia = async (nota: { id: string; arquivo: string; competencia: string }) => {
+    const pedido = ++requisicaoPrevia.current;
+    setPrevia({ id: nota.id, arquivo: nota.arquivo, competencia: nota.competencia });
+    try {
+      const r = await fnBaixar({ data: { notaId: nota.id } });
+      const url = URL.createObjectURL(arquivoBlob(r.conteudoBase64, r.mimeType));
+      if (pedido !== requisicaoPrevia.current) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      setPrevia({ id: nota.id, arquivo: r.nomeArquivo, competencia: nota.competencia, mimeType: r.mimeType, url });
+    } catch (e) {
+      if (pedido === requisicaoPrevia.current) {
+        setPrevia({
+          id: nota.id,
+          arquivo: nota.arquivo,
+          competencia: nota.competencia,
+          erro: e instanceof Error ? e.message : "Não foi possível visualizar a nota.",
+        });
+      }
+    }
+  };
+
+  const baixarNota = async (notaId: string) => {
+    setBaixandoId(notaId);
+    try {
+      const r = await fnBaixar({ data: { notaId } });
+      const blob = arquivoBlob(r.conteudoBase64, r.mimeType);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = r.nomeArquivo;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível baixar a nota.");
+    } finally {
+      setBaixandoId(null);
+    }
+  };
+
+  if (carregando) return <Skeleton className="h-64 w-full" />;
+  if (erro) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Não foi possível carregar o financeiro</AlertTitle>
+        <AlertDescription>{erro}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  const fechamentos = dados?.fechamentos ?? [];
+
+  if (sub === "relatorios") {
+    return (
+      <div className="space-y-4">
+        <AlternadorSub sub={sub} onSub={onSub} />
+        <RelatoriosParceiro
+          itens={dados?.relatorioItens ?? []}
+          veValores={Boolean(dados?.veValores)}
+        />
+      </div>
+    );
+  }
+
+  if (sub === "notas") {
+    const notas = dados?.notas ?? [];
+    return (
+      <div className="space-y-4">
+        <AlternadorSub sub={sub} onSub={onSub} />
+        {notas.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Nenhuma nota fiscal anexada aos seus fechamentos até agora.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {notas.map((n) => (
+              <Card key={n.id} className="min-w-0 overflow-hidden">
+                <CardContent className="flex h-full flex-col p-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-auto w-full min-w-0 flex-1 flex-col items-stretch gap-4 rounded-none p-4 text-left hover:bg-muted/50"
+                    onClick={() => abrirPrevia(n)}
+                    aria-label={`Pré-visualizar ${n.arquivo}`}
+                    title={n.arquivo}
+                  >
+                    <span className="flex w-full min-w-0 items-center gap-3">
+                      <span className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+                        <FileText className="size-6" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{n.arquivo}</span>
+                      <Eye className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </span>
+                    <span className="flex w-full flex-wrap items-center gap-2">
+                      <Badge variant="outline">{n.competencia}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {n.lancamentos} lançamento{n.lancamentos === 1 ? "" : "s"}
+                      </span>
+                    </span>
+                  </Button>
+                  <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
+                    <span className="text-sm font-semibold tabular-nums">{brl(n.valorTotal)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={baixandoId === n.id}
+                    onClick={() => baixarNota(n.id)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {baixandoId === n.id ? "Baixando…" : "Baixar"}
+                  </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        <Dialog open={Boolean(previa)} onOpenChange={(open) => { if (!open) fecharPrevia(); }}>
+          <DialogContent className="flex h-[min(90dvh,900px)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-3 overflow-hidden p-4 sm:p-6">
+            <DialogHeader className="min-w-0 pr-8 text-left">
+              <DialogTitle className="truncate" title={previa?.arquivo}>{previa?.arquivo}</DialogTitle>
+              <DialogDescription>Nota fiscal · {previa?.competencia}</DialogDescription>
+            </DialogHeader>
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
+              {!previa?.url && !previa?.erro && <Skeleton className="h-full w-full" />}
+              {previa?.erro && <p role="alert" className="p-5 text-center text-sm text-destructive">{previa.erro}</p>}
+              {previa?.url && previa.mimeType?.startsWith("image/") && (
+                <img src={previa.url} alt={`Nota fiscal ${previa.arquivo}`} className="max-h-full max-w-full object-contain" />
+              )}
+              {previa?.url && previa.mimeType === "application/pdf" && (
+                <div className="h-full w-full overflow-y-auto"><PdfPreview url={previa.url} /></div>
+              )}
+              {previa?.url && previa.mimeType !== "application/pdf" && !previa.mimeType?.startsWith("image/") && (
+                <p className="p-5 text-center text-sm text-muted-foreground">A pré-visualização deste tipo de arquivo não está disponível. Você pode baixá-lo.</p>
+              )}
+            </div>
+            <div className="flex shrink-0 justify-end gap-2">
+              <Button variant="outline" onClick={fecharPrevia}>Fechar</Button>
+              <Button
+                disabled={!previa?.url}
+                onClick={() => {
+                  if (!previa?.url) return;
+                  const a = document.createElement("a");
+                  a.href = previa.url;
+                  a.download = previa.arquivo;
+                  a.click();
+                }}
+              >
+                <Download className="mr-2 size-4" />Baixar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  if (!dados?.habilitado || fechamentos.length === 0) {
+    return (
+      <div className="space-y-4">
+        <AlternadorSub sub={sub} onSub={onSub} />
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Nenhum fechamento disponível para consulta no momento.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <AlternadorSub sub={sub} onSub={onSub} />
+      {fechamentos.length >= 2 && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setComparando(true)}>
+            Comparar fechamentos
+          </Button>
+        </div>
+      )}
+      <ComparacaoFechamentosDialog
+        aberto={comparando}
+        onFechar={() => setComparando(false)}
+        fechamentos={fechamentos}
+      />
+      <AuditoriaFechamentoDialog
+        fechamento={verAuditoria}
+        onFechar={() => setVerAuditoria(null)}
+        verComoParceiroId={verComoParceiroId}
+      />
+      {fechamentos.map((f) => {
+        const expandido = fechAberto === f.id;
+        const vencLabel = f.vencimento
+          ? `${dataBr(f.vencimento)}${f.vencimentosDivergentes ? ` (+${f.vencimentos.length - 1} datas)` : ""}`
+          : "—";
+        return (
+          <Card key={f.id}>
+            <CardHeader
+              className="cursor-pointer flex-row flex-wrap items-center gap-2 space-y-0"
+              onClick={() => setFechAberto(expandido ? null : f.id)}
+            >
+              {expandido ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <CardTitle className="text-base">{f.titulo}</CardTitle>
+              <Badge variant="outline" className="text-[10px]">{f.competencia}</Badge>
+              <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground sm:w-auto">
+                <span>
+                  Ciclo:{" "}
+                  {f.cicloInicio && f.cicloFim ? `${dataBr(f.cicloInicio)} → ${dataBr(f.cicloFim)}` : "—"}
+                </span>
+                <span title={f.vencimentos.map(dataBr).join(", ")}>Vencimento: {vencLabel}</span>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-sm font-semibold">{brl(f.totalLiquido)}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Baixar resumo de ${f.titulo}`}
+                  title="Baixar resumo do fechamento (PDF)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    gerarPdfResumoFechamento({
+                      titulo: f.titulo,
+                      competencia: f.competencia,
+                      ciclo: f.cicloInicio && f.cicloFim ? `${dataBr(f.cicloInicio)} a ${dataBr(f.cicloFim)}` : "—",
+                      vencimento: vencLabel,
+                      geradoEm: new Date().toLocaleString("pt-BR"),
+                      linhas: f.linhas.map((l) => ({
+                        cliente: l.planoNome ? `${l.clienteNome} (${l.planoNome})` : l.clienteNome,
+                        composicao: l.composicao.length === 0 ? "—" : l.composicao.map((c) => `${c.label}: ${brl(c.total)}`).join(" · "),
+                        ciclo: l.cicloInicio && l.cicloFim ? `${dataBr(l.cicloInicio)} a ${dataBr(l.cicloFim)}` : "—",
+                        vencimento: l.vencimento ? dataBr(l.vencimento) : "—",
+                        status: l.status === "pago" ? "Pago" : l.status ? "Pendente" : "—",
+                        bruto: brl(l.valorBruto),
+                        desconto: brl(l.valorDesconto),
+                        liquido: brl(l.valorLiquido),
+                      })),
+                      totais: { bruto: brl(f.totalBruto), desconto: brl(f.totalDesconto), liquido: brl(f.totalLiquido) },
+                    });
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                {dados?.veValores && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    disabled={auditandoId === f.id}
+                    aria-label={`Baixar auditoria de ${f.titulo}`}
+                    title="Baixar auditoria do fechamento (PDF)"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setAuditandoId(f.id);
+                      try {
+                        const r = await fnAuditoria({ data: { fechamentoId: f.id, verComoParceiroId } });
+                        baixarPdfAuditoria(f, r.clientes);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Não foi possível gerar a auditoria.");
+                      } finally {
+                        setAuditandoId(null);
+                      }
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" /> Auditoria
+                  </Button>
+                )}
+                {dados?.veValores && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVerAuditoria(f);
+                    }}
+                  >
+                    Ver auditoria
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            {expandido && (
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Composição cobrada</TableHead>
+                      <TableHead>Ciclo</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Bruto</TableHead>
+                      <TableHead className="text-right">Desconto</TableHead>
+                      <TableHead className="text-right">Líquido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {f.linhas.map((l) => (
+                      <TableRow key={l.id}>
+                        <TableCell className="font-medium">
+                          {l.clienteNome}
+                          {l.planoNome && (
+                            <span className="block text-xs text-muted-foreground">{l.planoNome}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {l.composicao.length === 0
+                            ? "—"
+                            : l.composicao.map((c) => `${c.label}: ${brl(c.total)}`).join(" · ")}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {l.cicloInicio && l.cicloFim
+                            ? `${dataBr(l.cicloInicio)} → ${dataBr(l.cicloFim)}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {l.vencimento ? dataBr(l.vencimento) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {l.status ? (
+                            <Badge variant={l.status === "pago" ? "secondary" : "outline"} className="text-[10px] capitalize">
+                              {l.status === "pago" ? "Pago" : "Pendente"}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{brl(l.valorBruto)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{brl(l.valorDesconto)}</TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">{brl(l.valorLiquido)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={5} className="font-medium">Total da sua carteira</TableCell>
+                      <TableCell className="text-right tabular-nums">{brl(f.totalBruto)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{brl(f.totalDesconto)}</TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{brl(f.totalLiquido)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function AlternadorSub({
+  sub,
+  onSub,
+}: {
+  sub: SubFinanceiro;
+  onSub: (v: SubFinanceiro) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(["fechamentos", "relatorios", "notas"] as const).map((s) => (
+        <Button key={s} size="sm" variant={sub === s ? "secondary" : "outline"} onClick={() => onSub(s)}>
+          {s === "fechamentos" ? "Fechamentos" : s === "relatorios" ? "Relatórios" : "Notas Fiscais"}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+const CORES_PIZZA = ["var(--chart-2)", "var(--chart-4)"];
+
+function RelatoriosParceiro({
+  itens,
+  veValores,
+}: {
+  itens: ItemRelatorioParceiro[];
+  veValores: boolean;
+}) {
+  const anoAtual = new Date().getFullYear();
+  const [ano, setAno] = useState(Math.max(ANO_INICIAL, anoAtual));
+  const anos = useMemo(() => {
+    const fim = Math.max(ANO_INICIAL, anoAtual);
+    return Array.from({ length: fim - ANO_INICIAL + 1 }, (_, i) => ANO_INICIAL + i);
+  }, [anoAtual]);
+
+  const relatorio = useMemo(
+    () => montarRelatorioParceiro({ ano, veValores, itens }),
+    [ano, veValores, itens],
+  );
+
+  const dadosPizza = relatorio.composicao
+    ? [
+        { nome: "Sistema", valor: relatorio.composicao.sistema },
+        { nome: "Acompanhamento", valor: relatorio.composicao.acompanhamento },
+      ].filter((d) => d.valor > 0)
+    : [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">Relatórios</h2>
+        <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
+          <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {anos.map((a) => (
+              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Ticket médio por cliente</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">{brl(relatorio.ticketMedio)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Aumentos no período</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">{brl(relatorio.aumentos)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Reduções no período</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">{brl(relatorio.reducoes)}</CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Total pago por mês</CardTitle>
+        </CardHeader>
+        <CardContent className="h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={relatorio.pagoPorMes}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="chave" tickFormatter={mesLabel} stroke="var(--muted-foreground)" fontSize={12} />
+              <YAxis stroke="var(--muted-foreground)" fontSize={12} />
+              <Tooltip formatter={(v: any) => brl(Number(v))} labelFormatter={(l: any) => mesLabel(String(l))} />
+              <Bar dataKey="total" name="Pago" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {relatorio.composicao && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Sistema × Acompanhamento</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[280px]">
+            {dadosPizza.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">Sem valores no período.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={dadosPizza} dataKey="valor" nameKey="nome" outerRadius={100} label>
+                    {dadosPizza.map((_, i) => (
+                      <Cell key={i} fill={CORES_PIZZA[i % CORES_PIZZA.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any) => brl(Number(v))} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function baixarPdfAuditoria(f: FechamentoParceiro, clientes: AuditoriaClienteParceiro[]) {
+  gerarPdfAuditoriaFechamento({
+    titulo: f.titulo,
+    competencia: f.competencia,
+    ciclo: f.cicloInicio && f.cicloFim ? `${dataBr(f.cicloInicio)} a ${dataBr(f.cicloFim)}` : "—",
+    geradoEm: new Date().toLocaleString("pt-BR"),
+    clientes: clientes.map((c) => ({
+      clienteNome: c.clienteNome,
+      ciclo: c.cicloInicio && c.cicloFim ? `${dataBr(c.cicloInicio)} a ${dataBr(c.cicloFim)}` : "—",
+      bruto: c.valorBruto,
+      desconto: c.valorDesconto,
+      liquido: c.valorLiquido,
+      composicao: c.composicao,
+      movimentos: c.movimentos,
+    })),
+  });
+}
+
+function AuditoriaFechamentoDialog({
+  fechamento,
+  onFechar,
+  verComoParceiroId,
+}: {
+  fechamento: FechamentoParceiro | null;
+  onFechar: () => void;
+  verComoParceiroId?: string;
+}) {
+  const fn = useServerFn(getAuditoriaFechamentoParceiro);
+  const [clientes, setClientes] = useState<AuditoriaClienteParceiro[] | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState<string | null>(null);
+  const pedido = useRef(0);
+
+  useEffect(() => {
+    setClientes(null);
+    setErro(null);
+    setBusca("");
+    setAberto(null);
+    if (!fechamento) return;
+    const n = ++pedido.current;
+    fn({ data: { fechamentoId: fechamento.id, verComoParceiroId } })
+      .then((r) => n === pedido.current && setClientes(r.clientes))
+      .catch((e) => n === pedido.current && setErro(e instanceof Error ? e.message : "Erro ao carregar."));
+  }, [fechamento?.id, verComoParceiroId]);
+
+  const filtrados = (clientes ?? []).filter((c) =>
+    c.clienteNome.toLowerCase().includes(busca.trim().toLowerCase()),
+  );
+  const tot = (clientes ?? []).reduce(
+    (s, c) => ({ b: s.b + c.valorBruto, d: s.d + c.valorDesconto, l: s.l + c.valorLiquido }),
+    { b: 0, d: 0, l: 0 },
+  );
+
+  return (
+    <Dialog open={Boolean(fechamento)} onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-4xl flex-col gap-3 overflow-hidden sm:h-auto sm:max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Auditoria · {fechamento?.titulo}</DialogTitle>
+          <DialogDescription>
+            Competência {fechamento?.competencia}. Valores gravados no fechamento.
+          </DialogDescription>
+        </DialogHeader>
+        {erro && <p className="text-sm text-destructive">{erro}</p>}
+        {!clientes && !erro && <Skeleton className="h-40 w-full" />}
+        {clientes && (
+          <>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                ["Bruto", tot.b],
+                ["Desconto", tot.d],
+                ["Líquido", tot.l],
+              ].map(([k, v]) => (
+                <div key={k as string} className="rounded-md border bg-muted/40 p-2">
+                  <p className="text-[11px] text-muted-foreground">{k}</p>
+                  <p className="text-sm font-semibold">{brl(v as number)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                placeholder="Buscar cliente"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="h-9 flex-1"
+              />
+              <span className="text-xs text-muted-foreground">{clientes.length} clientes</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                onClick={() => fechamento && baixarPdfAuditoria(fechamento, clientes)}
+              >
+                <Download className="h-3.5 w-3.5" /> Baixar PDF
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              {filtrados.map((c) => {
+                const exp = aberto === c.clienteNome;
+                const comp = c.composicao;
+                return (
+                  <div key={c.clienteNome} className="rounded-md border">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 p-3 text-left"
+                      onClick={() => setAberto(exp ? null : c.clienteNome)}
+                    >
+                      {exp ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <span className="flex-1 text-sm font-medium">
+                        {c.clienteNome}
+                        {comp.planoNome && (
+                          <span className="block text-xs font-normal text-muted-foreground">{comp.planoNome}</span>
+                        )}
+                      </span>
+                      <span className="text-sm font-semibold">{brl(c.valorLiquido)}/mês</span>
+                    </button>
+                    {exp && (
+                      <div className="space-y-3 border-t p-3">
+                        <p className="text-xs font-semibold">Composição da mensalidade no fechamento</p>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Item</TableHead>
+                                <TableHead className="text-right">Qtd</TableHead>
+                                <TableHead className="text-right">Unitário</TableHead>
+                                <TableHead className="text-right">Total</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {comp.itens.map((i, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="text-xs">
+                                    {i.label}
+                                    {i.incluso && <span className="text-muted-foreground"> ({i.incluso})</span>}
+                                  </TableCell>
+                                  <TableCell className="text-right text-xs">{i.qtd}</TableCell>
+                                  <TableCell className="text-right text-xs">{brl(i.unit)}</TableCell>
+                                  <TableCell className="text-right text-xs">{brl(i.total)}</TableCell>
+                                </TableRow>
+                              ))}
+                              {(
+                                [
+                                  ["Sistema", comp.subtotalSistema],
+                                  ["Acompanhamento", comp.acompanhamento],
+                                  ["MAU excedente", comp.mauExcedenteValor],
+                                  ["Desconto", -comp.desconto],
+                                ] as [string, number][]
+                              )
+                                .filter(([k, v]) => k === "Sistema" || v !== 0)
+                                .map(([k, v]) => (
+                                  <TableRow key={k}>
+                                    <TableCell colSpan={3} className="text-xs">{k}</TableCell>
+                                    <TableCell className="text-right text-xs">{brl(v)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              <TableRow>
+                                <TableCell colSpan={3} className="text-xs font-semibold">Total</TableCell>
+                                <TableCell className="text-right text-xs font-semibold">{brl(comp.total)}</TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </div>
+                        {comp.aviso && <p className="text-xs text-muted-foreground">{comp.aviso}</p>}
+                        <p className="text-xs font-semibold">Linha do tempo (até o fim do ciclo)</p>
+                        {c.movimentos.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Sem movimentos registrados.</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {c.movimentos.map((m, idx) => (
+                              <li key={idx} className="flex flex-wrap gap-x-3 text-xs">
+                                <span className="w-20 text-muted-foreground">{dataBr(m.data)}</span>
+                                <Badge variant="outline" className="text-[10px]">{m.tipo}</Badge>
+                                <span className="flex-1">{m.descricao || "—"}</span>
+                                {m.valor !== 0 && <span className="font-medium">{brl(m.valor)}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {filtrados.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+              )}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const ROTULO_SITUACAO: Record<SituacaoComparacao, string> = {
+  novo: "Novo",
+  saiu: "Saiu",
+  aumentou: "Aumentou",
+  reduziu: "Reduziu",
+  igual: "Igual",
+};
+
+function ComparacaoFechamentosDialog({
+  aberto,
+  onFechar,
+  fechamentos,
+}: {
+  aberto: boolean;
+  onFechar: () => void;
+  fechamentos: FechamentoParceiro[];
+}) {
+  const [idA, setIdA] = useState("");
+  const [idB, setIdB] = useState("");
+  const [filtro, setFiltro] = useState<"todas" | SituacaoComparacao>("todas");
+  useEffect(() => {
+    if (aberto && fechamentos.length >= 2) {
+      setIdB(fechamentos[0].id);
+      setIdA(fechamentos[1].id);
+      setFiltro("todas");
+    }
+  }, [aberto]);
+  const a = fechamentos.find((f) => f.id === idA);
+  const b = fechamentos.find((f) => f.id === idB);
+  const r = a && b ? compararFechamentos(a, b) : null;
+  const linhas = r ? r.linhas.filter((l) => filtro === "todas" || l.situacao === filtro) : [];
+  const corDif = (v: number) => (v > 0 ? "text-success" : v < 0 ? "text-destructive" : "text-muted-foreground");
+  const sinal = (v: number) => (v > 0 ? `+${brl(v)}` : brl(v));
+
+  return (
+    <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-4xl flex-col gap-3 overflow-hidden sm:h-auto sm:max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Comparar fechamentos</DialogTitle>
+          <DialogDescription>Valores líquidos gravados de cada competência, só da sua carteira.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ["Base (A)", idA, setIdA],
+              ["Comparado (B)", idB, setIdB],
+            ] as const
+          ).map(([rot, val, set]) => (
+            <div key={rot} className="space-y-1">
+              <Label className="text-xs">{rot}</Label>
+              <Select value={val} onValueChange={set}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Escolha" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fechamentos.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.titulo} · {f.competencia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
+        {r && (
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Líquido A</p>
+                <p className="text-sm font-semibold">{brl(r.totalA)}</p>
+                <p className="text-[11px] text-muted-foreground">{r.clientesA} clientes</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Líquido B</p>
+                <p className="text-sm font-semibold">{brl(r.totalB)}</p>
+                <p className="text-[11px] text-muted-foreground">{r.clientesB} clientes</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Diferença</p>
+                <p className={`text-sm font-semibold ${corDif(r.diferenca)}`}>{sinal(r.diferenca)}</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-2">
+                <p className="text-[11px] text-muted-foreground">Variação</p>
+                <p className={`text-sm font-semibold ${corDif(r.diferenca)}`}>
+                  {r.percentual === null ? "—" : `${r.percentual.toFixed(1).replace(".", ",")}%`}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {(["todas", "novo", "saiu", "aumentou", "reduziu", "igual"] as const).map((k) => {
+                const n = k === "todas" ? r.linhas.length : r.linhas.filter((l) => l.situacao === k).length;
+                return (
+                  <Button
+                    key={k}
+                    size="sm"
+                    variant={filtro === k ? "default" : "outline"}
+                    className="h-7 text-xs"
+                    onClick={() => setFiltro(k)}
+                  >
+                    {k === "todas" ? "Todas" : ROTULO_SITUACAO[k]} ({n})
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead className="text-right">A</TableHead>
+                    <TableHead className="text-right">B</TableHead>
+                    <TableHead className="text-right">Diferença</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {linhas.map((l) => (
+                    <TableRow key={l.clienteId}>
+                      <TableCell className="text-xs font-medium">{l.clienteNome}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px]">{ROTULO_SITUACAO[l.situacao]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right text-xs">{l.liquidoA === null ? "—" : brl(l.liquidoA)}</TableCell>
+                      <TableCell className="text-right text-xs">{l.liquidoB === null ? "—" : brl(l.liquidoB)}</TableCell>
+                      <TableCell className={`text-right text-xs font-medium ${corDif(l.diferenca)}`}>
+                        {sinal(l.diferenca)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {linhas.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-6 text-center text-xs text-muted-foreground">
+                        Nenhum cliente nesta situação.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

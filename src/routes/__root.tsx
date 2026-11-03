@@ -13,17 +13,15 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppHeader } from "@/components/app-header";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client-configured";
-import { UserMenu } from "@/components/user-menu";
-import { usePerfil } from "@/hooks/use-perfil";
 import type { Session } from "@supabase/supabase-js";
 import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 import { usePapelUsuario } from "@/lib/use-papel";
-import { ThemeToggle, themeInitScript } from "@/components/theme-toggle";
-import { NotificationBell } from "@/components/notification-bell";
+import { themeInitScript } from "@/components/theme-toggle";
 import { CHAT_WIDGET_ID, CHAT_WIDGET_SRC } from "@/lib/landing/contato";
 
 
@@ -150,19 +148,6 @@ function ehPaginaPublica(pathname: string) {
   );
 }
 
-/** Bolinha de perfil no topo do painel (foto ou iniciais). */
-function HeaderUserMenu({ email }: { email: string | null }) {
-  const perfil = usePerfil();
-  return (
-    <UserMenu
-      nome={perfil.nome}
-      email={perfil.email ?? email}
-      avatarUrl={perfil.avatarUrl}
-      iniciais={perfil.iniciais}
-    />
-  );
-}
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const syncFromSupabase = useStore((state) => state.syncFromSupabase);
@@ -178,7 +163,7 @@ function RootComponent() {
   // que está apenas visualizando ("ver como cliente"). Comparação EXATA:
   // /clientes e /gestao-parceiros são telas internas de gestão e mantêm o menu.
   const emAreaExterna =
-    pathname === "/area-do-cliente" || pathname === "/cliente" || pathname === "/parceiro";
+    pathname === "/area-do-cliente" || pathname === "/parceiro";
   const semMenuLateral = Boolean(areaPropria) || emAreaExterna;
 
   // Cliente e pessoa de parceiro não acessam telas internas: caem na área deles.
@@ -273,32 +258,24 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background text-foreground">
-          {!semMenuLateral && <AppSidebar />}
-          <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-16 flex items-center gap-1 sm:gap-3 border-b border-border/60 px-3 sm:px-6 sticky top-0 bg-card/90 backdrop-blur z-10">
-              {!semMenuLateral && <SidebarTrigger className="md:hidden" />}
-              <div className="flex-1 min-w-0">
-                <span className="block truncate text-[13px] font-medium text-muted-foreground">
-                  {isCliente || pathname === "/area-do-cliente" || pathname === "/cliente"
-                    ? "Área do cliente"
-                    : isParceiro || pathname === "/parceiro"
-                      ? "Área do parceiro"
-                      : "Painel administrativo"}
-                </span>
+          {emAreaExterna ? (
+            // Áreas do parceiro/cliente: o layout de rota monta menu e barra superior.
+            <Outlet />
+          ) : (
+            <>
+              {!semMenuLateral && <AppSidebar />}
+              <div className="flex-1 flex flex-col min-w-0">
+                <AppHeader
+                  label={isCliente ? "Área do cliente" : isParceiro ? "Área do parceiro" : "Painel administrativo"}
+                  showTrigger={!semMenuLateral}
+                  email={session.user.email ?? null}
+                />
+                <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
+                  <Outlet />
+                </main>
               </div>
-              <div
-                id="app-header-actions"
-                className="flex shrink-0 items-center gap-1"
-                aria-label="Atalhos da área atual"
-              />
-              <ThemeToggle />
-              <NotificationBell />
-              <HeaderUserMenu email={session.user.email ?? null} />
-            </header>
-            <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
-              <Outlet />
-            </main>
-          </div>
+            </>
+          )}
         </div>
       </SidebarProvider>
       <Toaster />
