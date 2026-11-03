@@ -1,0 +1,3224 @@
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown, Eraser } from "lucide-react";
+import { FileSearch, Printer } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { FilterBar, type FilterState, type FilterFieldDef } from "@/components/filter-bar";
+import { usePersistentFilters } from "@/hooks/use-persistent-filters";
+import { useCurrentUserAccess } from "@/lib/permissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  useStore, formatBRL, formatBRLPreciso, receitaCicloCliente, detalharCicloCliente, receitaMensalCliente,
+  calcularCustoLiquidoHelena,
+  formatDiaVencimento,
+  obterVencimentoDaCompetencia,
+  clienteSnapshotAt,
+  getDiaVencimentoEfetivo,
+  mensagemErroPersistencia,
+} from "@/lib/store";
+import { explicarReceitaCliente } from "@/lib/calc/receita";
+import { composicaoDoFechamento } from "@/lib/calc/composicao-fechamento";
+import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/calc/desconto";
+import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
+import { getCicloCliente, isoFromDate } from "@/lib/calc/ciclo";
+import { toast } from "sonner";
+import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2, Share2, Undo2 } from "lucide-react";
+import { alternarEnvioFechamentoParceiro } from "@/lib/parceiro.functions";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+function getMultiFilterValues(filtros: FilterState, key: string): string[] {
+  const value = filtros[key];
+  if (!value || value.type !== "multi" || !Array.isArray(value.values)) return [];
+  return value.values.filter((v): v is string => typeof v === "string");
+}
+
+function getSingleFilterValue(filtros: FilterState, key: string): string {
+  const value = filtros[key];
+  if (!value || value.type !== "single" || typeof value.value !== "string") return "";
+  return value.value;
+}
+
+function isValidCompetenciaKey(value: string): boolean {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false;
+  const [year, month] = value.split("-").map(Number);
+  return Number.isInteger(year) && Number.isInteger(month) && year >= 2000 && month >= 1 && month <= 12;
+}
+
+function getCompetenciaBase(value?: string | null): string | null {
+  const match = value?.match(/^(\d{4}-(0[1-9]|1[0-2]))/);
+  return match && isValidCompetenciaKey(match[1]) ? match[1] : null;
+}
+
+function isoLocal(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatCompetenciaLabel(y: number, m: number): string {
+  const mesNome = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long" });
+  return `${mesNome.charAt(0).toUpperCase()}${mesNome.slice(1)}/${y}`;
+}
+
+
+type FechamentoVisivel = Fechamento & { legacyFinanceiroId?: string };
+
+function MauFechamentoEditor({
+  itemId,
+  snapshot,
+  contatosInclusos,
+  valorContatosExc,
+  onSalvar,
+}: {
+  itemId: string;
+  snapshot: Record<string, unknown>;
+  contatosInclusos: number;
+  valorContatosExc: number;
+  onSalvar: (mauMes: number) => Promise<void> | void;
+}) {
+  const mauSalvo = Number(snapshot.mauMes ?? 0) || 0;
+  const valorSalvo = Number(snapshot.mauExcedenteValor ?? 0) || 0;
+  const [mau, setMau] = useState<string>(mauSalvo ? String(mauSalvo) : "");
+  const [saving, setSaving] = useState(false);
+  const mauNum = Math.max(0, Math.floor(Number(mau) || 0));
+  const excedente = Math.max(0, mauNum - contatosInclusos);
+  const acrescimo = excedente * valorContatosExc;
+  const alterado = mauNum !== mauSalvo;
+  void itemId;
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-3 space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-primary">MAU do mês</h5>
+          <p className="text-[11px] text-muted-foreground">
+            Inclusos no plano: <strong>{contatosInclusos.toLocaleString("pt-BR")}</strong> · Unit. excedente: <strong>{formatBRLPreciso(valorContatosExc)}</strong>
+          </p>
+        </div>
+        {valorSalvo > 0 && (
+          <Badge variant="outline" className="text-[10px]">
+            Salvo: +{formatBRL(valorSalvo)}
+          </Badge>
+        )}
+      </div>
+      <div className="flex items-end gap-2 flex-wrap">
+        <div className="flex-1 min-w-[180px]">
+          <Label className="text-[11px] text-muted-foreground">MAU registrados no mês</Label>
+          <Input
+            type="number"
+            min={0}
+            value={mau}
+            onChange={(e) => setMau(e.target.value)}
+            placeholder="Ex.: 1200"
+            className="mt-1 h-8 text-sm"
+          />
+        </div>
+        <div className="text-xs text-muted-foreground min-w-[200px]">
+          {excedente > 0 ? (
+            <>
+              <strong>{excedente.toLocaleString("pt-BR")}</strong> excedentes ×{" "}
+              {formatBRLPreciso(valorContatosExc)} ={" "}
+              <span className="text-primary font-semibold">+{formatBRL(acrescimo)}</span>
+            </>
+          ) : mau ? (
+            <span className="text-fin">Dentro do plano — sem acréscimo.</span>
+          ) : (
+            <span>Informe os MAU do mês para calcular o excedente.</span>
+          )}
+        </div>
+        <Button
+          size="sm"
+          disabled={saving || !alterado}
+          onClick={async () => {
+            setSaving(true);
+            try { await onSalvar(mauNum); } finally { setSaving(false); }
+          }}
+          className="h-8 gap-1.5"
+        >
+          {saving ? "Salvando…" : "Aplicar MAU"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function FechamentoMensal() {
+  const {
+    clientes, planos, custos, movimentos, parceiros, financeiro,
+    descontos, addDesconto, removeDesconto,
+  fechamentos = [], fechamentoItens = [], removeFechamento, updateFechamento,
+    gerarFechamentoNoServidor,
+    restaurarFechamento, excluirFechamentoDefinitivo,
+    atualizarMauFechamentoItem,
+  } = useStore();
+  const { isAdmin } = useCurrentUserAccess();
+  const [filtros, setFiltros] = usePersistentFilters("resumo");
+  const filtrosRef = useRef(filtros);
+  useEffect(() => { filtrosRef.current = filtros; }, [filtros]);
+  const planoSel = getMultiFilterValues(filtros, "plano");
+  const parceiroSel = getMultiFilterValues(filtros, "parceiro");
+  const vencSel = getMultiFilterValues(filtros, "vencimento");
+  const tipoSel = getMultiFilterValues(filtros, "tipo");
+  const planoSelKey = planoSel.join("|");
+  const parceiroSelKey = parceiroSel.join("|");
+  const vencSelKey = vencSel.join("|");
+  const tipoSelKey = tipoSel.join("|");
+  const rawCompetenciaSel = getSingleFilterValue(filtros, "competencia");
+  const competenciaSel = isValidCompetenciaKey(rawCompetenciaSel) ? rawCompetenciaSel : "";
+  const labelMulti = (sel: string[], all: string, nameOf: (id: string) => string) =>
+    sel.length === 0 ? all : sel.map(nameOf).filter(Boolean).join(", ");
+  const slugMulti = (sel: string[]) => sel.length === 0 ? "todos" : sel.length === 1 ? sel[0] : "multi";
+  const abreviarPlano = (nome?: string | null) => {
+    if (!nome) return "—";
+    return nome
+      .replace(/Distribox LTDA\s*/i, "Distribox ")
+      .replace(/Exclusive/i, "Excl.")
+      .replace(/Essencial\s*/i, "Ess. ")
+      .replace(/Agency/i, "Ag.")
+      .replace(/Consultoria/i, "Cons.")
+      .trim();
+  };
+  const [expandedMes, setExpandedMes] = useState<string | null>(null);
+  const [expandedFechamento, setExpandedFechamento] = useState<string | null>(null);
+  // Sobreposição local do envio ao parceiro (o valor base vem do banco em f.enviadoParceiroEm).
+  const [enviosParceiro, setEnviosParceiro] = useState<Record<string, string | null>>({});
+  const [enviandoParceiro, setEnviandoParceiro] = useState<string | null>(null);
+
+  const alternarEnvioParceiro = async (fechamentoId: string, enviar: boolean) => {
+    setEnviandoParceiro(fechamentoId);
+    try {
+      const r = await alternarEnvioFechamentoParceiro({ data: { fechamentoId, enviar } });
+      setEnviosParceiro((s) => ({ ...s, [fechamentoId]: r.enviadoEm }));
+      toast.success(enviar ? "Fechamento liberado para o parceiro." : "Envio ao parceiro desfeito.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao alterar o envio ao parceiro.");
+    } finally {
+      setEnviandoParceiro(null);
+    }
+  };
+  const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
+  const [confirmPurgeFech, setConfirmPurgeFech] = useState<string | null>(null);
+  const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
+  const [autoPrintCompetencia, setAutoPrintCompetencia] = useState<string | null>(null);
+  // Estabiliza a data-base: se recriada a cada render, causa loop infinito
+  // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
+  const today = useMemo(() => new Date(), []);
+  // Default = competência mais recente já encerrada (mês anterior).
+  const defaultCompetencia = (() => {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  const [competenciaNovoFechamento, setCompetenciaNovoFechamento] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const migrationKey = "elora.filters.resumo.competencia-optional";
+    if (window.localStorage.getItem(migrationKey)) return;
+    window.localStorage.setItem(migrationKey, "1");
+    if (filtros.competencia?.type === "single") {
+      const next = { ...filtros };
+      delete next.competencia;
+      setFiltros(next);
+    }
+    // roda uma única vez para limpar o chip fixo legado
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const fechamentoMes = competenciaNovoFechamento || competenciaSel || defaultCompetencia;
+  const [fechamentoOpen, setFechamentoOpen] = useState(false);
+  const [historicoCliente, setHistoricoCliente] = useState<{ clienteId: string; mesKey: string } | null>(null);
+  const [observacaoPdf, setObservacaoPdf] = useState("");
+  const [gerandoFechamento, setGerandoFechamento] = useState(false);
+  // MAU informado por cliente diretamente no fluxo de Gerar Fechamento
+  const [mauPorCliente, setMauPorCliente] = useState<Record<string, string>>({});
+  const [modoEnvio, setModoEnvio] = useState<"consolidado" | "por_cliente">("consolidado");
+  const [emailDestino, setEmailDestino] = useState("");
+  // Nome do boleto / descrição que será gravada no Financeiro.
+  const [descricaoConsolidada, setDescricaoConsolidada] = useState<string>("");
+  const [descricaoConsolidadaTocada, setDescricaoConsolidadaTocada] = useState(false);
+  const [descricoesPorCliente, setDescricoesPorCliente] = useState<Record<string, string>>({});
+  const [descricoesPorClienteTocadas, setDescricoesPorClienteTocadas] = useState<Record<string, boolean>>({});
+  // Nome do fechamento (grava em elora_fechamentos.titulo)
+  const [nomeFechamento, setNomeFechamento] = useState<string>("");
+  const [nomeFechamentoTocado, setNomeFechamentoTocado] = useState(false);
+  // Seleção de clientes para incluir no fechamento (KPIs, PDF, envio ao Financeiro)
+  const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
+  const [selecaoInicializada, setSelecaoInicializada] = useState<string>("");
+
+  // Modal de criação de desconto
+  const [descontoModal, setDescontoModal] = useState<null | {
+    escopo: "cliente" | "fechamento_inteiro";
+    clienteId: string | null;
+    clienteNome?: string;
+  }>(null);
+  const [descTipo, setDescTipo] = useState<"valor" | "percentual" | "isencao_total">("valor");
+  const [descValor, setDescValor] = useState<string>("");
+  const [descRecorrente, setDescRecorrente] = useState<boolean>(false);
+  const [descMotivo, setDescMotivo] = useState<string>("");
+  const [savingDesconto, setSavingDesconto] = useState(false);
+
+  const resetDescontoForm = () => {
+    setDescTipo("valor");
+    setDescValor("");
+    setDescRecorrente(false);
+    setDescMotivo("");
+  };
+
+  const salvarDesconto = async () => {
+    if (!descontoModal || !fechamentoData) {
+      toast.error("Abra um fechamento válido antes de aplicar o desconto.");
+      return;
+    }
+    const valorNum = descTipo === "isencao_total" ? null : Number(descValor.replace(",", "."));
+    if (descTipo !== "isencao_total" && (!Number.isFinite(valorNum!) || valorNum! <= 0)) {
+      toast.error("Informe um valor válido.");
+      return;
+    }
+    if (descTipo === "percentual" && (valorNum ?? 0) > 100) {
+      toast.error("Percentual não pode passar de 100%.");
+      return;
+    }
+    setSavingDesconto(true);
+    try {
+      await addDesconto({
+        clienteId: descontoModal.clienteId,
+        tipo: descTipo,
+        escopo: descontoModal.escopo,
+        valor: valorNum,
+        competenciaInicio: fechamentoData.competenciaKey,
+        competenciaFim: null,
+        recorrente: descRecorrente,
+        motivo: descMotivo.trim() || null,
+      });
+    } catch {
+      return; // erro já reportado via toast pela store
+    } finally {
+      setSavingDesconto(false);
+    }
+    toast.success("Desconto aplicado.");
+    setDescontoModal(null);
+    resetDescontoForm();
+  };
+
+  // Dias de vencimento distintos (planos + clientes), para o filtro
+  const diasDisponiveis = useMemo(() => {
+    const set = new Set<number>();
+    for (const p of planos) if (p.diaVencimento) set.add(p.diaVencimento);
+    for (const c of clientes) {
+      const d = getDiaVencimentoEfetivo(c, planos);
+      if (d) set.add(d);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [planos, clientes]);
+
+  // Clientes filtrados por plano, parceiro e vencimento
+  const clientesFiltrados = useMemo(() => {
+    return clientes.filter((c) => {
+      const matchPlano = planoSel.length === 0 || planoSel.includes(c.planoId ?? "");
+      const matchParceiro = parceiroSel.length === 0 || parceiroSel.includes(c.parceiroId ?? "");
+      const matchVenc = vencSel.length === 0 || vencSel.includes(String(getDiaVencimentoEfetivo(c, planos) ?? ""));
+      const planoDoCli = planos.find((p) => p.id === c.planoId);
+      const matchTipo = tipoSel.length === 0 || tipoSel.includes(planoDoCli?.categoria ?? "elora");
+      return matchPlano && matchParceiro && matchVenc && matchTipo;
+    });
+  }, [clientes, planos, planoSelKey, parceiroSelKey, vencSelKey, tipoSelKey]);
+
+  // Resolve o ciclo de faturamento do cliente para a competência (y, m).
+  // Respeita ciclo personalizado do cliente, ciclo do plano (ex.: Rabbit 5→4)
+  // ou default 1→31.
+  const cicloDoCliente = (c: typeof clientes[number], y: number, m: number) => {
+    const plano = planos.find((p) => p.id === c.planoId);
+    return getCicloCliente(c, plano, y, m);
+  };
+
+  // Cliente esteve ativo em qualquer dia do ciclo (competência y/m do cliente).
+  const clienteAtivoNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
+    const ciclo = cicloDoCliente(c, y, m);
+    const ini = new Date(c.dataInicio);
+    if (ini > ciclo.fim) return false;
+    if (c.dataChurn) {
+      const churn = new Date(c.dataChurn);
+      if (churn < ciclo.inicio) return false;
+    }
+    return true;
+  };
+
+  // Churn dentro do ciclo de faturamento da competência (não do mês calendário).
+  const churnNoCiclo = (c: typeof clientes[number], y: number, m: number) => {
+    if (!c.dataChurn) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    const churn = new Date(`${c.dataChurn}T12:00:00`);
+    return churn >= ciclo.inicio && churn <= ciclo.fim;
+  };
+
+  // Cliente já churnou até o fim deste ciclo (inclui ciclos posteriores ao churn).
+  const clienteJaChurnouNaCompetencia = (c: typeof clientes[number], y: number, m: number) => {
+    if (!c.dataChurn) return false;
+    const ciclo = cicloDoCliente(c, y, m);
+    const churn = new Date(`${c.dataChurn}T12:00:00`);
+    return churn <= ciclo.fim;
+  };
+
+  // Antecipação liberada: basta o cliente estar ativo em algum dia do ciclo
+  // da competência. O ciclo pode estar em aberto (fechamento antecipado).
+  const clienteElegivelParaFechamento = (
+    c: typeof clientes[number],
+    y: number,
+    m: number,
+  ) => clienteAtivoNoCiclo(c, y, m);
+
+  // Apenas informativo: o ciclo da competência já terminou?
+  const cicloJaEncerrado = (
+    c: typeof clientes[number],
+    y: number,
+    m: number,
+    hoje: Date,
+  ) => {
+    const ciclo = cicloDoCliente(c, y, m);
+    const fim = new Date(ciclo.fim.getFullYear(), ciclo.fim.getMonth(), ciclo.fim.getDate());
+    return fim <= hoje;
+  };
+
+  // Atalho local que evita repetir planos/custos/movimentos em cada chamada.
+  const receitaCicloLocal = (c: typeof clientes[number], y: number, m: number): number =>
+    receitaCicloCliente(c, planos, custos, movimentos, y, m);
+
+  const fechamentosLegadosFinanceiro = useMemo<FechamentoVisivel[]>(() => {
+    const lancamentosVinculados = new Set(
+      fechamentoItens
+        .map((i) => i.lancamentoFinanceiroId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    return financeiro
+      .filter((l) => l.tipo === "fechamento")
+      .filter((l) => !lancamentosVinculados.has(l.id))
+      .map((l): FechamentoVisivel | null => {
+        const competencia = getCompetenciaBase(l.competencia);
+        if (!competencia) return null;
+        return {
+          id: `legacy-${l.id}`,
+          legacyFinanceiroId: l.id,
+          competencia,
+          titulo: l.descricao || `Fechamento ${competencia}`,
+          descricao: l.observacao ?? l.descricao ?? null,
+          status: l.status === "cancelado" ? "cancelado" : "emitido",
+          criadoPor: null,
+          totalBruto: Number(l.valor || 0),
+          totalDesconto: 0,
+          totalLiquido: Number(l.valor || 0),
+          observacao: l.observacao ?? null,
+          criadoEm: l.criadoEm,
+        };
+      })
+      .filter((f): f is FechamentoVisivel => Boolean(f));
+  }, [financeiro, fechamentoItens]);
+
+  const itensLegadosFinanceiro = useMemo<FechamentoItem[]>(() => {
+    const itens: FechamentoItem[] = [];
+    for (const f of fechamentosLegadosFinanceiro) {
+      if (!f.legacyFinanceiroId) continue;
+      const [yStr, mStr] = f.competencia.split("-");
+      const y = Number(yStr);
+      const m = Number(mStr) - 1;
+      if (!Number.isFinite(y) || !Number.isFinite(m)) continue;
+      const ativos = clientes.filter((c) => clienteAtivoNoCiclo(c, y, m));
+      const calculados = ativos.map((c) => {
+        const plano = planos.find((p) => p.id === c.planoId);
+        const ciclo = cicloDoCliente(c, y, m);
+        const valorCalculado = receitaCicloLocal(c, y, m);
+        return { c, plano, ciclo, valorCalculado };
+      });
+      const totalCalculado = calculados.reduce((s, x) => s + Math.max(0, x.valorCalculado), 0);
+      const totalLancamento = Number(f.totalLiquido || 0);
+      const fator = totalCalculado > 0 ? totalLancamento / totalCalculado : 1;
+      calculados.forEach(({ c, plano, ciclo, valorCalculado }, idx) => {
+        const valor = totalCalculado > 0
+          ? Number((Math.max(0, valorCalculado) * fator).toFixed(2))
+          : Number((totalLancamento / Math.max(1, calculados.length)).toFixed(2));
+        itens.push({
+          id: `${f.id}-item-${c.id}-${idx}`,
+          fechamentoId: f.id,
+          clienteId: c.id,
+          planoId: c.planoId,
+          cicloInicio: ciclo.inicio.toISOString().slice(0, 10),
+          cicloFim: ciclo.fim.toISOString().slice(0, 10),
+          vencimento: obterVencimentoDaCompetencia(c, y, m, planos),
+          valorBruto: valor,
+          valorDesconto: 0,
+          valorLiquido: valor,
+          lancamentoFinanceiroId: f.legacyFinanceiroId,
+          payloadSnapshot: {
+            clienteNome: c.nome,
+            planoNome: plano?.nome ?? null,
+            recuperadoDoFinanceiro: true,
+          },
+        });
+      });
+    }
+    return itens;
+  }, [fechamentosLegadosFinanceiro, clientes, planos, custos, movimentos]);
+
+  const fechamentosVisiveis = useMemo<FechamentoVisivel[]>(
+    () => [...fechamentos.filter((f) => !f.deletadoEm), ...fechamentosLegadosFinanceiro],
+    [fechamentos, fechamentosLegadosFinanceiro],
+  );
+  const fechamentosNaLixeira = useMemo(
+    () => fechamentos.filter((f) => !!f.deletadoEm)
+      .sort((a, b) => (b.deletadoEm ?? "").localeCompare(a.deletadoEm ?? "")),
+    [fechamentos],
+  );
+  const fechamentoItensVisiveis = useMemo<FechamentoItem[]>(
+    () => {
+      const idsLixeira = new Set(fechamentos.filter((f) => f.deletadoEm).map((f) => f.id));
+      return [...fechamentoItens.filter((i) => !idsLixeira.has(i.fechamentoId)), ...itensLegadosFinanceiro];
+    },
+    [fechamentoItens, itensLegadosFinanceiro, fechamentos],
+  );
+
+  const linhas = useMemo(() => {
+    if (clientesFiltrados.length === 0) return [];
+    const datas = clientesFiltrados.map((c) => new Date(c.dataInicio));
+    const minD = new Date(Math.min(...datas.map((d) => d.getTime())));
+    const now = new Date();
+    const out: {
+      mesKey: string;
+      mesLabel: string;
+      ativos: typeof clientes;
+      novos: number;
+      churns: number;
+      receita: number;
+      receitaBruta: number;
+      descontoTotal: number;
+      custoHelena: number;
+      setup: number;
+      receitaPorCliente: Map<string, { bruto: number; liquido: number; desconto: number }>;
+    }[] = [];
+    const cursor = new Date(minD.getFullYear(), minD.getMonth(), 1);
+    while (cursor <= now) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+      if (competenciaSel && competenciaKey !== competenciaSel) {
+        cursor.setMonth(cursor.getMonth() + 1);
+        continue;
+      }
+      const ativos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, y, m));
+      const novos = clientesFiltrados.filter((c) => {
+        const d = new Date(c.dataInicio);
+        return d.getFullYear() === y && d.getMonth() === m;
+      }).length;
+      const churns = clientesFiltrados.filter((c) => {
+        return churnNoCiclo(c, y, m);
+      }).length;
+      const receitaPorCliente = new Map<string, { bruto: number; liquido: number; desconto: number }>();
+      let receitaBruta = 0;
+      let descontoClientes = 0;
+      for (const c of ativos) {
+        const bruto = receitaCicloLocal(c, y, m);
+        const descsCli = descontosAplicaveis(descontos, competenciaKey, "cliente", c.id);
+        const res = calcularDesconto(bruto, descsCli);
+        receitaPorCliente.set(c.id, { bruto, liquido: res.total, desconto: res.descontoTotal });
+        receitaBruta += bruto;
+        descontoClientes += res.descontoTotal;
+      }
+      const subtotalPosClientes = receitaBruta - descontoClientes;
+      const descontosGerais = descontosAplicaveis(descontos, competenciaKey, "fechamento_inteiro");
+      const resGeral = calcularDesconto(subtotalPosClientes, descontosGerais);
+      const receita = resGeral.total;
+      const descontoTotal = descontoClientes + resGeral.descontoTotal;
+      // Custo sistêmico também respeita o snapshot histórico de cada cliente
+      const ativosSnapshot = ativos.map((c) => {
+        const venc = obterVencimentoDaCompetencia(c, y, m, planos);
+        const ref = venc ?? new Date(y, m + 1, 0).toISOString().slice(0, 10);
+        return clienteSnapshotAt(c, movimentos, ref);
+      });
+      const custoHelena = calcularCustoLiquidoHelena(ativosSnapshot, planos, custos);
+      const setup = clientesFiltrados
+        .filter((c) => {
+          const vencimento = obterVencimentoDaCompetencia(c, y, m, planos);
+          if (!vencimento) return false;
+          return vencimento === c.dataVencimento;
+        })
+        .reduce((s, c) => s + (c.valorSetupPago || 0), 0);
+      const servicos = movimentos
+        .filter((mv) => { if (mv.tipo !== "servico" || !mv.valorServico) return false; const d = new Date(mv.data); return d.getFullYear() === y && d.getMonth() === m; })
+        .reduce((s, mv) => s + (mv.valorServico ?? 0), 0);
+
+      const receitaTotal = receita + setup + servicos;
+      out.push({
+        mesKey: competenciaKey,
+        mesLabel: formatCompetenciaLabel(y, m),
+        ativos,
+        novos,
+        churns,
+        receita: receitaTotal,
+        receitaBruta: receitaBruta + setup + servicos,
+        descontoTotal,
+        custoHelena,
+        setup: setup + servicos,
+        receitaPorCliente,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return out.reverse();
+  }, [clientesFiltrados, planos, custos, movimentos, descontos, competenciaSel]);
+
+  const exportarPdf = () => {
+    const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    const planoSelecionado = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
+
+    pdf.setFontSize(18);
+    pdf.text("Fechamento Mensal", 40, 42);
+    pdf.setFontSize(10);
+    pdf.text(`Plano: ${planoSelecionado}`, 40, 62);
+    pdf.text(`Gerado em: ${generatedAt}`, 40, 78);
+
+    autoTable(pdf, {
+      startY: 96,
+      head: [["Mês de Competência", "Data de vencimento", "Novos", "Churns", "Receita Total", "Custo Sistêmico"]],
+      body: linhas.map((l) => {
+        const y = Number(l.mesKey.slice(0, 4));
+        const m = Number(l.mesKey.slice(5, 7)) - 1;
+        const vencs = Array.from(new Set(l.ativos.map((c) => obterVencimentoDaCompetencia(c, y, m, planos)).filter((v): v is string => Boolean(v)))).sort();
+        const vencLabel = vencs.length === 0
+          ? "—"
+          : vencs.length === 1
+            ? new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")
+            : `${new Date(`${vencs[0]}T12:00:00`).toLocaleDateString("pt-BR")} … ${new Date(`${vencs[vencs.length - 1]}T12:00:00`).toLocaleDateString("pt-BR")}`;
+        return [
+          l.mesLabel,
+          vencLabel,
+          String(l.novos),
+          String(l.churns),
+          formatBRL(l.receita),
+          formatBRL(l.custoHelena),
+        ];
+      }),
+      styles: { fontSize: 9, cellPadding: 6 },
+      headStyles: { fillColor: [28, 63, 170] },
+      margin: { left: 40, right: 40 },
+    });
+
+    linhas.forEach((linha) => {
+      pdf.addPage();
+      pdf.setFontSize(14);
+      pdf.text(`Detalhes · ${linha.mesLabel}`, 40, 42);
+      pdf.setFontSize(10);
+      pdf.text(`Clientes faturados no mês: ${linha.ativos.length}`, 40, 60);
+
+      autoTable(pdf, {
+        startY: 76,
+        head: [["Cliente", "Plano", "Vencimento", "Status", "Receita/mês"]],
+        body: linha.ativos.map((c) => {
+          const plano = planos.find((p) => p.id === c.planoId);
+          const ly = Number(linha.mesKey.slice(0, 4));
+          const lm = Number(linha.mesKey.slice(5, 7)) - 1;
+          const vencIso = obterVencimentoDaCompetencia(c, ly, lm, planos);
+          const info = linha.receitaPorCliente.get(c.id);
+          const rec = info?.liquido ?? receitaCicloCliente(c, planos, custos, movimentos, ly, lm);
+          return [
+            c.nome,
+            abreviarPlano(plano?.nome),
+            vencIso ? new Date(`${vencIso}T12:00:00`).toLocaleDateString("pt-BR") : "—",
+            c.dataChurn ? "Churn" : "Ativo",
+            (info && info.desconto > 0)
+              ? `${formatBRL(rec)} (desc. -${formatBRL(info.desconto)})`
+              : formatBRL(rec),
+          ];
+        }),
+        styles: { fontSize: 9, cellPadding: 6 },
+        headStyles: { fillColor: [28, 63, 170] },
+        margin: { left: 40, right: 40 },
+      });
+    });
+
+    pdf.save(`resumo-mensal-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
+  };
+
+  // ====== Dados para o Fechamento Mensal ======
+  const fechamentoData = useMemo(() => {
+    if (!fechamentoMes) return null;
+    const [yStr, mStr] = fechamentoMes.split("-");
+    const y = Number(yStr);
+    const m = Number(mStr) - 1;
+    const labelMes = formatCompetenciaLabel(y, m);
+
+    // A competência selecionada É o ciclo que está sendo fechado.
+    // Ex.: competência Junho/2026 = ciclo 01/06 a 30/06, cobrado em ~05/07.
+    const cy = y;
+    const cm = m;
+    const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    // Apenas clientes cujo ciclo da competência já encerrou entram no fechamento.
+    const ativosTodos = clientesFiltrados.filter((c) => clienteAtivoNoCiclo(c, cy, cm));
+    const ativos = ativosTodos;
+    // Informativo: clientes cujo ciclo desta competência ainda não terminou.
+    const cicloEmAberto = ativosTodos.filter((c) => !cicloJaEncerrado(c, cy, cm, hoje));
+    // Faixa de ciclos representativa (pode haver clientes com ciclos diferentes).
+    const ciclos = ativos.map((c) => cicloDoCliente(c, cy, cm));
+    const cicloLabel = (() => {
+      if (ciclos.length === 0) {
+        const ini = new Date(cy, cm, 1);
+        const fim = new Date(cy, cm + 1, 0);
+        return `${ini.toLocaleDateString("pt-BR")} a ${fim.toLocaleDateString("pt-BR")}`;
+      }
+      const inis = ciclos.map((c) => c.inicio.getTime());
+      const fims = ciclos.map((c) => c.fim.getTime());
+      const minIni = new Date(Math.min(...inis));
+      const maxIni = new Date(Math.max(...inis));
+      const minFim = new Date(Math.min(...fims));
+      const maxFim = new Date(Math.max(...fims));
+      const sameIni = minIni.getTime() === maxIni.getTime();
+      const sameFim = minFim.getTime() === maxFim.getTime();
+      if (sameIni && sameFim) {
+        return `${minIni.toLocaleDateString("pt-BR")} a ${maxFim.toLocaleDateString("pt-BR")}`;
+      }
+      return `${minIni.toLocaleDateString("pt-BR")}–${maxIni.toLocaleDateString("pt-BR")} a ${minFim.toLocaleDateString("pt-BR")}–${maxFim.toLocaleDateString("pt-BR")}`;
+    })();
+    // Data de vencimento média/representativa da competência (apenas informativa)
+    const vencimentosCompetencia = ativos
+      .map((c) => obterVencimentoDaCompetencia(c, cy, cm, planos))
+      .filter((x): x is string => Boolean(x));
+    const vencimentoLabel = vencimentosCompetencia.length > 0
+      ? (() => {
+          // Mostra a(s) data(s) reais de recebimento.
+          const unique = Array.from(new Set(vencimentosCompetencia));
+          unique.sort();
+          if (unique.length === 1) {
+            return new Date(`${unique[0]}T12:00:00`).toLocaleDateString("pt-BR");
+          }
+          const min = new Date(`${unique[0]}T12:00:00`).toLocaleDateString("pt-BR");
+          const max = new Date(`${unique[unique.length - 1]}T12:00:00`).toLocaleDateString("pt-BR");
+          return `${min} a ${max}`;
+        })()
+      : "—";
+
+    const setupsNoMes = clientesFiltrados.filter((c) => {
+      const d = new Date(c.dataInicio);
+      return d.getFullYear() === cy && d.getMonth() === cm;
+    });
+    const churnsNoMes = clientesFiltrados.filter((c) => churnNoCiclo(c, cy, cm));
+
+    // Movimentos de upgrade/downgrade do CICLO (mês anterior) para os clientes filtrados
+    const clienteIds = new Set(clientesFiltrados.map((c) => c.id));
+    const movsMes = movimentos.filter((mv) => {
+      if (!clienteIds.has(mv.clienteId)) return false;
+      if (mv.tipo !== "upgrade" && mv.tipo !== "downgrade") return false;
+      const d = new Date(mv.data);
+      return d.getFullYear() === cy && d.getMonth() === cm;
+    });
+
+    // Detalhamento por cliente
+    const competenciaKey = `${cy}-${String(cm + 1).padStart(2, "0")}`;
+    const detalhesPorCliente = ativos.map((c) => {
+      const plano = planos.find((p) => p.id === c.planoId);
+      const venc = obterVencimentoDaCompetencia(c, cy, cm, planos);
+      const refSnap = venc ?? new Date(cy, cm + 1, 0).toISOString().slice(0, 10);
+      const snap = clienteSnapshotAt(c, movimentos, refSnap);
+      const detalheCiclo = detalharCicloCliente(c, planos, custos, movimentos, cy, cm);
+      const subtotal = detalheCiclo.total;
+      const acomp = snap.valorAcompanhamento || 0;
+      const sistema = Math.max(0, subtotal - acomp);
+      const movsCliente = movsMes.filter((mv) => mv.clienteId === c.id);
+      // Descontos aplicáveis ao cliente nessa competência
+      const descsCliente = descontosAplicaveis(descontos, competenciaKey, "cliente", c.id);
+      const resDesc = calcularDesconto(subtotal, descsCliente);
+      // LTV em dias: do início até churn (se houver) ou fim do ciclo fechado
+      const inicio = new Date(c.dataInicio);
+      const fimCompetencia = new Date(cy, cm + 1, 0);
+      const fim = c.dataChurn ? new Date(c.dataChurn) : fimCompetencia;
+      const ltvDias = Math.max(0, Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)));
+      return {
+        cliente: c, plano,
+        subtotal,
+        detalheCiclo,
+        descontosCliente: descsCliente,
+        descontoCliente: resDesc.descontoTotal,
+        receita: resDesc.total,
+        acomp, sistema,
+        movs: movsCliente, venc, ltvDias,
+        cicloAberto: !cicloJaEncerrado(c, cy, cm, hoje),
+        cicloFimLabel: cicloDoCliente(c, cy, cm).fim.toLocaleDateString("pt-BR"),
+      };
+    });
+
+    const totalSistema = detalhesPorCliente.reduce((s, d) => s + d.sistema, 0);
+    const totalAcompanhamento = detalhesPorCliente.reduce((s, d) => s + d.acomp, 0);
+    const subtotalBruto = detalhesPorCliente.reduce((s, d) => s + d.subtotal, 0);
+    const descontosClientesTotal = detalhesPorCliente.reduce((s, d) => s + d.descontoCliente, 0);
+    const totalSetups = setupsNoMes.reduce((s, c) => s + (c.valorSetupPago || 0), 0);
+
+    // Métricas adicionais
+    const ltvMedioDias = detalhesPorCliente.length > 0
+      ? detalhesPorCliente.reduce((s, d) => s + d.ltvDias, 0) / detalhesPorCliente.length
+      : 0;
+    const totalReceitaPosDesc = detalhesPorCliente.reduce((s, d) => s + d.receita, 0);
+    const ticketMedio = detalhesPorCliente.length > 0
+      ? totalReceitaPosDesc / detalhesPorCliente.length
+      : 0;
+
+    // Delta de receita por movimento (impacto financeiro)
+    const calcDeltaReceita = (mv: typeof movimentos[number]): number => {
+      const c = clientes.find((x) => x.id === mv.clienteId);
+      if (!c) return 0;
+      // Estado logo após o movimento aplicado
+      const after = clienteSnapshotAt(c, movimentos, mv.data);
+      // Reverte apenas este movimento
+      const before: typeof after = { ...after };
+      const rev = (cur: number | undefined, val: number | null | undefined) =>
+        val === undefined || val === null ? cur : Math.max(0, (cur ?? 0) - val);
+      before.canaisWhats = rev(after.canaisWhats, mv.canaisWhats);
+      before.canaisInsta = rev(after.canaisInsta, mv.canaisInsta);
+      before.canaisMessenger = rev(after.canaisMessenger, mv.canaisMessenger);
+      before.canaisZapi = rev(after.canaisZapi, mv.canaisZapi) ?? after.canaisZapi;
+      before.usuariosAtivos = rev(after.usuariosAtivos, mv.usuariosAtivos) ?? after.usuariosAtivos;
+      before.contatosAtivos = rev(after.contatosAtivos, mv.contatosAtivos) ?? after.contatosAtivos;
+      return receitaMensalCliente(after, planos, custos) - receitaMensalCliente(before, planos, custos);
+    };
+
+    return {
+      y, m, labelMes,
+      competenciaKey,
+      cicloLabel,
+      vencimentoLabel,
+      ativos,
+      cicloEmAberto,
+      setupsNoMes,
+      churnsNoMes,
+      totalSetups,
+      detalhesPorCliente,
+      totalSistema,
+      totalAcompanhamento,
+      subtotalBruto,
+      descontosClientesTotal,
+      movsMes,
+      ltvMedioDias,
+      ticketMedio,
+      calcDeltaReceita,
+    };
+  }, [fechamentoMes, clientesFiltrados, planos, custos, movimentos, descontos]);
+
+  // Sempre que a competência ou os clientes do fechamento mudarem, marca todos por padrão
+  const fechamentoAtivosIds = useMemo(
+    () => fechamentoData?.ativos.map((c) => c.id) ?? [],
+    [fechamentoData?.competenciaKey, fechamentoData?.ativos],
+  );
+  const fechamentoKey = useMemo(() => {
+    if (!fechamentoData) return "";
+    return `${fechamentoMes}|${fechamentoAtivosIds.join(",")}`;
+  }, [fechamentoData?.competenciaKey, fechamentoAtivosIds, fechamentoMes]);
+  useEffect(() => {
+    if (fechamentoKey && fechamentoKey !== selecaoInicializada) {
+      const ids = fechamentoAtivosIds;
+      setSelectedClienteIds((prev) => {
+        if (prev.size === ids.length && ids.every((id) => prev.has(id))) return prev;
+        return new Set(ids);
+      });
+      setSelecaoInicializada(fechamentoKey);
+      // Reseta descrições para os defaults sempre que muda a competência/clientes.
+      setDescricaoConsolidadaTocada(false);
+      setDescricoesPorClienteTocadas({});
+    }
+  }, [fechamentoAtivosIds, fechamentoKey, selecaoInicializada]);
+
+  // Defaults de descrição (recalculados quando muda a competência).
+  const defaultDescricaoConsolidada = useMemo(() => {
+    if (!fechamentoData) return "";
+    return `Fechamento ${fechamentoData.labelMes} · ciclo ${fechamentoData.cicloLabel}`;
+  }, [fechamentoData?.labelMes, fechamentoData?.cicloLabel]);
+
+  const defaultNomeFechamento = useMemo(() => {
+    if (!fechamentoData) return "";
+    const planoLabel = planoSel.length > 0
+      ? planoSel.map((id) => planos.find((p) => p.id === id)?.nome ?? id).join(" + ")
+      : "Fechamento";
+    return `${planoLabel} · ${fechamentoData.labelMes}`;
+  }, [fechamentoData?.labelMes, planoSelKey, planos]);
+
+  useEffect(() => {
+    if (!nomeFechamentoTocado && nomeFechamento !== defaultNomeFechamento) {
+      setNomeFechamento(defaultNomeFechamento);
+    }
+  }, [defaultNomeFechamento, nomeFechamento, nomeFechamentoTocado]);
+
+  const defaultDescricoesPorClienteKey = useMemo(
+    () => fechamentoData?.detalhesPorCliente
+      .map((d) => `${d.cliente.id}:${d.cliente.nomeFinanceiro || d.cliente.nome}`)
+      .join("|") ?? "",
+    [fechamentoData?.competenciaKey, fechamentoData?.detalhesPorCliente],
+  );
+  const defaultDescricoesPorCliente = useMemo(() => {
+    if (!fechamentoData) return {} as Record<string, string>;
+    const map: Record<string, string> = {};
+    for (const d of fechamentoData.detalhesPorCliente) {
+      map[d.cliente.id] = d.cliente.nomeFinanceiro || d.cliente.nome;
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultDescricoesPorClienteKey]);
+
+  // Aplica defaults para campos não tocados pelo usuário.
+  useEffect(() => {
+    if (!descricaoConsolidadaTocada && descricaoConsolidada !== defaultDescricaoConsolidada) {
+      setDescricaoConsolidada(defaultDescricaoConsolidada);
+    }
+  }, [defaultDescricaoConsolidada, descricaoConsolidada, descricaoConsolidadaTocada]);
+  useEffect(() => {
+    setDescricoesPorCliente((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [id, val] of Object.entries(defaultDescricoesPorCliente)) {
+        if (!descricoesPorClienteTocadas[id] && next[id] !== val) {
+          next[id] = val;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [defaultDescricoesPorCliente, descricoesPorClienteTocadas]);
+
+  // Limpa os MAU informados quando muda a competência do fechamento
+  useEffect(() => {
+    setMauPorCliente({});
+  }, [fechamentoMes]);
+
+  // Detalhes por cliente já com o excedente de MAU informado na tela.
+  // Mesma fórmula do MauFechamentoEditor: excedente = max(0, MAU - inclusos);
+  // acréscimo = excedente × unitário.
+  const detalhesComMau = useMemo(() => {
+    if (!fechamentoData) return [];
+    return fechamentoData.detalhesPorCliente.map((d) => {
+      const mauInclusos = d.plano?.contatosInclusos ?? 500;
+      const mauUnit = d.plano?.valorContatosExc ?? d.plano?.valorCanaisExc ?? 0.095;
+      const raw = mauPorCliente[d.cliente.id];
+      const mauMes = Math.max(0, Math.floor(Number(raw) || 0));
+      const mauExcedenteQtd = Math.max(0, mauMes - mauInclusos);
+      const mauExcedenteValor = mauExcedenteQtd * mauUnit;
+      const subtotal = d.subtotal + mauExcedenteValor;
+      const res = calcularDesconto(subtotal, d.descontosCliente);
+      return {
+        ...d,
+        subtotalBase: d.subtotal,
+        subtotal,
+        descontoCliente: res.descontoTotal,
+        receita: res.total,
+        mauMes,
+        mauInclusos,
+        mauUnit,
+        mauExcedenteQtd,
+        mauExcedenteValor,
+        mauInformado: raw !== undefined && raw !== "",
+      };
+    });
+  }, [fechamentoData, mauPorCliente]);
+
+  const totalMauExcedente = useMemo(
+    () => detalhesComMau
+      .filter((d) => selectedClienteIds.has(d.cliente.id))
+      .reduce((s, d) => s + d.mauExcedenteValor, 0),
+    [detalhesComMau, selectedClienteIds],
+  );
+
+  const fechamentoSelecionado = useMemo(() => {
+    if (!fechamentoData) return null;
+    const sel = selectedClienteIds;
+    const detalhes = detalhesComMau.filter((d) => sel.has(d.cliente.id));
+    const totalSistema = detalhes.reduce((s, d) => s + d.sistema, 0);
+    const totalAcompanhamento = detalhes.reduce((s, d) => s + d.acomp, 0);
+    const subtotalBruto = detalhes.reduce((s, d) => s + d.subtotal, 0);
+    const descontosClientesTotal = detalhes.reduce((s, d) => s + d.descontoCliente, 0);
+    const subtotalPosClientes = subtotalBruto - descontosClientesTotal;
+
+    // Descontos do fechamento inteiro (escopo geral)
+    const descontosGeraisLista = descontosAplicaveis(descontos, fechamentoData.competenciaKey, "fechamento_inteiro");
+    const resGeral = calcularDesconto(subtotalPosClientes, descontosGeraisLista);
+    const totalReceita = resGeral.total;
+    const descontoTotal = descontosClientesTotal + resGeral.descontoTotal;
+    const ticketMedio = detalhes.length > 0 ? totalReceita / detalhes.length : 0;
+    const ltvMedioDias = detalhes.length > 0
+      ? detalhes.reduce((s, d) => s + d.ltvDias, 0) / detalhes.length
+      : 0;
+    return {
+      detalhes, totalSistema, totalAcompanhamento,
+      subtotalBruto, descontosClientesTotal,
+      descontosGerais: descontosGeraisLista,
+      descontoGeral: resGeral.descontoTotal,
+      descontoTotal,
+      totalReceita,
+      ticketMedio, ltvMedioDias, count: detalhes.length,
+    };
+  }, [fechamentoData, detalhesComMau, selectedClienteIds, descontos]);
+
+  const toggleCliente = (id: string) => {
+    setSelectedClienteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const abrirNovoFechamento = (mesKey?: string) => {
+    // A competência clicada é sempre respeitada — ciclos em aberto podem ser
+    // fechados antecipadamente.
+    const competencia = mesKey && isValidCompetenciaKey(mesKey) ? mesKey : defaultCompetencia;
+    setCompetenciaNovoFechamento(competencia);
+    setNomeFechamentoTocado(false);
+    setFechamentoOpen(true);
+  };
+  const todosSelecionados = !!fechamentoData && fechamentoData.ativos.length > 0 &&
+    fechamentoData.ativos.every((c) => selectedClienteIds.has(c.id));
+  const toggleTodos = () => {
+    if (!fechamentoData) return;
+    if (todosSelecionados) setSelectedClienteIds(new Set());
+    else setSelectedClienteIds(new Set(fechamentoData.ativos.map((c) => c.id)));
+  };
+
+  const opcoesFechamento = useMemo(() => {
+    // Lista competências que tenham pelo menos 1 cliente filtrado com
+    // o ciclo já encerrado (cicloFim < hoje). Como diferentes planos têm
+    // ciclos diferentes (ex.: Distribox 1→31 fecha 30/06; Rabbit 5→4
+    // fecha só em 04/07), o seletor passa a ser por ciclo do cliente.
+    const out: { key: string; label: string; elegiveis: number; aguardando: number }[] = [];
+    const hoje = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const base = new Date(today.getFullYear(), today.getMonth(), 1);
+    for (let i = 0; i < 36; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      let elegiveis = 0;
+      let aguardando = 0;
+      for (const c of clientesFiltrados) {
+        if (!clienteAtivoNoCiclo(c, y, m)) continue;
+        elegiveis++;
+        if (!cicloJaEncerrado(c, y, m, hoje)) aguardando++;
+      }
+      if (elegiveis === 0) continue;
+      const key = `${y}-${String(m + 1).padStart(2, "0")}`;
+      const mesLabel = formatCompetenciaLabel(y, m);
+      out.push({ key, label: mesLabel, elegiveis, aguardando });
+    }
+    return out;
+  }, [today, clientesFiltrados, planos]);
+
+  // Chaves estáveis das opções de fechamento — usadas para reagir a mudanças
+  // sem recomputar o efeito quando qualquer outro filtro muda.
+  const opcoesFechamentoKeys = useMemo(
+    () => opcoesFechamento.map((o) => o.key).join("|"),
+    [opcoesFechamento],
+  );
+  useEffect(() => {
+    if (!rawCompetenciaSel) return;
+    const keys = opcoesFechamentoKeys ? opcoesFechamentoKeys.split("|") : [];
+    const invalida = !isValidCompetenciaKey(rawCompetenciaSel);
+    const foraDasOpcoes = keys.length > 0 && !keys.includes(rawCompetenciaSel);
+    if (invalida || foraDasOpcoes) {
+      const next = { ...filtrosRef.current };
+      delete next.competencia;
+      setFiltros(next);
+    }
+  }, [rawCompetenciaSel, opcoesFechamentoKeys, setFiltros]);
+
+  const fmtDelta = (label: string, v: number | undefined | null) => {
+    if (v === undefined || v === null || v === 0) return null;
+    const sign = v > 0 ? "+" : "";
+    return `${label} ${sign}${v}`;
+  };
+
+  const descreverMov = (mv: typeof movimentos[number]): string => {
+    // Setup: os campos guardam o estado inicial absoluto (não deltas).
+    // Mostramos apenas o delta em relação ao plano — se houver — para não
+    // poluir com "Contatos +500" / "Usuários +3" que só refletem inclusos.
+    if (mv.tipo === "setup") {
+      const plano = mv.planoId ? planos.find((p) => p.id === mv.planoId) : undefined;
+      const partesSetup: string[] = [];
+      const uInc = plano?.usuariosInclusos ?? 3;
+      const wInc = plano?.canaisWhatsInclusos ?? 0;
+      const iInc = plano?.canaisInstaInclusos ?? 0;
+      const mInc = plano?.canaisMessengerInclusos ?? 0;
+      const uExc = (mv.usuariosAtivos ?? 0) - uInc;
+      const wExc = (mv.canaisWhats ?? 0) - wInc;
+      const iExc = (mv.canaisInsta ?? 0) - iInc;
+      const mExc = (mv.canaisMessenger ?? 0) - mInc;
+      const zExc = mv.canaisZapi ?? 0;
+      const pushExc = (label: string, v: number) => {
+        if (v > 0) partesSetup.push(`${label} +${v}`);
+      };
+      pushExc("Usuários", uExc);
+      pushExc("WhatsApp", wExc);
+      pushExc("Instagram", iExc);
+      pushExc("Messenger", mExc);
+      pushExc("Z-API", zExc);
+      return partesSetup.join(" · ");
+    }
+    if (mv.tipo === "churn") return "Churn";
+    const partes: string[] = [];
+    const a = fmtDelta("WhatsApp", mv.canaisWhats); if (a) partes.push(a);
+    const b = fmtDelta("Instagram", mv.canaisInsta); if (b) partes.push(b);
+    const c = fmtDelta("Messenger", mv.canaisMessenger); if (c) partes.push(c);
+    const z = fmtDelta("Z-API", mv.canaisZapi); if (z) partes.push(z);
+    const u = fmtDelta("Usuários", mv.usuariosAtivos); if (u) partes.push(u);
+    const ct = fmtDelta("Contatos", mv.contatosAtivos); if (ct) partes.push(ct);
+    if (mv.planoId && mv.tipo !== "upgrade" && mv.tipo !== "downgrade") {
+      const np = planos.find((p) => p.id === mv.planoId);
+      if (np) partes.push(`Plano: ${np.nome}`);
+    }
+    return partes.join(" · ");
+  };
+
+  const exportarFechamentoPdf = () => {
+    if (!fechamentoData || !fechamentoSelecionado) return;
+    // Fonte dos números: fechamento(s) gravado(s) da competência, quando existem.
+    // Só sem fechamento gravado o PDF usa o cálculo atual — e sai marcado como prévia.
+    const idsFechComp = new Set(
+      fechamentosVisiveis.filter((f) => f.competencia === fechamentoData.competenciaKey).map((f) => f.id),
+    );
+    const idsClientesFiltro = new Set(clientesFiltrados.map((c) => c.id));
+    const itensGravados = fechamentoItensVisiveis.filter(
+      (i) => idsFechComp.has(i.fechamentoId) && idsClientesFiltro.has(i.clienteId),
+    );
+    const usarGravado = idsFechComp.size > 0;
+    type LinhaPdf = { nome: string; plano: string; venc: string; ltv: string; sistema: number; acomp: number; desconto: number; total: number; bruto: number };
+    const linhasPdf: LinhaPdf[] = usarGravado
+      ? itensGravados
+          .map((it) => {
+            const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+            const cli = clientes.find((c) => c.id === it.clienteId);
+            return {
+              nome: cli?.nomeFinanceiro || cli?.nome || snap.clienteNome || "—",
+              plano: abreviarPlano(snap.planoNome ?? planos.find((p) => p.id === it.planoId)?.nome),
+              venc: it.vencimento ? new Date(`${it.vencimento}T12:00:00`).toLocaleDateString("pt-BR") : "—",
+              ltv: snap.ltvDias != null ? String(snap.ltvDias) : "—",
+              sistema: Number(snap.sistema ?? 0) + Number(snap.mauExcedenteValor ?? 0),
+              acomp: Number(snap.acompanhamento ?? 0),
+              desconto: Number(it.valorDesconto || 0),
+              total: Number(it.valorLiquido || 0),
+              bruto: Number(it.valorBruto || 0),
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      : fechamentoSelecionado.detalhes.map((d) => ({
+          nome: d.cliente.nomeFinanceiro || d.cliente.nome,
+          plano: abreviarPlano(d.plano?.nome),
+          venc: d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—",
+          ltv: String(d.ltvDias),
+          sistema: d.sistema,
+          acomp: d.acomp,
+          desconto: d.descontoCliente,
+          total: d.receita,
+          bruto: d.subtotal,
+        }));
+    const resumoPdf = usarGravado
+      ? (() => {
+          const count = linhasPdf.length;
+          const totalReceita = linhasPdf.reduce((s, l) => s + l.total, 0);
+          const ltvs = itensGravados.map((i) => Number(((i.payloadSnapshot ?? {}) as Record<string, any>).ltvDias)).filter((v) => Number.isFinite(v));
+          return {
+            count,
+            totalSistema: linhasPdf.reduce((s, l) => s + l.sistema, 0),
+            totalAcompanhamento: linhasPdf.reduce((s, l) => s + l.acomp, 0),
+            totalReceita,
+            subtotalBruto: linhasPdf.reduce((s, l) => s + l.bruto, 0),
+            descontoTotal: linhasPdf.reduce((s, l) => s + l.desconto, 0),
+            ltvMedioDias: ltvs.length ? ltvs.reduce((s, v) => s + v, 0) / ltvs.length : 0,
+            ticketMedio: count > 0 ? totalReceita / count : 0,
+          };
+        })()
+      : fechamentoSelecionado;
+    const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const planoSelLabel = labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id);
+    // Cabeçalho preto
+    pdf.setFillColor(15, 15, 15);
+    pdf.rect(0, 0, pageW, 78, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(22);
+    pdf.text("Elora", 40, 36);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(12);
+    pdf.text(`${usarGravado ? "" : "Prévia · "}Fechamento Mensal · Competência ${fechamentoData.labelMes}`, 40, 58);
+
+    pdf.setTextColor(40, 40, 40);
+    pdf.setFontSize(10);
+    pdf.text(`Plano: ${planoSelLabel}`, 40, 100);
+    pdf.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 114);
+    pdf.text(`Ciclo: ${fechamentoData.cicloLabel}   |   Vencimento: ${fechamentoData.vencimentoLabel}`, 40, 128);
+
+    autoTable(pdf, {
+      startY: 146,
+      head: [["Clientes faturados", "Setups no ciclo", "Churns no ciclo", "Sistema", "Acompanhamento", "Fechamento Mensal"]],
+      body: [[
+        String(resumoPdf.count),
+        `${fechamentoData.setupsNoMes.length} (${formatBRL(fechamentoData.totalSetups)})`,
+        String(fechamentoData.churnsNoMes.length),
+        formatBRL(resumoPdf.totalSistema),
+        formatBRL(resumoPdf.totalAcompanhamento),
+        formatBRL(resumoPdf.totalReceita),
+      ]],
+      styles: { fontSize: 10, cellPadding: 7, halign: "center" },
+      headStyles: { fillColor: [15, 15, 15], textColor: 255 },
+    });
+
+    // Métricas adicionais (LTV médio e Ticket médio)
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 10,
+      head: [["LTV médio (dias)", "Ticket médio / cliente"]],
+      body: [[
+        String(Math.round(resumoPdf.ltvMedioDias)),
+        formatBRL(resumoPdf.ticketMedio),
+      ]],
+      styles: { fontSize: 10, cellPadding: 7, halign: "center" },
+      headStyles: { fillColor: [60, 60, 60], textColor: 255 },
+    });
+
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 16,
+      head: [["Cliente", "Plano", "Vencimento", "LTV (dias)", "Sistema", "Acompanh.", "Desconto", "Total"]],
+      body: linhasPdf.map((l) => [
+        l.nome, l.plano, l.venc, l.ltv,
+        formatBRL(l.sistema), formatBRL(l.acomp),
+        l.desconto > 0 ? `-${formatBRL(l.desconto)}` : "—",
+        formatBRL(l.total),
+      ]),
+      styles: { fontSize: 10, cellPadding: 6 },
+      headStyles: { fillColor: [60, 60, 60], textColor: 255 },
+    });
+
+    // Linha de totalizador do fechamento (subtotal, desconto geral, total)
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 6,
+      head: [["", "Valor"]],
+      showHead: "never",
+      body: [
+        ["Subtotal", formatBRL(resumoPdf.subtotalBruto)],
+        ...(resumoPdf.descontoTotal > 0
+          ? [["Descontos aplicados", `-${formatBRL(resumoPdf.descontoTotal)}`]]
+          : []),
+        ["Total do fechamento", formatBRL(resumoPdf.totalReceita)],
+      ],
+      styles: { fontSize: 10, cellPadding: 6 },
+      columnStyles: { 0: { halign: "right", fontStyle: "bold" }, 1: { halign: "right" } },
+    });
+
+    if (fechamentoData.movsMes.length > 0) {
+      autoTable(pdf, {
+        startY: (pdf as any).lastAutoTable.finalY + 16,
+        head: [["Data", "Cliente", "Tipo", "Detalhes", "Impacto/mês"]],
+        body: fechamentoData.movsMes
+          .slice()
+          .sort((a, b) => b.data.localeCompare(a.data))
+          .map((mv) => {
+            const c = clientes.find((x) => x.id === mv.clienteId);
+            const delta = fechamentoData.calcDeltaReceita(mv);
+            const sign = delta > 0 ? "+" : "";
+            return [
+              mv.data.split("-").reverse().join("/"),
+              c?.nome ?? "—",
+              mv.tipo === "upgrade" ? "Upgrade" : "Downgrade",
+              descreverMov(mv),
+              delta !== 0 ? `${sign}${formatBRL(delta)}` : "—",
+            ];
+          }),
+        styles: { fontSize: 9, cellPadding: 6 },
+        // Cabeçalho amarelo vivo para as atualizações do ciclo
+        headStyles: { fillColor: [253, 224, 71], textColor: [20, 20, 20] },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 2) {
+            const isUp = String(data.cell.raw) === "Upgrade";
+            // Verde para upgrade, vermelho para downgrade
+            data.cell.styles.textColor = isUp ? [21, 128, 61] : [185, 28, 28];
+            data.cell.styles.fontStyle = "bold";
+          }
+          if (data.section === "body" && data.column.index === 4) {
+            const raw = String(data.cell.raw ?? "");
+            if (raw.startsWith("+")) data.cell.styles.textColor = [21, 128, 61];
+            else if (raw.startsWith("-") || raw.startsWith("−") || raw.startsWith("R$ -")) data.cell.styles.textColor = [185, 28, 28];
+          }
+        },
+      });
+    }
+
+    // Setups do ciclo (novos clientes que iniciaram na competência)
+    if (fechamentoData.setupsNoMes.length > 0) {
+      autoTable(pdf, {
+        startY: (pdf as any).lastAutoTable.finalY + 16,
+        head: [["Data de entrada", "Cliente", "Plano", "Valor do Setup"]],
+        body: fechamentoData.setupsNoMes
+          .slice()
+          .sort((a, b) => a.dataInicio.localeCompare(b.dataInicio))
+          .map((c) => {
+            const plano = planos.find((p) => p.id === c.planoId);
+            return [
+              c.dataInicio.split("-").reverse().join("/"),
+              c.nomeFinanceiro || c.nome,
+              abreviarPlano(plano?.nome),
+              c.valorSetupPago ? formatBRL(c.valorSetupPago) : "—",
+            ];
+          }),
+        styles: { fontSize: 9, cellPadding: 6 },
+        headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+      });
+    }
+
+    // Churns do ciclo (clientes que cancelaram na competência)
+    if (fechamentoData.churnsNoMes.length > 0) {
+      autoTable(pdf, {
+        startY: (pdf as any).lastAutoTable.finalY + 16,
+        head: [["Data do churn", "Cliente", "Plano"]],
+        body: fechamentoData.churnsNoMes
+          .slice()
+          .sort((a, b) => (a.dataChurn ?? "").localeCompare(b.dataChurn ?? ""))
+          .map((c) => {
+            const plano = planos.find((p) => p.id === c.planoId);
+            return [
+              c.dataChurn ? c.dataChurn.split("-").reverse().join("/") : "—",
+              c.nomeFinanceiro || c.nome,
+              abreviarPlano(plano?.nome),
+            ];
+          }),
+        styles: { fontSize: 9, cellPadding: 6 },
+        headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+      });
+    }
+
+    // Observação livre
+    if (observacaoPdf.trim()) {
+      let y = ((pdf as any).lastAutoTable?.finalY ?? 200) + 30;
+      const lines = pdf.splitTextToSize(observacaoPdf.trim(), pageW - 80);
+      const blockH = 24 + lines.length * 12;
+      if (y + blockH > pageH - 40) { pdf.addPage(); y = 60; }
+      pdf.setFontSize(11);
+      pdf.setTextColor(40, 40, 40);
+      pdf.text("Observações", 40, y);
+      pdf.setDrawColor(220);
+      pdf.line(40, y + 4, pageW - 40, y + 4);
+      pdf.setFontSize(10);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(lines, 40, y + 20);
+    }
+
+    pdf.save(`fechamento-${fechamentoMes}-${slugMulti(planoSel)}-${slugMulti(parceiroSel)}.pdf`);
+  };
+
+  // Auto-print: quando o usuário clica no ícone de impressora numa linha de fechamento,
+  // abrimos o modal para a competência dele e disparamos o PDF assim que os dados estiverem prontos.
+  useEffect(() => {
+    if (!autoPrintCompetencia) return;
+    if (!fechamentoData || fechamentoData.competenciaKey !== autoPrintCompetencia) return;
+    if (!fechamentoSelecionado || fechamentoSelecionado.count === 0) return;
+    const t = setTimeout(() => {
+      try { exportarFechamentoPdf(); } catch (e) { console.error(e); }
+      setFechamentoOpen(false);
+      setCompetenciaNovoFechamento(null);
+      setAutoPrintCompetencia(null);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [autoPrintCompetencia, fechamentoData, fechamentoSelecionado]);
+
+  // ====== Enviar para o módulo Financeiro ======
+  const enviarParaFinanceiro = async () => {
+    if (gerandoFechamento) return;
+    if (!fechamentoData) {
+      toast.error("Selecione uma competência válida para gerar o fechamento.");
+      return;
+    }
+    if (!fechamentoSelecionado || fechamentoSelecionado.count === 0) {
+      toast.error("Selecione ao menos um cliente para gerar o fechamento.");
+      return;
+    }
+    const { y, m, labelMes, cicloLabel } = fechamentoData;
+    const detalhesPorCliente = fechamentoSelecionado.detalhes;
+    const totalReceita = fechamentoSelecionado.totalReceita;
+    if (detalhesPorCliente.length === 0) {
+      toast.error("Selecione ao menos um cliente para enviar ao Financeiro.");
+      return;
+    }
+    const competenciaKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const exibirFechamentoGerado = (fechamentoId: string) => {
+      setFiltros({
+        ...filtrosRef.current,
+        competencia: { type: "single", value: competenciaKey },
+      });
+      setExpandedMes(competenciaKey);
+      setExpandedFechamento(fechamentoId);
+      setFechamentoOpen(false);
+      setCompetenciaNovoFechamento(null);
+    };
+    // Quantidade de fechamentos já existentes nessa competência (para numerar o título)
+    const jaExistentes = fechamentosVisiveis.filter((f) => f.competencia === competenciaKey).length;
+    const tituloFechamento = (nomeFechamento || "").trim()
+      || (descricaoConsolidada || "").trim()
+      || `${jaExistentes + 1}º fechamento · ${labelMes}`;
+    // Snapshot dos itens para persistência
+    const novoUuid = () =>
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const novoIdCurto = () => Math.random().toString(36).slice(2, 10);
+    const fechamentoIdNovo = novoUuid();
+
+    const itensSnapshot: FechamentoItem[] = detalhesPorCliente.map((d) => ({
+      id: novoUuid(),
+      fechamentoId: fechamentoIdNovo,
+      clienteId: d.cliente.id,
+      planoId: d.plano?.id ?? null,
+      cicloInicio: null as string | null,
+      cicloFim: null as string | null,
+      vencimento: d.venc ?? null,
+      valorBruto: Number(d.subtotal.toFixed(2)),
+      valorDesconto: Number(d.descontoCliente.toFixed(2)),
+      valorLiquido: Number(d.receita.toFixed(2)),
+      lancamentoFinanceiroId: null as string | null,
+      payloadSnapshot: {
+        clienteNome: d.cliente.nome,
+        planoNome: d.plano?.nome ?? null,
+        sistema: d.sistema,
+        acompanhamento: d.acomp,
+        ltvDias: d.ltvDias,
+        descontosCliente: d.descontosCliente,
+        mauMes: d.mauMes,
+        mauInclusos: d.mauInclusos,
+        mauUnit: d.mauUnit,
+        mauExcedenteQtd: d.mauExcedenteQtd,
+        mauExcedenteValor: Number(d.mauExcedenteValor.toFixed(2)),
+        // Regra de troca de plano usada neste ciclo (ver detalharCicloCliente)
+        regraTroca: d.detalheCiclo?.regraTroca ?? "sem_troca",
+        trocaPlanoAnterior: d.detalheCiclo?.planoAnteriorId
+          ? (planos.find((p) => p.id === d.detalheCiclo.planoAnteriorId)?.nome ?? d.detalheCiclo.planoAnteriorId)
+          : null,
+        trocaPlanoNovo: d.detalheCiclo?.planoNovoId
+          ? (planos.find((p) => p.id === d.detalheCiclo.planoNovoId)?.nome ?? d.detalheCiclo.planoNovoId)
+          : null,
+        trocaData: d.detalheCiclo?.dataTroca ?? null,
+        trocaDiasTotal: d.detalheCiclo?.diasTotal ?? null,
+        trocaDiasAntes: d.detalheCiclo?.diasAntes ?? null,
+        trocaDiasDepois: d.detalheCiclo?.diasDepois ?? null,
+        trocaValorTrechoAntigo:
+          d.detalheCiclo?.valorTrechoAntigo != null ? Number(d.detalheCiclo.valorTrechoAntigo.toFixed(2)) : null,
+        trocaValorTrechoNovo:
+          d.detalheCiclo?.valorTrechoNovo != null ? Number(d.detalheCiclo.valorTrechoNovo.toFixed(2)) : null,
+        // Composição completa no momento do fechamento (lida pelos relatórios depois).
+        composicao: (() => {
+          const fimIso = isoFromDate(cicloDoCliente(d.cliente, y, m).fim);
+          const expD = explicarReceitaCliente(clienteSnapshotAt(d.cliente, movimentos, fimIso), planos);
+          return { itens: expD.itens, subtotalSistema: d.sistema, acompanhamento: d.acomp };
+        })(),
+      } as Record<string, unknown>,
+    }));
+    // Preenche ciclo por item
+    for (let i = 0; i < detalhesPorCliente.length; i++) {
+      const c = detalhesPorCliente[i].cliente;
+      const cic = cicloDoCliente(c, y, m);
+      itensSnapshot[i].cicloInicio = cic.inicio.toISOString().slice(0, 10);
+      itensSnapshot[i].cicloFim = cic.fim.toISOString().slice(0, 10);
+    }
+
+    setGerandoFechamento(true);
+    try {
+      const lancamentos: LancamentoFinanceiro[] = [];
+      let descricaoFechamento: string;
+      let mensagemSucesso: string;
+
+      if (modoEnvio === "consolidado") {
+      // Vencimento sugerido: maior dia do grupo (ou hoje se não houver)
+      const dias = detalhesPorCliente
+        .map((d) => (d.venc ? Number(d.venc.slice(8, 10)) : null))
+        .filter((x): x is number => x !== null);
+      const dia = dias.length > 0 ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length) : 10;
+      const ultimoDia = new Date(y, m + 1, 0).getDate();
+      const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+      const descricao = (descricaoConsolidada || "").trim() || `Fechamento ${labelMes} · ciclo ${cicloLabel}`;
+        const lancId = novoIdCurto();
+        lancamentos.push({
+          id: lancId,
+          descricao,
+          tipo: "fechamento",
+          categoria: "Receita",
+          valor: Number(totalReceita.toFixed(2)),
+          vencimento: venc,
+          competencia: `${competenciaKey}-consolidado-${Date.now()}`,
+          status: "pendente",
+          nfEmitida: false,
+        });
+        // Vincula todos os itens ao lançamento consolidado
+        for (const it of itensSnapshot) it.lancamentoFinanceiroId = lancId;
+        descricaoFechamento = descricao;
+        mensagemSucesso = "Fechamento gerado e exibido no Resumo.";
+      } else {
+        for (const d of detalhesPorCliente) {
+          const dia = d.venc ? Number(d.venc.slice(8, 10)) : 10;
+          const ultimoDia = new Date(y, m + 1, 0).getDate();
+          const venc = new Date(y, m, Math.min(dia, ultimoDia)).toISOString().slice(0, 10);
+          const descricaoCli = (descricoesPorCliente[d.cliente.id] || "").trim()
+            || d.cliente.nomeFinanceiro || d.cliente.nome;
+          const lancId = novoIdCurto();
+          lancamentos.push({
+            id: lancId,
+            descricao: descricaoCli,
+            tipo: "fechamento",
+            categoria: "Receita",
+            valor: Number(d.receita.toFixed(2)),
+            vencimento: venc,
+            competencia: `${competenciaKey}-${d.cliente.id}-${Date.now()}`,
+            status: "pendente",
+            nfEmitida: false,
+          });
+          const item = itensSnapshot.find((x) => x.clienteId === d.cliente.id);
+          if (item) item.lancamentoFinanceiroId = lancId;
+        }
+        descricaoFechamento = `Fechamento por cliente · ${labelMes}`;
+        mensagemSucesso = `Fechamento gerado com ${lancamentos.length} lançamento(s) e exibido no Resumo.`;
+      }
+
+      const fechamentoNovo: Fechamento = {
+        id: fechamentoIdNovo,
+        competencia: competenciaKey,
+        titulo: tituloFechamento,
+        descricao: descricaoFechamento,
+        status: "emitido",
+        totalBruto: Number(fechamentoSelecionado.subtotalBruto.toFixed(2)),
+        totalDesconto: Number(fechamentoSelecionado.descontoTotal.toFixed(2)),
+        totalLiquido: Number(totalReceita.toFixed(2)),
+        observacao: observacaoPdf.trim() || null,
+      };
+
+      try {
+        const fechamentoId = await gerarFechamentoNoServidor(
+          fechamentoNovo,
+          itensSnapshot,
+          lancamentos,
+        );
+        exibirFechamentoGerado(fechamentoId);
+        toast.success(mensagemSucesso);
+      } catch (e) {
+        console.error(e);
+        toast.error(mensagemErroPersistencia(e, "Não foi possível gerar o fechamento"));
+        return;
+      }
+    } finally {
+      setGerandoFechamento(false);
+    }
+  };
+
+  // ====== Enviar por e-mail (placeholder até configurar domínio) ======
+  const enviarPorEmail = () => {
+    if (!emailDestino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestino)) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+    toast.message("Envio por e-mail", {
+      description:
+        "Para enviar o PDF por e-mail é preciso configurar o domínio de envio em Configurações → Emails. Avise-nos para concluirmos essa etapa.",
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Fechamento Mensal</h1>
+          <p className="text-muted-foreground text-sm">Cada competência agrupa os fechamentos gerados. Clientes ficam disponíveis assim que o último dia do ciclo passa.</p>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <FilterBar
+        fields={[
+          {
+            key: "competencia",
+            label: "Competência",
+            type: "single",
+            options: opcoesFechamento.length > 0
+              ? opcoesFechamento.map((o) => ({ value: o.key, label: o.label }))
+              : [{
+                  value: defaultCompetencia,
+                  label: formatCompetenciaLabel(
+                    Number(defaultCompetencia.slice(0, 4)),
+                    Number(defaultCompetencia.slice(5, 7)) - 1,
+                  ),
+                }],
+          },
+          {
+            key: "tipo",
+            label: "Tipo",
+            type: "multi",
+            options: [
+              { value: "elora", label: "Plano Elora" },
+              { value: "consultoria", label: "Consultoria" },
+            ],
+          },
+          { key: "plano", label: "Plano", type: "multi", options: planos.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "parceiro", label: "Parceiro", type: "multi", options: parceiros.map((p) => ({ value: p.id, label: p.nome })) },
+          { key: "vencimento", label: "Vencimento", type: "multi", options: diasDisponiveis.map((d) => ({ value: String(d), label: `Dia ${d}` })) },
+        ] as FilterFieldDef[]}
+        value={filtros}
+        onChange={setFiltros}
+        action={
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => abrirNovoFechamento()}>
+            <FileText className="h-3.5 w-3.5" /> Gerar Fechamento
+          </Button>
+        }
+      />
+
+      <Card className="border-border/60">
+        <CardHeader>
+          <CardTitle>Fechamentos</CardTitle>
+          <CardDescription>
+            Cada competência agrupa os fechamentos gerados. Expanda para ver os fechamentos, as contas incluídas e os detalhes de cada conta.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[30px]"></TableHead>
+                <TableHead>Mês de Competência</TableHead>
+                <TableHead className="text-right">Fechamentos</TableHead>
+                <TableHead className="text-right">Novos</TableHead>
+                <TableHead className="text-right">Churns</TableHead>
+                <TableHead className="text-right">Total faturado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {linhas.map((l) => {
+                const isExpanded = expandedMes === l.mesKey;
+                const fechDaComp = fechamentosVisiveis
+                  .filter((f) => f.competencia === l.mesKey)
+                  .sort((a, b) => (b.criadoEm ?? "").localeCompare(a.criadoEm ?? ""));
+                const totalFechado = fechDaComp.reduce((s, f) => s + f.totalLiquido, 0);
+                return (
+                  <Fragment key={l.mesKey}>
+                    <TableRow
+                      className="cursor-pointer hover:bg-muted/30 transition-colors"
+                      onClick={() => {
+                        setExpandedMes(isExpanded ? null : l.mesKey);
+                        setExpandedFechamento(null);
+                      }}
+                    >
+                      <TableCell className="text-muted-foreground">
+                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </TableCell>
+                      <TableCell className="font-medium">{l.mesLabel}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{fechDaComp.length}</TableCell>
+                      <TableCell className="text-right text-fin">+{l.novos}</TableCell>
+                      <TableCell className="text-right text-destructive">{l.churns > 0 ? `-${l.churns}` : "—"}</TableCell>
+                      <TableCell className="text-right font-medium">{formatBRL(totalFechado)}</TableCell>
+                    </TableRow>
+
+                    {isExpanded && (
+                      <TableRow key={`${l.mesKey}-detail`} className="bg-muted/10 hover:bg-muted/10">
+                        <TableCell colSpan={6} className="py-0">
+                          <div className="py-3 pl-6 pr-2 space-y-2">
+                            {fechDaComp.length === 0 && (
+                              <div className="text-xs text-muted-foreground py-2">
+                                Nenhum fechamento criado nesta competência ainda. Use “Novo fechamento” para gerar um.
+                              </div>
+                            )}
+                            {fechDaComp.map((f) => {
+                              const isFechExpanded = expandedFechamento === f.id;
+                              const itens = fechamentoItensVisiveis.filter((i) => i.fechamentoId === f.id);
+                              const criadoEmLabel = f.criadoEm
+                                ? new Date(f.criadoEm).toLocaleDateString("pt-BR")
+                                : "—";
+                              return (
+                                <div key={f.id} className="rounded border border-border/50 bg-background/40">
+                                  <div
+                                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30"
+                                    onClick={() => setExpandedFechamento(isFechExpanded ? null : f.id)}
+                                  >
+                                    {isFechExpanded
+                                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                      : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="font-medium text-sm">{f.titulo}</span>
+                                    <Badge variant="outline" className="text-[10px] ml-1">{itens.length} conta(s)</Badge>
+                                    <span className="ml-auto flex items-center gap-3">
+                                      <span className="text-xs text-muted-foreground">{criadoEmLabel}</span>
+                                      {!f.legacyFinanceiroId && (() => {
+                                        const enviadoEm = f.id in enviosParceiro
+                                          ? enviosParceiro[f.id]
+                                          : (f as any).enviadoParceiroEm ?? null;
+                                        const ocupado = enviandoParceiro === f.id;
+                                        return enviadoEm ? (
+                                          <span className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-[10px] border-fin/40 text-fin">
+                                              enviado ao parceiro em {new Date(enviadoEm).toLocaleDateString("pt-BR")}
+                                            </Badge>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 gap-1.5 text-xs"
+                                              disabled={ocupado}
+                                              title="Desfazer o envio ao parceiro"
+                                              onClick={(e) => { e.stopPropagation(); alternarEnvioParceiro(f.id, false); }}
+                                            >
+                                              {ocupado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                                              Desfazer envio
+                                            </Button>
+                                          </span>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 gap-1.5 text-xs"
+                                            disabled={ocupado}
+                                            title="Liberar este fechamento para consulta dos parceiros"
+                                            onClick={(e) => { e.stopPropagation(); alternarEnvioParceiro(f.id, true); }}
+                                          >
+                                            {ocupado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                                            Enviar para parceiro
+                                          </Button>
+                                        );
+                                      })()}
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 gap-1.5 text-xs"
+                                        title="Auditoria completa deste fechamento"
+                                        onClick={(e) => { e.stopPropagation(); setDetalharFechamentoId(f.id); }}
+                                      >
+                                        <FileSearch className="h-3.5 w-3.5" /> Detalhar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 w-7 p-0"
+                                        title="Baixar relatório do fechamento (PDF)"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCompetenciaNovoFechamento(f.competencia);
+                                          setFechamentoOpen(true);
+                                          setAutoPrintCompetencia(f.competencia);
+                                        }}
+                                      >
+                                        <Printer className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <span className="text-sm font-semibold text-primary">{formatBRL(f.totalLiquido)}</span>
+                                      {f.legacyFinanceiroId ? (
+                                        <Badge variant="outline" className="text-[10px] border-fin/40 text-fin">
+                                          recuperado do Financeiro
+                                        </Badge>
+                                      ) : (
+                                        <>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7"
+                                            title="Renomear fechamento"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const novo = window.prompt("Novo título do fechamento:", f.titulo ?? "");
+                                              if (novo === null) return;
+                                              const t = novo.trim();
+                                              if (!t || t === f.titulo) return;
+                                              updateFechamento?.(f.id, { titulo: t })
+                                                .then(() => toast.success("Título atualizado."))
+                                                .catch(() => toast.error("Falha ao atualizar título."));
+                                            }}
+                                          >
+                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                          </Button>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7"
+                                            title="Excluir fechamento"
+                                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteFech(f.id); }}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                          </Button>
+                                        </>
+                                      )}
+                                    </span>
+                                  </div>
+                                  {isFechExpanded && (
+                                    <div className="border-t border-border/40 px-3 py-2">
+                                      <table className="w-full text-sm">
+                                        <thead>
+                                          <tr className="text-xs text-muted-foreground border-b border-border/40">
+                                            <th className="text-left pb-1 font-medium">Cliente</th>
+                                            <th className="text-left pb-1 font-medium">Plano</th>
+                                            <th className="text-right pb-1 font-medium">Ciclo</th>
+                                            <th className="text-right pb-1 font-medium">Vencimento</th>
+                                            <th className="text-right pb-1 font-medium">Total</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {itens.map((it) => {
+                                            const cli = clientes.find((c) => c.id === it.clienteId);
+                                            const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                                            const nome = cli?.nome ?? snap.clienteNome ?? "—";
+                                            const planoNome = planos.find((p) => p.id === it.planoId)?.nome ?? snap.planoNome ?? null;
+                                            return (
+                                              <tr
+                                                key={it.id}
+                                                className="border-b border-border/20 last:border-0 cursor-pointer hover:bg-muted/30 transition-colors"
+                                                onClick={() => setHistoricoCliente({ clienteId: it.clienteId, mesKey: l.mesKey })}
+                                                title="Ver detalhes desta conta"
+                                              >
+                                                <td className="py-1.5 font-medium text-primary underline-offset-2 hover:underline">{nome}</td>
+                                                <td className="py-1.5 text-muted-foreground">{abreviarPlano(planoNome)}</td>
+                                                <td className="py-1.5 text-right text-muted-foreground text-xs">
+                                                  {it.cicloInicio && it.cicloFim
+                                                    ? `${new Date(`${it.cicloInicio}T12:00:00`).toLocaleDateString("pt-BR")} → ${new Date(`${it.cicloFim}T12:00:00`).toLocaleDateString("pt-BR")}`
+                                                    : "—"}
+                                                </td>
+                                                <td className="py-1.5 text-right text-muted-foreground text-xs">
+                                                  {it.vencimento
+                                                    ? new Date(`${it.vencimento}T12:00:00`).toLocaleDateString("pt-BR")
+                                                    : "—"}
+                                                </td>
+                                                <td className="py-1.5 text-right text-primary font-medium">
+                                                  {it.valorDesconto > 0 ? (
+                                                    <div className="flex flex-col items-end leading-tight">
+                                                      <span className="line-through text-[10px] text-muted-foreground font-normal">{formatBRL(it.valorBruto)}</span>
+                                                      <span>{formatBRL(it.valorLiquido)}</span>
+                                                    </div>
+                                                  ) : (
+                                                    formatBRL(it.valorLiquido)
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                          {itens.length === 0 && (
+                                            <tr><td colSpan={5} className="py-2 text-center text-xs text-muted-foreground">Fechamento sem contas.</td></tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
+              {linhas.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Cadastre clientes para começar a gerar fechamentos.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Confirm delete fechamento (admin only) */}
+      <AlertDialog open={!!confirmDeleteFech} onOpenChange={(o) => !o && setConfirmDeleteFech(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover fechamento para a lixeira?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O fechamento sai da lista e de todos os cálculos, mas continua guardado na Lixeira e pode ser restaurado a qualquer momento. Nada é apagado de verdade agora.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDeleteFech) return;
+                try {
+                  await removeFechamento(confirmDeleteFech);
+                  toast.success("Fechamento movido para a lixeira.");
+                } catch {
+                  toast.error("Falha ao mover fechamento para a lixeira.");
+                }
+                setConfirmDeleteFech(null);
+              }}
+            >
+              Mover para a lixeira
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Lixeira de fechamentos */}
+      <Card className="border-border/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Trash2 className="h-4 w-4 text-muted-foreground" /> Lixeira
+          </CardTitle>
+          <CardDescription>
+            Fechamentos excluídos ficam aqui e não entram em nenhuma lista ou soma. Itens aqui há mais de 30 dias podem ser apagados definitivamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {fechamentosNaLixeira.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">A lixeira está vazia.</p>
+          ) : (
+            <div className="space-y-2">
+              {fechamentosNaLixeira.map((f) => (
+                <div key={f.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/50 p-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{f.titulo}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Competência {f.competencia} · {formatBRL(f.totalLiquido)} · excluído em{" "}
+                      {f.deletadoEm ? new Date(f.deletadoEm).toLocaleString("pt-BR") : "—"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={async () => {
+                        try {
+                          await restaurarFechamento?.(f.id);
+                          toast.success("Fechamento restaurado.");
+                        } catch {
+                          toast.error("Falha ao restaurar fechamento.");
+                        }
+                      }}
+                    >
+                      Restaurar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-destructive"
+                      onClick={() => setConfirmPurgeFech(f.id)}
+                    >
+                      Excluir definitivamente
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={!!confirmPurgeFech} onOpenChange={(o) => !o && setConfirmPurgeFech(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar definitivamente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O fechamento e todos os seus itens detalhados serão apagados para sempre. Não há como recuperar depois. Lançamentos financeiros vinculados são preservados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmPurgeFech) return;
+                try {
+                  await excluirFechamentoDefinitivo?.(confirmPurgeFech);
+                  toast.success("Fechamento apagado definitivamente.");
+                } catch {
+                  toast.error("Falha ao apagar fechamento.");
+                }
+                setConfirmPurgeFech(null);
+              }}
+            >
+              Apagar para sempre
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal: Prévia do Fechamento */}
+      <Dialog
+        open={fechamentoOpen}
+        onOpenChange={(open) => {
+          setFechamentoOpen(open);
+          if (!open) setCompetenciaNovoFechamento(null);
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          {fechamentoData && (
+            <>
+              {/* Header com cara de capa de PDF */}
+              <div className="bg-gradient-to-br from-primary via-primary to-primary/70 text-primary-foreground p-8 rounded-t-lg">
+                <DialogHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.3em] opacity-80">Elora · Fechamento Mensal</div>
+                      <DialogTitle className="text-3xl font-bold mt-1 capitalize">Competência {fechamentoData.labelMes}</DialogTitle>
+                      <p className="text-xs opacity-80 mt-2">
+                        {labelMulti(planoSel, "Todos os planos", (id) => planos.find((p) => p.id === id)?.nome ?? id)}
+                      </p>
+                      <p className="text-[11px] opacity-90 mt-1">
+                        Ciclo de faturamento: {fechamentoData.cicloLabel}  ·  Vencimento: {fechamentoData.vencimentoLabel}
+                      </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 max-w-xl">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider opacity-80">Competência</label>
+                          <Select
+                            value={fechamentoMes}
+                            onValueChange={(v) => {
+                              setCompetenciaNovoFechamento(v);
+                              setNomeFechamentoTocado(false);
+                              setDescricaoConsolidadaTocada(false);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1 h-9 bg-background/10 border-primary-foreground/30 text-primary-foreground">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(opcoesFechamento.length > 0
+                                ? opcoesFechamento
+                                : [{ key: fechamentoMes, label: fechamentoData.labelMes, elegiveis: fechamentoData.ativos.length, aguardando: 0 }]
+                              ).map((o) => (
+                                <SelectItem key={o.key} value={o.key}>
+                                  {o.label} · {o.elegiveis} elegível(is)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider opacity-80">Nome do fechamento</label>
+                          <Input
+                            value={nomeFechamento}
+                            onChange={(e) => { setNomeFechamento(e.target.value); setNomeFechamentoTocado(true); }}
+                            placeholder={defaultNomeFechamento}
+                            className="mt-1 h-9 bg-background/10 border-primary-foreground/30 text-primary-foreground placeholder:text-primary-foreground/60"
+                          />
+                        </div>
+                      </div>
+                      {fechamentoData.cicloEmAberto.length > 0 && (
+                        <p className="text-[11px] opacity-90 mt-1">
+                          ⚡ Fechamento antecipado: {fechamentoData.cicloEmAberto.length} cliente(s) com ciclo ainda em aberto (
+                          {fechamentoData.cicloEmAberto.map((c) => c.nome).join(", ")}) — serão cobrados pelo valor cheio do ciclo.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        onClick={() => {
+                          setSelectedClienteIds(new Set());
+                          setDescricaoConsolidada("");
+                          setDescricaoConsolidadaTocada(false);
+                          setDescricoesPorCliente({});
+                          setDescricoesPorClienteTocadas({});
+                          setObservacaoPdf("");
+                          setMauPorCliente({});
+                          setEmailDestino("");
+                          setNomeFechamento("");
+                          setNomeFechamentoTocado(false);
+                          toast.message("Seleção e campos limpos.");
+                        }}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Eraser className="h-4 w-4" /> Limpar tudo
+                      </Button>
+                      <Button onClick={exportarFechamentoPdf} variant="secondary" className="gap-2">
+                        <Download className="h-4 w-4" /> Gerar relatório (PDF)
+                      </Button>
+                    </div>
+                  </div>
+                </DialogHeader>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* KPIs */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Clientes selecionados</div>
+                    <div className="text-2xl font-semibold mt-1">
+                      {fechamentoSelecionado?.count ?? 0}
+                      <span className="text-sm font-normal text-muted-foreground ml-1">/ {fechamentoData.ativos.length}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Setups no mês</div>
+                    <div className="text-2xl font-semibold mt-1 text-fin">+{fechamentoData.setupsNoMes.length}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{formatBRL(fechamentoData.totalSetups)}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Churns</div>
+                    <div className="text-2xl font-semibold mt-1 text-destructive">{fechamentoData.churnsNoMes.length > 0 ? `-${fechamentoData.churnsNoMes.length}` : "0"}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Fechamento Mensal</div>
+                    <div className="text-2xl font-semibold mt-1 text-primary">{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</div>
+                  </div>
+                </div>
+
+                {/* Métricas secundárias: LTV médio, ticket médio, sistema vs acompanhamento (discretos) */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">LTV médio</div>
+                    <div className="text-sm font-medium mt-0.5">{Math.round(fechamentoSelecionado?.ltvMedioDias ?? 0)} dias</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ticket médio / cliente</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.ticketMedio ?? 0)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Sistema</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalSistema ?? 0)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor do Acompanhamento</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(fechamentoSelecionado?.totalAcompanhamento ?? 0)}</div>
+                  </div>
+                </div>
+
+                {/* Detalhamento por cliente */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Detalhamento por cliente</h3>
+                    <span className="text-[10px] text-muted-foreground">
+                      Marque os clientes que entram neste fechamento. Os totais, o PDF e o envio ao Financeiro respeitam a seleção.
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border/60 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30">
+                        <tr className="text-xs text-muted-foreground">
+                          <th className="p-2 w-8">
+                            <Checkbox
+                              checked={todosSelecionados}
+                              onCheckedChange={toggleTodos}
+                              aria-label="Selecionar todos"
+                            />
+                          </th>
+                          <th className="text-left p-2 font-medium">Cliente</th>
+                          <th className="text-left p-2 font-medium">Plano</th>
+                          <th className="text-left p-2 font-medium">Vencimento</th>
+                          <th className="text-right p-2 font-medium">LTV</th>
+                          <th className="text-right p-2 font-medium w-28">MAU do mês</th>
+                          <th className="text-right p-2 font-medium">Excedente</th>
+                          <th className="text-right p-2 font-medium">Sistema</th>
+                          <th className="text-right p-2 font-medium">Acomp.</th>
+                          <th className="text-right p-2 font-medium">Total</th>
+                          <th className="text-right p-2 font-medium w-12"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detalhesComMau.map((d) => (
+                          <tr
+                            key={d.cliente.id}
+                            className={`border-t border-border/30 cursor-pointer hover:bg-muted/20 ${selectedClienteIds.has(d.cliente.id) ? "" : "opacity-50"}`}
+                            onClick={() => toggleCliente(d.cliente.id)}
+                          >
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedClienteIds.has(d.cliente.id)}
+                                onCheckedChange={() => toggleCliente(d.cliente.id)}
+                                aria-label={`Selecionar ${d.cliente.nome}`}
+                              />
+                            </td>
+                            <td className="p-2 font-medium">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{d.cliente.nome}</span>
+                                {d.cicloAberto && (
+                                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/10">
+                                    ciclo em aberto — encerra {d.cicloFimLabel}
+                                  </Badge>
+                                )}
+                                {d.descontosCliente.map((dc) => (
+                                  <Badge key={dc.id} variant="outline" className="text-[10px] gap-1 border-fin/40 text-fin bg-fin/10">
+                                    <Tag className="h-2.5 w-2.5" />
+                                    {descreverDesconto(dc)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-2 text-muted-foreground">{abreviarPlano(d.plano?.nome)}</td>
+                            <td className="p-2 text-muted-foreground">{d.venc ? new Date(d.venc).toLocaleDateString("pt-BR") : "—"}</td>
+                            <td className="p-2 text-right text-muted-foreground">{d.ltvDias} d</td>
+                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={mauPorCliente[d.cliente.id] ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setMauPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
+                                }}
+                                placeholder={String(d.mauInclusos)}
+                                className="h-8 text-sm text-right"
+                              />
+                            </td>
+                            <td className="p-2 text-right text-xs">
+                              {d.mauExcedenteQtd > 0 ? (
+                                <span className="text-primary font-semibold">
+                                  {d.mauExcedenteQtd.toLocaleString("pt-BR")} × {formatBRLPreciso(d.mauUnit)} = +{formatBRL(d.mauExcedenteValor)}
+                                </span>
+                              ) : d.mauInformado ? (
+                                <span className="text-fin">dentro do plano</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="p-2 text-right">{formatBRL(d.sistema)}</td>
+                            <td className="p-2 text-right">{formatBRL(d.acomp)}</td>
+                            <td className="p-2 text-right font-semibold text-primary">
+                              {d.descontoCliente > 0 ? (
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span className="line-through text-[11px] text-muted-foreground font-normal">{formatBRL(d.subtotal)}</span>
+                                  <span>{formatBRL(d.receita)}</span>
+                                </div>
+                              ) : (
+                                formatBRL(d.receita)
+                              )}
+                            </td>
+                            <td className="p-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                title="Aplicar desconto a este cliente"
+                                onClick={() => setDescontoModal({ escopo: "cliente", clienteId: d.cliente.id, clienteNome: d.cliente.nome })}
+                              >
+                                <Tag className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                        {detalhesComMau.length === 0 && (
+                          <tr><td colSpan={11} className="text-center text-muted-foreground py-6 text-sm">Sem clientes faturados nesta competência.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Resumo Subtotal/Descontos/Total e ações */}
+                  <div className="mt-3 rounded-lg border border-border/60 p-3 bg-muted/10">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        Aplique descontos por cliente (botão <Tag className="inline h-3 w-3 align-middle" />) ou no fechamento inteiro.
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => setDescontoModal({ escopo: "fechamento_inteiro", clienteId: null })}
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Desconto no fechamento
+                      </Button>
+                    </div>
+
+                    {(fechamentoSelecionado?.descontosGerais.length ?? 0) > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoSelecionado!.descontosGerais.map((dg) => (
+                          <div key={dg.id} className="flex items-center justify-between text-xs gap-2 rounded border border-fin/30 bg-fin/5 px-2 py-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Tag className="h-3 w-3 text-fin shrink-0" />
+                              <span className="font-medium">Fechamento inteiro · {descreverDesconto(dg)}</span>
+                              {dg.motivo && <span className="text-muted-foreground truncate">— {dg.motivo}</span>}
+                              {dg.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                            </div>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dg.id).catch(() => {}); }}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Descontos por cliente listados para gestão (remover) */}
+                    {fechamentoData.detalhesPorCliente.some((d) => d.descontosCliente.length > 0) && (
+                      <div className="mt-2 space-y-1">
+                        {fechamentoData.detalhesPorCliente.flatMap((d) =>
+                          d.descontosCliente.map((dc) => (
+                            <div key={dc.id} className="flex items-center justify-between text-xs gap-2 rounded border border-fin/30 bg-fin/5 px-2 py-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Tag className="h-3 w-3 text-fin shrink-0" />
+                                <span className="font-medium truncate">{d.cliente.nome} · {descreverDesconto(dc)}</span>
+                                {dc.motivo && <span className="text-muted-foreground truncate">— {dc.motivo}</span>}
+                                {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                              </div>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { void removeDesconto(dc.id).catch(() => {}); }}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          )),
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-3 border-t border-border/40 pt-2 space-y-1 text-sm">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>{formatBRL(fechamentoSelecionado?.subtotalBruto ?? 0)}</span>
+                      </div>
+                      {totalMauExcedente > 0 && (
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Inclui excedente de MAU</span>
+                          <span className="text-primary">+{formatBRL(totalMauExcedente)}</span>
+                        </div>
+                      )}
+                      {(fechamentoSelecionado?.descontoTotal ?? 0) > 0 && (
+                        <div className="flex justify-between text-fin dark:text-fin">
+                          <span>Descontos</span>
+                          <span>-{formatBRL(fechamentoSelecionado!.descontoTotal)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold text-primary text-base">
+                        <span>Total do fechamento</span>
+                        <span>{formatBRL(fechamentoSelecionado?.totalReceita ?? 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Enviar para Financeiro */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div>
+                    <h4 className="text-sm font-semibold">Modo de envio ao Financeiro</h4>
+                    <p className="text-xs text-muted-foreground">Define como os lançamentos serão criados.</p>
+                  </div>
+                  <RadioGroup value={modoEnvio} onValueChange={(v) => setModoEnvio(v as "consolidado" | "por_cliente")} className="flex flex-wrap gap-4 text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="consolidado" id="m-consolidado" />
+                      <span>1 lançamento consolidado</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <RadioGroupItem value="por_cliente" id="m-por-cliente" />
+                      <span>1 lançamento por cliente</span>
+                    </label>
+                  </RadioGroup>
+                  {modoEnvio === "consolidado" ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="desc-consolidada" className="text-xs text-muted-foreground">
+                          Nome do boleto / descrição no Financeiro
+                        </Label>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary hover:underline"
+                          onClick={() => {
+                            setDescricaoConsolidada(defaultDescricaoConsolidada);
+                            setDescricaoConsolidadaTocada(false);
+                          }}
+                        >
+                          Restaurar padrão
+                        </button>
+                      </div>
+                      <Input
+                        id="desc-consolidada"
+                        value={descricaoConsolidada}
+                        onChange={(e) => {
+                          setDescricaoConsolidada(e.target.value);
+                          setDescricaoConsolidadaTocada(true);
+                        }}
+                        placeholder={defaultDescricaoConsolidada}
+                      />
+                    </div>
+                  ) : (
+                    fechamentoSelecionado && fechamentoSelecionado.detalhes.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">
+                            Nome do boleto por cliente (vai para Descrição no Financeiro)
+                          </Label>
+                          <button
+                            type="button"
+                            className="text-[11px] text-primary hover:underline"
+                            onClick={() => {
+                              setDescricoesPorCliente({ ...defaultDescricoesPorCliente });
+                              setDescricoesPorClienteTocadas({});
+                            }}
+                          >
+                            Restaurar padrões
+                          </button>
+                        </div>
+                        <div className="rounded-md border border-border/60 max-h-[260px] overflow-y-auto divide-y divide-border/40">
+                          {fechamentoSelecionado.detalhes.map((d) => (
+                            <div key={d.cliente.id} className="flex items-center gap-2 p-2">
+                              <div className="text-xs text-muted-foreground w-44 shrink-0 truncate" title={d.cliente.nome}>
+                                {d.cliente.nome}
+                              </div>
+                              <Input
+                                value={descricoesPorCliente[d.cliente.id] ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDescricoesPorCliente((prev) => ({ ...prev, [d.cliente.id]: val }));
+                                  setDescricoesPorClienteTocadas((prev) => ({ ...prev, [d.cliente.id]: true }));
+                                }}
+                                placeholder={defaultDescricoesPorCliente[d.cliente.id] ?? ""}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {/* Enviar por e-mail */}
+                <div className="rounded-lg border border-border/60 p-4 space-y-3 bg-muted/10">
+                  <div>
+                    <h4 className="text-sm font-semibold">Enviar por e-mail</h4>
+                    <p className="text-xs text-muted-foreground">Envia o resumo deste fechamento para o e-mail informado.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      type="email"
+                      placeholder="destinatario@exemplo.com"
+                      value={emailDestino}
+                      onChange={(e) => setEmailDestino(e.target.value)}
+                      className="flex-1 min-w-[220px]"
+                    />
+                    <Button onClick={enviarPorEmail} variant="outline" className="gap-2" size="sm">
+                      <Mail className="h-3.5 w-3.5" /> Enviar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Observação */}
+                <div className="rounded-lg border border-border/60 p-4 bg-muted/10">
+                  <Label htmlFor="obs-pdf" className="text-xs text-muted-foreground">Observação (impressa no final do PDF)</Label>
+                  <Textarea
+                    id="obs-pdf"
+                    value={observacaoPdf}
+                    onChange={(e) => setObservacaoPdf(e.target.value)}
+                    placeholder="Notas, contexto do mês, recomendações…"
+                    className="mt-1 min-h-[72px] text-sm"
+                  />
+                </div>
+
+                {/* Rodapé: gerar fechamento */}
+                <div className="flex items-center justify-end gap-3 border-t border-border/60 pt-4">
+                  <span className="text-xs text-muted-foreground">
+                    Gera os lançamentos no Financeiro a partir da seleção acima.
+                  </span>
+                  <Button onClick={enviarParaFinanceiro} className="gap-2" disabled={gerandoFechamento}>
+                    {gerandoFechamento
+                      ? (<><Loader2 className="h-4 w-4 animate-spin" /> Gerando…</>)
+                      : (<><Send className="h-4 w-4" /> Gerar Fechamento</>)}
+                  </Button>
+                </div>
+
+
+                {/* Upgrades e Downgrades */}
+                {fechamentoData.movsMes.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Upgrades e Downgrades</h3>
+                    <div className="space-y-2">
+                      {fechamentoData.movsMes
+                        .slice()
+                        .sort((a, b) => b.data.localeCompare(a.data))
+                        .map((mv) => {
+                          const c = clientes.find((x) => x.id === mv.clienteId);
+                          const isUp = mv.tipo === "upgrade";
+                          const Icon = isUp ? TrendingUp : TrendingDown;
+                          const deltaReceita = fechamentoData.calcDeltaReceita(mv);
+                          return (
+                            <div key={mv.id} className="flex items-start gap-3 rounded-lg border border-border/60 p-3">
+                              <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-fin/15 text-fin" : "bg-fin/15 text-fin"}`}>
+                                <Icon className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className="font-semibold">{c?.nome ?? "—"}</span>
+                                  <Badge variant="outline" className="text-[10px]">{isUp ? "Upgrade" : "Downgrade"}</Badge>
+                                  {deltaReceita !== 0 && (
+                                    <span className={`text-xs font-semibold ${deltaReceita > 0 ? "text-fin" : "text-destructive"}`}>
+                                      {deltaReceita > 0 ? "+" : ""}{formatBRL(deltaReceita)}/mês
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-muted-foreground ml-auto">{mv.data.split("-").reverse().join("/")}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">{descreverMov(mv)}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Histórico do cliente no mês */}
+      <Dialog open={!!historicoCliente} onOpenChange={(o) => !o && setHistoricoCliente(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {historicoCliente && (() => {
+            const cli = clientes.find((c) => c.id === historicoCliente.clienteId);
+            if (!cli) return null;
+            const y = Number(historicoCliente.mesKey.slice(0, 4));
+            const m = Number(historicoCliente.mesKey.slice(5, 7)) - 1;
+            const plano = planos.find((p) => p.id === cli.planoId);
+            const inicioMes = new Date(y, m, 0).toISOString().slice(0, 10); // último dia do mês anterior
+            const fimMes = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+            const snapInicio = clienteSnapshotAt(cli, movimentos, inicioMes);
+            const snapFim = clienteSnapshotAt(cli, movimentos, fimMes);
+            const mrrInicio = receitaMensalCliente(snapInicio, planos, custos);
+            const mrrFim = receitaMensalCliente(snapFim, planos, custos);
+            const sistemaFim = Math.max(0, mrrFim - (snapFim.valorAcompanhamento || 0));
+            const acompFim = snapFim.valorAcompanhamento || 0;
+            const recCiclo = receitaCicloCliente(cli, planos, custos, movimentos, y, m);
+            const venc = obterVencimentoDaCompetencia(cli, y, m, planos);
+            const labelMes = formatCompetenciaLabel(y, m);
+            const competenciaKeyDrawer = `${y}-${String(m + 1).padStart(2, "0")}`;
+            const descsClienteDrawer = descontosAplicaveis(descontos, competenciaKeyDrawer, "cliente", cli.id);
+            const resDescDrawer = calcularDesconto(recCiclo, descsClienteDrawer);
+            const recCicloLiquido = resDescDrawer.total;
+            const descontoCicloTotal = resDescDrawer.descontoTotal;
+
+            // Movimentos do cliente no mês (ordenados por data crescente)
+            const movsMes = movimentos
+              .filter((mv) => mv.clienteId === cli.id)
+              .filter((mv) => {
+                const d = new Date(mv.data);
+                return d.getFullYear() === y && d.getMonth() === m;
+              })
+              .sort((a, b) => a.data.localeCompare(b.data));
+
+            // delta receita por movimento (snapshot antes vs depois)
+            const deltaDe = (mv: typeof movimentos[number]) => {
+              const after = clienteSnapshotAt(cli, movimentos, mv.data);
+              const before: typeof after = { ...after };
+              const rev = (cur: number | undefined, val: number | null | undefined) =>
+                val === undefined || val === null ? cur : Math.max(0, (cur ?? 0) - val);
+              before.canaisWhats = rev(after.canaisWhats, mv.canaisWhats);
+              before.canaisInsta = rev(after.canaisInsta, mv.canaisInsta);
+              before.canaisMessenger = rev(after.canaisMessenger, mv.canaisMessenger);
+              before.canaisZapi = rev(after.canaisZapi, mv.canaisZapi) ?? after.canaisZapi;
+              before.usuariosAtivos = rev(after.usuariosAtivos, mv.usuariosAtivos) ?? after.usuariosAtivos;
+              before.contatosAtivos = rev(after.contatosAtivos, mv.contatosAtivos) ?? after.contatosAtivos;
+              return receitaMensalCliente(after, planos, custos) - receitaMensalCliente(before, planos, custos);
+            };
+
+            const deltaMes = mrrFim - mrrInicio;
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">{cli.nome}</DialogTitle>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {labelMes} · {abreviarPlano(plano?.nome)}
+                  </p>
+                </DialogHeader>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">MRR início do mês</div>
+                    <div className="text-lg font-semibold mt-1">{formatBRL(mrrInicio)}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">MRR fim do mês</div>
+                    <div className="text-lg font-semibold mt-1 text-primary">{formatBRL(mrrFim)}</div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Variação no mês</div>
+                    <div className={`text-lg font-semibold mt-1 ${deltaMes > 0 ? "text-fin" : deltaMes < 0 ? "text-destructive" : ""}`}>
+                      {deltaMes > 0 ? "+" : ""}{formatBRL(deltaMes)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Receita do ciclo</div>
+                    {descontoCicloTotal > 0 ? (
+                      <div className="flex flex-col leading-tight mt-1">
+                        <span className="line-through text-xs text-muted-foreground font-normal">{formatBRL(recCiclo)}</span>
+                        <span className="text-lg font-semibold">{formatBRL(recCicloLiquido)}</span>
+                      </div>
+                    ) : (
+                      <div className="text-lg font-semibold mt-1">{formatBRL(recCiclo)}</div>
+                    )}
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Venc. {venc ? new Date(`${venc}T12:00:00`).toLocaleDateString("pt-BR") : "—"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Sistema (fim do mês)</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(sistemaFim)}</div>
+                  </div>
+                  <div className="rounded-md border border-border/40 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Acompanhamento (fim do mês)</div>
+                    <div className="text-sm font-medium mt-0.5">{formatBRL(acompFim)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold mb-2">Linha do tempo · {labelMes}</h4>
+                  {movsMes.length === 0 && descsClienteDrawer.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border/40 rounded-md">
+                      Sem movimentações neste mês.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {movsMes.map((mv) => {
+                        const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaDe(mv) : 0;
+                        const isUp = mv.tipo === "upgrade";
+                        const isDown = mv.tipo === "downgrade";
+                        const labelTipo =
+                          mv.tipo === "setup" ? "Setup" :
+                          mv.tipo === "upgrade" ? "Upgrade" :
+                          mv.tipo === "downgrade" ? "Downgrade" :
+                          mv.tipo === "churn" ? "Churn" : "Serviço";
+                        return (
+                          <div key={mv.id} className="flex items-start gap-3 rounded-md border border-border/40 p-3">
+                            <div className={`mt-0.5 rounded-full p-1.5 ${isUp ? "bg-fin/20 text-fin" : isDown ? "bg-destructive/20 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                              {isUp ? <TrendingUp className="h-3.5 w-3.5" /> : isDown ? <TrendingDown className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="text-[10px]">{labelTipo}</Badge>
+                                {delta !== 0 && (
+                                  <span className={`text-xs font-semibold ${delta > 0 ? "text-fin" : "text-destructive"}`}>
+                                    {delta > 0 ? "+" : ""}{formatBRL(delta)}/mês
+                                  </span>
+                                )}
+                                {mv.tipo === "servico" && mv.valorServico ? (
+                                  <span className="text-xs font-semibold">{formatBRL(mv.valorServico)}</span>
+                                ) : null}
+                                <span className="text-xs text-muted-foreground ml-auto">{mv.data.split("-").reverse().join("/")}</span>
+                              </div>
+                              {(mv.tipo === "upgrade" || mv.tipo === "downgrade") && (
+                                <div className="text-xs text-muted-foreground mt-1">{descreverMov(mv)}</div>
+                              )}
+                              {mv.observacao && (
+                                <div className="text-xs text-muted-foreground mt-1 italic">{mv.observacao}</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {descsClienteDrawer.map((dc) => (
+                        <div key={dc.id} className="flex items-start gap-3 rounded-md border border-fin/40 bg-fin/5 p-3">
+                          <div className="mt-0.5 rounded-full p-1.5 bg-fin/20 text-fin">
+                            <Tag className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] border-fin/40 text-fin">Desconto</Badge>
+                              <span className="text-xs font-semibold text-fin dark:text-fin">
+                                -{formatBRL(calcularDesconto(recCiclo, [dc]).descontoTotal)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">· {descreverDesconto(dc)}</span>
+                              {dc.recorrente && <Badge variant="outline" className="text-[9px]">recorrente</Badge>}
+                              <span className="text-xs text-muted-foreground ml-auto">fim do ciclo</span>
+                            </div>
+                            {dc.motivo && (
+                              <div className="text-xs text-muted-foreground mt-1 italic">{dc.motivo}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Aplicar Desconto */}
+      <Dialog open={!!descontoModal} onOpenChange={(o) => { if (!o) { setDescontoModal(null); resetDescontoForm(); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {descontoModal?.escopo === "cliente"
+                ? `Desconto · ${descontoModal?.clienteNome ?? ""}`
+                : "Desconto no fechamento inteiro"}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Competência {fechamentoData?.labelMes ?? ""}
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Tipo</Label>
+              <RadioGroup value={descTipo} onValueChange={(v) => setDescTipo(v as any)} className="flex flex-wrap gap-3 mt-1">
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="valor" /> Valor em R$
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="percentual" /> Percentual
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <RadioGroupItem value="isencao_total" /> Isenção total
+                </label>
+              </RadioGroup>
+            </div>
+
+            {descTipo !== "isencao_total" && (
+              <div>
+                <Label className="text-xs">{descTipo === "valor" ? "Valor (R$)" : "Percentual (%)"}</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={descValor}
+                  onChange={(e) => setDescValor(e.target.value)}
+                  placeholder={descTipo === "valor" ? "Ex.: 50,00" : "Ex.: 10"}
+                />
+              </div>
+            )}
+
+            <div>
+              <Label className="text-xs">Motivo (opcional)</Label>
+              <Input value={descMotivo} onChange={(e) => setDescMotivo(e.target.value)} placeholder="Ex.: cortesia, ajuste comercial" />
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox checked={descRecorrente} onCheckedChange={(v) => setDescRecorrente(Boolean(v))} />
+              <span>Aplicar também em competências futuras (recorrente)</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setDescontoModal(null); resetDescontoForm(); }}>Cancelar</Button>
+            <Button onClick={salvarDesconto} disabled={savingDesconto}>
+              {savingDesconto ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Aplicando...</>) : "Aplicar desconto"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Auditoria completa do fechamento */}
+      <Dialog open={!!detalharFechamentoId} onOpenChange={(o) => !o && setDetalharFechamentoId(null)}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          {(() => {
+            if (!detalharFechamentoId) return null;
+            const f = fechamentosVisiveis.find((x) => x.id === detalharFechamentoId);
+            if (!f) return <p className="text-sm text-muted-foreground">Fechamento não encontrado.</p>;
+            const itens = fechamentoItensVisiveis.filter((i) => i.fechamentoId === detalharFechamentoId);
+            const clientesFech = itens
+              .map((it) => {
+                const cli = clientes.find((c) => c.id === it.clienteId);
+                const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                return { it, cli, nome: cli?.nome ?? snap.clienteNome ?? "—" };
+              })
+              .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+            const deltaMovto = (cli: typeof clientes[number], mv: typeof movimentos[number]) => {
+              // Impacto comercial por movimento: cada recurso alterado é cobrado/creditado
+              // pelo valor unitário do plano, independentemente dos "inclusos" já consumidos.
+              // Isso reflete o contrato ("cada login extra = R$ 29,99", "cada canal extra = R$ 29,99")
+              // e é o que o cliente vê como impacto de cada evento.
+              const plano = planos.find((p) => p.id === cli.planoId);
+              if (!plano) return 0;
+              const vWhats = plano.valorCanalWhatsExc ?? plano.valorCanaisExc ?? 59.90;
+              const vInsta = plano.valorCanalInstaExc ?? plano.valorCanaisExc ?? 59.90;
+              const vMsg = plano.valorCanalMessengerExc ?? plano.valorCanaisExc ?? 59.90;
+              const vUsers = plano.valorUsuariosExc ?? 39.90;
+              const vCont = plano.valorContatosExc ?? 0.095;
+              const vZapi = plano.valorZapi ?? 149.00;
+              const vIA = plano.valorIA ?? 99.00;
+              const vAsaas = plano.valorAsaas ?? 89.00;
+              let d = 0;
+              d += (mv.canaisWhats ?? 0) * vWhats;
+              d += (mv.canaisInsta ?? 0) * vInsta;
+              d += (mv.canaisMessenger ?? 0) * vMsg;
+              d += (mv.canaisZapi ?? 0) * vZapi;
+              d += (mv.usuariosAtivos ?? 0) * vUsers;
+              d += (mv.contatosAtivos ?? 0) * vCont;
+              if (mv.agentesIA === true && !plano.incluiIA) d += vIA;
+              if (mv.agentesIA === false && !plano.incluiIA) d -= vIA;
+              if (mv.asaas === true && !plano.incluiAsaas) d += vAsaas;
+              if (mv.asaas === false && !plano.incluiAsaas) d -= vAsaas;
+              return d;
+            };
+
+            const fmtDate = (iso?: string | null) =>
+              iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+
+            const exportarAuditoriaPdf = () => {
+              const pdf = new jsPDF({ unit: "pt", format: "a4" });
+              const pageW = pdf.internal.pageSize.getWidth();
+              const pageH = pdf.internal.pageSize.getHeight();
+
+              const validos = clientesFech.filter((x) => x.cli);
+              const total = validos.length;
+
+              // ===== PÁGINA 1: RESUMO DO FATURAMENTO =====
+              pdf.setFillColor(15, 15, 15);
+              pdf.rect(0, 0, pageW, 78, "F");
+              pdf.setTextColor(255, 255, 255);
+              pdf.setFont("helvetica", "bold");
+              pdf.setFontSize(20);
+              pdf.text("Resumo do Faturamento", 40, 36);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(11);
+              pdf.text(f.titulo, 40, 58);
+              pdf.setFontSize(9);
+              pdf.text(
+                `${total} cliente(s) faturado(s)   -   Gerado em ${new Date().toLocaleString("pt-BR")}`,
+                40,
+                72,
+              );
+
+              const resumoBody = validos.map(({ cli, it, nome }, idx) => {
+                const snapIt = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                const planoNomeGravado = snapIt.planoNome ?? planos.find((p) => p.id === cli!.planoId)?.nome ?? "—";
+                return [
+                  String(idx + 1),
+                  nome,
+                  abreviarPlano(planoNomeGravado),
+                  formatBRL(it.valorBruto || 0),
+                  it.valorDesconto > 0 ? `-${formatBRL(it.valorDesconto)}` : "—",
+                  formatBRL(it.valorLiquido || 0),
+                ];
+              });
+
+              autoTable(pdf, {
+                startY: 100,
+                head: [["#", "Cliente", "Plano", "Bruto", "Desconto", "Líquido"]],
+                body: resumoBody,
+                foot: [[
+                  { content: "TOTAIS", colSpan: 3, styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(f.totalBruto || 0), styles: { fontStyle: "bold", halign: "right" } },
+                  { content: f.totalDesconto > 0 ? `-${formatBRL(f.totalDesconto)}` : "—", styles: { fontStyle: "bold", halign: "right" } },
+                  { content: formatBRL(f.totalLiquido || 0), styles: { fontStyle: "bold", halign: "right" } },
+                ]] as any,
+                styles: { fontSize: 9, cellPadding: 6 },
+                headStyles: { fillColor: [15, 15, 15], textColor: 255 },
+                footStyles: { fillColor: [28, 63, 170], textColor: 255 },
+                columnStyles: {
+                  0: { cellWidth: 24, halign: "center" },
+                  1: { cellWidth: "auto" },
+                  2: { cellWidth: 120 },
+                  3: { cellWidth: 70, halign: "right" },
+                  4: { cellWidth: 70, halign: "right" },
+                  5: { cellWidth: 75, halign: "right" },
+                },
+                margin: { left: 40, right: 40 },
+              });
+
+              const ticketMedio = total > 0 ? (f.totalLiquido || 0) / total : 0;
+              const resumoY = (pdf as any).lastAutoTable.finalY + 18;
+              pdf.setTextColor(90, 90, 90);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(9);
+              pdf.text(`Ticket médio por cliente: ${formatBRL(ticketMedio)}`, 40, resumoY);
+
+              validos.forEach(({ cli, it, nome }, idx) => {
+                if (!cli) return;
+                const comp = composicaoDoFechamento(it, cli, planos, movimentos);
+                const planoAtual = { nome: comp.planoNome ?? undefined };
+                const movs = movimentos
+                  .filter((m) => m.clienteId === cli.id)
+                  .filter((m) => !it.cicloFim || m.data <= it.cicloFim)
+                  .sort((a, b) => a.data.localeCompare(b.data));
+
+                // Consolidar movimentos: mesma data + mesmo tipo + mesmo plano
+                // vira uma linha só com deltas somados e observações concatenadas.
+                type MvAgg = typeof movs[number] & { _obs: string[] };
+                const grupos = new Map<string, MvAgg>();
+                for (const mv of movs) {
+                  const key = `${mv.data}|${mv.tipo}|${mv.planoId ?? ""}`;
+                  const existing = grupos.get(key);
+                  if (!existing) {
+                    grupos.set(key, { ...mv, _obs: mv.observacao ? [mv.observacao] : [] });
+                  } else {
+                    existing.canaisWhats = (existing.canaisWhats ?? 0) + (mv.canaisWhats ?? 0);
+                    existing.canaisInsta = (existing.canaisInsta ?? 0) + (mv.canaisInsta ?? 0);
+                    existing.canaisMessenger = (existing.canaisMessenger ?? 0) + (mv.canaisMessenger ?? 0);
+                    existing.canaisZapi = (existing.canaisZapi ?? 0) + (mv.canaisZapi ?? 0);
+                    existing.usuariosAtivos = (existing.usuariosAtivos ?? 0) + (mv.usuariosAtivos ?? 0);
+                    existing.contatosAtivos = (existing.contatosAtivos ?? 0) + (mv.contatosAtivos ?? 0);
+                    if (mv.valorServico) existing.valorServico = (existing.valorServico ?? 0) + mv.valorServico;
+                    if (mv.observacao) existing._obs.push(mv.observacao);
+                  }
+                }
+                const movsAgrupados = Array.from(grupos.values()).map((g) => ({
+                  ...g,
+                  observacao: g._obs.join(", "),
+                }));
+
+                // Cada cliente começa em página nova → separação inequívoca
+                pdf.addPage();
+
+                // Banner do cliente (faixa colorida)
+                const bannerY = 40;
+                const bannerH = 46;
+                const churned = Boolean(cli.dataChurn);
+                if (churned) pdf.setFillColor(190, 30, 45);
+                else pdf.setFillColor(28, 63, 170);
+                pdf.rect(0, bannerY, pageW, bannerH, "F");
+                // Faixa lateral de destaque
+                if (churned) pdf.setFillColor(220, 220, 220);
+                else pdf.setFillColor(253, 224, 71);
+                pdf.rect(0, bannerY, 6, bannerH, "F");
+
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(14);
+                pdf.text(`${idx + 1}. ${nome}`, 20, bannerY + 20);
+
+                pdf.setFont("helvetica", "normal");
+                pdf.setFontSize(9);
+                const meta: string[] = [];
+                if (planoAtual?.nome) meta.push(`Plano: ${planoAtual.nome}`);
+                if (cli.dataChurn) meta.push(`Churn: ${fmtDate(cli.dataChurn)}`);
+                pdf.text(meta.join("     "), 20, bannerY + 36);
+
+                // Total do cliente à direita do banner
+                const totalTxt = `${formatBRL(comp.total)}/mês`;
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(13);
+                pdf.text(totalTxt, pageW - 40, bannerY + 28, { align: "right" });
+
+                let cursorY = bannerY + bannerH + 18;
+
+                const sectionTitle = (label: string, y: number) => {
+                  pdf.setTextColor(90, 90, 90);
+                  pdf.setFont("helvetica", "bold");
+                  pdf.setFontSize(9);
+                  pdf.text(label.toUpperCase(), 40, y);
+                  pdf.setDrawColor(220);
+                  pdf.setLineWidth(0.5);
+                  pdf.line(40, y + 3, pageW - 40, y + 3);
+                };
+
+                // Setup
+                sectionTitle("Setup", cursorY);
+                autoTable(pdf, {
+                  startY: cursorY + 8,
+                  head: [["Início", "Plano no setup", "Churn", "Valor setup"]],
+                  body: [[
+                    fmtDate(cli.dataInicio),
+                    planoAtual?.nome ?? "—",
+                    fmtDate(cli.dataChurn),
+                    formatBRL(cli.valorSetupPago || 0),
+                  ]],
+                  styles: { fontSize: 9, cellPadding: 5 },
+                  headStyles: { fillColor: [40, 40, 40], textColor: 255 },
+                  margin: { left: 40, right: 40 },
+                });
+                cursorY = (pdf as any).lastAutoTable.finalY + 16;
+
+                // Movimentos
+                if (movsAgrupados.length > 0) {
+                  if (cursorY > pageH - 120) { pdf.addPage(); cursorY = 60; }
+                  sectionTitle("Linha do tempo · movimentos", cursorY);
+                  autoTable(pdf, {
+                    startY: cursorY + 8,
+                    head: [["Data", "Tipo", "Descrição", "Valor"]],
+                    body: movsAgrupados.map((mv) => {
+                      const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaMovto(cli, mv) : 0;
+                      const valor = mv.tipo === "servico" && mv.valorServico
+                        ? formatBRL(mv.valorServico)
+                        : delta !== 0 ? `${delta > 0 ? "+" : ""}${formatBRL(delta)}/mês` : "—";
+                      return [fmtDate(mv.data), mv.tipo, descreverMov(mv), valor];
+                    }),
+                    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
+                    headStyles: { fillColor: [40, 40, 40], textColor: 255 },
+                    margin: { left: 40, right: 40 },
+                    columnStyles: {
+                      0: { cellWidth: 55 },
+                      1: { cellWidth: 55 },
+                      2: { cellWidth: "auto", overflow: "linebreak" },
+                      3: { cellWidth: 75, halign: "right" },
+                    },
+                    didParseCell: (data) => {
+                      if (data.section === "body" && data.column.index === 1) {
+                        const raw = String(data.cell.raw);
+                        if (raw === "upgrade") data.cell.styles.textColor = [21, 128, 61];
+                        else if (raw === "downgrade") data.cell.styles.textColor = [185, 28, 28];
+                      }
+                      if (data.section === "body" && data.column.index === 3) {
+                        const raw = String(data.cell.raw ?? "");
+                        if (raw.startsWith("+")) data.cell.styles.textColor = [21, 128, 61];
+                        else if (raw.startsWith("-")) data.cell.styles.textColor = [185, 28, 28];
+                      }
+                    },
+                  });
+                  cursorY = (pdf as any).lastAutoTable.finalY + 16;
+                }
+
+                // Composição
+                if (cursorY > pageH - 140) { pdf.addPage(); cursorY = 60; }
+                sectionTitle("Composição da mensalidade no fechamento", cursorY);
+                if (comp.aviso) {
+                  pdf.setTextColor(110, 110, 110);
+                  pdf.setFont("helvetica", "italic");
+                  pdf.setFontSize(8);
+                  pdf.text(comp.aviso, 40, cursorY + 16);
+                  cursorY += 12;
+                }
+                const linhaSimples = (label: string, valor: string) => [label, "", "", { content: valor, styles: { halign: "right" } }];
+                autoTable(pdf, {
+                  startY: cursorY + 8,
+                  head: [["Item de cobrança", "Qtd", "Unit.", "Total"]],
+                  body: [
+                    ...comp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
+                    [{ content: "Custo Sistema", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: formatBRL(comp.subtotalSistema), styles: { fontStyle: "bold", fillColor: [240, 240, 240], halign: "right" } }],
+                    linhaSimples("Custo Acompanhamento", formatBRL(comp.acompanhamento)),
+                    ...(comp.mauExcedenteValor > 0 ? [linhaSimples("MAU excedente", formatBRL(comp.mauExcedenteValor))] : []),
+                    ...(comp.desconto > 0 ? [linhaSimples("Desconto", `-${formatBRL(comp.desconto)}`)] : []),
+                    [{ content: "Custo Mês (total)", styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255 } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: formatBRL(comp.total), styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255, halign: "right" } }],
+                  ] as any,
+                  styles: { fontSize: 9, cellPadding: 5 },
+                  headStyles: { fillColor: [40, 40, 40], textColor: 255 },
+                  columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+                  margin: { left: 40, right: 40 },
+                });
+              });
+
+              // Rodapé com paginação e identificação do cliente
+              const totalPages = pdf.getNumberOfPages();
+              for (let p = 1; p <= totalPages; p++) {
+                pdf.setPage(p);
+                pdf.setFont("helvetica", "normal");
+                pdf.setFontSize(8);
+                pdf.setTextColor(140, 140, 140);
+                pdf.text(f.titulo, 40, pageH - 20);
+                pdf.text(`Página ${p} de ${totalPages}`, pageW - 40, pageH - 20, { align: "right" });
+              }
+
+              pdf.save(`auditoria-${f.titulo.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`);
+            };
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <FileSearch className="h-5 w-5" /> Auditoria · {f.titulo}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {clientesFech.length} cliente(s) · Total {formatBRL(f.totalLiquido)}
+                  </p>
+                </DialogHeader>
+
+                <div className="flex justify-end">
+                  <Button size="sm" variant="outline" onClick={exportarAuditoriaPdf} className="gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> Exportar PDF de auditoria
+                  </Button>
+                </div>
+
+                <div className="space-y-4 mt-2">
+                  {clientesFech.map(({ cli, it, nome }) => {
+                    if (!cli) return (
+                      <div key={it.id} className="rounded border border-border/40 p-3 text-sm text-muted-foreground">
+                        {nome} — cliente removido do cadastro.
+                      </div>
+                    );
+                    const comp = composicaoDoFechamento(it, cli, planos, movimentos);
+                    const planoAtual = planos.find((p) => p.id === (it.planoId ?? cli.planoId));
+                    const cicloFimIso = it.cicloFim ?? undefined;
+                    const movs = movimentos
+                      .filter((m) => m.clienteId === cli.id)
+                      .filter((m) => !cicloFimIso || m.data <= cicloFimIso)
+                      .sort((a, b) => a.data.localeCompare(b.data));
+                    return (
+                      <details key={it.id} className="rounded-lg border border-border/50 bg-background/40 group" open={clientesFech.length <= 3}>
+                        <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30 rounded-t-lg select-none">
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90" />
+                          <span className="font-medium text-sm">{nome}</span>
+                          <Badge variant="outline" className="text-[10px]">{abreviarPlano(comp.planoNome ?? undefined)}</Badge>
+                          {cli.dataChurn && (
+                            <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">churn {fmtDate(cli.dataChurn)}</Badge>
+                          )}
+                          <span className="ml-auto text-sm font-semibold text-primary">{formatBRL(comp.total)}/mês</span>
+                        </summary>
+
+                        <div className="border-t border-border/40 px-3 py-3 space-y-4">
+                          {/* Regra de troca de plano usada neste ciclo (gravada no fechamento) */}
+                          {(() => {
+                            const snap = (it.payloadSnapshot ?? {}) as Record<string, any>;
+                            const regra = snap.regraTroca as string | undefined;
+                            if (!regra || regra === "sem_troca") return null;
+                            const dataTroca = snap.trocaData
+                              ? new Date(`${snap.trocaData}T12:00:00`).toLocaleDateString("pt-BR")
+                              : null;
+                            const titulo =
+                              regra === "proximo_ciclo"
+                                ? "Troca de plano válida só no próximo ciclo"
+                                : regra === "integral"
+                                  ? "Troca de plano cobrada integral no plano novo"
+                                  : "Troca de plano cobrada proporcionalmente";
+                            return (
+                              <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 space-y-1">
+                                <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</h5>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {snap.trocaPlanoAnterior ?? "—"} → {snap.trocaPlanoNovo ?? "—"}
+                                  {dataTroca ? ` · troca em ${dataTroca}` : ""}
+                                </p>
+                                {regra === "proporcional" && (
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {snap.trocaDiasAntes ?? 0} dia(s) no plano antigo = {formatBRL(Number(snap.trocaValorTrechoAntigo ?? 0))}
+                                    {" · "}
+                                    {snap.trocaDiasDepois ?? 0} dia(s) no plano novo = {formatBRL(Number(snap.trocaValorTrechoNovo ?? 0))}
+                                    {snap.trocaDiasTotal ? ` · ciclo de ${snap.trocaDiasTotal} dias` : ""}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          {/* MAU do mês */}
+                          <MauFechamentoEditor
+                            key={`mau-${it.id}`}
+                            itemId={it.id}
+                            snapshot={(it.payloadSnapshot ?? {}) as Record<string, unknown>}
+                            contatosInclusos={planoAtual?.contatosInclusos ?? 500}
+                            valorContatosExc={planoAtual?.valorContatosExc ?? planoAtual?.valorCanaisExc ?? 0.095}
+                            onSalvar={async (mauMes) => {
+                              try {
+                                await atualizarMauFechamentoItem?.(it.id, mauMes);
+                                toast.success("MAU do mês atualizado.");
+                              } catch {
+                                toast.error("Falha ao atualizar MAU do mês.");
+                              }
+                            }}
+                          />
+
+                          {/* Setup */}
+                          <div>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Setup</h5>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Data de entrada</div>
+                                <div className="font-medium">{fmtDate(cli.dataInicio)}</div>
+                              </div>
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Plano</div>
+                                <div className="font-medium">{comp.planoNome ?? "—"}</div>
+                              </div>
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Valor setup pago</div>
+                                <div className="font-medium">{formatBRL(cli.valorSetupPago || 0)}</div>
+                              </div>
+                              <div className="rounded border border-border/40 px-2 py-1.5">
+                                <div className="text-muted-foreground text-[10px]">Ciclo do fechamento</div>
+                                <div className="font-medium">
+                                  {it.cicloInicio && it.cicloFim ? `${fmtDate(it.cicloInicio)} → ${fmtDate(it.cicloFim)}` : "—"}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Timeline */}
+                          <div>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Linha do tempo · todos os movimentos</h5>
+                            {movs.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic px-2 py-2 border border-dashed border-border/40 rounded">
+                                Sem movimentos registrados.
+                              </p>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-muted-foreground border-b border-border/40">
+                                      <th className="text-left pb-1 font-medium">Data</th>
+                                      <th className="text-left pb-1 font-medium">Tipo</th>
+                                      <th className="text-left pb-1 font-medium">Descrição</th>
+                                      <th className="text-right pb-1 font-medium">Valor</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {movs.map((mv) => {
+                                      const delta = mv.tipo === "upgrade" || mv.tipo === "downgrade" ? deltaMovto(cli, mv) : 0;
+                                      const isUp = mv.tipo === "upgrade";
+                                      const isDown = mv.tipo === "downgrade";
+                                      return (
+                                        <tr key={mv.id} className="border-b border-border/20 last:border-0">
+                                          <td className="py-1.5">{fmtDate(mv.data)}</td>
+                                          <td className="py-1.5">
+                                            <Badge variant="outline" className={`text-[10px] ${isUp ? "border-fin/40 text-fin" : isDown ? "border-destructive/40 text-destructive" : ""}`}>
+                                              {mv.tipo}
+                                            </Badge>
+                                          </td>
+                                          <td className="py-1.5 text-muted-foreground">{descreverMov(mv)}</td>
+                                          <td className="py-1.5 text-right font-medium">
+                                            {mv.tipo === "servico" && mv.valorServico
+                                              ? formatBRL(mv.valorServico)
+                                              : delta !== 0
+                                                ? <span className={delta > 0 ? "text-fin" : "text-destructive"}>{delta > 0 ? "+" : ""}{formatBRL(delta)}/mês</span>
+                                                : <span className="text-muted-foreground">—</span>}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Composição no fechamento */}
+                          <div>
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Composição da mensalidade no fechamento</h5>
+                            {comp.aviso && <p className="text-xs text-muted-foreground italic mb-2">{comp.aviso}</p>}
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-muted-foreground border-b border-border/40">
+                                    <th className="text-left pb-1 font-medium">Item</th>
+                                    <th className="text-right pb-1 font-medium">Qtd</th>
+                                    <th className="text-right pb-1 font-medium">Unit.</th>
+                                    <th className="text-right pb-1 font-medium">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {comp.itens.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-border/20">
+                                      <td className="py-1.5">
+                                        {item.label}
+                                        {item.incluso && <span className="text-[10px] text-muted-foreground ml-2">({item.incluso})</span>}
+                                      </td>
+                                      <td className="py-1.5 text-right tabular-nums">{item.qtd}</td>
+                                      <td className="py-1.5 text-right tabular-nums">{formatBRL(item.unit)}</td>
+                                      <td className="py-1.5 text-right font-medium tabular-nums">{formatBRL(item.total)}</td>
+                                    </tr>
+                                  ))}
+                                  <tr className="border-b border-border/40 bg-muted/20">
+                                    <td className="py-1.5 font-semibold">Custo Sistema</td>
+                                    <td colSpan={2}></td>
+                                    <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(comp.subtotalSistema)}</td>
+                                  </tr>
+                                  <tr className="border-b border-border/20">
+                                    <td className="py-1.5">Custo Acompanhamento</td>
+                                    <td colSpan={2}></td>
+                                    <td className="py-1.5 text-right tabular-nums">{formatBRL(comp.acompanhamento)}</td>
+                                  </tr>
+                                  {comp.mauExcedenteValor > 0 && (
+                                    <tr className="border-b border-border/20">
+                                      <td className="py-1.5">MAU excedente</td>
+                                      <td colSpan={2}></td>
+                                      <td className="py-1.5 text-right tabular-nums">{formatBRL(comp.mauExcedenteValor)}</td>
+                                    </tr>
+                                  )}
+                                  {comp.desconto > 0 && (
+                                    <tr className="border-b border-border/20">
+                                      <td className="py-1.5">Desconto</td>
+                                      <td colSpan={2}></td>
+                                      <td className="py-1.5 text-right tabular-nums">-{formatBRL(comp.desconto)}</td>
+                                    </tr>
+                                  )}
+                                  <tr className="bg-primary/5">
+                                    <td className="py-2 font-semibold">Custo Mês (total)</td>
+                                    <td colSpan={2}></td>
+                                    <td className="py-2 text-right font-bold text-primary tabular-nums">{formatBRL(comp.total)}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
