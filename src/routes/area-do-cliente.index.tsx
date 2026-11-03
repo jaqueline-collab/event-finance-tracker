@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState } from "react";
+import { useDefinirMenuArea } from "@/components/area-externa-layout";
+import { mostrarEsqueletoArea } from "@/lib/area-externa";
 
 import { toast } from "sonner";
 import {
@@ -15,6 +16,8 @@ import {
   Sparkles,
   Trash2,
   Users,
+  LayoutDashboard,
+  GraduationCap,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +49,7 @@ const dataBr = (v?: string | null) =>
 const APP_URL = "https://app.eloracrm.com.br/";
 
 function AreaCliente() {
-  const { como } = Route.useSearch();
+  const { como, aba } = Route.useSearch();
   const navigate = useNavigate();
   const perfilLogado = usePerfil();
   const [dados, setDados] = useState<Painel | null>(null);
@@ -55,16 +58,30 @@ function AreaCliente() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [aba, setAba] = useState("conta");
-  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+  const setAba = (v: string) =>
+    navigate({ to: "/area-do-cliente", search: (s: any) => ({ ...s, aba: v }) as never });
+  const jaCarregou = useRef(false);
+  if (!carregando && (dados || erro)) jaCarregou.current = true;
 
-  useEffect(() => {
-    setHeaderTarget(document.getElementById("app-header-actions"));
-  }, []);
+  useDefinirMenuArea([
+    {
+      label: "Minha conta",
+      itens: [
+        { key: "conta", label: "Painel", icon: LayoutDashboard, ativo: aba === "conta", onSelect: () => setAba("conta") },
+        { key: "treinamento", label: "Treinamento", icon: GraduationCap, ativo: aba === "treinamento", onSelect: () => setAba("treinamento") },
+        { key: "novidades", label: "Novidades", icon: Sparkles, ativo: aba === "novidades", onSelect: () => setAba("novidades") },
+      ],
+    },
+    {
+      label: "Links",
+      itens: [{ key: "app", label: "Acessar o aplicativo", icon: ArrowUpRight, href: APP_URL }],
+    },
+  ]);
 
 
   const carregar = () => {
-    setCarregando(true);
+    // Recargas (após adicionar/remover pessoa) acontecem em segundo plano.
+    if (!jaCarregou.current) setCarregando(true);
     setErro(null);
     getPainelCliente({ data: como.trim() ? { verComoClienteId: como.trim() } : {} })
       .then(setDados)
@@ -72,7 +89,10 @@ function AreaCliente() {
       .finally(() => setCarregando(false));
   };
 
-  useEffect(carregar, [como]);
+  useEffect(() => {
+    jaCarregou.current = false;
+    carregar();
+  }, [como]);
 
   const modoVisualizacao = Boolean(como.trim());
 
@@ -113,7 +133,7 @@ function AreaCliente() {
     }
   };
 
-  if (carregando) {
+  if (mostrarEsqueletoArea(jaCarregou.current)) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-9 w-72" />
@@ -128,7 +148,10 @@ function AreaCliente() {
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Não foi possível carregar sua área</AlertTitle>
-        <AlertDescription>{erro ?? "Conta não encontrada."}</AlertDescription>
+        <AlertDescription className="space-y-2">
+          <p>{erro ?? "Conta não encontrada."}</p>
+          <Button size="sm" variant="outline" onClick={carregar}>Tentar de novo</Button>
+        </AlertDescription>
       </Alert>
     );
   }
@@ -196,36 +219,6 @@ function AreaCliente() {
           )}
         </div>
       </div>
-
-      {headerTarget &&
-        createPortal(
-          <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
-            {(
-              [
-                { v: "conta", l: "Painel" },
-                { v: "treinamento", l: "Treinamento" },
-                { v: "novidades", l: "Novidades" },
-              ] as const
-            ).map((o) => (
-              <Button
-                key={o.v}
-                size="sm"
-                variant={aba === o.v ? "secondary" : "ghost"}
-                className="px-1.5 text-[11px] sm:px-3 sm:text-sm"
-                onClick={() => setAba(o.v)}
-              >
-{o.l}
-              </Button>
-            ))}
-            <Button asChild size="sm" className="px-2 sm:px-3">
-              <a href={APP_URL} target="_blank" rel="noopener noreferrer" aria-label="Acessar o aplicativo">
-                <span className="hidden lg:inline">Acessar o aplicativo</span>
-                <ArrowUpRight className="h-4 w-4 lg:ml-1.5" />
-              </a>
-            </Button>
-          </div>,
-          headerTarget,
-        )}
 
       <Tabs value={aba} onValueChange={setAba}>
         <TabsContent value="treinamento" className="mt-4">
