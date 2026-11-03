@@ -233,7 +233,7 @@ export function LancamentosFinanceiro({ modo = "lancamentos" }: { modo?: "lancam
         return true;
       })
       .sort((a, b) => (b.vencimento ?? "").localeCompare(a.vencimento ?? ""));
-  }, [financeiro, statusSel, tipoSel, filtros]);
+  }, [financeiro, statusSel, tipoSel, filtros, modo, vinculosNf]);
 
   const totais = useMemo(() => {
     const receitas = financeiro.filter((l) => l.tipo === "fechamento");
