@@ -33,20 +33,8 @@ import {
 import { ResultadosCliente } from "@/components/resultados-cliente";
 import { usePerfil } from "@/hooks/use-perfil";
 
-const searchSchema = z.object({ como: fallback(z.string(), "").default("") });
 
 export const Route = createFileRoute("/area-do-cliente/")({
-  validateSearch: zodValidator(searchSchema),
-  head: () => ({
-    meta: [
-      { title: "Área do Cliente · Elora" },
-      { name: "description", content: "Veja seu plano, o que está contratado, o histórico da conta e as novidades do Elora." },
-      { property: "og:title", content: "Área do Cliente · Elora" },
-      { property: "og:description", content: "Plano, serviços contratados, histórico e novidades da sua conta Elora." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
   component: AreaCliente,
 });
 
