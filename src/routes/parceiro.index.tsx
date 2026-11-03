@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   getAuditoriaFechamentoParceiro,
   getFinanceiroParceiro,
@@ -22,6 +21,8 @@ import {
 } from "@/lib/parceiro.calculadora";
 import { PainelTreinamento } from "@/components/treinamento/painel-treinamento";
 import { PdfPreview } from "@/components/pdf-preview";
+import { useDefinirMenuArea } from "@/components/area-externa-layout";
+import { itensFinanceiroParceiro, mostrarEsqueletoArea } from "@/lib/area-externa";
 import { usePapelUsuario } from "@/lib/use-papel";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -231,11 +232,6 @@ function AreaParceiro() {
     () => intervaloPeriodo(periodo, deManual, ateManual),
     [periodo, deManual, ateManual],
   );
-  const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setHeaderActionsTarget(document.getElementById("app-header-actions"));
-  }, []);
 
   useEffect(() => {
     if (papel.loading || semParceiro) return;
@@ -424,79 +420,54 @@ function AreaParceiro() {
   const irPara = (proxima: "clientes" | "financeiro" | "calculadora" | "treinamento") =>
     navigate({ search: (s: any) => ({ ...s, aba: proxima }) });
 
-  const atalhosTopo = headerActionsTarget
-    ? createPortal(
-      <div className="flex items-center gap-1">
-        {siteUrl && (
-          <Button asChild variant="ghost" size="sm" title="Site do parceiro" aria-label="Site do parceiro">
-            <a
-              href={siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Globe className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Site</span>
-            </a>
-          </Button>
-        )}
-        <Button asChild variant="ghost" size="sm" title="Elora App" aria-label="Elora App">
-          <a href={APP_LOGIN_URL} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Elora App</span>
-          </a>
-        </Button>
-        <Button
-          variant={aba === "treinamento" ? "secondary" : "ghost"}
-          size="sm"
-          title="Treinamento"
-          aria-label="Treinamento"
-          onClick={() => irPara("treinamento")}
-        >
-          <GraduationCap className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Treinamento</span>
-        </Button>
-      </div>,
-      headerActionsTarget,
-    )
-    : null;
+  const jaCarregou = useRef(false);
+  if (!carregando && !papel.loading && (dados || erro)) jaCarregou.current = true;
+  useEffect(() => {
+    jaCarregou.current = false;
+  }, [como]);
 
-  const menu = (
-    <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-label="Navegação da área do parceiro">
-      <Button
-        variant={aba === "clientes" ? "secondary" : "ghost"}
-        size="sm"
-        className="justify-start"
-        onClick={() => irPara("clientes")}
-      >
-        <LayoutGrid className="mr-2 h-4 w-4" /> Clientes
-      </Button>
-      {podeVerFechamentos && (
-        <Button
-          variant={aba === "financeiro" ? "secondary" : "ghost"}
-          size="sm"
-          className="justify-start"
-          onClick={() => irPara("financeiro")}
-        >
-          <Receipt className="mr-2 h-4 w-4" /> Financeiro
-        </Button>
-      )}
-      <Button
-        variant={aba === "calculadora" ? "secondary" : "ghost"}
-        size="sm"
-        className="justify-start"
-        onClick={() => irPara("calculadora")}
-      >
-        <Calculator className="mr-2 h-4 w-4" /> Calculadora
-      </Button>
-      {/* Temporário: link da apresentação (APRESENTACAO_URL) desligado até o material ficar pronto. */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="justify-start"
-        onClick={() => toast.info("Este recurso ainda está sendo configurado.")}
-      >
-        <ExternalLink className="mr-2 h-4 w-4" /> Apresentar ferramenta
-      </Button>
+  const irSub = (proxima: SubFinanceiro) =>
+    navigate({ search: (s: any) => ({ ...s, aba: "financeiro", sub: proxima }) });
 
-    </nav>
-  );
+  useDefinirMenuArea([
+    {
+      label: "Monitorar",
+      itens: [{ key: "clientes", label: "Clientes", icon: LayoutGrid, ativo: aba === "clientes", onSelect: () => irPara("clientes") }],
+    },
+    {
+      label: "Financeiro",
+      itens: itensFinanceiroParceiro(podeVerFechamentos).map((k) => ({
+        key: `fin-${k}`,
+        label: k === "fechamentos" ? "Fechamentos" : k === "relatorios" ? "Relatórios" : "Notas",
+        icon: k === "fechamentos" ? Receipt : k === "relatorios" ? FileText : FileDown,
+        ativo: aba === "financeiro" && sub === k,
+        onSelect: () => irSub(k),
+      })),
+    },
+    {
+      label: "Ferramentas",
+      itens: [
+        { key: "calculadora", label: "Calculadora", icon: Calculator, ativo: aba === "calculadora", onSelect: () => irPara("calculadora") },
+        { key: "treinamento", label: "Treinamento", icon: GraduationCap, ativo: aba === "treinamento", onSelect: () => irPara("treinamento") },
+      ],
+    },
+    {
+      label: "Links",
+      itens: [
+        ...(siteUrl
+          ? [{ key: "site", label: "Site do parceiro", icon: Globe, href: siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}` }]
+          : []),
+        { key: "app", label: "Elora App", icon: ExternalLink, href: APP_LOGIN_URL },
+        {
+          key: "apresentar",
+          label: "Apresentar ferramenta",
+          icon: ExternalLink,
+          // Temporário: link da apresentação (APRESENTACAO_URL) desligado até o material ficar pronto.
+          onSelect: () => toast.info("Este recurso ainda está sendo configurado."),
+        },
+      ],
+    },
+  ]);
 
   if (semParceiro) {
     return (
@@ -514,7 +485,7 @@ function AreaParceiro() {
     );
   }
 
-  if (carregando || papel.loading) {
+  if (mostrarEsqueletoArea(jaCarregou.current)) {
     return (
       <div className="space-y-4">
         {banner}
@@ -525,7 +496,7 @@ function AreaParceiro() {
     );
   }
 
-  if (erro) {
+  if (erro && !dados) {
     return (
       <div className="space-y-4">
         {banner}
@@ -540,7 +511,6 @@ function AreaParceiro() {
 
   return (
     <div className="space-y-6">
-      {atalhosTopo}
       {banner}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -549,7 +519,6 @@ function AreaParceiro() {
             {modoAdmin ? "Visualização administrativa somente leitura" : "Gestão da sua parceria"}
           </p>
         </div>
-        {menu}
       </div>
 
       <div className="min-w-0 space-y-6">

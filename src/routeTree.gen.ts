@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AreaDoClienteRouteImport } from './routes/area-do-cliente'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as ClientesRouteImport } from './routes/clientes'
@@ -21,6 +22,7 @@ import { Route as GestaoParceirosRouteImport } from './routes/gestao-parceiros'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NovidadesRouteImport } from './routes/novidades'
 import { Route as OrcamentosRouteImport } from './routes/orcamentos'
+import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PlanosRouteImport } from './routes/planos'
@@ -46,6 +48,11 @@ import { Route as ApiPublicRelatorioDiarioRegistrarRouteImport } from './routes/
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AreaDoClienteRoute = AreaDoClienteRouteImport.update({
+  id: '/area-do-cliente',
+  path: '/area-do-cliente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -103,6 +110,11 @@ const OrcamentosRoute = OrcamentosRouteImport.update({
   path: '/orcamentos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParceiroRoute = ParceiroRouteImport.update({
+  id: '/parceiro',
+  path: '/parceiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ParceirosRoute = ParceirosRouteImport.update({
   id: '/parceiros',
   path: '/parceiros',
@@ -156,9 +168,9 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     getParentRoute: () => rootRouteImport,
   } as any)
 const AreaDoClienteIndexRoute = AreaDoClienteIndexRouteImport.update({
-  id: '/area-do-cliente/',
-  path: '/area-do-cliente/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AreaDoClienteRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
@@ -181,9 +193,9 @@ const FuncionalidadesSlugRoute = FuncionalidadesSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParceiroIndexRoute = ParceiroIndexRouteImport.update({
-  id: '/parceiro/',
-  path: '/parceiro/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => ParceiroRoute,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
@@ -217,6 +229,7 @@ const ApiPublicRelatorioDiarioRegistrarRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/area-do-cliente': typeof AreaDoClienteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
@@ -228,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/novidades': typeof NovidadesRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiro': typeof ParceiroRouteWithChildren
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
@@ -288,6 +302,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/area-do-cliente': typeof AreaDoClienteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/cliente': typeof ClienteRoute
   '/clientes': typeof ClientesRoute
@@ -299,6 +314,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/novidades': typeof NovidadesRoute
   '/orcamentos': typeof OrcamentosRoute
+  '/parceiro': typeof ParceiroRouteWithChildren
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
@@ -325,6 +341,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/area-do-cliente'
     | '/auth'
     | '/cliente'
     | '/clientes'
@@ -336,6 +353,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/novidades'
     | '/orcamentos'
+    | '/parceiro'
     | '/parceiros'
     | '/perfil'
     | '/planos'
@@ -395,6 +413,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/area-do-cliente'
     | '/auth'
     | '/cliente'
     | '/clientes'
@@ -406,6 +425,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/novidades'
     | '/orcamentos'
+    | '/parceiro'
     | '/parceiros'
     | '/perfil'
     | '/planos'
@@ -431,6 +451,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AreaDoClienteRoute: typeof AreaDoClienteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   ClienteRoute: typeof ClienteRoute
   ClientesRoute: typeof ClientesRoute
@@ -442,6 +463,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   NovidadesRoute: typeof NovidadesRoute
   OrcamentosRoute: typeof OrcamentosRoute
+  ParceiroRoute: typeof ParceiroRouteWithChildren
   ParceirosRoute: typeof ParceirosRoute
   PerfilRoute: typeof PerfilRoute
   PlanosRoute: typeof PlanosRoute
@@ -454,9 +476,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BlogSlugRoute: typeof BlogSlugRoute
   FuncionalidadesSlugRoute: typeof FuncionalidadesSlugRoute
-  AreaDoClienteIndexRoute: typeof AreaDoClienteIndexRoute
   BlogIndexRoute: typeof BlogIndexRoute
-  ParceiroIndexRoute: typeof ParceiroIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ClientesIdIntegracaoEloraRoute: typeof ClientesIdIntegracaoEloraRoute
@@ -471,6 +491,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/area-do-cliente': {
+      id: '/area-do-cliente'
+      path: '/area-do-cliente'
+      fullPath: '/area-do-cliente'
+      preLoaderRoute: typeof AreaDoClienteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -550,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrcamentosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parceiro': {
+      id: '/parceiro'
+      path: '/parceiro'
+      fullPath: '/parceiro'
+      preLoaderRoute: typeof ParceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parceiros': {
       id: '/parceiros'
       path: '/parceiros'
@@ -622,10 +656,10 @@ declare module '@tanstack/react-router' {
     }
     '/area-do-cliente/': {
       id: '/area-do-cliente/'
-      path: '/area-do-cliente'
+      path: '/'
       fullPath: '/area-do-cliente/'
       preLoaderRoute: typeof AreaDoClienteIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AreaDoClienteRoute
     }
     '/auth/callback': {
       id: '/auth/callback'
@@ -657,10 +691,10 @@ declare module '@tanstack/react-router' {
     }
     '/parceiro/': {
       id: '/parceiro/'
-      path: '/parceiro'
+      path: '/'
       fullPath: '/parceiro/'
       preLoaderRoute: typeof ParceiroIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ParceiroRoute
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -700,6 +734,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AreaDoClienteRouteChildren {
+  AreaDoClienteIndexRoute: typeof AreaDoClienteIndexRoute
+}
+
+const AreaDoClienteRouteChildren: AreaDoClienteRouteChildren = {
+  AreaDoClienteIndexRoute: AreaDoClienteIndexRoute,
+}
+
+const AreaDoClienteRouteWithChildren = AreaDoClienteRoute._addFileChildren(
+  AreaDoClienteRouteChildren,
+)
+
 interface AuthRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
 }
@@ -710,8 +756,21 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface ParceiroRouteChildren {
+  ParceiroIndexRoute: typeof ParceiroIndexRoute
+}
+
+const ParceiroRouteChildren: ParceiroRouteChildren = {
+  ParceiroIndexRoute: ParceiroIndexRoute,
+}
+
+const ParceiroRouteWithChildren = ParceiroRoute._addFileChildren(
+  ParceiroRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AreaDoClienteRoute: AreaDoClienteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   ClienteRoute: ClienteRoute,
   ClientesRoute: ClientesRoute,
@@ -723,6 +782,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   NovidadesRoute: NovidadesRoute,
   OrcamentosRoute: OrcamentosRoute,
+  ParceiroRoute: ParceiroRouteWithChildren,
   ParceirosRoute: ParceirosRoute,
   PerfilRoute: PerfilRoute,
   PlanosRoute: PlanosRoute,
@@ -736,9 +796,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BlogSlugRoute: BlogSlugRoute,
   FuncionalidadesSlugRoute: FuncionalidadesSlugRoute,
-  AreaDoClienteIndexRoute: AreaDoClienteIndexRoute,
   BlogIndexRoute: BlogIndexRoute,
-  ParceiroIndexRoute: ParceiroIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ClientesIdIntegracaoEloraRoute: ClientesIdIntegracaoEloraRoute,
