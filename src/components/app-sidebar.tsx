@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Package,
   Users,
-  CalendarRange,
   FileText,
   Settings,
   Handshake,
@@ -49,7 +48,6 @@ const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: Mo
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
   { title: "Clientes", url: "/clientes", icon: Users, moduleKey: "clientes" },
   { title: "Configurar API", url: "/configurar-api", icon: Plug, moduleKey: "clientes" },
-  { title: "Fechamento Mensal", url: "/resumo", icon: CalendarRange, moduleKey: "resumo" },
   { title: "Financeiro", url: "/financeiro", icon: Wallet, moduleKey: "financeiro" },
   { title: "Funil", url: "/orcamentos", icon: Kanban, moduleKey: "orcamentos" },
 ];
@@ -97,7 +95,9 @@ export function AppSidebar() {
     setGestaoItems(sortItems(loadOrder()));
   }, []);
 
-  const visibleGestao = gestaoItems.filter((i) => access.isAdmin || access.canView(i.moduleKey));
+  const visibleGestao = gestaoItems.filter(
+    (i) => access.isAdmin || access.canView(i.moduleKey) || (i.url === "/financeiro" && access.canView("resumo")),
+  );
   const showGestaoSkeleton = access.loading && visibleGestao.length === 0;
 
   const persistOrder = (items: typeof defaultGestaoItems) => {
@@ -123,7 +123,7 @@ export function AppSidebar() {
 
   const grupos: { label: string; urls: string[] }[] = [
     { label: "Monitorar", urls: ["/dashboard", "/clientes", "/orcamentos", "/configurar-api"] },
-    { label: "Financeiro", urls: ["/resumo", "/financeiro"] },
+    { label: "Financeiro", urls: ["/financeiro"] },
   ];
 
   const renderItem = (item: (typeof defaultGestaoItems)[number]) => (

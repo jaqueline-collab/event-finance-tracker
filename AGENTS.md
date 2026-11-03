@@ -1,1 +1,3 @@
 - Render authenticated PDF note previews from the existing authorized download bytes with client-side PDF.js; browser-native blob iframes do not consistently display inline on mobile or in embedded browsers.- Newsletter: newsletter_inscricoes só recebe escrita pela função de servidor inscreverNewsletter (Zod + service role); sem GRANT de escrita para anon/authenticated, para evitar spam direto na API.
+
+- Financeiro interno é uma rota só (`/financeiro?aba=`), com abas por permissão de módulo (`src/lib/financeiro-abas.ts`); `/resumo` apenas redireciona. Assim cada fluxo financeiro tem um único endereço.
