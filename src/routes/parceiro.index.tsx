@@ -503,7 +503,10 @@ function AreaParceiro() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Não foi possível carregar sua área</AlertTitle>
-          <AlertDescription>{erro}</AlertDescription>
+          <AlertDescription className="space-y-2">
+            <p>{erro}</p>
+            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Tentar de novo</Button>
+          </AlertDescription>
         </Alert>
       </div>
     );
