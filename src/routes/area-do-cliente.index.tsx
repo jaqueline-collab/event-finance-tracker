@@ -35,7 +35,7 @@ import { usePerfil } from "@/hooks/use-perfil";
 
 const searchSchema = z.object({ como: fallback(z.string(), "").default("") });
 
-export const Route = createFileRoute("/area-do-cliente")({
+export const Route = createFileRoute("/area-do-cliente/")({
   validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [

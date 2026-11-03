@@ -116,7 +116,7 @@ const PERIODOS: { valor: Periodo; label: string }[] = [
   { valor: "custom", label: "Personalizado" },
 ];
 
-export const Route = createFileRoute("/parceiro")({
+export const Route = createFileRoute("/parceiro/")({
   validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [

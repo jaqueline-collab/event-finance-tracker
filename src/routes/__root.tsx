@@ -13,18 +13,15 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client-configured";
-import { UserMenu } from "@/components/user-menu";
-import { usePerfil } from "@/hooks/use-perfil";
 import type { Session } from "@supabase/supabase-js";
 import { setCachedAccessToken, setCachedUserId } from "@/lib/auth-session";
 import { usePapelUsuario } from "@/lib/use-papel";
-import { ThemeToggle, themeInitScript } from "@/components/theme-toggle";
-import { NotificationBell } from "@/components/notification-bell";
+import { themeInitScript } from "@/components/theme-toggle";
 import { CHAT_WIDGET_ID, CHAT_WIDGET_SRC } from "@/lib/landing/contato";
 
 
