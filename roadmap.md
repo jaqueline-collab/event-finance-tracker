@@ -1,28 +1,8 @@
-# Roadmap — Área do parceiro + API Elora
+# Roadmap — Dash do cliente
 
-- [x] Histórico do cliente em pop-up na área do parceiro (Dialog)
-- [x] LTV em dias na lista; coluna Vencimento removida
-- [x] Gráfico com filtro interativo: Entradas e saídas / Ativos no mês
-- [x] API do app Elora: tabelas elora_integracao_contas + elora_uso_snapshots (migração 0006)
-- [x] Funções de servidor com trava is_equipe_interna() (chave nunca sai do backend)
-- [x] Seção "Integração Elora (app)" no cadastro interno do cliente
-- [x] Painel "Resultados" na área do cliente: mapeamento de campos personalizados, sincronização de contatos (rate limit + retomada), tabela elora_contatos_sincronizados (migração 0007) — 21 testes passando
-- [x] Validação visual do painel Resultados e da aba Integração Elora (desktop 1280, celular 390, temas claro/escuro)
-- [x] Testar conexão corrigido (usa /v1/contact/custom-field; distingue endereço errado, rota inexistente e falta de permissão)
-- [x] Página dedicada /clientes/{id}/integracao-elora (campos, painéis, sequências, classificações, filtros)
-- [x] Dashboard Resultados como primeira aba da área do cliente (consulta agendada, procedimento vendido, conversas com resposta, ranking de campanhas)
-- [x] Endereço da conta vira domínio raiz; sufixos /core, /crm, /chat por serviço; jvu3dzqk migrado para https://api.wts.chat
-- [x] Rótulos de classificação (agrupar valores brutos), blocos/séries configuráveis, tempos médios, gráficos mensais (12 meses), ranking com posição — migrações 0009/0010, FKs compostas NO ACTION
-- [x] Área do cliente: Dash e acesso ao aplicativo no cabeçalho, saudação pelo perfil autenticado e saída da visualização para o Dashboard
-- [ ] Ampliar permissões da chave de API nas contas (filtro de usuários /v1/user responde "acesso negado" em todos os prefixos)
-- [ ] Agendamento automático de sincronização (hoje é manual, botão "Sincronizar")
-- [x] Configurar API: tela própria (/configurar-api) com busca de cliente, campos/painéis/sequências/classificações como fontes de dados
-- [x] Meu Dash: construtor de widgets (métrico, pizza, barras, calendário, ranking, tabela) com filtros por widget e ordenação
-- [x] Migração 0011: campos_personalizados, elora_dashboard_widgets com RLS/grants, índices por cliente/data e widgets padrão
-- [x] Sincronização seletiva (só campos referenciados por widgets) e filtros aplicados apenas na leitura
-- [x] Churn: diálogo de exportar (CSV/XLSX/Google Sheets) e apagar apenas dados da integração, preservando o financeiro
-
-- [x] Relatórios de fechamento fiéis ao que foi faturado (PDFs leem o fechamento gravado)
-- [ ] Corrigir movimento WhatsApp +1 da DISTRIBOX (aguarda aprovação)
-- [x] Disponibilizar auditoria do fechamento para o parceiro
-- [x] Auditoria interativa e comparação de fechamentos na Área do Parceiro
+- [ ] Etapa A: layout e visual (menu, visões em pílulas, barra super admin, cartões)
+- [ ] Etapa B: diagnóstico + sincronização própria (seguir o adendo: payload completo, todos os status)
+- [ ] Etapa C: cards, relatório diário calculado, validação
+- [ ] Etapa D: Campos do Elora
+- [ ] Etapa E: motor de widgets e 4 visões
+- [ ] Etapa F: filtros do dash
