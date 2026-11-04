@@ -95,7 +95,7 @@ export function ConfigurarApiCliente({
   novoGraficoChave = 0,
 }: {
   clienteId: string;
-  aba: "estrutura" | "painel";
+  aba: "painel";
   /** Visão (aba do dash) cujos gráficos são editados. */
   visaoId?: string | null;
   /** Mostra só o construtor de gráficos (modo Editar do painel). */
@@ -103,7 +103,6 @@ export function ConfigurarApiCliente({
   aoMudarGraficos?: () => void;
   novoGraficoChave?: number;
 }) {
-  const [fonte, setFonte] = useState<string>("contatos");
 
 
   const [estado, setEstado] = useState<Estado | null>(null);
@@ -112,17 +111,12 @@ export function ConfigurarApiCliente({
 
   // 2. campos personalizados de contato
   const [campos, setCampos] = useState<CampoElora[] | null>(null);
-  const [buscandoCampos, setBuscandoCampos] = useState(false);
 
   // 3. painéis
   const [paineis, setPaineis] = useState<PainelElora[] | null>(null);
-  const [buscandoPaineis, setBuscandoPaineis] = useState(false);
-  const [camposPainel, setCamposPainel] = useState<Record<string, CampoElora[]>>({});
   const [painelFunil, setPainelFunil] = useState("");
 
   // 4. sequências
-  const [sequencias, setSequencias] = useState<{ id: string; nome: string }[] | null>(null);
-  const [buscandoSeq, setBuscandoSeq] = useState(false);
 
   // 5. classificações: descoberta + rótulos
   const [classificacoes, setClassificacoes] = useState<string[] | null>(null);
@@ -175,38 +169,20 @@ export function ConfigurarApiCliente({
     listarEtiquetasCliente({ data: { clienteId } })
       .then((r) => setEtiquetas(r.etiquetas))
       .catch(() => setEtiquetas([]));
+    listarCamposPersonalizados({ data: { clienteId } })
+      .then((r) => setCampos(r.campos))
+      .catch(() => setCampos([]));
+    listarPaineisCliente({ data: { clienteId } })
+      .then((r) => setPaineis(r.paineis))
+      .catch(() => setPaineis([]));
     recarregarRotulosEConfig().catch(() => undefined);
   }, [clienteId, estado?.configurada, estado?.ativo]);
 
   const alternar = (lista: string[], set: (v: string[]) => void, id: string) =>
     set(lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id]);
 
-  const buscarCampos = async () => {
-    setBuscandoCampos(true);
-    try {
-      const r = await listarCamposPersonalizados({ data: { clienteId } });
-      setCampos(r.campos);
-      if (r.campos.length === 0) toast.error("Nenhum campo personalizado encontrado nessa conta.");
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setBuscandoCampos(false);
-    }
-  };
 
 
-  const buscarPaineis = async () => {
-    setBuscandoPaineis(true);
-    try {
-      const r = await listarPaineisCliente({ data: { clienteId } });
-      setPaineis(r.paineis);
-      if (r.paineis.length === 0) toast.error("Nenhum painel encontrado nessa conta.");
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setBuscandoPaineis(false);
-    }
-  };
 
 
   const recarregarRotulosEConfig = async () => {
@@ -248,18 +224,6 @@ export function ConfigurarApiCliente({
   };
 
 
-  const buscarSequencias = async () => {
-    setBuscandoSeq(true);
-    try {
-      const r = await listarSequenciasCliente({ data: { clienteId } });
-      setSequencias(r.sequencias);
-      if (r.sequencias.length === 0) toast.error("Nenhuma sequência encontrada nessa conta.");
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setBuscandoSeq(false);
-    }
-  };
 
   const buscarClassificacoes = async () => {
     setBuscandoCls(true);
@@ -331,24 +295,6 @@ export function ConfigurarApiCliente({
     paineis?.find((p) => p.id === painelFunil)?.etapas ??
     (paineis ?? []).flatMap((p) => p.etapas);
 
-  const selecionarFonte = async (fonte: string) => {
-    setFonte(fonte);
-    if (fonte === "contatos") {
-      if (campos === null) await buscarCampos();
-      return;
-    }
-    if (camposPainel[fonte]) return;
-    try {
-      const r = await listarCamposDoPainel({ data: { clienteId, painelId: fonte } });
-      setCamposPainel((m) => ({ ...m, [fonte]: r.campos }));
-    } catch (e) {
-      toast.error(msg(e));
-    }
-  };
-
-  const painelEscolhido = paineis?.find((p) => p.id === fonte) ?? null;
-  const camposDaFonte: CampoElora[] | null =
-    fonte === "contatos" ? campos : (camposPainel[fonte] ?? null);
 
   if (soGraficos) {
     return (
@@ -614,7 +560,7 @@ export function ConfigurarApiCliente({
               <Label>Campo personalizado</Label>
               <Select value={fCampoChave || undefined} onValueChange={setFCampoChave}>
                 <SelectTrigger>
-                  <SelectValue placeholder={campos ? "Escolha o campo" : "Busque os campos primeiro"} />
+                  <SelectValue placeholder={campos === null ? "Carregando…" : campos.length ? "Escolha o campo" : "Nenhum campo encontrado"} />
                 </SelectTrigger>
                 <SelectContent>
                   {(campos ?? []).map((c) => (
@@ -641,7 +587,7 @@ export function ConfigurarApiCliente({
               <Label>Painel de Vendas (para escolher etapas)</Label>
               <Select value={painelFunil || undefined} onValueChange={setPainelFunil}>
                 <SelectTrigger>
-                  <SelectValue placeholder={paineis ? "Escolha o painel" : "Busque os painéis primeiro"} />
+                  <SelectValue placeholder={paineis === null ? "Carregando…" : paineis.length ? "Escolha o painel" : "Nenhum painel encontrado"} />
                 </SelectTrigger>
                 <SelectContent>
                   {(paineis ?? []).map((p) => (
