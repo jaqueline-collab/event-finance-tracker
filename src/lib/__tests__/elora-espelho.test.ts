@@ -6,7 +6,11 @@ import {
   mapAtendimento,
   mapContato,
   LEITURA_ANTIGA,
+  mapMensagem,
+  ORDEM_FONTES,
 } from "../elora-espelho.server";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 const ctx = (respostas: number[]) => {
   const esperas: number[] = [];
@@ -73,5 +77,30 @@ describe("mapeamento", () => {
   });
   it("Dr. Gean continua na leitura antiga", () => {
     expect(LEITURA_ANTIGA.has("jvu3dzqk")).toBe(true);
+  });
+
+  it("mensagem: colunas visíveis sem texto; bot = FROM_HUB sem userId", () => {
+    const m = mapMensagem("c1", { id: "m1", sessionId: "s1", direction: "FROM_HUB", type: "TEXT", userId: null, timestamp: "2026-09-22T15:11:29Z", text: "oi" }, "s1");
+    expect(m).toMatchObject({ sessao_id: "s1", direcao: "FROM_HUB", tipo: "TEXT", user_id_elora: null, eh_bot: true, enviada_em: "2026-09-22T15:11:29Z" });
+    expect(Object.keys(m)).not.toContain("texto");
+    expect(mapMensagem("c1", { id: "m2", direction: "FROM_HUB", userId: "u1" }, "s1").eh_bot).toBe(false);
+    expect(mapMensagem("c1", { id: "m3", direction: "TO_HUB" }, "s1").eh_bot).toBeNull();
+  });
+  it("Sincronizar agora termina nas mensagens", () => {
+    expect(ORDEM_FONTES).toEqual(["apoio", "contatos", "atendimentos", "mensagens"]);
+  });
+  it("nenhum código fora do espelho lê a tabela de mensagens (texto nunca sai do servidor)", () => {
+    const raiz = join(__dirname, "..", "..");
+    const achados: string[] = [];
+    const andar = (d: string) => {
+      for (const n of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, n.name);
+        if (n.isDirectory()) { if (n.name !== "__tests__") andar(p); continue; }
+        if (!/\.(ts|tsx)$/.test(n.name) || n.name === "elora-espelho.server.ts" || n.name === "types.ts") continue;
+        if (readFileSync(p, "utf8").includes("elora_mensagens_espelho")) achados.push(p);
+      }
+    };
+    andar(raiz);
+    expect(achados).toEqual([]);
   });
 });
