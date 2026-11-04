@@ -75,7 +75,9 @@ export function mapContato(clienteId: string, c: any) {
     nome: s(c.name),
     telefone: s(c.phonenumber ?? c.phoneNumber),
     status: s(c.status),
-    etiquetas: Array.isArray(c.tags) ? c.tags.map((t: any) => String(t?.name ?? t)).filter(Boolean) : [],
+    etiquetas: (Array.isArray(c.tagNames) ? c.tagNames : Array.isArray(c.tags) ? c.tags.map((t: any) => t?.name ?? t) : [])
+      .map((t: unknown) => String(t))
+      .filter(Boolean),
     utm_source: s(utm.source),
     utm_medium: s(utm.medium),
     utm_campaign: s(utm.campaign),
