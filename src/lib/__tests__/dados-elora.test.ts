@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abaDadosEloraValida, estadoIntegracao, formatarTelefoneBr } from "../dados-elora";
+import { abaConfigurarDoEndereco, abaDadosEloraValida, estadoIntegracao, formatarTelefoneBr, podeConfigurarArea } from "../dados-elora";
 
 describe("dados do elora", () => {
   it("formata celular com DDI", () => {
@@ -17,8 +17,19 @@ describe("dados do elora", () => {
     expect(estadoIntegracao({ temChave: true, ultimoErro: "401" })).toBe("com_erro");
     expect(estadoIntegracao({ temChave: true, ultimoErro: null })).toBe("conectado");
   });
-  it("aba inválida cai em visão geral", () => {
-    expect(abaDadosEloraValida("xyz")).toBe("visao");
+  it("aba inválida cai em Conexão e Visão geral não existe mais", () => {
+    expect(abaDadosEloraValida("xyz")).toBe("conexao");
+    expect(abaDadosEloraValida("visao")).toBe("conexao");
     expect(abaDadosEloraValida("canais")).toBe("canais");
+  });
+  it("?configurar= abre só abas conhecidas", () => {
+    expect(abaConfigurarDoEndereco("painel")).toBe("painel");
+    expect(abaConfigurarDoEndereco("")).toBeNull();
+    expect(abaConfigurarDoEndereco("visao")).toBeNull();
+  });
+  it("modo configuração só para super admin vendo um cliente", () => {
+    expect(podeConfigurarArea({ isAdmin: true, como: "8c0ojhr2" })).toBe(true);
+    expect(podeConfigurarArea({ isAdmin: false, como: "8c0ojhr2" })).toBe(false);
+    expect(podeConfigurarArea({ isAdmin: true, como: "  " })).toBe(false);
   });
 });
