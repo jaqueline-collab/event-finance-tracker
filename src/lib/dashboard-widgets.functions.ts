@@ -604,6 +604,7 @@ export const apagarDadosIntegracao = createServerFn({ method: "POST" })
     }
 
     await supabaseAdmin.from("elora_integracao_contas").delete().eq("cliente_id", data.clienteId);
+    await (supabaseAdmin as any).from("elora_credenciais").delete().eq("cliente_id", data.clienteId);
 
     return { ok: true };
   });

@@ -38,6 +38,7 @@ type IntegracaoVisivel = {
   ultimaSyncConversas: string | null;
   ultimoErro: string | null;
   relatorioDiarioAtivo: boolean;
+  cofre?: { noCofre: boolean; ultimos4: string | null; trocadaEm: string | null };
 };
 
 const listaTexto = (v: unknown): string[] =>
@@ -65,6 +66,8 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
     } catch {
       conta = null;
     }
+    const { estadoCofre } = await import("@/lib/credenciais.server");
+    const cofre = await estadoCofre(data.clienteId);
 
     const semFiltros: FiltrosElora = {
       usuarios: [],
@@ -100,7 +103,8 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       configurada: true,
       ativo: Boolean(c.ativo),
       baseUrl: c.base_url,
-      chaveMascarada: mascaraChave(String(c.api_key)),
+      chaveMascarada: cofre.ultimos4 ? `••••${cofre.ultimos4}` : mascaraChave(String(c.api_key)),
+      cofre,
       campoProcedimentoKey: c.campo_procedimento_key ? String(c.campo_procedimento_key) : null,
       campoDataConsultaKey: c.campo_data_consulta_key ? String(c.campo_data_consulta_key) : null,
       filtros: {
@@ -135,6 +139,9 @@ export const salvarIntegracaoCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await exigirEquipeInterna(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Primeiro o cofre: se falhar, a chave antiga continua intacta.
+    const { gravarChaveElora } = await import("@/lib/credenciais.server");
+    await gravarChaveElora(data.clienteId, data.apiKey, context.userId);
 
     const { error } = await supabaseAdmin
       .from("elora_integracao_contas")
@@ -142,7 +149,7 @@ export const salvarIntegracaoCliente = createServerFn({ method: "POST" })
         {
           cliente_id: data.clienteId,
           base_url: data.baseUrl.replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, ""),
-          api_key: data.apiKey,
+          api_key: null,
           ativo: true,
           ultimo_erro: null,
           criado_por: context.userId,
@@ -290,6 +297,8 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
         .from("elora_integracao_contas")
         .update({ ultimo_erro: null })
         .eq("cliente_id", data.clienteId);
+      const { registrarUso } = await import("@/lib/credenciais.server");
+      await registrarUso(data.clienteId, "teste", true, null, context.userId);
       return { conectado: true as const, mensagem: "Conectado com sucesso." };
     } catch (e) {
       const mensagem = e instanceof Error ? e.message : "Falha desconhecida.";
@@ -297,6 +306,8 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
         .from("elora_integracao_contas")
         .update({ ultimo_erro: mensagem })
         .eq("cliente_id", data.clienteId);
+      const { registrarUso } = await import("@/lib/credenciais.server");
+      await registrarUso(data.clienteId, "teste", false, mensagem, context.userId);
       return { conectado: false as const, mensagem };
     }
   });
@@ -844,7 +855,11 @@ export async function contaDoCliente(clienteId: string) {
     .eq("cliente_id", clienteId)
     .maybeSingle();
   if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
-  return { conta: conta as any, supabaseAdmin };
+  // A chave vem do cofre (decifrada só aqui, no servidor); a coluna antiga é fallback.
+  const { obterChaveElora } = await import("@/lib/credenciais.server");
+  const chave = await obterChaveElora(clienteId);
+  if (!chave) throw new Error("integracao: nenhuma chave configurada para este cliente.");
+  return { conta: { ...(conta as any), api_key: chave } as any, supabaseAdmin };
 }
 
 const listaDe = (resp: unknown): any[] => {
@@ -1582,5 +1597,203 @@ export const salvarSocialSeller = createServerFn({ method: "POST" })
       { onConflict: "cliente_id,data,canal,equipe" },
     );
     if (error) throw new Error(`social-seller: ${error.message}`);
+    return { ok: true };
+  });
+
+
+/* ------------------------------------------------------------------ *
+ * Cofre: migração e limpeza das chaves antigas (só equipe interna).
+ * ------------------------------------------------------------------ */
+
+export type ResultadoCofre = { clienteId: string; nome: string; ok: boolean; motivo: string | null };
+
+async function nomesClientes(admin: any, ids: string[]) {
+  if (ids.length === 0) return new Map<string, string>();
+  const { data } = await admin.from("elora_clientes").select("id, nome").in("id", ids);
+  return new Map<string, string>((data ?? []).map((c: any) => [String(c.id), String(c.nome)]));
+}
+
+export const migrarChavesParaCofre = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cofre = await import("@/lib/credenciais.server");
+    const admin = supabaseAdmin as any;
+    const { data: contas } = await admin
+      .from("elora_integracao_contas")
+      .select("cliente_id, api_key")
+      .not("api_key", "is", null);
+    const { data: jaNoCofre } = await admin.from("elora_credenciais").select("cliente_id");
+    const noCofre = new Set((jaNoCofre ?? []).map((r: any) => String(r.cliente_id)));
+    const pendentes = (contas ?? []).filter(
+      (c: any) => String(c.api_key ?? "").trim() && !noCofre.has(String(c.cliente_id)),
+    );
+    const nomes = await nomesClientes(admin, pendentes.map((c: any) => String(c.cliente_id)));
+    const mestra = await cofre.importarChaveMestra();
+    const resultados: ResultadoCofre[] = [];
+    for (const c of pendentes) {
+      const id = String(c.cliente_id);
+      const chave = String(c.api_key).trim();
+      let ok = false;
+      let motivo: string | null = null;
+      try {
+        const cifrada = await cofre.cifrarChave(chave, mestra);
+        const volta = await cofre.decifrarChave(cifrada, mestra);
+        if (volta !== chave) throw new Error("conferência falhou");
+        const { error } = await admin.from("elora_credenciais").insert({
+          cliente_id: id,
+          chave_cifrada: cifrada,
+          ultimos4: cofre.ultimos4De(chave),
+          rotacionada_em: new Date().toISOString(),
+        });
+        if (error) throw new Error(error.message);
+        ok = true;
+      } catch (e) {
+        motivo = e instanceof Error ? e.message : "falha";
+      }
+      await cofre.registrarUso(id, "migracao", ok, motivo, context.userId);
+      resultados.push({ clienteId: id, nome: nomes.get(id) ?? id, ok, motivo });
+    }
+    return {
+      migradas: resultados.filter((r) => r.ok).length,
+      jaNoCofre: noCofre.size,
+      resultados,
+    };
+  });
+
+export const apagarChavesLegadas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ confirmacao: z.literal("APAGAR") }).parse(input))
+  .handler(async ({ context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cofre = await import("@/lib/credenciais.server");
+    const admin = supabaseAdmin as any;
+    const { data: contas } = await admin
+      .from("elora_integracao_contas")
+      .select("cliente_id, api_key")
+      .not("api_key", "is", null);
+    const ids = (contas ?? []).map((c: any) => String(c.cliente_id));
+    const { data: guardadas } = ids.length
+      ? await admin.from("elora_credenciais").select("cliente_id, chave_cifrada").in("cliente_id", ids)
+      : { data: [] };
+    const mapa = new Map<string, string>((guardadas ?? []).map((g: any) => [String(g.cliente_id), String(g.chave_cifrada)]));
+    const nomes = await nomesClientes(admin, ids);
+    const mestra = await cofre.importarChaveMestra();
+    const resultados: ResultadoCofre[] = [];
+    for (const c of contas ?? []) {
+      const id = String(c.cliente_id);
+      const antiga = String(c.api_key ?? "").trim();
+      let ok = false;
+      let motivo: string | null = null;
+      try {
+        const cifrada = mapa.get(id);
+        if (!cifrada) throw new Error("não está no cofre");
+        if ((await cofre.decifrarChave(cifrada, mestra)) !== antiga) throw new Error("cofre diferente da chave antiga");
+        const { error } = await admin
+          .from("elora_integracao_contas")
+          .update({ api_key: null })
+          .eq("cliente_id", id);
+        if (error) throw new Error(error.message);
+        ok = true;
+      } catch (e) {
+        motivo = e instanceof Error ? e.message : "falha";
+      }
+      resultados.push({ clienteId: id, nome: nomes.get(id) ?? id, ok, motivo });
+    }
+    return { apagadas: resultados.filter((r) => r.ok).length, resultados };
+  });
+
+/* ------------------------------------------------------------------ *
+ * Dados do Elora: canais permitidos e histórico (só equipe interna).
+ * Somente leitura no Elora.
+ * ------------------------------------------------------------------ */
+
+export type CanalElora = { id: string; nome: string; numero: string | null; ativo: boolean };
+
+export const listarCanaisElora = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ clienteId: z.string().min(1), channelType: z.string().max(40).optional() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ canais: CanalElora[] }> => {
+    await exigirEquipeInterna(context.supabase);
+    const { conta } = await contaDoCliente(data.clienteId);
+    const q = data.channelType ? `?ChannelType=${encodeURIComponent(data.channelType)}` : "";
+    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "chat", `/v1/channel${q}`);
+    const canais = listaDe(resp)
+      .map((c: any) => ({
+        id: String(c.id ?? ""),
+        nome: String(c.name ?? c.title ?? c.id ?? ""),
+        numero: c.number ?? c.phoneNumber ?? c.phone ?? c.identifier ?? null,
+        ativo: c.active === undefined && c.isActive === undefined ? true : Boolean(c.active ?? c.isActive),
+      }))
+      .filter((c) => c.id.length > 0)
+      .map((c) => ({ ...c, numero: c.numero ? String(c.numero) : null }));
+    return { canais };
+  });
+
+export const getDadosElora = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => soClienteId.parse(input))
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const db = context.supabase as any;
+    const [{ data: cfg }, { data: canais }] = await Promise.all([
+      db.from("elora_dados_config").select("historico_desde").eq("cliente_id", data.clienteId).maybeSingle(),
+      db.from("elora_dados_canais_permitidos").select("canal_id, nome, numero").eq("cliente_id", data.clienteId),
+    ]);
+    const { estadoCofre } = await import("@/lib/credenciais.server");
+    return {
+      cofre: await estadoCofre(data.clienteId),
+      historicoDesde: (cfg?.historico_desde as string | undefined) ?? null,
+      canaisPermitidos: ((canais ?? []) as any[]).map((c) => String(c.canal_id)),
+    };
+  });
+
+export const salvarCanaisPermitidos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        clienteId: z.string().min(1),
+        canais: z
+          .array(z.object({ id: z.string().uuid(), nome: z.string().max(200), numero: z.string().max(60).nullable() }))
+          .max(500),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const db = context.supabase as any;
+    const { error: e1 } = await db.from("elora_dados_canais_permitidos").delete().eq("cliente_id", data.clienteId);
+    if (e1) throw new Error(e1.message);
+    if (data.canais.length) {
+      const { error } = await db.from("elora_dados_canais_permitidos").insert(
+        data.canais.map((c) => ({ cliente_id: data.clienteId, canal_id: c.id, nome: c.nome, numero: c.numero })),
+      );
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
+export const salvarHistoricoDesde = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ clienteId: z.string().min(1), historicoDesde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const { error } = await (context.supabase as any).from("elora_dados_config").upsert(
+      {
+        cliente_id: data.clienteId,
+        historico_desde: data.historicoDesde,
+        atualizado_em: new Date().toISOString(),
+        atualizado_por: context.userId,
+      },
+      { onConflict: "cliente_id" },
+    );
+    if (error) throw new Error(error.message);
     return { ok: true };
   });

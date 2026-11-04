@@ -413,6 +413,82 @@ export type Database = {
           },
         ]
       }
+      elora_credenciais: {
+        Row: {
+          atualizado_em: string
+          chave_cifrada: string
+          cliente_id: string
+          criado_em: string
+          rotacionada_em: string | null
+          ultimos4: string
+          versao_chave: number
+        }
+        Insert: {
+          atualizado_em?: string
+          chave_cifrada: string
+          cliente_id: string
+          criado_em?: string
+          rotacionada_em?: string | null
+          ultimos4: string
+          versao_chave?: number
+        }
+        Update: {
+          atualizado_em?: string
+          chave_cifrada?: string
+          cliente_id?: string
+          criado_em?: string
+          rotacionada_em?: string | null
+          ultimos4?: string
+          versao_chave?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_credenciais_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_credenciais_uso: {
+        Row: {
+          cliente_id: string
+          criado_em: string
+          detalhe: string | null
+          evento: string
+          id: string
+          ok: boolean
+          user_id: string | null
+        }
+        Insert: {
+          cliente_id: string
+          criado_em?: string
+          detalhe?: string | null
+          evento: string
+          id?: string
+          ok?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          criado_em?: string
+          detalhe?: string | null
+          evento?: string
+          id?: string
+          ok?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_credenciais_uso_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_custos: {
         Row: {
           created_at: string
@@ -484,6 +560,67 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      elora_dados_canais_permitidos: {
+        Row: {
+          canal_id: string
+          cliente_id: string
+          criado_em: string
+          nome: string | null
+          numero: string | null
+        }
+        Insert: {
+          canal_id: string
+          cliente_id: string
+          criado_em?: string
+          nome?: string | null
+          numero?: string | null
+        }
+        Update: {
+          canal_id?: string
+          cliente_id?: string
+          criado_em?: string
+          nome?: string | null
+          numero?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_dados_canais_permitidos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_dados_config: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          cliente_id: string
+          historico_desde: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id: string
+          historico_desde: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id?: string
+          historico_desde?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_dados_config_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       elora_dashboard_modelos: {
         Row: {
@@ -772,7 +909,7 @@ export type Database = {
       }
       elora_integracao_contas: {
         Row: {
-          api_key: string
+          api_key: string | null
           ativo: boolean
           base_url: string
           bloco2_rotulo_id: string | null
@@ -803,7 +940,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          api_key: string
+          api_key?: string | null
           ativo?: boolean
           base_url: string
           bloco2_rotulo_id?: string | null
@@ -834,7 +971,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          api_key?: string
+          api_key?: string | null
           ativo?: boolean
           base_url?: string
           bloco2_rotulo_id?: string | null

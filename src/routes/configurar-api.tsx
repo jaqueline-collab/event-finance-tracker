@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ConfigurarApiCliente } from "@/components/configurar-api-cliente";
 import { listarClientesParaVer } from "@/lib/cliente.functions";
+import { CofreChavesAdmin } from "@/components/dados-elora-cliente";
 
 export const Route = createFileRoute("/configurar-api")({
   validateSearch: z.object({ cliente: z.string().optional() }),
@@ -118,6 +119,8 @@ function ConfigurarApiPage() {
           </div>
         </CardContent>
       </Card>
+
+      <CofreChavesAdmin />
 
       {cliente && <ConfigurarApiCliente key={cliente} clienteId={cliente} />}
     </div>

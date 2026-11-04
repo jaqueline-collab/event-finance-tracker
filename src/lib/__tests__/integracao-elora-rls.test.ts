@@ -316,3 +316,40 @@ describe.each([
     expect(r.error).not.toBeNull();
   }, 60_000);
 });
+
+describe("cofre de chaves e dados do Elora — invisíveis fora da equipe interna", () => {
+  beforeAll(async () => {
+    const r = await Promise.all([
+      admin.from("elora_credenciais" as never).insert({ cliente_id: CLI_A, chave_cifrada: "x", ultimos4: "1234" } as never),
+      admin.from("elora_credenciais_uso" as never).insert({ cliente_id: CLI_A, evento: "teste", ok: true } as never),
+      admin.from("elora_dados_config" as never).insert({ cliente_id: CLI_A, historico_desde: "2026-01-01" } as never),
+      admin.from("elora_dados_canais_permitidos" as never).insert({
+        cliente_id: CLI_A,
+        canal_id: "00000000-0000-4000-8000-000000000001",
+        nome: "Canal A",
+      } as never),
+    ]);
+    for (const x of r) if (x.error) throw x.error;
+  });
+
+  it.each([
+    ["elora_credenciais"],
+    ["elora_credenciais_uso"],
+    ["elora_dados_config"],
+    ["elora_dados_canais_permitidos"],
+  ])("%s: cliente, parceiro e usuário comum não leem nada", async (tabela) => {
+    for (const email of [emailCliente, emailParceiro, emailIntruso]) {
+      const cli = await logar(email);
+      const { data } = await cli.from(tabela as never).select("*");
+      expect(data ?? []).toHaveLength(0);
+    }
+  });
+
+  it("ninguém logado grava no cofre", async () => {
+    const cli = await logar(emailCliente);
+    const { error } = await cli
+      .from("elora_credenciais" as never)
+      .insert({ cliente_id: CLI_B, chave_cifrada: "y", ultimos4: "9999" } as never);
+    expect(error).not.toBeNull();
+  });
+});
