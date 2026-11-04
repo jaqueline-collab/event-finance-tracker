@@ -254,3 +254,78 @@ export async function estimarMensagens(ctx: Contexto, sessaoIds: string[], total
   const mensagens = Math.round(media * totalSessoes);
   return { amostra: sessaoIds.length, mediaPorAtendimento: media, mensagens, chamadas: Math.ceil(mensagens / PAGE_SIZE) + totalSessoes };
 }
+
+/** Clientes que continuam lendo as tabelas antigas até confirmação. */
+export const LEITURA_ANTIGA = new Set(["jvu3dzqk"]);
+
+/** O cliente já tem carga completa de contatos e atendimentos no espelho? */
+export async function usaEspelho(db: SupabaseClient, clienteId: string): Promise<boolean> {
+  if (LEITURA_ANTIGA.has(clienteId)) return false;
+  const { data } = await db
+    .from("elora_sync_estado")
+    .select("fonte, concluido_em")
+    .eq("cliente_id", clienteId)
+    .in("fonte", ["contatos", "atendimentos"]);
+  return (data ?? []).filter((r: any) => r.concluido_em).length === 2;
+}
+
+async function lerTudo(q: () => any): Promise<any[]> {
+  const out: any[] = [];
+  for (let i = 0; ; i += 1000) {
+    const { data, error } = await q().range(i, i + 999);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) return out;
+  }
+}
+
+/**
+ * Lê o espelho no mesmo formato das tabelas antigas, para nenhum widget
+ * mudar. Nunca lê texto de mensagem.
+ */
+export async function lerEspelhoNoFormatoAntigo(
+  db: SupabaseClient,
+  clienteId: string,
+  inicio: string | null,
+  fim: string | null,
+) {
+  const periodo = (t: string, cols: string) => () => {
+    let x: any = db.from(t).select(cols).eq("cliente_id", clienteId);
+    if (inicio) x = x.gte("criado_em", inicio);
+    if (fim) x = x.lte("criado_em", fim);
+    return x.order("externo_id");
+  };
+  const [ct, at] = await Promise.all([
+    lerTudo(periodo("elora_contatos_espelho", "externo_id, nome, telefone, criado_em, utm_source, utm_medium, utm_campaign, payload->customFields")),
+    lerTudo(
+      periodo(
+        "elora_atendimentos_espelho",
+        "externo_id, contato_id, classificacao, criado_em, first_response_at, time_wait_segundos, time_service_segundos, payload->lastMessageIn, payload->lastMessageOut",
+      ),
+    ),
+  ]);
+  const contatos = ct.map((c) => ({
+    contact_id: c.externo_id,
+    nome: c.nome,
+    telefone: c.telefone,
+    criado_em: c.criado_em,
+    utm_source: c.utm_source,
+    utm_medium: c.utm_medium,
+    utm_campaign: c.utm_campaign,
+    campos_personalizados: Object.fromEntries(
+      Object.entries((c.customFields ?? {}) as Record<string, unknown>)
+        .filter(([, v]) => v != null && v !== "")
+        .map(([k, v]) => [k, String(v)]),
+    ),
+  }));
+  const conversas = at.map((s) => ({
+    sessao_id: s.externo_id,
+    contato_id: s.contato_id,
+    category_name: s.classificacao,
+    criado_em: s.criado_em,
+    teve_resposta: Boolean(s.lastMessageIn) && Boolean(s.lastMessageOut),
+    time_wait_segundos: s.time_wait_segundos,
+    time_service_segundos: s.time_service_segundos,
+  }));
+  return { contatos, conversas };
+}
