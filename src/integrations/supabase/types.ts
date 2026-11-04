@@ -71,6 +71,130 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_apoio_espelho: {
+        Row: {
+          cliente_id: string
+          externo_id: string
+          nome: string | null
+          payload: Json
+          sincronizado_em: string
+          tipo: string
+        }
+        Insert: {
+          cliente_id: string
+          externo_id: string
+          nome?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          tipo: string
+        }
+        Update: {
+          cliente_id?: string
+          externo_id?: string
+          nome?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_apoio_espelho_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_atendimentos_espelho: {
+        Row: {
+          atendente_id: string | null
+          atendente_nome: string | null
+          atualizado_em: string | null
+          canal_id: string | null
+          canal_nome: string | null
+          canal_tipo: string | null
+          classificacao: string | null
+          cliente_id: string
+          contato_id: string | null
+          criado_em: string | null
+          departamento_id: string | null
+          encerrado_em: string | null
+          externo_id: string
+          first_response_at: string | null
+          origem: string | null
+          payload: Json
+          sincronizado_em: string
+          status: string | null
+          time_service_segundos: number | null
+          time_wait_segundos: number | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          valor: number | null
+        }
+        Insert: {
+          atendente_id?: string | null
+          atendente_nome?: string | null
+          atualizado_em?: string | null
+          canal_id?: string | null
+          canal_nome?: string | null
+          canal_tipo?: string | null
+          classificacao?: string | null
+          cliente_id: string
+          contato_id?: string | null
+          criado_em?: string | null
+          departamento_id?: string | null
+          encerrado_em?: string | null
+          externo_id: string
+          first_response_at?: string | null
+          origem?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          status?: string | null
+          time_service_segundos?: number | null
+          time_wait_segundos?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          valor?: number | null
+        }
+        Update: {
+          atendente_id?: string | null
+          atendente_nome?: string | null
+          atualizado_em?: string | null
+          canal_id?: string | null
+          canal_nome?: string | null
+          canal_tipo?: string | null
+          classificacao?: string | null
+          cliente_id?: string
+          contato_id?: string | null
+          criado_em?: string | null
+          departamento_id?: string | null
+          encerrado_em?: string | null
+          externo_id?: string
+          first_response_at?: string | null
+          origem?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          status?: string | null
+          time_service_segundos?: number | null
+          time_wait_segundos?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_atendimentos_espelho_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_classificacoes_descobertas: {
         Row: {
           cliente_id: string
@@ -300,6 +424,65 @@ export type Database = {
           zapi?: boolean | null
         }
         Relationships: []
+      }
+      elora_contatos_espelho: {
+        Row: {
+          atualizado_em: string | null
+          cliente_id: string
+          criado_em: string | null
+          etiquetas: string[]
+          externo_id: string
+          nome: string | null
+          origem: string | null
+          payload: Json
+          sincronizado_em: string
+          status: string | null
+          telefone: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          cliente_id: string
+          criado_em?: string | null
+          etiquetas?: string[]
+          externo_id: string
+          nome?: string | null
+          origem?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          status?: string | null
+          telefone?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          cliente_id?: string
+          criado_em?: string | null
+          etiquetas?: string[]
+          externo_id?: string
+          nome?: string | null
+          origem?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          status?: string | null
+          telefone?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_contatos_espelho_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       elora_contatos_sincronizados: {
         Row: {
@@ -1211,6 +1394,53 @@ export type Database = {
           },
         ]
       }
+      elora_mensagens_espelho: {
+        Row: {
+          cliente_id: string
+          direcao: string | null
+          eh_bot: boolean | null
+          enviada_em: string | null
+          externo_id: string
+          payload: Json
+          sessao_id: string
+          sincronizado_em: string
+          tipo: string | null
+          user_id_elora: string | null
+        }
+        Insert: {
+          cliente_id: string
+          direcao?: string | null
+          eh_bot?: boolean | null
+          enviada_em?: string | null
+          externo_id: string
+          payload?: Json
+          sessao_id: string
+          sincronizado_em?: string
+          tipo?: string | null
+          user_id_elora?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          direcao?: string | null
+          eh_bot?: boolean | null
+          enviada_em?: string | null
+          externo_id?: string
+          payload?: Json
+          sessao_id?: string
+          sincronizado_em?: string
+          tipo?: string | null
+          user_id_elora?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_mensagens_espelho_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_movimentos: {
         Row: {
           agentes_ia: boolean | null
@@ -2046,6 +2276,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "elora_sequencias_sincronizadas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_sync_estado: {
+        Row: {
+          atualizado_em: string
+          chamadas: number
+          cliente_id: string
+          concluido_em: string | null
+          cursor: Json
+          erros: Json
+          fonte: string
+          iniciado_em: string | null
+          registros: number
+          retentativas: number
+        }
+        Insert: {
+          atualizado_em?: string
+          chamadas?: number
+          cliente_id: string
+          concluido_em?: string | null
+          cursor?: Json
+          erros?: Json
+          fonte: string
+          iniciado_em?: string | null
+          registros?: number
+          retentativas?: number
+        }
+        Update: {
+          atualizado_em?: string
+          chamadas?: number
+          cliente_id?: string
+          concluido_em?: string | null
+          cursor?: Json
+          erros?: Json
+          fonte?: string
+          iniciado_em?: string | null
+          registros?: number
+          retentativas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_sync_estado_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "elora_clientes"
