@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sanearLayout } from "@/lib/grid-layout";
+import { tipoDoCanal, type TipoCanal } from "@/lib/dados-elora";
 
 /**
  * Integração com o app Elora (contatos sincronizados + resultados, por cliente).

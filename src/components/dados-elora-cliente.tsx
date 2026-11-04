@@ -152,77 +152,7 @@ export function DadosEloraCliente({ clienteId, aba, baseUrl = null }: { clienteI
           </CardContent>
         </Card></div>;
 
-  if (aba === "canais") return <div className="space-y-4">        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Radio className="h-4 w-4" /> Canais permitidos
-            </CardTitle>
-            <CardDescription>Sem nenhum canal marcado, nada deste cliente entra no banco.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={ocupado !== null}
-              onClick={() =>
-                executar("canais", async () => {
-                  const r = await listarCanaisElora({ data: { clienteId } });
-                  setCanais(r.canais);
-                })
-              }
-            >
-              {ocupado === "canais" ? "Buscando…" : canais ? "Atualizar lista" : "Buscar canais da conta"}
-            </Button>
-            {canais && canais.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum canal encontrado nesta conta.</p>
-            )}
-            {canais && canais.length > 0 && (
-              <ul className="max-h-96 space-y-3 overflow-y-auto">
-                {canais.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{c.nome}</span>
-                      <span className="block text-sm">
-                        {formatarTelefoneBr(c.numero)}
-                        {!c.ativo && <span className="text-muted-foreground"> · inativo</span>}
-                      </span>
-                      <span className="block truncate text-[10px] text-muted-foreground">{c.id}</span>
-                    </span>
-                    <Switch
-                      checked={marcados.has(c.id)}
-                      onCheckedChange={(v) => {
-                        const n = new Set(marcados);
-                        v ? n.add(c.id) : n.delete(c.id);
-                        setMarcados(n);
-                      }}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!canais && info && (
-              <p className="text-xs text-muted-foreground">{info.canaisPermitidos.length} canal(is) permitido(s).</p>
-            )}
-            {canais && (
-              <Button
-                size="sm"
-                disabled={ocupado !== null}
-                onClick={() =>
-                  executar("salvar-canais", async () => {
-                    const escolhidos = canais
-                      .filter((c) => marcados.has(c.id))
-                      .map((c) => ({ id: c.id, nome: c.nome, numero: c.numero }));
-                    await salvarCanaisPermitidos({ data: { clienteId, canais: escolhidos } });
-                    toast.success("Canais permitidos salvos.");
-                    await carregar();
-                  })
-                }
-              >
-                Salvar canais
-              </Button>
-            )}
-          </CardContent>
-        </Card></div>;
+  if (aba === "canais") return <CanaisCliente clienteId={clienteId} info={info} ocupado={ocupado} executar={executar} recarregar={carregar} canais={canais} setCanais={setCanais} marcados={marcados} setMarcados={setMarcados} />;
 
   return null;
 }
