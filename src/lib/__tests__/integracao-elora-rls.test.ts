@@ -353,3 +353,36 @@ describe("cofre de chaves e dados do Elora — invisíveis fora da equipe intern
     expect(error).not.toBeNull();
   });
 });
+
+describe("visões do painel — nenhum login lê ou grava direto (só o servidor)", () => {
+  beforeAll(async () => {
+    const { error } = await admin.from("elora_dashboard_visoes" as never).insert([
+      { cliente_id: CLI_A, nome: "Publicada", ordem: 0, publicada: true },
+      { cliente_id: CLI_A, nome: "Rascunho", ordem: 1, publicada: false },
+    ] as never);
+    if (error) throw error;
+  });
+
+  it("cliente, parceiro e usuário comum não veem visões nem rascunhos", async () => {
+    for (const email of [emailCliente, emailParceiro, emailIntruso]) {
+      const cli = await logar(email);
+      const { data } = await cli.from("elora_dashboard_visoes" as never).select("*");
+      expect(data ?? []).toHaveLength(0);
+    }
+  }, 60_000);
+
+  it("cliente não consegue criar nem publicar visão", async () => {
+    const cli = await logar(emailCliente);
+    const ins = await cli
+      .from("elora_dashboard_visoes" as never)
+      .insert({ cliente_id: CLI_A, nome: "Invasão", publicada: true } as never);
+    expect(ins.error).not.toBeNull();
+    await cli.from("elora_dashboard_visoes" as never).update({ publicada: true } as never).eq("cliente_id", CLI_A);
+    const { data } = await admin
+      .from("elora_dashboard_visoes" as never)
+      .select("publicada")
+      .eq("cliente_id", CLI_A)
+      .eq("nome", "Rascunho");
+    expect((data as any[])[0].publicada).toBe(false);
+  }, 60_000);
+});
