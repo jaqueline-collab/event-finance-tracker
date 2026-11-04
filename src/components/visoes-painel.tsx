@@ -252,7 +252,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
 
       {naRelatorio ? (
         relatorio
-      ) : 
+      ) : editando && ativaEdit && ehNova(ativaEdit.id) ? (
         <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
           Salve para começar a montar os gráficos desta visão.
         </p>
