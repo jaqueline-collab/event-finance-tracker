@@ -1,7 +1,8 @@
 # Mensagens do 8c0ojhr2, botão "Sincronizar agora" e conferência com o monday
 
 ## 1. Carregar todas as mensagens (em lotes, com retomada)
-- Para cada um dos ~2.962 atendimentos do espelho, ler `GET /chat/v1/session/{id}/message` página a página (100 por página, pausa entre chamadas, espera e nova tentativa em caso de limite 429, até 5 vezes).
+- Antes da carga inteira, testo com um atendimento os dois endereços: `GET /chat/v1/message?SessionId={id}` (o do n8n) e `GET /chat/v1/session/{id}/message`. Digo qual funcionou; se os dois funcionarem, uso o do n8n.
+- Para cada um dos ~2.962 atendimentos do espelho, ler as mensagens pelo endereço escolhido, página a página (100 por página, pausa entre chamadas, espera e nova tentativa em caso de limite 429, até 5 vezes).
 - O ponto de parada (atendimento atual + página) fica salvo; se cair, continua de onde parou.
 - Colunas visíveis gravadas: `sessao_id`, direção (TO_HUB/FROM_HUB), tipo, `userId`, bot ou usuário, data e hora.
 - O texto fica só no registro completo, guardado no servidor (tabela sem nenhum acesso pelo navegador). Nenhuma função devolve texto ao navegador, ao painel, aos filtros ou às exportações. Coloco um teste que garante isso.
@@ -17,7 +18,8 @@
 ## 3. Relatório diário de 22/09 a 03/10 x monday
 - Regras do n8n: dia em America/Sao_Paulo pela data da mensagem. Conversa realizada = atendimento com ao menos uma mensagem TO_HUB, sem contar NOTE, TRANSITION e TRACK. "Usuário do sistema" = conversa em que alguma dessas mensagens tem `userId` real. "Bot" = as demais (só bot ou automação).
 - Tabela lado a lado: dia | nosso (realizadas/usuário/bot) | monday | diferença, com destaque onde divergir. Para cada divergência, digo a causa provável que eu conseguir confirmar nos dados (ex.: fuso, atendimento contado em dois dias, canal).
-- Uma dúvida que vou mostrar no resultado: o monday não tem 30/09; mostro o nosso valor desse dia separado.
+- 30/09 entra na comparação com os valores do monday: 50 / 9 / 41. Período completo de 22/09 a 03/10.
+- Ao começar a execução, registro as três tarefas no roadmap.
 - Essa conta é só uma consulta. Não mudo o Relatório diário do painel nesta rodada.
 
 ## Depois
