@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { contatosContratados } from "@/lib/contatos-contratados";
 
 /**
  * Área do Cliente. Só devolve o que o cliente pode ver: plano, itens contratados,
@@ -127,7 +128,7 @@ export const getPainelCliente = createServerFn({ method: "POST" })
         { label: "Canais Messenger", valor: cliente.canais_messenger ?? 0 },
         { label: "Canais Z-API", valor: cliente.canais_zapi ?? 0 },
         { label: "Usuários", valor: cliente.usuarios_ativos ?? 0 },
-        { label: "Contatos", valor: cliente.contatos_ativos ?? 0 },
+        { label: "Contatos", valor: contatosContratados(p?.contatos_inclusos, cliente.plano_id, movimentos) },
       ],
       recursos: {
         agentesIa: Boolean(cliente.agentes_ia),
