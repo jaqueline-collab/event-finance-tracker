@@ -15,6 +15,8 @@ import {
   salvarHistoricoDesde,
   salvarIntegracaoCliente,
   testarIntegracaoCliente,
+  migrarChavesParaCofre,
+  apagarChavesLegadas,
   type CanalElora,
 } from "@/lib/integracao-elora.functions";
 
@@ -273,7 +275,6 @@ export function CofreChavesAdmin() {
             disabled={ocupado}
             onClick={() =>
               rodar(async () => {
-                const { migrarChavesParaCofre } = await import("@/lib/integracao-elora.functions");
                 const r = await migrarChavesParaCofre();
                 return {
                   titulo: `${r.migradas} migrada(s); ${r.jaNoCofre} já estavam no cofre.`,
@@ -295,7 +296,6 @@ export function CofreChavesAdmin() {
             disabled={ocupado || confirmar !== "APAGAR"}
             onClick={() =>
               rodar(async () => {
-                const { apagarChavesLegadas } = await import("@/lib/integracao-elora.functions");
                 const r = await apagarChavesLegadas({ data: { confirmacao: "APAGAR" } });
                 setConfirmar("");
                 return { titulo: `${r.apagadas} chave(s) antiga(s) apagada(s).`, itens: r.resultados };

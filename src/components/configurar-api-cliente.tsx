@@ -52,6 +52,7 @@ import {
 
 import { WidgetBuilder } from "@/components/widget-builder";
 import { DadosIntegracaoCliente } from "@/components/dados-integracao-cliente";
+import { DadosEloraCliente } from "@/components/dados-elora-cliente";
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
@@ -391,6 +392,8 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
           </CardContent>
         </Card>
       )}
+
+      {estado?.configurada && <DadosEloraCliente clienteId={clienteId} baseUrl={estado.baseUrl} />}
 
       {/* 2. Campos personalizados de contato */}
       <Card>
