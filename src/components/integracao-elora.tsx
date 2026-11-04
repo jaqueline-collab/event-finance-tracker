@@ -178,22 +178,10 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
             </p>
           </div>
           {!semAtalho && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="ml-auto"
-            disabled={!estado.configurada || !estado.ativo}
-            asChild={estado.configurada && estado.ativo}
-          >
-            {estado.configurada && estado.ativo ? (
-              <Link to="/clientes/$id/dados-elora" params={{ id: clienteId }}>
-                <Settings2 className="mr-2 h-4 w-4" /> Dados do Elora
-              </Link>
-            ) : (
-              <span>
-                <Settings2 className="mr-2 h-4 w-4" /> Dados do Elora
-              </span>
-            )}
+          <Button size="sm" variant="outline" className="ml-auto" asChild>
+            <Link to="/area-do-cliente" search={{ como: clienteId, configurar: "estrutura" } as never}>
+              <Settings2 className="mr-2 h-4 w-4" /> Configurar na Área do cliente
+            </Link>
           </Button>
           )}
         </div>
