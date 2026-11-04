@@ -1,11 +1,7 @@
-import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
-  ArrowLeft,
-  ChevronDown,
-  ChevronRight,
   Filter,
   Layers,
   ListChecks,
@@ -52,7 +48,6 @@ import {
 
 import { WidgetBuilder } from "@/components/widget-builder";
 import { DadosIntegracaoCliente } from "@/components/dados-integracao-cliente";
-import { DadosEloraCliente } from "@/components/dados-elora-cliente";
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
@@ -91,7 +86,8 @@ function CaixaMulti({
 }
 
 /** Conteúdo da tela "Configurar API" de um cliente. */
-export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
+export function ConfigurarApiCliente({ clienteId, aba }: { clienteId: string; aba: "estrutura" | "painel" }) {
+  const [fonte, setFonte] = useState<string>("contatos");
 
 
   const [estado, setEstado] = useState<Estado | null>(null);
@@ -105,7 +101,6 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
   // 3. painéis
   const [paineis, setPaineis] = useState<PainelElora[] | null>(null);
   const [buscandoPaineis, setBuscandoPaineis] = useState(false);
-  const [aberto, setAberto] = useState<string | null>(null);
   const [camposPainel, setCamposPainel] = useState<Record<string, CampoElora[]>>({});
   const [painelFunil, setPainelFunil] = useState("");
 
@@ -197,16 +192,6 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
     }
   };
 
-  const expandir = async (painelId: string) => {
-    setAberto((a) => (a === painelId ? null : painelId));
-    if (camposPainel[painelId]) return;
-    try {
-      const r = await listarCamposDoPainel({ data: { clienteId, painelId } });
-      setCamposPainel((m) => ({ ...m, [painelId]: r.campos }));
-    } catch (e) {
-      toast.error(msg(e));
-    }
-  };
 
   const recarregarRotulosEConfig = async () => {
     const r = await listarRotulosCliente({ data: { clienteId } });
@@ -330,33 +315,172 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
     paineis?.find((p) => p.id === painelFunil)?.etapas ??
     (paineis ?? []).flatMap((p) => p.etapas);
 
+  const selecionarFonte = async (fonte: string) => {
+    setFonte(fonte);
+    if (fonte === "contatos") {
+      if (campos === null) await buscarCampos();
+      return;
+    }
+    if (camposPainel[fonte]) return;
+    try {
+      const r = await listarCamposDoPainel({ data: { clienteId, painelId: fonte } });
+      setCamposPainel((m) => ({ ...m, [fonte]: r.campos }));
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
+
+  const painelEscolhido = paineis?.find((p) => p.id === fonte) ?? null;
+  const camposDaFonte: CampoElora[] | null =
+    fonte === "contatos" ? campos : (camposPainel[fonte] ?? null);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/clientes">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para clientes
-          </Link>
-        </Button>
-        <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-          Mapeamento e filtros da conta
-        </h1>
-        {estado?.configurada ? (
-          <Badge variant={estado.ativo ? "secondary" : "outline"}>
-            {estado.ativo ? `Conectada · ${estado.chaveMascarada}` : "Desligada"}
-          </Badge>
-        ) : (
-          <Badge variant="outline">Não configurada</Badge>
-        )}
+      {/* ===== Aba Estrutura e campos ===== */}
+      <div className={aba === "estrutura" ? "space-y-6" : "hidden"}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="h-4 w-4" /> Estrutura e campos
+            </CardTitle>
+            <CardDescription>
+              Painéis e campos personalizados lidos da conta. Todos ficam disponíveis como fonte de dados
+              para os widgets do painel.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-[240px_1fr]">
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => void selecionarFonte("contatos")}
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
+                    fonte === "contatos" ? "bg-brand-soft font-medium" : "hover:bg-muted"
+                  }`}
+                >
+                  <ListChecks className="h-4 w-4 shrink-0" /> Contatos (campos)
+                </button>
+                <div className="flex items-center justify-between px-1 pt-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Painéis da conta</p>
+                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={buscarPaineis} disabled={buscandoPaineis}>
+                    {buscandoPaineis ? "Buscando…" : paineis ? "Atualizar" : "Buscar"}
+                  </Button>
+                </div>
+                {paineis !== null && paineis.length === 0 && (
+                  <p className="px-1 text-xs text-muted-foreground">Nenhum painel encontrado.</p>
+                )}
+                <div className="max-h-80 space-y-1 overflow-y-auto">
+                  {(paineis ?? []).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => void selecionarFonte(p.id)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
+                        fonte === p.id ? "bg-brand-soft font-medium" : "hover:bg-muted"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{p.titulo}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{p.etapas.length}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="min-w-0 space-y-3">
+                {painelEscolhido && (
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Etapas {painelEscolhido.tipo ? `· ${painelEscolhido.tipo}` : ""}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {painelEscolhido.etapas.map((e) => (
+                        <Badge key={e.id} variant="secondary">{e.nome}</Badge>
+                      ))}
+                      {painelEscolhido.etapas.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Sem etapas.</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {fonte === "contatos" && campos === null && (
+                  <Button size="sm" variant="outline" onClick={buscarCampos} disabled={buscandoCampos}>
+                    <Search className="mr-2 h-4 w-4" />
+                    {buscandoCampos ? "Buscando…" : "Buscar campos personalizados da conta"}
+                  </Button>
+                )}
+                {camposDaFonte !== null && camposDaFonte.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum campo personalizado.</p>
+                )}
+                {camposDaFonte !== null && camposDaFonte.length > 0 && (
+                  <div className="overflow-x-auto rounded-lg border border-border/60">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Campo</th>
+                          <th className="px-3 py-2 font-medium">Tipo</th>
+                          <th className="px-3 py-2 font-medium">Estado</th>
+                          <th className="px-3 py-2 font-medium">Apelido na página</th>
+                          <th className="px-3 py-2 font-medium">Mostrar</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {camposDaFonte.map((c) => (
+                          <tr key={c.chave} className="border-t border-border/60">
+                            <td className="px-3 py-2">
+                              <span className="block font-medium">{c.nome}</span>
+                              <span className="block text-xs text-muted-foreground">{c.chave}</span>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">Personalizado</td>
+                            <td className="px-3 py-2"><Badge variant="secondary">Ativo</Badge></td>
+                            <td className="px-3 py-2 text-muted-foreground">—</td>
+                            <td className="px-3 py-2">
+                              <Switch disabled aria-label="Mostrar (em breve)" title="Em breve" />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Sequências */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Tags className="h-4 w-4" /> Sequências da conta
+            </CardTitle>
+            <CardDescription>Lista informativa das sequências configuradas.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button size="sm" variant="outline" onClick={buscarSequencias} disabled={buscandoSeq}>
+              <Search className="mr-2 h-4 w-4" />
+              {buscandoSeq ? "Buscando…" : "Buscar sequências da conta"}
+            </Button>
+            {sequencias !== null && (
+              <div className="flex flex-wrap gap-1.5">
+                {sequencias.map((s) => (
+                  <Badge key={s.id} variant="secondary">{s.nome}</Badge>
+                ))}
+                {sequencias.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhuma sequência encontrada.</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
+      {/* ===== Aba Painel do cliente ===== */}
+      <div className={aba === "painel" ? "space-y-6" : "hidden"}>
       {!estado?.configurada && (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Conecte a conta primeiro</AlertTitle>
-          <AlertDescription>
-            Volte ao cadastro do cliente, informe o endereço da conta e a chave de API, e teste a conexão.
-          </AlertDescription>
+          <AlertDescription>Na aba Conexão, informe o endereço da conta e a chave de API, e teste a conexão.</AlertDescription>
         </Alert>
       )}
 
@@ -392,141 +516,6 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
           </CardContent>
         </Card>
       )}
-
-      {estado?.configurada && <DadosEloraCliente clienteId={clienteId} baseUrl={estado.baseUrl} />}
-
-      {/* 2. Campos personalizados de contato */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ListChecks className="h-4 w-4" /> Campos personalizados de contato
-          </CardTitle>
-          <CardDescription>
-            Todos os campos da conta ficam disponíveis como fonte de dados para os widgets do
-            painel. Nada fica preso a um lugar fixo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button size="sm" variant="outline" onClick={buscarCampos} disabled={buscandoCampos}>
-            <Search className="mr-2 h-4 w-4" />
-            {buscandoCampos ? "Buscando…" : "Buscar campos personalizados da conta"}
-          </Button>
-
-          {campos !== null && campos.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhum campo personalizado encontrado.</p>
-          )}
-
-          {campos !== null && campos.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {campos.map((c) => (
-                <Badge key={c.chave} variant="outline" title={c.chave}>
-                  {c.nome}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 3. Painéis */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Layers className="h-4 w-4" /> Painéis da conta
-          </CardTitle>
-          <CardDescription>Funis e etapas existentes na conta do cliente.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button size="sm" variant="outline" onClick={buscarPaineis} disabled={buscandoPaineis}>
-            <Search className="mr-2 h-4 w-4" />
-            {buscandoPaineis ? "Buscando…" : "Buscar painéis da conta"}
-          </Button>
-
-          {paineis !== null && paineis.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhum painel encontrado.</p>
-          )}
-
-          <div className="space-y-2">
-            {(paineis ?? []).map((p) => (
-              <div key={p.id} className="rounded-lg border border-border/60">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
-                  onClick={() => void expandir(p.id)}
-                >
-                  {aberto === p.id ? (
-                    <ChevronDown className="h-4 w-4 shrink-0" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0" />
-                  )}
-                  <span className="truncate font-medium">{p.titulo}</span>
-                  {p.tipo && <Badge variant="outline">{p.tipo}</Badge>}
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {p.etapas.length} etapa{p.etapas.length === 1 ? "" : "s"}
-                  </span>
-                </button>
-                {aberto === p.id && (
-                  <div className="space-y-2 border-t border-border/60 px-3 py-2 text-sm">
-                    <div className="flex flex-wrap gap-1.5">
-                      {p.etapas.map((e) => (
-                        <Badge key={e.id} variant="secondary">
-                          {e.nome}
-                        </Badge>
-                      ))}
-                      {p.etapas.length === 0 && (
-                        <span className="text-xs text-muted-foreground">Sem etapas.</span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Campos personalizados do painel
-                      </p>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {(camposPainel[p.id] ?? []).map((c) => (
-                          <Badge key={c.chave} variant="outline">
-                            {c.nome}
-                          </Badge>
-                        ))}
-                        {(camposPainel[p.id] ?? []).length === 0 && (
-                          <span className="text-xs text-muted-foreground">Nenhum campo.</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 4. Sequências */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Tags className="h-4 w-4" /> Sequências da conta
-          </CardTitle>
-          <CardDescription>Lista informativa das sequências configuradas.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button size="sm" variant="outline" onClick={buscarSequencias} disabled={buscandoSeq}>
-            <Search className="mr-2 h-4 w-4" />
-            {buscandoSeq ? "Buscando…" : "Buscar sequências da conta"}
-          </Button>
-          {sequencias !== null && (
-            <div className="flex flex-wrap gap-1.5">
-              {sequencias.map((s) => (
-                <Badge key={s.id} variant="secondary">
-                  {s.nome}
-                </Badge>
-              ))}
-              {sequencias.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhuma sequência encontrada.</p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* 5. Classificações */}
       <Card>
@@ -814,6 +803,7 @@ export function ConfigurarApiCliente({ clienteId }: { clienteId: string }) {
           </p>
         </AlertDescription>
       </Alert>
+      </div>
     </div>
   );
 }

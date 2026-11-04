@@ -23,7 +23,7 @@ const dataHoraBr = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 /** Aba interna de conexão com o app Elora (uma chave de API por cliente). */
-export function IntegracaoElora({ clienteId }: { clienteId: string }) {
+export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: string; semAtalho?: boolean }) {
   const [estado, setEstado] = useState<Estado | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [baseUrl, setBaseUrl] = useState("");
@@ -170,13 +170,14 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 p-4">
+        <div className={semAtalho ? "hidden" : "flex flex-wrap items-center gap-2 rounded-lg border border-border/60 p-4"}>
           <div className="min-w-0">
             <p className="text-sm font-medium">Mapeamento e filtros</p>
             <p className="text-xs text-muted-foreground">
               Campos personalizados, painéis, sequências, classificações e filtros da conta.
             </p>
           </div>
+          {!semAtalho && (
           <Button
             size="sm"
             variant="outline"
@@ -185,15 +186,16 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
             asChild={estado.configurada && estado.ativo}
           >
             {estado.configurada && estado.ativo ? (
-              <Link to="/configurar-api" search={{ cliente: clienteId }}>
-                <Settings2 className="mr-2 h-4 w-4" /> Configurar API e painel
+              <Link to="/clientes/$id/dados-elora" params={{ id: clienteId }}>
+                <Settings2 className="mr-2 h-4 w-4" /> Dados do Elora
               </Link>
             ) : (
               <span>
-                <Settings2 className="mr-2 h-4 w-4" /> Configurar API e painel
+                <Settings2 className="mr-2 h-4 w-4" /> Dados do Elora
               </span>
             )}
           </Button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
