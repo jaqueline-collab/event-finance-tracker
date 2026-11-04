@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { KeyRound, Radio, History, Lock } from "lucide-react";
+import { KeyRound, Radio, History } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,11 +60,6 @@ export function DadosEloraCliente({ clienteId, aba, baseUrl = null }: { clienteI
 
   const cofre = info?.cofre;
 
-  const somenteLeitura = (
-    <Badge variant="outline" className="gap-1">
-      <Lock className="h-3 w-3" /> Somente leitura. Nada é alterado no Elora.
-    </Badge>
-  );
 
   if (aba === "conexao") return <div className="space-y-4">        <Card>
           <CardHeader>
