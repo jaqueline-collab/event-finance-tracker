@@ -11,7 +11,7 @@ const b64 = {
     for (const b of bytes) s += String.fromCharCode(b);
     return btoa(s);
   },
-  dec(texto: string) {
+  dec(texto: string): Uint8Array<ArrayBuffer> {
     const s = atob(texto);
     const out = new Uint8Array(new ArrayBuffer(s.length));
     for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
@@ -22,7 +22,7 @@ const b64 = {
 export async function importarChaveMestra(base64?: string): Promise<CryptoKey> {
   const valor = base64 ?? process.env["ELORA_CRED_MASTER_KEY"];
   if (!valor) throw new Error("cofre: segredo ELORA_CRED_MASTER_KEY não configurado.");
-  let bytes: Uint8Array;
+  let bytes: Uint8Array<ArrayBuffer>;
   try {
     bytes = b64.dec(valor.trim());
   } catch {
