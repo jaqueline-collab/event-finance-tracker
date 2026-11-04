@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatarTelefoneBr } from "@/lib/dados-elora";
 import {
   getDadosElora,
   listarCanaisElora,
@@ -23,7 +23,7 @@ import {
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const dataBr = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 
-export function DadosEloraCliente({ clienteId, baseUrl }: { clienteId: string; baseUrl: string | null }) {
+export function DadosEloraCliente({ clienteId, aba }: { clienteId: string; aba: "visao" | "conexao" | "canais" }) {
   const [info, setInfo] = useState<Awaited<ReturnType<typeof getDadosElora>> | null>(null);
   const [canais, setCanais] = useState<CanalElora[] | null>(null);
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
@@ -60,17 +60,13 @@ export function DadosEloraCliente({ clienteId, baseUrl }: { clienteId: string; b
 
   const cofre = info?.cofre;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Dados do Elora</h2>
-        <Badge variant="outline" className="gap-1">
-          <Lock className="h-3 w-3" /> Somente leitura. Nada é alterado no Elora.
-        </Badge>
-      </div>
+  const somenteLeitura = (
+    <Badge variant="outline" className="gap-1">
+      <Lock className="h-3 w-3" /> Somente leitura. Nada é alterado no Elora.
+    </Badge>
+  );
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
+  if (aba === "conexao") return <div className="space-y-4">        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <KeyRound className="h-4 w-4" /> Credencial
@@ -130,9 +126,9 @@ export function DadosEloraCliente({ clienteId, baseUrl }: { clienteId: string; b
               </form>
             )}
           </CardContent>
-        </Card>
+        </Card></div>;
 
-        <Card>
+  if (aba === "canais") return <div className="space-y-4">        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Radio className="h-4 w-4" /> Canais permitidos
@@ -157,15 +153,16 @@ export function DadosEloraCliente({ clienteId, baseUrl }: { clienteId: string; b
               <p className="text-sm text-muted-foreground">Nenhum canal encontrado nesta conta.</p>
             )}
             {canais && canais.length > 0 && (
-              <ul className="max-h-64 space-y-2 overflow-y-auto">
+              <ul className="max-h-96 space-y-3 overflow-y-auto">
                 {canais.map((c) => (
                   <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{c.nome}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {c.numero ?? "sem número"}
-                        {!c.ativo && " · inativo"}
+                      <span className="block text-sm">
+                        {formatarTelefoneBr(c.numero)}
+                        {!c.ativo && <span className="text-muted-foreground"> · inativo</span>}
                       </span>
+                      <span className="block truncate text-[10px] text-muted-foreground">{c.id}</span>
                     </span>
                     <Switch
                       checked={marcados.has(c.id)}
@@ -201,43 +198,77 @@ export function DadosEloraCliente({ clienteId, baseUrl }: { clienteId: string; b
               </Button>
             )}
           </CardContent>
-        </Card>
+        </Card></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">{somenteLeitura}</div>
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {["Estrutura", "Contatos", "Atendimentos", "Cards"].map((t) => (
+              <Card key={t}>
+                <CardContent className="space-y-3 pt-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{t}</span>
+                    <Badge variant="outline">Em breve</Badge>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted" />
+                  <p className="text-xs text-muted-foreground">Ainda não sincroniza.</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Avisos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Sem avisos.</p>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <History className="h-4 w-4" /> Histórico
+              <History className="h-4 w-4" /> O que sincronizar
             </CardTitle>
-            <CardDescription>A partir de quando buscar os dados deste cliente.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="historico-desde">Buscar histórico desde</Label>
-            <Input id="historico-desde" type="date" value={historico} onChange={(e) => setHistorico(e.target.value)} />
-            <Button
-              size="sm"
-              disabled={!historico || ocupado !== null}
-              onClick={() =>
-                executar("historico", async () => {
-                  await salvarHistoricoDesde({ data: { clienteId, historicoDesde: historico } });
-                  toast.success("Data do histórico salva.");
-                })
-              }
-            >
-              Salvar
-            </Button>
+          <CardContent className="space-y-4">
+            <ul className="space-y-2">
+              {["Estrutura", "Contatos", "Atendimentos", "Cards", "Texto das conversas"].map((t) => (
+                <li key={t} className="flex items-center justify-between gap-2 text-sm">
+                  <span>{t}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Em breve</span>
+                    <Switch disabled aria-label={`${t} (em breve)`} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="space-y-2 border-t border-border/60 pt-4">
+              <Label htmlFor="historico-desde">Histórico desde</Label>
+              <Input id="historico-desde" type="date" value={historico} onChange={(e) => setHistorico(e.target.value)} />
+              <Button
+                size="sm"
+                disabled={!historico || ocupado !== null}
+                onClick={() =>
+                  executar("historico", async () => {
+                    await salvarHistoricoDesde({ data: { clienteId, historicoDesde: historico } });
+                    toast.success("Data do histórico salva.");
+                  })
+                }
+              >
+                Salvar data
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 border-t border-border/60 pt-4">
+              <Button size="sm" variant="outline" disabled title="Em breve">Sincronizar agora</Button>
+              <Button size="sm" variant="outline" disabled title="Em breve">Reprocessar tudo</Button>
+            </div>
           </CardContent>
         </Card>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        {["Contatos", "Atendimentos", "Cards"].map((t) => (
-          <Alert key={t} className="opacity-60">
-            <AlertDescription className="flex items-center justify-between">
-              <span>Sincronizar {t.toLowerCase()}</span>
-              <Badge variant="outline">Em breve</Badge>
-            </AlertDescription>
-          </Alert>
-        ))}
       </div>
     </div>
   );
