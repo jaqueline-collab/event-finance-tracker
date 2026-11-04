@@ -1,6 +1,6 @@
 # Roadmap — Dash do cliente
 
-- [ ] Etapa A: layout e visual (menu, visões em pílulas, barra super admin, cartões)
+- [x] Etapa A: layout e visual (menu, visões em pílulas, barra super admin, cartões)
 - [ ] Etapa B: diagnóstico + sincronização própria (seguir o adendo: payload completo, todos os status)
 - [ ] Etapa C: cards, relatório diário calculado, validação
 - [ ] Etapa D: Campos do Elora
