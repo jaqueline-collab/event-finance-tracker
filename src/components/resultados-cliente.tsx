@@ -575,7 +575,7 @@ function CabecalhoOrdenavel({ c, travado }: { c: ColunaRelatorio; travado: boole
 }
 
 /** Matriz do relatório diário: uma linha por dia, mais recente no topo. */
-function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
+export function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
   const chaveOrdem = `elora.relatorio.ordem.${clienteId}`;
   const [de, setDe] = useState(diasAtrasIso(30));
   const [ate, setAte] = useState(hojeIso());
@@ -1200,16 +1200,12 @@ function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
 /** Painel do cliente: renderiza exatamente os widgets configurados, na ordem definida. */
 export function ResultadosCliente({
   clienteId,
-  conta,
-  equipe,
   visaoId = null,
   recarregarChave = 0,
 }: {
   clienteId: string;
   visaoId?: string | null;
   recarregarChave?: number;
-  conta?: React.ReactNode;
-  equipe?: React.ReactNode;
 }) {
   const [modo, setModo] = useState<"7" | "30" | "custom">("30");
   const [deCustom, setDeCustom] = useState(diasAtrasIso(30));
@@ -1243,31 +1239,6 @@ export function ResultadosCliente({
   const grade = useMemo(() => normalizarGrade(widgets), [widgets]);
 
   return (
-    <Tabs defaultValue="dash">
-      <TabsList className="h-auto flex-wrap justify-start">
-        <TabsTrigger value="dash" className="gap-1.5">
-          <BarChart3 className="h-4 w-4" /> Dash
-        </TabsTrigger>
-        <TabsTrigger value="relatorio" className="gap-1.5">
-          <CalendarDays className="h-4 w-4" /> Relatório diário
-        </TabsTrigger>
-        {conta && (
-          <TabsTrigger value="conta" className="gap-1.5">
-            <Wallet className="h-4 w-4" /> Conta
-          </TabsTrigger>
-        )}
-        {equipe && (
-          <TabsTrigger value="equipe" className="gap-1.5">
-            <Users className="h-4 w-4" /> Minha equipe
-          </TabsTrigger>
-        )}
-      </TabsList>
-      {conta && <TabsContent value="conta" className="mt-3">{conta}</TabsContent>}
-      {equipe && <TabsContent value="equipe" className="mt-3">{equipe}</TabsContent>}
-      <TabsContent value="relatorio" className="mt-3">
-        <SecaoRelatorioDiario clienteId={clienteId} />
-      </TabsContent>
-      <TabsContent value="dash" className="mt-3">
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
@@ -1366,7 +1337,5 @@ export function ResultadosCliente({
         )}
       </CardContent>
     </Card>
-      </TabsContent>
-    </Tabs>
   );
 }
