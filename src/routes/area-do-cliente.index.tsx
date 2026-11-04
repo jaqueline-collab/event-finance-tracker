@@ -35,6 +35,10 @@ import {
 } from "@/lib/cliente.functions";
 import { ResultadosCliente } from "@/components/resultados-cliente";
 import { usePerfil } from "@/hooks/use-perfil";
+import { useCurrentUserAccess } from "@/lib/permissions";
+import { abaConfigurarDoEndereco, podeConfigurarArea, type AbaDadosElora } from "@/lib/dados-elora";
+import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-sheet";
+import { Settings2 } from "lucide-react";
 
 
 export const Route = createFileRoute("/area-do-cliente/")({
@@ -49,8 +53,13 @@ const dataBr = (v?: string | null) =>
 const APP_URL = "https://app.eloracrm.com.br/";
 
 function AreaCliente() {
-  const { como, aba } = Route.useSearch();
+  const { como, aba, configurar } = Route.useSearch();
   const navigate = useNavigate();
+  const { isAdmin } = useCurrentUserAccess();
+  const modoConfig = podeConfigurarArea({ isAdmin, como });
+  const abaConfig = modoConfig ? abaConfigurarDoEndereco(configurar) : null;
+  const setConfigurar = (v: AbaDadosElora | "") =>
+    navigate({ to: "/area-do-cliente", search: (s: any) => ({ ...s, configurar: v }) as never, replace: true });
   const perfilLogado = usePerfil();
   const [dados, setDados] = useState<Painel | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -194,6 +203,25 @@ function AreaCliente() {
           </Button>
         </div>
       )}
+      {modoConfig && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-2.5">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Modo configuração</span> · só você (super admin) vê isto.
+          </p>
+          <Button size="sm" onClick={() => setConfigurar("conexao")}>
+            <Settings2 className="mr-2 h-4 w-4" /> Configurar
+          </Button>
+        </div>
+      )}
+      {modoConfig && (
+        <ConfiguracaoClienteSheet
+          clienteId={cliente.id}
+          nomeCliente={cliente.nome}
+          aba={abaConfig}
+          onAba={setConfigurar}
+          onFechar={() => setConfigurar("")}
+        />
+      )}
       <div className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/10 via-background to-background p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -226,6 +254,17 @@ function AreaCliente() {
         </TabsContent>
 
         <TabsContent value="conta" className="mt-0 grid gap-4 md:grid-cols-2">
+          <div className="flex flex-wrap items-center gap-2 md:col-span-2" role="tablist" aria-label="Visões">
+            <button type="button" role="tab" aria-selected className="rounded-full bg-foreground px-4 py-1.5 text-sm text-background">
+              Resultados
+            </button>
+            {modoConfig && (
+              <Button size="sm" variant="outline" disabled title="Na próxima rodada" className="rounded-full">
+                <Plus className="mr-1 h-4 w-4" /> Nova visão
+                <span className="ml-2 text-xs text-muted-foreground">Na próxima rodada</span>
+              </Button>
+            )}
+          </div>
           <div className="min-w-0 md:col-span-2">
             <ResultadosCliente
               clienteId={cliente.id}
