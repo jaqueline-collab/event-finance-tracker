@@ -51,7 +51,7 @@ export const Route = createFileRoute("/funcionalidades/$slug")({
 
 function FuncionalidadePage() {
   const { slug } = Route.useParams();
-  const f = TITULOS[slug] ?? { titulo: "Funcionalidade", resumo: "Em breve mais detalhes." };
+  const f = TITULOS[slug] ?? { titulo: "Funcionalidade", resumo: "Conheça esta funcionalidade do Elora." };
 
   return (
     <div
@@ -91,8 +91,7 @@ function FuncionalidadePage() {
           <p className="text-landing-muted mt-4 text-lg leading-relaxed">{f.resumo}</p>
           <div className="mt-10 rounded-2xl border border-dashed border-landing-border bg-landing-surface p-8 text-center">
             <p className="text-sm text-landing-muted">
-              Página detalhada em construção. Em breve, prints, vídeos e casos de uso desta
-              funcionalidade.
+              Quer ver esta funcionalidade funcionando? Fale com a nossa equipe e agende uma demonstração.
             </p>
           </div>
         </div>

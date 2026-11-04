@@ -3,12 +3,9 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   Filter,
-  Layers,
-  ListChecks,
   MessagesSquare,
   RefreshCw,
   Search,
-  Tags,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { salvarRelatorioDiarioAtivo } from "@/lib/integracao-elora.functions";
@@ -30,13 +27,11 @@ import {
 import {
   excluirRotuloCliente,
   getIntegracaoCliente,
-  listarCamposDoPainel,
   listarCamposPersonalizados,
   listarClassificacoesRecentes,
   listarEtiquetasCliente,
   listarPaineisCliente,
   listarRotulosCliente,
-  listarSequenciasCliente,
   listarUsuariosCliente,
   salvarFiltrosCliente,
   salvarRotuloCliente,
@@ -95,7 +90,7 @@ export function ConfigurarApiCliente({
   novoGraficoChave = 0,
 }: {
   clienteId: string;
-  aba: "estrutura" | "painel";
+  aba: "painel";
   /** Visão (aba do dash) cujos gráficos são editados. */
   visaoId?: string | null;
   /** Mostra só o construtor de gráficos (modo Editar do painel). */
@@ -103,7 +98,6 @@ export function ConfigurarApiCliente({
   aoMudarGraficos?: () => void;
   novoGraficoChave?: number;
 }) {
-  const [fonte, setFonte] = useState<string>("contatos");
 
 
   const [estado, setEstado] = useState<Estado | null>(null);
@@ -112,17 +106,12 @@ export function ConfigurarApiCliente({
 
   // 2. campos personalizados de contato
   const [campos, setCampos] = useState<CampoElora[] | null>(null);
-  const [buscandoCampos, setBuscandoCampos] = useState(false);
 
   // 3. painéis
   const [paineis, setPaineis] = useState<PainelElora[] | null>(null);
-  const [buscandoPaineis, setBuscandoPaineis] = useState(false);
-  const [camposPainel, setCamposPainel] = useState<Record<string, CampoElora[]>>({});
   const [painelFunil, setPainelFunil] = useState("");
 
   // 4. sequências
-  const [sequencias, setSequencias] = useState<{ id: string; nome: string }[] | null>(null);
-  const [buscandoSeq, setBuscandoSeq] = useState(false);
 
   // 5. classificações: descoberta + rótulos
   const [classificacoes, setClassificacoes] = useState<string[] | null>(null);
@@ -175,38 +164,20 @@ export function ConfigurarApiCliente({
     listarEtiquetasCliente({ data: { clienteId } })
       .then((r) => setEtiquetas(r.etiquetas))
       .catch(() => setEtiquetas([]));
+    listarCamposPersonalizados({ data: { clienteId } })
+      .then((r) => setCampos(r.campos))
+      .catch(() => setCampos([]));
+    listarPaineisCliente({ data: { clienteId } })
+      .then((r) => setPaineis(r.paineis))
+      .catch(() => setPaineis([]));
     recarregarRotulosEConfig().catch(() => undefined);
   }, [clienteId, estado?.configurada, estado?.ativo]);
 
   const alternar = (lista: string[], set: (v: string[]) => void, id: string) =>
     set(lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id]);
 
-  const buscarCampos = async () => {
-    setBuscandoCampos(true);
-    try {
-      const r = await listarCamposPersonalizados({ data: { clienteId } });
-      setCampos(r.campos);
-      if (r.campos.length === 0) toast.error("Nenhum campo personalizado encontrado nessa conta.");
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setBuscandoCampos(false);
-    }
-  };
 
 
-  const buscarPaineis = async () => {
-    setBuscandoPaineis(true);
-    try {
-      const r = await listarPaineisCliente({ data: { clienteId } });
-      setPaineis(r.paineis);
-      if (r.paineis.length === 0) toast.error("Nenhum painel encontrado nessa conta.");
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setBuscandoPaineis(false);
-    }
-  };
 
 
   const recarregarRotulosEConfig = async () => {
@@ -248,18 +219,6 @@ export function ConfigurarApiCliente({
   };
 
 
-  const buscarSequencias = async () => {
-    setBuscandoSeq(true);
-    try {
-      const r = await listarSequenciasCliente({ data: { clienteId } });
-      setSequencias(r.sequencias);
-      if (r.sequencias.length === 0) toast.error("Nenhuma sequência encontrada nessa conta.");
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setBuscandoSeq(false);
-    }
-  };
 
   const buscarClassificacoes = async () => {
     setBuscandoCls(true);
@@ -331,24 +290,6 @@ export function ConfigurarApiCliente({
     paineis?.find((p) => p.id === painelFunil)?.etapas ??
     (paineis ?? []).flatMap((p) => p.etapas);
 
-  const selecionarFonte = async (fonte: string) => {
-    setFonte(fonte);
-    if (fonte === "contatos") {
-      if (campos === null) await buscarCampos();
-      return;
-    }
-    if (camposPainel[fonte]) return;
-    try {
-      const r = await listarCamposDoPainel({ data: { clienteId, painelId: fonte } });
-      setCamposPainel((m) => ({ ...m, [fonte]: r.campos }));
-    } catch (e) {
-      toast.error(msg(e));
-    }
-  };
-
-  const painelEscolhido = paineis?.find((p) => p.id === fonte) ?? null;
-  const camposDaFonte: CampoElora[] | null =
-    fonte === "contatos" ? campos : (camposPainel[fonte] ?? null);
 
   if (soGraficos) {
     return (
@@ -367,143 +308,6 @@ export function ConfigurarApiCliente({
 
   return (
     <div className="space-y-6">
-      {/* ===== Aba Estrutura e campos ===== */}
-      <div className={aba === "estrutura" ? "space-y-6" : "hidden"}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Layers className="h-4 w-4" /> Estrutura e campos
-            </CardTitle>
-            <CardDescription>
-              Painéis e campos personalizados lidos da conta. Todos ficam disponíveis como fonte de dados
-              para os widgets do painel.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => void selecionarFonte("contatos")}
-                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-                    fonte === "contatos" ? "bg-brand-soft font-medium" : "hover:bg-muted"
-                  }`}
-                >
-                  <ListChecks className="h-4 w-4 shrink-0" /> Contatos (campos)
-                </button>
-                <div className="flex items-center justify-between px-1 pt-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Painéis da conta</p>
-                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={buscarPaineis} disabled={buscandoPaineis}>
-                    {buscandoPaineis ? "Buscando…" : paineis ? "Atualizar" : "Buscar"}
-                  </Button>
-                </div>
-                {paineis !== null && paineis.length === 0 && (
-                  <p className="px-1 text-xs text-muted-foreground">Nenhum painel encontrado.</p>
-                )}
-                <div className="max-h-80 space-y-1 overflow-y-auto">
-                  {(paineis ?? []).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => void selecionarFonte(p.id)}
-                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-                        fonte === p.id ? "bg-brand-soft font-medium" : "hover:bg-muted"
-                      }`}
-                    >
-                      <span className="min-w-0 flex-1 truncate">{p.titulo}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{p.etapas.length}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="min-w-0 space-y-3">
-                {painelEscolhido && (
-                  <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Etapas {painelEscolhido.tipo ? `· ${painelEscolhido.tipo}` : ""}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {painelEscolhido.etapas.map((e) => (
-                        <Badge key={e.id} variant="secondary">{e.nome}</Badge>
-                      ))}
-                      {painelEscolhido.etapas.length === 0 && (
-                        <span className="text-xs text-muted-foreground">Sem etapas.</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {fonte === "contatos" && campos === null && (
-                  <Button size="sm" variant="outline" onClick={buscarCampos} disabled={buscandoCampos}>
-                    <Search className="mr-2 h-4 w-4" />
-                    {buscandoCampos ? "Buscando…" : "Buscar campos personalizados da conta"}
-                  </Button>
-                )}
-                {camposDaFonte !== null && camposDaFonte.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhum campo personalizado.</p>
-                )}
-                {camposDaFonte !== null && camposDaFonte.length > 0 && (
-                  <div className="overflow-x-auto rounded-lg border border-border/60">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                        <tr>
-                          <th className="px-3 py-2 font-medium">Campo</th>
-                          <th className="px-3 py-2 font-medium">Tipo</th>
-                          <th className="px-3 py-2 font-medium">Estado</th>
-                          <th className="px-3 py-2 font-medium">Apelido na página</th>
-                          <th className="px-3 py-2 font-medium">Mostrar</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {camposDaFonte.map((c) => (
-                          <tr key={c.chave} className="border-t border-border/60">
-                            <td className="px-3 py-2">
-                              <span className="block font-medium">{c.nome}</span>
-                              <span className="block text-xs text-muted-foreground">{c.chave}</span>
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">Personalizado</td>
-                            <td className="px-3 py-2"><Badge variant="secondary">Ativo</Badge></td>
-                            <td className="px-3 py-2 text-muted-foreground">—</td>
-                            <td className="px-3 py-2">
-                              <Switch disabled aria-label="Mostrar (em breve)" title="Em breve" />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Sequências */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Tags className="h-4 w-4" /> Sequências da conta
-            </CardTitle>
-            <CardDescription>Lista informativa das sequências configuradas.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button size="sm" variant="outline" onClick={buscarSequencias} disabled={buscandoSeq}>
-              <Search className="mr-2 h-4 w-4" />
-              {buscandoSeq ? "Buscando…" : "Buscar sequências da conta"}
-            </Button>
-            {sequencias !== null && (
-              <div className="flex flex-wrap gap-1.5">
-                {sequencias.map((s) => (
-                  <Badge key={s.id} variant="secondary">{s.nome}</Badge>
-                ))}
-                {sequencias.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhuma sequência encontrada.</p>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
       {/* ===== Aba Painel do cliente ===== */}
       <div className={aba === "painel" ? "space-y-6" : "hidden"}>
@@ -751,7 +555,7 @@ export function ConfigurarApiCliente({
               <Label>Campo personalizado</Label>
               <Select value={fCampoChave || undefined} onValueChange={setFCampoChave}>
                 <SelectTrigger>
-                  <SelectValue placeholder={campos ? "Escolha o campo" : "Busque os campos primeiro"} />
+                  <SelectValue placeholder={campos === null ? "Carregando…" : campos.length ? "Escolha o campo" : "Nenhum campo encontrado"} />
                 </SelectTrigger>
                 <SelectContent>
                   {(campos ?? []).map((c) => (
@@ -778,7 +582,7 @@ export function ConfigurarApiCliente({
               <Label>Painel de Vendas (para escolher etapas)</Label>
               <Select value={painelFunil || undefined} onValueChange={setPainelFunil}>
                 <SelectTrigger>
-                  <SelectValue placeholder={paineis ? "Escolha o painel" : "Busque os painéis primeiro"} />
+                  <SelectValue placeholder={paineis === null ? "Carregando…" : paineis.length ? "Escolha o painel" : "Nenhum painel encontrado"} />
                 </SelectTrigger>
                 <SelectContent>
                   {(paineis ?? []).map((p) => (
