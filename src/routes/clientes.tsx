@@ -1547,29 +1547,10 @@ function ClientesPage() {
                       <Badge variant="destructive" className="bg-destructive/20 text-destructive font-semibold border-none">
                         Inativo / Churn
                       </Badge>
+                    ) : cliente.statusComercial === "trial" ? (
+                      <Badge className="bg-secondary text-secondary-foreground font-semibold border-none">Trial</Badge>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-normal text-muted-foreground">Status</span>
-                        <Select
-                          value={cliente.statusComercial === "trial" ? "trial" : "ativo"}
-                          onValueChange={async (v) => {
-                            const novo = v === "trial" ? "trial" : "ativo";
-                            if (novo === (cliente.statusComercial ?? "ativo")) return;
-                            try {
-                              await updateCliente(cliente.id, { statusComercial: novo });
-                              toast.success(`Status alterado para ${novo === "trial" ? "Trial" : "Ativo"}.`);
-                            } catch (err) {
-                              toast.error(mensagemErroPersistencia(err, "Atualização do status"));
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-32 text-sm font-normal"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ativo">Ativo</SelectItem>
-                            <SelectItem value="trial">Trial</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <Badge className="bg-fin/20 text-fin font-semibold border-none">Ativo</Badge>
                     )}
                   </DialogTitle>
                 </DialogHeader>
@@ -1581,7 +1562,7 @@ function ClientesPage() {
                       <Link to="/area-do-cliente" search={{ como: cliente.id, configurar: "conexao" } as never}>Abrir Área do cliente e configurar</Link>
                     </Button>
                   </div>
-                  <IntegracaoElora clienteId={cliente.id} />
+                  <BlocoIntegracaoRecolhido clienteId={cliente.id} />
 
                   {/* Resumo do Cliente */}
                   <div>
