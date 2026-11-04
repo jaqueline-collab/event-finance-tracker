@@ -101,7 +101,6 @@ export function ConfigurarApiCliente({ clienteId, aba }: { clienteId: string; ab
   // 3. painéis
   const [paineis, setPaineis] = useState<PainelElora[] | null>(null);
   const [buscandoPaineis, setBuscandoPaineis] = useState(false);
-  const [aberto, setAberto] = useState<string | null>(null);
   const [camposPainel, setCamposPainel] = useState<Record<string, CampoElora[]>>({});
   const [painelFunil, setPainelFunil] = useState("");
 
@@ -193,16 +192,6 @@ export function ConfigurarApiCliente({ clienteId, aba }: { clienteId: string; ab
     }
   };
 
-  const expandir = async (painelId: string) => {
-    setAberto((a) => (a === painelId ? null : painelId));
-    if (camposPainel[painelId]) return;
-    try {
-      const r = await listarCamposDoPainel({ data: { clienteId, painelId } });
-      setCamposPainel((m) => ({ ...m, [painelId]: r.campos }));
-    } catch (e) {
-      toast.error(msg(e));
-    }
-  };
 
   const recarregarRotulosEConfig = async () => {
     const r = await listarRotulosCliente({ data: { clienteId } });
