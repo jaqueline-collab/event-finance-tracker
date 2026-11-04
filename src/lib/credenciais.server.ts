@@ -13,7 +13,7 @@ const b64 = {
   },
   dec(texto: string) {
     const s = atob(texto);
-    const out = new Uint8Array(s.length);
+    const out = new Uint8Array(new ArrayBuffer(s.length));
     for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
     return out;
   },
@@ -38,7 +38,7 @@ export async function cifrarChave(chave: string, mestra?: CryptoKey): Promise<st
   const cifrado = new Uint8Array(
     await crypto.subtle.encrypt({ name: "AES-GCM", iv }, k, new TextEncoder().encode(chave)),
   );
-  const tudo = new Uint8Array(iv.length + cifrado.length);
+  const tudo = new Uint8Array(new ArrayBuffer(iv.length + cifrado.length));
   tudo.set(iv, 0);
   tudo.set(cifrado, iv.length);
   return b64.enc(tudo);
