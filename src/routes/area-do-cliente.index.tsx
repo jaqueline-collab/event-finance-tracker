@@ -34,6 +34,8 @@ import {
   removerPessoaEquipe,
 } from "@/lib/cliente.functions";
 import { ResultadosCliente } from "@/components/resultados-cliente";
+import { VisoesPainel } from "@/components/visoes-painel";
+import { ConfigurarApiCliente } from "@/components/configurar-api-cliente";
 import { usePerfil } from "@/hooks/use-perfil";
 import { useCurrentUserAccess } from "@/lib/permissions";
 import { abaConfigurarDoEndereco, podeConfigurarArea, type AbaDadosElora } from "@/lib/dados-elora";
@@ -254,20 +256,22 @@ function AreaCliente() {
         </TabsContent>
 
         <TabsContent value="conta" className="mt-0 grid gap-4 md:grid-cols-2">
-          <div className="flex flex-wrap items-center gap-2 md:col-span-2" role="tablist" aria-label="Visões">
-            <button type="button" role="tab" aria-selected className="rounded-full bg-foreground px-4 py-1.5 text-sm text-background">
-              Resultados
-            </button>
-            {modoConfig && (
-              <Button size="sm" variant="outline" disabled title="Na próxima rodada" className="rounded-full">
-                <Plus className="mr-1 h-4 w-4" /> Nova visão
-                <span className="ml-2 text-xs text-muted-foreground">Na próxima rodada</span>
-              </Button>
-            )}
-          </div>
           <div className="min-w-0 md:col-span-2">
+              <VisoesPainel
+                clienteId={cliente.id}
+                editorGraficos={
+                  modoConfig
+                    ? (visaoId, aoMudar) => (
+                        <ConfigurarApiCliente clienteId={cliente.id} aba="painel" soGraficos visaoId={visaoId} aoMudarGraficos={aoMudar} />
+                      )
+                    : undefined
+                }
+              >
+                {(visaoId, chave) => (
             <ResultadosCliente
               clienteId={cliente.id}
+              visaoId={visaoId}
+              recarregarChave={chave}
               conta={
                 <div className="grid gap-4 md:grid-cols-2">
           <Card>
@@ -386,6 +390,8 @@ function AreaCliente() {
                 </>
               }
             />
+                )}
+              </VisoesPainel>
           </div>
 
 

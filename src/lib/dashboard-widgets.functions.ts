@@ -22,12 +22,17 @@ export type Widget = {
   layout: { x: number; y: number; w: number; h: number } | null;
 };
 
+async function exigirSuperAdmin(db: any) {
+  const { data: admin } = await db.rpc("is_admin");
+  if (!admin) throw new Error("acesso-negado: apenas super admin.");
+}
+
 async function exigirEquipeInterna(db: any) {
   const { data: interno } = await db.rpc("is_equipe_interna");
   if (!interno) throw new Error("acesso-negado: apenas equipe interna.");
 }
 
-const soCliente = z.object({ clienteId: z.string().min(1) });
+const soCliente = z.object({ clienteId: z.string().min(1), visaoId: z.string().uuid().nullable().optional() });
 
 const layoutSchema = z.object({
   x: z.number().int().min(0).max(11),
@@ -42,11 +47,12 @@ export const listarWidgetsCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ widgets: Widget[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
+    let q = supabaseAdmin
       .from("elora_dashboard_widgets")
       .select("id, tipo, titulo, configuracao, ordem, layout")
-      .eq("cliente_id", data.clienteId)
-      .order("ordem", { ascending: true });
+      .eq("cliente_id", data.clienteId);
+    if (data.visaoId) q = q.eq("visao_id" as never, data.visaoId as never);
+    const { data: rows, error } = await q.order("ordem", { ascending: true });
     if (error) throw new Error(`widgets: ${error.message}`);
     return {
       widgets: ((rows ?? []) as any[]).map((w) => ({
@@ -68,6 +74,7 @@ const widgetSchema = z.object({
   configuracao: z.record(z.string(), z.unknown()).default({}),
   ordem: z.number().int().min(0).max(999).default(0),
   layout: layoutSchema.nullable().default(null),
+  visaoId: z.string().uuid().nullable().optional(),
 });
 
 /** Coleta todo identificador citado na configuração, por tipo de entidade. */
@@ -130,10 +137,18 @@ export const salvarWidgetCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => widgetSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ widgetId: string }> => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     await conferirReferencias(supabaseAdmin, data.clienteId, data.configuracao);
+    const { visaoPadrao, conferirVisao } = await import("@/lib/dashboard-visoes.server");
+    let visaoId: string;
+    if (data.visaoId) {
+      await conferirVisao(supabaseAdmin, data.clienteId, data.visaoId);
+      visaoId = data.visaoId;
+    } else {
+      visaoId = await visaoPadrao(supabaseAdmin, data.clienteId);
+    }
 
     if (data.widgetId) {
       const { error } = await supabaseAdmin
@@ -161,7 +176,8 @@ export const salvarWidgetCliente = createServerFn({ method: "POST" })
         configuracao: data.configuracao as never,
         ordem: data.ordem,
         layout: (data.layout ?? {}) as never,
-      })
+        visao_id: visaoId,
+      } as never)
       .select("id")
       .single();
     if (error) throw new Error(`widgets: ${error.message}`);
@@ -174,7 +190,7 @@ export const excluirWidgetCliente = createServerFn({ method: "POST" })
     z.object({ clienteId: z.string().min(1), widgetId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("elora_dashboard_widgets")
@@ -196,7 +212,7 @@ export const reordenarWidgetsCliente = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     for (let i = 0; i < data.ordem.length; i++) {
       await supabaseAdmin
@@ -220,7 +236,7 @@ export const salvarGradeCliente = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ordenados = [...data.blocos].sort(
       (a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x,
@@ -456,7 +472,10 @@ export const aplicarModeloEmClientes = createServerFn({ method: "POST" })
         return c;
       };
 
-      await supabaseAdmin.from("elora_dashboard_widgets").delete().eq("cliente_id", clienteId);
+      // Modelo substitui só os gráficos da visão padrão; outras visões ficam intactas.
+      const { visaoPadrao } = await import("@/lib/dashboard-visoes.server");
+      const visaoId = await visaoPadrao(supabaseAdmin, clienteId);
+      await supabaseAdmin.from("elora_dashboard_widgets").delete().eq("cliente_id", clienteId).eq("visao_id" as never, visaoId as never);
       if (widgets.length === 0) continue;
       const { error: e2 } = await supabaseAdmin.from("elora_dashboard_widgets").insert(
         widgets.map((w, i) => ({
@@ -466,6 +485,7 @@ export const aplicarModeloEmClientes = createServerFn({ method: "POST" })
           configuracao: limpar(w.configuracao) as never,
           ordem: Number(w.ordem ?? i),
           layout: (sanearLayout(w.layout) ?? {}) as never,
+          visao_id: visaoId,
         })) as never,
       );
       if (e2) throw new Error(`modelos: ${e2.message}`);

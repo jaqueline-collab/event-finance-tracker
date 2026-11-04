@@ -86,7 +86,21 @@ function CaixaMulti({
 }
 
 /** Conteúdo da tela "Configurar API" de um cliente. */
-export function ConfigurarApiCliente({ clienteId, aba }: { clienteId: string; aba: "estrutura" | "painel" }) {
+export function ConfigurarApiCliente({
+  clienteId,
+  aba,
+  visaoId = null,
+  soGraficos = false,
+  aoMudarGraficos,
+}: {
+  clienteId: string;
+  aba: "estrutura" | "painel";
+  /** Visão (aba do dash) cujos gráficos são editados. */
+  visaoId?: string | null;
+  /** Mostra só o construtor de gráficos (modo Editar do painel). */
+  soGraficos?: boolean;
+  aoMudarGraficos?: () => void;
+}) {
   const [fonte, setFonte] = useState<string>("contatos");
 
 
@@ -333,6 +347,19 @@ export function ConfigurarApiCliente({ clienteId, aba }: { clienteId: string; ab
   const painelEscolhido = paineis?.find((p) => p.id === fonte) ?? null;
   const camposDaFonte: CampoElora[] | null =
     fonte === "contatos" ? campos : (camposPainel[fonte] ?? null);
+
+  if (soGraficos) {
+    return (
+      <WidgetBuilder
+        key={visaoId ?? "padrao"}
+        clienteId={clienteId}
+        visaoId={visaoId}
+        aoMudar={aoMudarGraficos}
+        rotulos={rotulos.map((r) => ({ id: r.id, nome: r.nome }))}
+        campos={campos ?? []}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

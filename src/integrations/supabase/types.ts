@@ -661,6 +661,47 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_dashboard_visoes: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string
+          criado_em: string
+          filtros: Json
+          id: string
+          nome: string
+          ordem: number
+          publicada: boolean
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id: string
+          criado_em?: string
+          filtros?: Json
+          id?: string
+          nome: string
+          ordem?: number
+          publicada?: boolean
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string
+          criado_em?: string
+          filtros?: Json
+          id?: string
+          nome?: string
+          ordem?: number
+          publicada?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_dashboard_visoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_dashboard_widgets: {
         Row: {
           atualizado_em: string
@@ -672,6 +713,7 @@ export type Database = {
           ordem: number
           tipo: string
           titulo: string
+          visao_id: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -683,6 +725,7 @@ export type Database = {
           ordem?: number
           tipo: string
           titulo: string
+          visao_id?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -694,6 +737,7 @@ export type Database = {
           ordem?: number
           tipo?: string
           titulo?: string
+          visao_id?: string | null
         }
         Relationships: [
           {
@@ -701,6 +745,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "elora_dashboard_widgets_visao_id_fkey"
+            columns: ["visao_id"]
+            isOneToOne: false
+            referencedRelation: "elora_dashboard_visoes"
             referencedColumns: ["id"]
           },
         ]

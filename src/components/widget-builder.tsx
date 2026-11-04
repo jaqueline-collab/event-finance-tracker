@@ -93,8 +93,12 @@ export function WidgetBuilder({
   clienteId,
   rotulos,
   campos,
+  visaoId = null,
+  aoMudar,
 }: {
   clienteId: string;
+  visaoId?: string | null;
+  aoMudar?: () => void;
   rotulos: { id: string; nome: string }[];
   campos: Campo[];
 }) {
@@ -109,11 +113,15 @@ export function WidgetBuilder({
 
   const recarregar = useCallback(() => {
     setCarregando(true);
-    listarWidgetsCliente({ data: { clienteId } })
-      .then((r) => setWidgets(r.widgets))
+    listarWidgetsCliente({ data: { clienteId, visaoId } })
+      .then((r) => {
+        setWidgets(r.widgets);
+        aoMudar?.();
+      })
       .catch((e) => toast.error(msg(e)))
       .finally(() => setCarregando(false));
-  }, [clienteId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clienteId, visaoId]);
 
   useEffect(recarregar, [recarregar]);
 
@@ -208,6 +216,7 @@ export function WidgetBuilder({
         data: {
           clienteId,
           widgetId: rascunho.widgetId,
+          visaoId,
           tipo: rascunho.tipo,
           titulo: rascunho.titulo.trim(),
           configuracao: montarConfig(rascunho),
