@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -16,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, Info, Loader2, Lock, Megaphone, Pencil, Snowflake, UserRound, Users, Wallet, X } from "lucide-react";
+import { BarChart3, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, Info, Loader2, Lock, Megaphone, Pencil, Snowflake, UserRound, Users, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
