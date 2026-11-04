@@ -16,6 +16,9 @@ import {
   sincronizarIntegracaoCliente,
   testarIntegracaoCliente,
 } from "@/lib/integracao-elora.functions";
+import { sincronizarAgoraCliente } from "@/lib/elora-espelho.functions";
+
+const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens" };
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
@@ -31,6 +34,7 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
   const [salvando, setSalvando] = useState(false);
   const [testando, setTestando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [progresso, setProgresso] = useState<string | null>(null);
 
   const recarregar = useCallback(() => {
     setCarregando(true);
@@ -95,20 +99,43 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
     }
   };
 
+  const sincronizarAntiga = async () => {
+    const r = await sincronizarIntegracaoCliente({ data: { clienteId } });
+    toast.success(
+      r.retomado
+        ? `Sincronização retomada e concluída. ${r.contatos} contatos processados.`
+        : `Sincronização concluída. ${r.contatos} contatos processados.`,
+    );
+  };
+
   const sincronizar = async () => {
     setSincronizando(true);
     try {
-      const r = await sincronizarIntegracaoCliente({ data: { clienteId } });
-      toast.success(
-        r.retomado
-          ? `Sincronização retomada e concluída. ${r.contatos} contatos processados.`
-          : `Sincronização concluída. ${r.contatos} contatos processados.`,
-      );
+      let fonte: "apoio" | "contatos" | "atendimentos" | "mensagens" | null = "apoio";
+      const total: Record<string, number> = {};
+      while (fonte) {
+        setProgresso(`Sincronizando ${NOME_FONTE[fonte]}…`);
+        const r = await sincronizarAgoraCliente({ data: { clienteId, fonte } });
+        if (r.leituraAntiga) {
+          await sincronizarAntiga();
+          break;
+        }
+        total[r.fonte] = r.registros;
+        if (r.concluido) setProgresso(`${NOME_FONTE[r.fonte]}: ${r.registros.toLocaleString("pt-BR")} atualizados`);
+        fonte = r.proxima;
+        if (!fonte) {
+          toast.success(
+            "Sincronização concluída. " +
+              Object.entries(total).map(([k, v]) => `${NOME_FONTE[k]}: ${v.toLocaleString("pt-BR")}`).join(" · "),
+          );
+        }
+      }
       recarregar();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setSincronizando(false);
+      setProgresso(null);
     }
   };
 
@@ -191,11 +218,12 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
             size="sm"
             variant="outline"
             onClick={sincronizar}
-            disabled={!estado.configurada || !estado.ativo || !mapeado || sincronizando}
+            disabled={!estado.configurada || !estado.ativo || sincronizando}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {sincronizando ? "Sincronizando…" : "Sincronizar contatos"}
+            <RefreshCw className={`mr-2 h-4 w-4 ${sincronizando ? "animate-spin" : ""}`} />
+            {sincronizando ? "Sincronizando…" : "Sincronizar agora"}
           </Button>
+          {progresso && <p className="text-xs text-muted-foreground">{progresso}</p>}
           {!mapeado && (
             <p className="text-xs text-muted-foreground">Configure o mapeamento de campos primeiro.</p>
           )}
