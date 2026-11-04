@@ -563,25 +563,34 @@ export type Database = {
       }
       elora_dados_canais_permitidos: {
         Row: {
+          apelido: string | null
           canal_id: string
           cliente_id: string
           criado_em: string
           nome: string | null
           numero: string | null
+          permitido: boolean
+          tipo: string | null
         }
         Insert: {
+          apelido?: string | null
           canal_id: string
           cliente_id: string
           criado_em?: string
           nome?: string | null
           numero?: string | null
+          permitido?: boolean
+          tipo?: string | null
         }
         Update: {
+          apelido?: string | null
           canal_id?: string
           cliente_id?: string
           criado_em?: string
           nome?: string | null
           numero?: string | null
+          permitido?: boolean
+          tipo?: string | null
         }
         Relationships: [
           {
