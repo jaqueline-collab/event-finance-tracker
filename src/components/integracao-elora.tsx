@@ -23,7 +23,7 @@ const dataHoraBr = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 /** Aba interna de conexão com o app Elora (uma chave de API por cliente). */
-export function IntegracaoElora({ clienteId }: { clienteId: string }) {
+export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: string; semAtalho?: boolean }) {
   const [estado, setEstado] = useState<Estado | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [baseUrl, setBaseUrl] = useState("");
@@ -177,6 +177,7 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
               Campos personalizados, painéis, sequências, classificações e filtros da conta.
             </p>
           </div>
+          {!semAtalho && (
           <Button
             size="sm"
             variant="outline"
@@ -194,6 +195,7 @@ export function IntegracaoElora({ clienteId }: { clienteId: string }) {
               </span>
             )}
           </Button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
