@@ -168,7 +168,7 @@ export function VisoesPainel({
   const alteradoNaoSalvo =
     editando &&
     JSON.stringify(rascunho.map((v) => [v.id, v.nome, v.publicada])) !==
-      JSON.stringify(salvas.map((v) => [v.id, v.nome, v.publicada]));
+      JSON.stringify(salvas.slice().sort((a, b) => a.ordem - b.ordem).map((v) => [v.id, v.nome, v.publicada]));
   const ativaEdit = lista.find((v) => v.id === ativa) ?? null;
   const visaoParaConteudo = ativaEdit && !ehNova(ativaEdit.id) ? ativaEdit.id : salvas[0]?.id ?? null;
 
@@ -227,7 +227,7 @@ export function VisoesPainel({
             <Button size="sm" variant="ghost" onClick={alteradoNaoSalvo ? cancelar : sair} disabled={salvando}>
               {alteradoNaoSalvo ? "Cancelar" : "Sair do modo Editar"}
             </Button>
-            <Button size="sm" onClick={salvar} disabled={salvando || !alteradoNaoSalvo && rascunho.every((v) => v.ordem === salvas.find((s) => s.id === v.id)?.ordem)}>
+            <Button size="sm" onClick={salvar} disabled={salvando || !alteradoNaoSalvo}>
               {salvando ? "Salvando…" : "Salvar"}
             </Button>
           </div>
