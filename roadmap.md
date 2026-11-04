@@ -8,6 +8,6 @@
 - [ ] Etapa E: motor de widgets e 4 visões
 - [ ] Etapa F: + Filtro por qualquer campo, operador, valor e escopo; remover formulário fixo sem apagar filtros salvos (plano do adendo).
 
-- [ ] Mensagens 8c0ojhr2: testar endpoint do n8n x atual, carga completa com cursor
-- [ ] Botão "Sincronizar agora" no app (espelho) e teste
-- [ ] Relatório diário 22/09–03/10 (com 30/09) x monday
+- [x] Mensagens 8c0ojhr2: testar endpoint do n8n x atual, carga completa com cursor
+- [x] Botão "Sincronizar agora" no app (espelho) e teste
+- [x] Relatório diário 22/09–03/10 (com 30/09) x monday
