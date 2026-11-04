@@ -1,7 +1,8 @@
 # Mensagens do 8c0ojhr2, botão "Sincronizar agora" e conferência com o monday
 
 ## 1. Carregar todas as mensagens (em lotes, com retomada)
-- Para cada um dos ~2.962 atendimentos do espelho, ler `GET /chat/v1/session/{id}/message` página a página (100 por página, pausa entre chamadas, espera e nova tentativa em caso de limite 429, até 5 vezes).
+- Antes da carga inteira, testo com um atendimento os dois endereços: `GET /chat/v1/message?SessionId={id}` (o do n8n) e `GET /chat/v1/session/{id}/message`. Digo qual funcionou; se os dois funcionarem, uso o do n8n.
+- Para cada um dos ~2.962 atendimentos do espelho, ler as mensagens pelo endereço escolhido, página a página (100 por página, pausa entre chamadas, espera e nova tentativa em caso de limite 429, até 5 vezes).
 - O ponto de parada (atendimento atual + página) fica salvo; se cair, continua de onde parou.
 - Colunas visíveis gravadas: `sessao_id`, direção (TO_HUB/FROM_HUB), tipo, `userId`, bot ou usuário, data e hora.
 - O texto fica só no registro completo, guardado no servidor (tabela sem nenhum acesso pelo navegador). Nenhuma função devolve texto ao navegador, ao painel, aos filtros ou às exportações. Coloco um teste que garante isso.
