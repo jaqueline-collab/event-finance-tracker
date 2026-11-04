@@ -1578,7 +1578,7 @@ function ClientesPage() {
                   <AcessosCliente clienteId={cliente.id} />
                   <div className="flex justify-end">
                     <Button size="sm" variant="outline" asChild>
-                      <Link to="/clientes/$id/dados-elora" params={{ id: cliente.id }}>Dados do Elora</Link>
+                      <Link to="/area-do-cliente" search={{ como: cliente.id, configurar: "conexao" } as never}>Abrir Área do cliente e configurar</Link>
                     </Button>
                   </div>
                   <IntegracaoElora clienteId={cliente.id} />

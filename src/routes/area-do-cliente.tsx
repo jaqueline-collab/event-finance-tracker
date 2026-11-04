@@ -6,6 +6,8 @@ import { AreaExternaLayout } from "@/components/area-externa-layout";
 const searchSchema = z.object({
   como: fallback(z.string(), "").default(""),
   aba: fallback(z.enum(["conta", "treinamento", "novidades"]), "conta").default("conta"),
+  // Aba do painel lateral de configuração (só super admin); validada no componente.
+  configurar: fallback(z.string(), "").default(""),
 });
 
 export const Route = createFileRoute("/area-do-cliente")({

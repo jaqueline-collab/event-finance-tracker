@@ -16,7 +16,7 @@ export const Route = createFileRoute("/configurar-api")({
   beforeLoad: ({ search }) => {
     // Links antigos /configurar-api?cliente=... vão para a página do cliente.
     if (search.cliente) {
-      throw redirect({ to: "/clientes/$id/dados-elora", params: { id: search.cliente }, replace: true });
+      throw redirect({ to: "/area-do-cliente", search: { como: search.cliente, configurar: "conexao" } as never, replace: true });
     }
   },
   head: () => ({
@@ -59,7 +59,7 @@ function ConfigurarApiPage() {
           Configurar API
         </h1>
         <p className="text-sm text-muted-foreground">
-          Administração geral. A configuração de cada cliente fica em Clientes → Dados do Elora.
+          Administração geral. A configuração de cada cliente fica na Área do cliente, no botão “Configurar”.
         </p>
       </div>
 
@@ -100,8 +100,8 @@ function ConfigurarApiPage() {
                         <td className="px-3 py-2">{l.canaisLigados}</td>
                         <td className="px-3 py-2 text-right">
                           <Button size="sm" variant="outline" asChild>
-                            <Link to="/clientes/$id/dados-elora" params={{ id: l.clienteId }}>
-                              Abrir Dados do Elora
+                            <Link to="/area-do-cliente" search={{ como: l.clienteId, configurar: "conexao" } as never}>
+                              Abrir e configurar
                             </Link>
                           </Button>
                         </td>

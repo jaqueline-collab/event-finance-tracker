@@ -48,6 +48,12 @@ const listaTexto = (v: unknown): string[] =>
 const mascaraChave = (chave: string) =>
   chave.length <= 4 ? "••••" : `••••${chave.slice(-4)}`;
 
+/** Configuração do cliente: só super admin (is_admin). Esconder na tela não basta. */
+async function exigirSuperAdmin(db: any) {
+  const { data: admin } = await db.rpc("is_admin");
+  if (!admin) throw new Error("acesso-negado: apenas super admin.");
+}
+
 async function exigirEquipeInterna(db: any) {
   const { data: interno } = await db.rpc("is_equipe_interna");
   if (!interno) throw new Error("acesso-negado: apenas equipe interna.");
@@ -137,7 +143,7 @@ export const salvarIntegracaoCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => salvarSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Primeiro o cofre: se falhar, a chave antiga continua intacta.
     const { gravarChaveElora } = await import("@/lib/credenciais.server");
@@ -165,7 +171,7 @@ export const alternarIntegracaoCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ clienteId: z.string().min(1), ativo: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error } = await supabaseAdmin
@@ -359,7 +365,7 @@ export const salvarMapeamentoCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => mapeamentoSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error } = await supabaseAdmin
@@ -1154,7 +1160,7 @@ export const salvarRotuloCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => rotuloSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ rotuloId: string }> => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let rotuloId = data.rotuloId;
@@ -1199,7 +1205,7 @@ export const excluirRotuloCliente = createServerFn({ method: "POST" })
     z.object({ clienteId: z.string().min(1), rotuloId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Limpa antes os seletores que apontam para o rótulo (a chave estrangeira
@@ -1275,7 +1281,7 @@ export const salvarConfigDashboardCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => configSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const ids = [
@@ -1344,7 +1350,7 @@ export const salvarFiltrosCliente = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("elora_integracao_contas")
@@ -1486,7 +1492,7 @@ export const salvarRelatorioDiarioAtivo = createServerFn({ method: "POST" })
     z.object({ clienteId: z.string().min(1), ativo: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("elora_integracao_contas")
@@ -1616,7 +1622,7 @@ async function nomesClientes(admin: any, ids: string[]) {
 export const migrarChavesParaCofre = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const cofre = await import("@/lib/credenciais.server");
     const admin = supabaseAdmin as any;
@@ -1666,7 +1672,7 @@ export const apagarChavesLegadas = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ confirmacao: z.literal("APAGAR") }).parse(input))
   .handler(async ({ context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const cofre = await import("@/lib/credenciais.server");
     const admin = supabaseAdmin as any;
@@ -1765,7 +1771,7 @@ export const salvarCanaisPermitidos = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const db = context.supabase as any;
     const { error: e1 } = await db.from("elora_dados_canais_permitidos").delete().eq("cliente_id", data.clienteId);
     if (e1) throw new Error(e1.message);
@@ -1784,7 +1790,7 @@ export const salvarHistoricoDesde = createServerFn({ method: "POST" })
     z.object({ clienteId: z.string().min(1), historicoDesde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
+    await exigirSuperAdmin(context.supabase);
     const { error } = await (context.supabase as any).from("elora_dados_config").upsert(
       {
         cliente_id: data.clienteId,
