@@ -293,10 +293,10 @@ function CanaisCliente({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Radio className="h-4 w-4" /> Canais permitidos
+            <Radio className="h-4 w-4" /> Canais da conta
           </CardTitle>
           <CardDescription>
-            Só os canais ligados entram no EloraCRM. Sem nenhum ligado, nada deste cliente é sincronizado.
+            Todos os canais da conta entram no EloraCRM, inclusive os novos. A marcação e o apelido servem só para identificar o canal nos filtros do painel.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -396,7 +396,7 @@ function CanaisCliente({
               })}
             </ul>
           )}
-          <p className="text-xs text-muted-foreground">{nPermitidos} canal(is) permitido(s).</p>
+          <p className="text-xs text-muted-foreground">{nPermitidos} de {lista.length} canal(is) marcado(s).</p>
           {lista.length > 0 && (
             <Button
               size="sm"

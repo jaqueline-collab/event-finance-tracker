@@ -2,7 +2,7 @@
 
 - [x] Etapa A: layout e visual (menu, visões em pílulas, barra super admin, cartões)
 - [x] Adendo: limite de Contatos corrigido; Setup +500 e filtros salvos consultados sem alteração; planos D/F detalhados para conferência. Verificação logada indisponível (Supabase externo).
-- [ ] Etapa B: diagnóstico + sincronização própria (seguir o adendo: payload completo, todos os status)
+- [~] Etapa B: carga completa do 8c0ojhr2 feita; painel lê o espelho (Dr. Gean nas antigas). Aguardando aprovação para mensagens e para apagar tabelas antigas.
 - [ ] Etapa C: cards, relatório diário calculado, validação
 - [ ] Etapa D: Campos do Elora; substituir Estrutura e campos, Mostrar ligado por padrão só controla exibição; remoções e reaproveitamento no plano do adendo.
 - [ ] Etapa E: motor de widgets e 4 visões

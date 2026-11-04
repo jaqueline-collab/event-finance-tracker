@@ -625,11 +625,18 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
 
     // Sem nenhuma visão ainda (cliente antigo), mostra todos os widgets como hoje.
     const widgets = ((widgetsRaw ?? []) as any[]).filter((w) => !visaoId || String(w.visao_id) === visaoId);
-    const contatos = (contatosRaw ?? []) as any[];
-    const conversas = (conversasRaw ?? []) as any[];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Carga completa no espelho: lê as tabelas novas (mesmo formato); senão, as antigas.
+    const espelho = await import("@/lib/elora-espelho.server");
+    let contatos = (contatosRaw ?? []) as any[];
+    let conversas = (conversasRaw ?? []) as any[];
+    if (await espelho.usaEspelho(supabaseAdmin as any, data.clienteId)) {
+      const r = await espelho.lerEspelhoNoFormatoAntigo(supabaseAdmin as any, data.clienteId, inicio, fim);
+      contatos = r.contatos;
+      conversas = r.conversas;
+    }
 
     // Rótulos válidos deste cliente (qualquer id de outro cliente é ignorado).
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rotulos } = await supabaseAdmin
       .from("elora_classificacoes_rotulos")
       .select("id, nome")

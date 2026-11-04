@@ -8,3 +8,5 @@
 - Visões (abas) do painel do cliente ficam em `elora_dashboard_visoes`, sem acesso direto pela API; leitura e escrita só via `dashboard-visoes.functions.ts` (rascunhos e gravação só super admin), para nunca vazar rascunho ao cliente.
 - Área do cliente: Painel/Conta/Minha equipe são páginas do menu (`?aba=conta|plano|equipe`, `src/lib/area-cliente-menu.ts`); "Relatório diário" é visão fixa do `VisoesPainel` e o modo Editar é controlado pela barra da super admin via ref, para haver um só lugar de edição.
 - Derive the Conta contact allowance through the pure display-only helper `contatos-contratados.ts` from the authorized plan and explicit contact adjustments, excluding Setup; keep financial calculations and stored usage untouched to separate allowance from usage.
+
+- Espelho da conta Elora: tabelas `elora_*_espelho` + `elora_sync_estado` (RLS sem policy, só servidor, lógica em `elora-espelho.server.ts`); o painel lê o espelho quando a carga está concluída, exceto clientes em `LEITURA_ANTIGA`, para trocar de fonte sem quebrar widgets.
