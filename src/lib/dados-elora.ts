@@ -1,7 +1,6 @@
-// Regras puras da tela "Dados do Elora" (sem dependências de servidor).
+// Regras puras da configuração do cliente na Área do cliente (sem dependências de servidor).
 
 export const ABAS_DADOS_ELORA = [
-  { key: "visao", label: "Visão geral" },
   { key: "conexao", label: "Conexão" },
   { key: "canais", label: "Canais" },
   { key: "estrutura", label: "Estrutura e campos" },
@@ -11,7 +10,17 @@ export const ABAS_DADOS_ELORA = [
 export type AbaDadosElora = (typeof ABAS_DADOS_ELORA)[number]["key"];
 
 export function abaDadosEloraValida(v: unknown): AbaDadosElora {
-  return ABAS_DADOS_ELORA.some((a) => a.key === v) ? (v as AbaDadosElora) : "visao";
+  return ABAS_DADOS_ELORA.some((a) => a.key === v) ? (v as AbaDadosElora) : "conexao";
+}
+
+/** Aba do painel lateral pedida pelo endereço (?configurar=); null quando não deve abrir. */
+export function abaConfigurarDoEndereco(v: unknown): AbaDadosElora | null {
+  return ABAS_DADOS_ELORA.some((a) => a.key === v) ? (v as AbaDadosElora) : null;
+}
+
+/** Modo configuração: só super admin, e só quando está vendo um cliente escolhido (?como=). */
+export function podeConfigurarArea(i: { isAdmin: boolean; como: string }): boolean {
+  return i.isAdmin === true && i.como.trim().length > 0;
 }
 
 export type EstadoIntegracao = "conectado" | "sem_chave" | "com_erro";

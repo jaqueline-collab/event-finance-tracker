@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-// Endereço antigo: leva para a nova página "Dados do Elora".
+// Endereço antigo: a configuração vive no painel lateral da Área do cliente.
 export const Route = createFileRoute("/clientes_/$id/integracao-elora")({
   beforeLoad: ({ params }) => {
-    throw redirect({ to: "/clientes/$id/dados-elora", params: { id: params.id }, replace: true });
+    throw redirect({ to: "/area-do-cliente", search: { como: params.id, configurar: "conexao" } as never, replace: true });
   },
 });

@@ -4,4 +4,4 @@
 
 - Áreas do Parceiro e do Cliente são layouts de rota (`parceiro.tsx`, `area-do-cliente.tsx`) com `AreaExternaLayout`; páginas definem o menu via `useDefinirMenuArea` e só mostram esqueleto no conteúdo antes da primeira leitura, para o menu nunca desmontar.
 - As chaves do Elora App ficam cifradas (AES-GCM) em `elora_credenciais`, lidas só no servidor via `src/lib/credenciais.server.ts`; nenhuma função devolve a chave ao navegador (a rota do n8n é a única exceção, protegida pelo segredo de automação).
-- A configuração Elora de cada cliente vive em `/clientes/$id/dados-elora` (abas via `?aba=`, regras em `src/lib/dados-elora.ts`); `/configurar-api` é só administração geral (cofre + tabela). Um único endereço por cliente.
+- A configuração Elora de cada cliente vive no painel lateral da Área do cliente (`/area-do-cliente?como={id}&configurar={aba}`, regras em `src/lib/dados-elora.ts`), só para super admin; o servidor exige `is_admin` nas funções de escrita (`exigirSuperAdmin`). Endereços antigos só redirecionam; `/configurar-api` é só administração geral.

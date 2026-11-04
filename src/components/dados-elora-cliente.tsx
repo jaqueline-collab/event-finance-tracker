@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { formatarTelefoneBr } from "@/lib/dados-elora";
 import {
   getDadosElora,
@@ -60,11 +59,6 @@ export function DadosEloraCliente({ clienteId, aba, baseUrl = null }: { clienteI
 
   const cofre = info?.cofre;
 
-  const somenteLeitura = (
-    <Badge variant="outline" className="gap-1">
-      <Lock className="h-3 w-3" /> Somente leitura. Nada é alterado no Elora.
-    </Badge>
-  );
 
   if (aba === "conexao") return <div className="space-y-4">        <Card>
           <CardHeader>
@@ -125,6 +119,36 @@ export function DadosEloraCliente({ clienteId, aba, baseUrl = null }: { clienteI
                 </Button>
               </form>
             )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-4 w-4" /> Histórico desde
+            </CardTitle>
+            <CardDescription>
+              A partir de qual dia os dados deste cliente contam.
+              {info?.historicoDesde ? ` Hoje está salvo: ${dataBr(`${info.historicoDesde}T12:00:00`)}.` : " Ainda não definido."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="historico-desde">Data</Label>
+              <Input id="historico-desde" type="date" value={historico} onChange={(e) => setHistorico(e.target.value)} className="w-48" />
+            </div>
+            <Button
+              size="sm"
+              disabled={!historico || historico === (info?.historicoDesde ?? "") || ocupado !== null}
+              onClick={() =>
+                executar("historico", async () => {
+                  await salvarHistoricoDesde({ data: { clienteId, historicoDesde: historico } });
+                  toast.success("Data do histórico salva.");
+                  await carregar();
+                })
+              }
+            >
+              {ocupado === "historico" ? "Salvando…" : "Salvar data"}
+            </Button>
           </CardContent>
         </Card></div>;
 
@@ -200,78 +224,7 @@ export function DadosEloraCliente({ clienteId, aba, baseUrl = null }: { clienteI
           </CardContent>
         </Card></div>;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">{somenteLeitura}</div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {["Estrutura", "Contatos", "Atendimentos", "Cards"].map((t) => (
-              <Card key={t}>
-                <CardContent className="space-y-3 pt-5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{t}</span>
-                    <Badge variant="outline">Em breve</Badge>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-muted" />
-                  <p className="text-xs text-muted-foreground">Ainda não sincroniza.</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Avisos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Sem avisos.</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <History className="h-4 w-4" /> O que sincronizar
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ul className="space-y-2">
-              {["Estrutura", "Contatos", "Atendimentos", "Cards", "Texto das conversas"].map((t) => (
-                <li key={t} className="flex items-center justify-between gap-2 text-sm">
-                  <span>{t}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Em breve</span>
-                    <Switch disabled aria-label={`${t} (em breve)`} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="space-y-2 border-t border-border/60 pt-4">
-              <Label htmlFor="historico-desde">Histórico desde</Label>
-              <Input id="historico-desde" type="date" value={historico} onChange={(e) => setHistorico(e.target.value)} />
-              <Button
-                size="sm"
-                disabled={!historico || ocupado !== null}
-                onClick={() =>
-                  executar("historico", async () => {
-                    await salvarHistoricoDesde({ data: { clienteId, historicoDesde: historico } });
-                    toast.success("Data do histórico salva.");
-                  })
-                }
-              >
-                Salvar data
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2 border-t border-border/60 pt-4">
-              <Button size="sm" variant="outline" disabled title="Em breve">Sincronizar agora</Button>
-              <Button size="sm" variant="outline" disabled title="Em breve">Reprocessar tudo</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 export function CofreChavesAdmin() {
