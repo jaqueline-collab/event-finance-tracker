@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sanearLayout } from "@/lib/grid-layout";
+import { tipoDoCanal, type TipoCanal } from "@/lib/dados-elora";
 
 /**
  * Integração com o app Elora (contatos sincronizados + resultados, por cliente).
@@ -1716,7 +1717,14 @@ export const apagarChavesLegadas = createServerFn({ method: "POST" })
  * Somente leitura no Elora.
  * ------------------------------------------------------------------ */
 
-export type CanalElora = { id: string; nome: string; numero: string | null; ativo: boolean };
+export type CanalElora = {
+  id: string;
+  nome: string;
+  numero: string | null;
+  ativo: boolean;
+  tipo: TipoCanal;
+  foto: string | null;
+};
 
 export const listarCanaisElora = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1726,17 +1734,29 @@ export const listarCanaisElora = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ canais: CanalElora[] }> => {
     await exigirEquipeInterna(context.supabase);
     const { conta } = await contaDoCliente(data.clienteId);
-    const q = data.channelType ? `?ChannelType=${encodeURIComponent(data.channelType)}` : "";
-    const resp = await lerApiElora(String(conta.base_url), String(conta.api_key), "chat", `/v1/channel${q}`);
+    const tipo = data.channelType ?? "All";
+    const resp = await lerApiElora(
+      String(conta.base_url),
+      String(conta.api_key),
+      "chat",
+      `/v1/channel?ChannelType=${encodeURIComponent(tipo)}`,
+    );
     const canais = listaDe(resp)
-      .map((c: any) => ({
-        id: String(c.id ?? ""),
-        nome: String(c.name ?? c.title ?? c.id ?? ""),
-        numero: c.number ?? c.phoneNumber ?? c.phone ?? c.identifier ?? null,
-        ativo: c.active === undefined && c.isActive === undefined ? true : Boolean(c.active ?? c.isActive),
-      }))
+      .map((c: any) => {
+        const t = tipoDoCanal(c.type ?? c.channelType ?? c.platform);
+        const numero = c.number ?? c.phoneNumber ?? c.phone ?? null;
+        const conta = c.identifier ?? c.username ?? c.accountName ?? c.pageName ?? null;
+        return {
+          id: String(c.id ?? ""),
+          nome: String(c.name ?? c.title ?? c.id ?? ""),
+          numero: t === "whatsapp" ? (numero ?? c.identifier ?? null) : (conta ?? numero ?? null),
+          ativo: c.active === undefined && c.isActive === undefined ? true : Boolean(c.active ?? c.isActive),
+          tipo: t,
+          foto: (c.picture ?? c.photo ?? c.avatar ?? c.imageUrl ?? c.profilePicture ?? null) as string | null,
+        };
+      })
       .filter((c) => c.id.length > 0)
-      .map((c) => ({ ...c, numero: c.numero ? String(c.numero) : null }));
+      .map((c) => ({ ...c, numero: c.numero ? String(c.numero) : null, foto: c.foto ? String(c.foto) : null }));
     return { canais };
   });
 
@@ -1748,13 +1768,25 @@ export const getDadosElora = createServerFn({ method: "POST" })
     const db = context.supabase as any;
     const [{ data: cfg }, { data: canais }] = await Promise.all([
       db.from("elora_dados_config").select("historico_desde").eq("cliente_id", data.clienteId).maybeSingle(),
-      db.from("elora_dados_canais_permitidos").select("canal_id, nome, numero").eq("cliente_id", data.clienteId),
+      db
+        .from("elora_dados_canais_permitidos")
+        .select("canal_id, nome, numero, apelido, permitido, tipo")
+        .eq("cliente_id", data.clienteId),
     ]);
     const { estadoCofre } = await import("@/lib/credenciais.server");
+    const lista = ((canais ?? []) as any[]).map((c) => ({
+      id: String(c.canal_id),
+      nome: (c.nome as string | null) ?? null,
+      numero: (c.numero as string | null) ?? null,
+      apelido: (c.apelido as string | null) ?? null,
+      permitido: c.permitido !== false,
+      tipo: tipoDoCanal(c.tipo),
+    }));
     return {
       cofre: await estadoCofre(data.clienteId),
       historicoDesde: (cfg?.historico_desde as string | undefined) ?? null,
-      canaisPermitidos: ((canais ?? []) as any[]).map((c) => String(c.canal_id)),
+      canaisPermitidos: lista.filter((c) => c.permitido).map((c) => c.id),
+      canaisSalvos: lista,
     };
   });
 
@@ -1765,7 +1797,16 @@ export const salvarCanaisPermitidos = createServerFn({ method: "POST" })
       .object({
         clienteId: z.string().min(1),
         canais: z
-          .array(z.object({ id: z.string().uuid(), nome: z.string().max(200), numero: z.string().max(60).nullable() }))
+          .array(
+            z.object({
+              id: z.string().uuid(),
+              nome: z.string().max(200),
+              numero: z.string().max(120).nullable(),
+              tipo: z.enum(["whatsapp", "instagram", "messenger", "outro"]).default("outro"),
+              apelido: z.string().trim().max(80).nullable().optional(),
+              permitido: z.boolean().default(true),
+            }),
+          )
           .max(500),
       })
       .parse(input),
@@ -1775,10 +1816,20 @@ export const salvarCanaisPermitidos = createServerFn({ method: "POST" })
     const db = context.supabase as any;
     const { error: e1 } = await db.from("elora_dados_canais_permitidos").delete().eq("cliente_id", data.clienteId);
     if (e1) throw new Error(e1.message);
-    if (data.canais.length) {
-      const { error } = await db.from("elora_dados_canais_permitidos").insert(
-        data.canais.map((c) => ({ cliente_id: data.clienteId, canal_id: c.id, nome: c.nome, numero: c.numero })),
-      );
+    // Guarda só canais permitidos ou com apelido (para não perder o apelido ao desligar).
+    const linhas = data.canais
+      .filter((c) => c.permitido || (c.apelido && c.apelido.length > 0))
+      .map((c) => ({
+        cliente_id: data.clienteId,
+        canal_id: c.id,
+        nome: c.nome,
+        numero: c.numero,
+        tipo: c.tipo,
+        apelido: c.apelido && c.apelido.length > 0 ? c.apelido : null,
+        permitido: c.permitido,
+      }));
+    if (linhas.length) {
+      const { error } = await db.from("elora_dados_canais_permitidos").insert(linhas);
       if (error) throw new Error(error.message);
     }
     return { ok: true };
@@ -1813,7 +1864,7 @@ export const listarResumoIntegracoes = createServerFn({ method: "POST" })
     const [{ data: contas, error }, { data: clientes }, { data: canais }] = await Promise.all([
       db.from("elora_integracao_contas").select("cliente_id, ativo, ultimo_erro, api_key"),
       db.from("elora_clientes").select("id, nome"),
-      db.from("elora_dados_canais_permitidos").select("cliente_id"),
+      db.from("elora_dados_canais_permitidos").select("cliente_id").eq("permitido", true),
     ]);
     if (error) throw new Error(error.message);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

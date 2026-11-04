@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
+import { estadoIntegracao, ROTULO_ESTADO, type EstadoIntegracao } from "@/lib/dados-elora";
+import { listarResumoIntegracoes } from "@/lib/integracao-elora.functions";
 import {
   aplicarModeloEmClientes,
   listarModelosPainel,
@@ -1547,29 +1549,10 @@ function ClientesPage() {
                       <Badge variant="destructive" className="bg-destructive/20 text-destructive font-semibold border-none">
                         Inativo / Churn
                       </Badge>
+                    ) : cliente.statusComercial === "trial" ? (
+                      <Badge className="bg-secondary text-secondary-foreground font-semibold border-none">Trial</Badge>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-normal text-muted-foreground">Status</span>
-                        <Select
-                          value={cliente.statusComercial === "trial" ? "trial" : "ativo"}
-                          onValueChange={async (v) => {
-                            const novo = v === "trial" ? "trial" : "ativo";
-                            if (novo === (cliente.statusComercial ?? "ativo")) return;
-                            try {
-                              await updateCliente(cliente.id, { statusComercial: novo });
-                              toast.success(`Status alterado para ${novo === "trial" ? "Trial" : "Ativo"}.`);
-                            } catch (err) {
-                              toast.error(mensagemErroPersistencia(err, "Atualização do status"));
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-32 text-sm font-normal"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ativo">Ativo</SelectItem>
-                            <SelectItem value="trial">Trial</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <Badge className="bg-fin/20 text-fin font-semibold border-none">Ativo</Badge>
                     )}
                   </DialogTitle>
                 </DialogHeader>
@@ -1581,7 +1564,7 @@ function ClientesPage() {
                       <Link to="/area-do-cliente" search={{ como: cliente.id, configurar: "conexao" } as never}>Abrir Área do cliente e configurar</Link>
                     </Button>
                   </div>
-                  <IntegracaoElora clienteId={cliente.id} />
+                  <BlocoIntegracaoRecolhido clienteId={cliente.id} />
 
                   {/* Resumo do Cliente */}
                   <div>
@@ -2252,6 +2235,56 @@ function ClientesPage() {
         aberto={churnDados !== null}
         aoFechar={() => setChurnDados(null)}
       />
+    </div>
+  );
+}
+const CHAVE_BLOCO_INTEGRACAO = "elora.popup.integracao.aberto";
+
+/** Bloco "Integração Elora (app)" recolhido por padrão; lembra aberto/fechado só nesta sessão. */
+function BlocoIntegracaoRecolhido({ clienteId }: { clienteId: string }) {
+  const [aberto, setAberto] = useState(false);
+  const [estado, setEstado] = useState<EstadoIntegracao | null>(null);
+  useEffect(() => {
+    setAberto(sessionStorage.getItem(CHAVE_BLOCO_INTEGRACAO) === "1");
+  }, []);
+  useEffect(() => {
+    let vivo = true;
+    listarResumoIntegracoes()
+      .then((lista) => {
+        if (!vivo) return;
+        const i = lista.find((x) => x.clienteId === clienteId);
+        setEstado(i ? estadoIntegracao(i) : "sem_chave");
+      })
+      .catch(() => vivo && setEstado(null));
+    return () => {
+      vivo = false;
+    };
+  }, [clienteId]);
+  const alternar = () => {
+    const n = !aberto;
+    setAberto(n);
+    sessionStorage.setItem(CHAVE_BLOCO_INTEGRACAO, n ? "1" : "0");
+  };
+  return (
+    <div className="rounded-xl border border-border/40">
+      <button type="button" onClick={alternar} className="flex w-full items-center justify-between gap-2 p-3 text-left">
+        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Integração Elora (app)</span>
+        <span className="flex items-center gap-2">
+          {estado && (
+            <Badge
+              className={`border-none text-[10px] font-semibold ${estado === "conectado" ? "bg-fin/20 text-fin" : estado === "com_erro" ? "bg-destructive/20 text-destructive" : "bg-muted text-muted-foreground"}`}
+            >
+              {ROTULO_ESTADO[estado]}
+            </Badge>
+          )}
+          <span className="text-xs text-muted-foreground">{aberto ? "Recolher" : "Mostrar"}</span>
+        </span>
+      </button>
+      {aberto && (
+        <div className="border-t border-border/40 p-3">
+          <IntegracaoElora clienteId={clienteId} />
+        </div>
+      )}
     </div>
   );
 }

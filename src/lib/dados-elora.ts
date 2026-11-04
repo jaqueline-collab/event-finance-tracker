@@ -47,3 +47,27 @@ export function formatarTelefoneBr(numero: string | null | undefined): string {
   if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return numero;
 }
+
+export type TipoCanal = "whatsapp" | "instagram" | "messenger" | "outro";
+
+export const ROTULO_TIPO_CANAL: Record<TipoCanal, string> = {
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  messenger: "Messenger",
+  outro: "Outro",
+};
+
+/** Normaliza o tipo de canal vindo do Elora (texto ou número). */
+export function tipoDoCanal(v: unknown): TipoCanal {
+  const s = String(v ?? "").toLowerCase();
+  if (s.includes("whats") || s === "1" || s === "wa") return "whatsapp";
+  if (s.includes("insta") || s === "3" || s === "ig") return "instagram";
+  if (s.includes("messenger") || s.includes("facebook") || s === "2" || s === "fb") return "messenger";
+  return "outro";
+}
+
+/** Nome exibido no EloraCRM: apelido quando existe, senão o nome do Elora. */
+export function nomeExibidoCanal(apelido: string | null | undefined, nomeElora: string): string {
+  const a = (apelido ?? "").trim();
+  return a.length > 0 ? a : nomeElora;
+}
