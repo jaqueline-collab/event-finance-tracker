@@ -179,7 +179,7 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
           </div>
           {!semAtalho && (
           <Button size="sm" variant="outline" className="ml-auto" asChild>
-            <Link to="/area-do-cliente" search={{ como: clienteId, configurar: "estrutura" } as never}>
+            <Link to="/area-do-cliente" search={{ como: clienteId, configurar: "painel" } as never}>
               <Settings2 className="mr-2 h-4 w-4" /> Configurar na Área do cliente
             </Link>
           </Button>

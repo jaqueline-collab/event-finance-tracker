@@ -3,7 +3,6 @@
 export const ABAS_DADOS_ELORA = [
   { key: "conexao", label: "Conexão" },
   { key: "canais", label: "Canais" },
-  { key: "estrutura", label: "Estrutura e campos" },
   { key: "painel", label: "Painel do cliente" },
 ] as const;
 
@@ -15,6 +14,8 @@ export function abaDadosEloraValida(v: unknown): AbaDadosElora {
 
 /** Aba do painel lateral pedida pelo endereço (?configurar=); null quando não deve abrir. */
 export function abaConfigurarDoEndereco(v: unknown): AbaDadosElora | null {
+  // Endereço antigo da aba removida "Estrutura e campos" abre a Conexão.
+  if (v === "estrutura") return "conexao";
   return ABAS_DADOS_ELORA.some((a) => a.key === v) ? (v as AbaDadosElora) : null;
 }
 

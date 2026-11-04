@@ -3,12 +3,9 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   Filter,
-  Layers,
-  ListChecks,
   MessagesSquare,
   RefreshCw,
   Search,
-  Tags,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { salvarRelatorioDiarioAtivo } from "@/lib/integracao-elora.functions";
@@ -30,13 +27,11 @@ import {
 import {
   excluirRotuloCliente,
   getIntegracaoCliente,
-  listarCamposDoPainel,
   listarCamposPersonalizados,
   listarClassificacoesRecentes,
   listarEtiquetasCliente,
   listarPaineisCliente,
   listarRotulosCliente,
-  listarSequenciasCliente,
   listarUsuariosCliente,
   salvarFiltrosCliente,
   salvarRotuloCliente,

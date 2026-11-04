@@ -51,7 +51,7 @@ export const Route = createFileRoute("/funcionalidades/$slug")({
 
 function FuncionalidadePage() {
   const { slug } = Route.useParams();
-  const f = TITULOS[slug] ?? { titulo: "Funcionalidade", resumo: "Em breve mais detalhes." };
+  const f = TITULOS[slug] ?? { titulo: "Funcionalidade", resumo: "Conheça esta funcionalidade do Elora." };
 
   return (
     <div
