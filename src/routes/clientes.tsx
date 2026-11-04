@@ -1576,6 +1576,11 @@ function ClientesPage() {
                 
                 <div className="space-y-6 py-6">
                   <AcessosCliente clienteId={cliente.id} />
+                  <div className="flex justify-end">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to="/clientes/$id/dados-elora" params={{ id: cliente.id }}>Dados do Elora</Link>
+                    </Button>
+                  </div>
                   <IntegracaoElora clienteId={cliente.id} />
 
                   {/* Resumo do Cliente */}
