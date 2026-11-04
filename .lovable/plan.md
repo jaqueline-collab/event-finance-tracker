@@ -1,34 +1,44 @@
-# Etapa B — Carga completa da conta (sem trava de canal)
+# Etapa B — Carga completa da conta (com os 3 ajustes)
 
-Substitui as regras de canal, contatos e histórico dos adendos anteriores. Continua valendo: classificação por `categoryDescription`, colunas tipadas, UTM, tempos, filtros de data, custo da carga.
+Sincronizar tudo que a API do Elora devolve para a conta de cada cliente. Canal, período, atendente, etiqueta e origem viram filtros no painel. Continuam valendo a classificação por `categoryDescription`, as colunas tipadas, UTM, tempos e filtros de data.
 
-## Regra
-Sincronizar tudo que a API do Elora devolve para a conta de cada cliente. Canal, período, atendente, etiqueta e origem viram filtros na montagem do painel.
+## Quem lê as tabelas antigas hoje
+- `sincronizarIntegracaoCliente`: grava contatos em `elora_contatos_sincronizados`.
+- `sincronizarConversasCliente`: grava atendimentos em `elora_conversas_classificadas`.
+- `getResultadosCliente`: lê as duas. Alimenta todos os gráficos do painel, os blocos e o Relatório diário.
+- Exportar e apagar dados da integração (`dashboard-widgets.functions.ts`): lista as duas.
+- Teste de isolamento `integracao-elora-rls.test.ts`.
 
-## Fontes a sincronizar (por cliente)
-1. **Contatos:** todos, ACTIVE + ARCHIVED + BLOCKED, com Tags, CustomFields e Portfolios, payload completo. Sem recorte por data nem canal.
-2. **Atendimentos:** todos, qualquer status e canal, desde o início do histórico da API, com os 4 detalhes aceitos. Guardar `canal_id` e nome do canal em cada um.
-3. **Listas de apoio:** usuários, etiquetas, canais, departamentos (com nome, se houver endpoint), campos personalizados, painéis. Tudo entra no catálogo de campos.
-4. **Mensagens:** fonte própria, por atendimento, payload completo. Primeiro mostro a estimativa (mensagens e chamadas); carrego por último, em lotes, sem travar as outras.
-5. Cartões e painéis do CRM ficam para a Etapa C, completos.
+## Passo 1 — Tabelas novas (sem apagar as antigas)
+- `elora_contatos_espelho`, `elora_atendimentos_espelho`, `elora_apoio_espelho` (usuários, etiquetas, canais, departamentos, campos personalizados, painéis), `elora_mensagens_espelho`, `elora_sync_estado`.
+- Todas com `cliente_id`, RLS ligada sem policy, REVOKE de anon e authenticated. Só o servidor lê, depois de conferir o acesso.
 
-## Mudanças de regra
-- `permitido` deixa de travar a sincronização; vira só rótulo na tela Canais. Canais novos aparecem sozinhos.
-- Removo do código e dos testes a regra "sem canal permitido nada sincroniza" e listo exatamente o que foi apagado.
-- `historico_desde` passa a ser só o período que o painel abre por padrão.
+## Passo 2 — Carga completa do 8c0ojhr2
+- Contatos: ACTIVE, ARCHIVED e BLOCKED, com Tags, CustomFields e Portfolios, payload completo.
+- Atendimentos: todos os status e canais, histórico completo, com `canal_id`, nome do canal, `categoryDescription` e `amount`.
+- Listas de apoio completas.
+- Limite da API: PageSize 100, pausa de 250 ms, em 429 espera 15 s, 30 s, 45 s… até 5 tentativas. Retoma pelo cursor em `elora_sync_estado`. Upsert por (cliente_id, externo_id), sem duplicar. Registra chamadas, retentativas e erros.
 
-## Ordem de execução
-1. Criar tabelas espelho (contatos, atendimentos, listas de apoio, mensagens) + controle de sincronização.
-2. Carga completa do 8c0ojhr2 (~11,6 mil contatos, ~3 mil atendimentos), direto, sem carga de teste de 7 dias.
-3. Mostrar: contagem por dia (últimos 30), por canal, por status, e chaves distintas de cada payload; estimativa de mensagens.
-4. Após sua aprovação: carregar mensagens em lotes.
-5. Incremental: por data de atualização, reprocessando os últimos 3 dias.
+## Passo 3 — Painel passa a ler as tabelas novas
+- `getResultadosCliente` e Exportar passam a ler as tabelas espelho para clientes que já têm carga completa.
+- Dr. Gean (jvu3dzqk) e quem ainda não tem carga continuam lendo as tabelas antigas até você confirmar. Nada é migrado nem apagado.
+- Widgets, visões, rótulos e filtros salvos não mudam.
+- Classificação por `categoryDescription` (e `amount`). Mostro quantas conversas ficaram classificadas.
 
-## Isolamento
-Tudo com `cliente_id`; RLS ligada sem policy (só servidor); leitura apenas por função de servidor que confere o acesso ao cliente. Nenhum dado de um cliente aparece para outro. Nada de financeiro é tocado ou apagado.
+## Passo 4 — Canal deixa de travar
+- `permitido` vira só rótulo na tela Canais. Apago a regra "sem canal permitido nada sincroniza" e o filtro de contagem por `permitido=true` (linha ~1900 de `integracao-elora.functions.ts`), com os testes. Listo tudo o que foi apagado.
+- `historico_desde` vira só o período padrão do painel.
+
+## Passo 5 — Mensagens (LGPD), só a estrutura
+- Tabela criada fechada: texto guardado só no servidor. Nenhuma função devolve o texto ao navegador. O texto nunca aparece no painel, em tabela, filtro ou exportação.
+- Colunas sem conteúdo: sessao_id, direção (TO_HUB/FROM_HUB), tipo, userId, bot ou usuário, data e hora.
+- Mostro a estimativa de mensagens e de chamadas. NÃO carrego mensagens até você aprovar as outras fontes.
+
+## Ao terminar mostro e paro
+Contagens por dia (últimos 30), por canal e por status; quantos atendimentos estão classificados; chaves distintas de cada payload; estimativa de mensagens; o que foi apagado do código. Não publico.
 
 ## Detalhes técnicos
-- Tabelas: `elora_contatos_espelho`, `elora_atendimentos_espelho` (canal_id, canal_nome, status, categoryDescription, utm_*, atendente_id, tempos, created/updated/closed, payload jsonb), `elora_apoio_espelho` (tipo: usuario|etiqueta|canal|departamento|campo|painel, externo_id, nome, payload), `elora_mensagens_espelho` (sessao_id, payload), `elora_sync_estado` (fonte, cursor, ultima_execucao, contagens, erro). Chave única (cliente_id, externo_id). GRANT só para service_role.
-- Upsert em lotes, paginação até o fim, chave lida do cofre (`credenciais.server.ts`), escrita exige `exigirSuperAdmin`.
-- Testes: remover os de trava por canal; novos para isolamento entre clientes e para "canal não permitido ainda sincroniza".
-- Migração roda no banco externo `eloracrm-prod`; não publico até sua conferência.
+- Chave única (cliente_id, externo_id) em cada espelho; `elora_sync_estado` (cliente_id, fonte, cursor jsonb, chamadas, retentativas, erros jsonb, iniciado_em, concluido_em).
+- Escritas exigem `exigirSuperAdmin`; chave lida do cofre (`credenciais.server.ts`).
+- A carga roda em execuções curtas que retomam pelo cursor, para caber no limite de tempo do servidor.
+- Testes novos: isolamento entre clientes nas tabelas espelho; canal não permitido ainda sincroniza; nenhuma função devolve texto de mensagem; retentativa em 429 com espera crescente.
