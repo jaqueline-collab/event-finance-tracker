@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { KeyRound, Radio, History, Lock } from "lucide-react";
+import { KeyRound, Radio, History, Lock, Pencil } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { formatarTelefoneBr } from "@/lib/dados-elora";
+import { formatarTelefoneBr, nomeExibidoCanal, ROTULO_TIPO_CANAL, type TipoCanal } from "@/lib/dados-elora";
 import {
   getDadosElora,
   listarCanaisElora,
