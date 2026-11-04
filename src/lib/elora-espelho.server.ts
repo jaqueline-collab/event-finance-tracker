@@ -3,7 +3,7 @@
  * Traz TUDO da API: contatos (todos os status), atendimentos (todos os
  * status e canais, histórico completo) e listas de apoio. Canal não trava
  * nada; filtros são aplicados só na montagem do painel.
- * Mensagens: só estimativa aqui; o texto nunca sai do servidor.
+ * Mensagens: por atendimento (/chat/v1/message?SessionId=); o texto nunca sai do servidor.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -13,7 +13,8 @@ export const MAX_TENTATIVAS_429 = 5;
 /** Espera crescente em 429: 15 s, 30 s, 45 s… */
 export const espera429 = (tentativa: number) => 15_000 * (tentativa + 1);
 
-export type Fonte = "apoio" | "contatos" | "atendimentos";
+export type Fonte = "apoio" | "contatos" | "atendimentos" | "mensagens";
+export const ORDEM_FONTES: Fonte[] = ["apoio", "contatos", "atendimentos", "mensagens"];
 export const STATUS_CONTATO = ["ACTIVE", "ARCHIVED", "BLOCKED"] as const;
 export const DETALHES_SESSAO = ["ClassificationDetails", "ChannelDetails", "ContactDetails", "AgentDetails"];
 
@@ -122,6 +123,36 @@ export function mapAtendimento(clienteId: string, x: any) {
   };
 }
 
+/** Mensagem: colunas visíveis sem texto; o registro completo fica só no servidor. */
+export function mapMensagem(clienteId: string, m: any, sessaoId: string) {
+  const userId = s(m.userId);
+  return {
+    cliente_id: clienteId,
+    externo_id: String(m.id),
+    sessao_id: s(m.sessionId) ?? sessaoId,
+    direcao: s(m.direction),
+    tipo: s(m.type),
+    user_id_elora: userId,
+    eh_bot: m.direction === "FROM_HUB" ? !userId : null,
+    enviada_em: s(m.timestamp ?? m.createdAt),
+    payload: m,
+    sincronizado_em: new Date().toISOString(),
+  };
+}
+
+/** Atendimentos (ids) cujas mensagens serão lidas; incremental = só os alterados. */
+async function sessoesParaMensagens(db: SupabaseClient, clienteId: string, desde?: string | null) {
+  const ids: string[] = [];
+  for (let de = 0; ; de += 1000) {
+    let q = db.from("elora_atendimentos_espelho").select("externo_id").eq("cliente_id", clienteId);
+    if (desde) q = q.gte("atualizado_em", desde);
+    const { data, error } = await q.order("externo_id").range(de, de + 999);
+    if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
+    ids.push(...(data ?? []).map((r: any) => String(r.externo_id)));
+    if (!data || data.length < 1000) return ids;
+  }
+}
+
 const APOIO: { tipo: string; caminho: string; nome: (i: any) => unknown }[] = [
   { tipo: "usuario", caminho: "/core/v1/agent", nome: (i) => i.name },
   { tipo: "etiqueta", caminho: "/core/v1/tag", nome: (i) => i.name },
@@ -186,8 +217,9 @@ export async function sincronizarFonte(
     if (error) throw new Error(`elora_sync_estado: ${error.message}`);
   };
 
+  const sessoes = fonte === "mensagens" ? await sessoesParaMensagens(db, clienteId, cursor.desde) : [];
   const etapas =
-    fonte === "apoio" ? APOIO.length : fonte === "contatos" ? STATUS_CONTATO.length : 1;
+    fonte === "apoio" ? APOIO.length : fonte === "contatos" ? STATUS_CONTATO.length : fonte === "mensagens" ? sessoes.length : 1;
   try {
     while (cursor.etapa! < etapas) {
       if (Date.now() - inicio > prazoMs) {
@@ -199,6 +231,8 @@ export async function sincronizarFonte(
       if (fonte === "apoio") caminho = `${APOIO[cursor.etapa!].caminho}?PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else if (fonte === "contatos")
         caminho = `/core/v1/contact?PageNumber=${p}&PageSize=${PAGE_SIZE}&Status=${STATUS_CONTATO[cursor.etapa!]}&IncludeDetails=Tags&IncludeDetails=CustomFields&IncludeDetails=Portfolios`;
+      else if (fonte === "mensagens")
+        caminho = `/chat/v1/message?SessionId=${sessoes[cursor.etapa!]}&PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else
         caminho =
           `/chat/v2/session?PageNumber=${p}&PageSize=${PAGE_SIZE}` +
@@ -223,6 +257,9 @@ export async function sincronizarFonte(
         );
       } else if (fonte === "contatos") {
         await upsert(db, "elora_contatos_espelho", itens.map((c) => mapContato(clienteId, c)), "cliente_id,externo_id");
+      } else if (fonte === "mensagens") {
+        const sid = sessoes[cursor.etapa!];
+        await upsert(db, "elora_mensagens_espelho", itens.map((m) => mapMensagem(clienteId, m, sid)), "cliente_id,externo_id");
       } else {
         await upsert(db, "elora_atendimentos_espelho", itens.map((x) => mapAtendimento(clienteId, x)), "cliente_id,externo_id");
       }
@@ -247,7 +284,7 @@ export async function sincronizarFonte(
 export async function estimarMensagens(ctx: Contexto, sessaoIds: string[], totalSessoes: number) {
   let soma = 0;
   for (const id of sessaoIds) {
-    const j = await chamarElora(ctx, `/chat/v1/session/${id}/message?PageSize=1`);
+    const j = await chamarElora(ctx, `/chat/v1/message?SessionId=${id}&PageSize=1`);
     soma += Number(j?.totalItems ?? 0);
   }
   const media = sessaoIds.length ? soma / sessaoIds.length : 0;
