@@ -49,6 +49,16 @@ import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-shee
 
 
 export const Route = createFileRoute("/area-do-cliente/")({
+  head: () => ({
+    meta: [
+      { title: "Minha conta e painel · EloraCRM" },
+      { name: "description", content: "Painel, limites contratados, equipe e histórico da sua conta EloraCRM." },
+      { property: "og:title", content: "Minha conta e painel · EloraCRM" },
+      { property: "og:description", content: "Acompanhe seu painel, plano contratado e equipe no EloraCRM." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AreaCliente,
 });
 
