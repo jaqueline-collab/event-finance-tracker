@@ -10,7 +10,7 @@ Nada muda em financeiro, fechamentos, cofre, relatório diário do n8n, `listar-
 2. **Painel:** as visões ficam como pílulas no topo. "Resultados" continua com os gráficos de hoje. Entra a visão **"Relatório diário"**, mostrando o conteúdo atual dessa aba. As abas internas antigas (Resultados / Relatório diário / Conta / Minha equipe) somem.
 3. **Uma só barra fina para a super admin**, no topo:
    - Normal: à esquerda "Visualizando: {cliente}" e "Sair"; à direita "Editar".
-   - Em Editar: "Campos do Elora" (desativado, "Etapa D"), "Conexão e canais" (abre o painel lateral que já existe), "+ Gráfico", "Salvar", "Cancelar"; a barra de visões ganha "+".
+   - Em Editar: "Conexão e canais" (abre o painel lateral que já existe), "+ Gráfico", "Salvar", "Cancelar"; a barra de visões ganha "+".
    - Saem a faixa "Modo configuração", o botão "Configurar" solto, a faixa grande "Visualizando como…" e o botão "Editar" que hoje fica na barra de visões.
    - Cliente, parceiro e equipe comum não veem a barra (o servidor já recusa as gravações).
 4. **Cartões de gráfico** com cabeçalho: título e menu "⋯" (Editar, Duplicar, Excluir). O menu, arrastar e redimensionar só aparecem em Editar.
