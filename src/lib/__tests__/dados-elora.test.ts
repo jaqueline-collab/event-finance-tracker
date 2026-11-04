@@ -26,6 +26,8 @@ describe("dados do elora", () => {
     expect(abaConfigurarDoEndereco("painel")).toBe("painel");
     expect(abaConfigurarDoEndereco("")).toBeNull();
     expect(abaConfigurarDoEndereco("visao")).toBeNull();
+    expect(abaConfigurarDoEndereco("estrutura")).toBe("conexao");
+    expect(abaDadosEloraValida("estrutura")).toBe("conexao");
   });
   it("modo configuração só para super admin vendo um cliente", () => {
     expect(podeConfigurarArea({ isAdmin: true, como: "8c0ojhr2" })).toBe(true);
