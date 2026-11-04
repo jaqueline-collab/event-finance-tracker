@@ -170,7 +170,7 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 p-4">
+        <div className={semAtalho ? "hidden" : "flex flex-wrap items-center gap-2 rounded-lg border border-border/60 p-4"}>
           <div className="min-w-0">
             <p className="text-sm font-medium">Mapeamento e filtros</p>
             <p className="text-xs text-muted-foreground">
