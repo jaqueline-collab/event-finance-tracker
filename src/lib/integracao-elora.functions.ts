@@ -534,6 +534,7 @@ const resultadosSchema = z.object({
   ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   pagina: z.number().int().min(1).default(1),
   porPagina: z.number().int().min(10).max(100).default(20),
+  visaoId: z.string().uuid().nullable().optional(),
 });
 
 export type WidgetRenderizado = {
@@ -568,6 +569,29 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
     const inicio = data.de ? `${data.de}T00:00:00Z` : null;
     const fim = data.ate ? `${data.ate}T23:59:59.999Z` : null;
 
+    // Visão (aba): rascunho só para super admin; sem visão, a primeira publicada.
+    let visaoId: string | null = null;
+    {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: souAdmin } = await db.rpc("is_admin");
+      if (data.visaoId) {
+        const { conferirVisao } = await import("@/lib/dashboard-visoes.server");
+        const v = await conferirVisao(supabaseAdmin, data.clienteId, data.visaoId);
+        if (!v.publicada && !souAdmin) throw new Error("acesso-negado: esta visão não está publicada.");
+        visaoId = data.visaoId;
+      } else {
+        const { data: primeira } = await (supabaseAdmin as any)
+          .from("elora_dashboard_visoes")
+          .select("id")
+          .eq("cliente_id", data.clienteId)
+          .eq("publicada", true)
+          .order("ordem", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        visaoId = primeira?.id ? String(primeira.id) : null;
+      }
+    }
+
     const noPeriodo = (q: any, coluna = "criado_em") => {
       let x = q.eq("cliente_id", data.clienteId);
       if (inicio) x = x.gte(coluna, inicio);
@@ -578,7 +602,7 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
     const [{ data: widgetsRaw }, { data: contatosRaw }, { data: conversasRaw }] = await Promise.all([
       db
         .from("elora_dashboard_widgets")
-        .select("id, tipo, titulo, configuracao, ordem, layout")
+        .select("id, tipo, titulo, configuracao, ordem, layout, visao_id")
         .eq("cliente_id", data.clienteId)
         .order("ordem", { ascending: true }),
       noPeriodo(db.from("elora_contatos_sincronizados").select("*")).limit(20000),
@@ -591,7 +615,8 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
       ).limit(20000),
     ]);
 
-    const widgets = (widgetsRaw ?? []) as any[];
+    // Sem nenhuma visão ainda (cliente antigo), mostra todos os widgets como hoje.
+    const widgets = ((widgetsRaw ?? []) as any[]).filter((w) => !visaoId || String(w.visao_id) === visaoId);
     const contatos = (contatosRaw ?? []) as any[];
     const conversas = (conversasRaw ?? []) as any[];
 
