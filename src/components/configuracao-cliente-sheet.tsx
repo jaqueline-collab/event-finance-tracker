@@ -99,8 +99,7 @@ export function ConfiguracaoClienteSheet({
             </div>
           )}
           {aba === "canais" && <DadosEloraCliente clienteId={clienteId} aba="canais" />}
-          {/* Mantido montado nas duas abas para compartilhar campos e painéis já buscados. */}
-          {(aba === "estrutura" || aba === "painel") && <ConfigurarApiCliente clienteId={clienteId} aba={aba} />}
+          {aba === "painel" && <ConfigurarApiCliente clienteId={clienteId} aba="painel" />}
         </div>
       </SheetContent>
     </Sheet>
