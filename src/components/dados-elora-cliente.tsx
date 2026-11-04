@@ -23,7 +23,7 @@ import {
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const dataBr = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 
-export function DadosEloraCliente({ clienteId, aba }: { clienteId: string; aba: "visao" | "conexao" | "canais" }) {
+export function DadosEloraCliente({ clienteId, aba, baseUrl = null }: { clienteId: string; aba: "visao" | "conexao" | "canais"; baseUrl?: string | null }) {
   const [info, setInfo] = useState<Awaited<ReturnType<typeof getDadosElora>> | null>(null);
   const [canais, setCanais] = useState<CanalElora[] | null>(null);
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
