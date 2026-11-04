@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Copy, LayoutGrid, LayoutTemplate, Plus, Trash2 } from "lucide-react";
+import { Copy, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,8 +101,14 @@ export function WidgetBuilder({
   campos,
   visaoId = null,
   aoMudar,
+  novoChave = 0,
+  compacto = false,
 }: {
   clienteId: string;
+  /** Cada incremento abre o formulário de novo gráfico ("+ Gráfico" da barra). */
+  novoChave?: number;
+  /** Sem cabeçalho nem botão próprio de adicionar (usado no modo Editar da Área do cliente). */
+  compacto?: boolean;
   visaoId?: string | null;
   aoMudar?: () => void;
   rotulos: { id: string; nome: string }[];
@@ -124,6 +136,10 @@ export function WidgetBuilder({
   }, [clienteId, visaoId]);
 
   useEffect(recarregar, [recarregar]);
+
+  useEffect(() => {
+    if (novoChave > 0) setRascunho(vazio("metrico"));
+  }, [novoChave]);
 
   const editar = (w: Widget) => {
     const c = (w.configuracao ?? {}) as any;
@@ -248,6 +264,27 @@ export function WidgetBuilder({
     }
   };
 
+  const duplicar = async (w: Widget) => {
+    try {
+      await salvarWidgetCliente({
+        data: {
+          clienteId,
+          widgetId: null,
+          visaoId,
+          tipo: w.tipo,
+          titulo: `${w.titulo} (cópia)`.slice(0, 120),
+          configuracao: (w.configuracao ?? {}) as any,
+          ordem: widgets.length,
+          layout: proximaPosicao(grade as ItemGrade[]),
+        },
+      });
+      toast.success("Gráfico duplicado.");
+      recarregar();
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
+
   const aoMudarGrade = (nova: ItemGrade<Widget>[]) => {
     setWidgets(nova.map((g, i) => ({ ...g.item, layout: g.layout, ordem: i })));
   };
@@ -348,8 +385,8 @@ export function WidgetBuilder({
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className={compacto ? "border-dashed" : undefined}>
+      <CardHeader className={compacto ? "hidden" : undefined}>
         <CardTitle className="flex items-center gap-2 text-base">
           <LayoutGrid className="h-4 w-4" /> Meu Dash
         </CardTitle>
@@ -358,10 +395,12 @@ export function WidgetBuilder({
           fonte dos dados e a ordem.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <Button size="sm" variant="outline" onClick={() => setRascunho(vazio("metrico"))}>
-          <Plus className="mr-2 h-4 w-4" /> Adicionar widget
-        </Button>
+      <CardContent className={compacto ? "space-y-3 pt-6" : "space-y-3"}>
+        {!compacto && (
+          <Button size="sm" variant="outline" onClick={() => setRascunho(vazio("metrico"))}>
+            <Plus className="mr-2 h-4 w-4" /> Adicionar widget
+          </Button>
+        )}
 
         {carregando && <p className="text-sm text-muted-foreground">Carregando widgets…</p>}
         {!carregando && widgets.length === 0 && (
@@ -377,23 +416,24 @@ export function WidgetBuilder({
             onCommit={(itens) => void persistirGrade(itens)}
             renderItem={(g) => (
               <div className="flex h-full flex-col gap-1 rounded-lg border border-border/60 bg-card px-3 py-2">
-                <span className="truncate pr-6 text-sm font-medium">{g.item.titulo}</span>
+                <div className="flex items-start gap-1 pr-6">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{g.item.titulo}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Opções de ${g.item.titulo}`}>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => editar(g.item)}><Pencil className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => void duplicar(g.item)}><Copy className="mr-2 h-4 w-4" /> Duplicar</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => void remover(g.item.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 <Badge variant="outline" className="w-fit">
                   {TIPOS.find((t) => t.valor === g.item.tipo)?.rotulo ?? g.item.tipo}
                 </Badge>
-                <div className="mt-auto flex items-center gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => editar(g.item)}>
-                    Editar
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Remover"
-                    onClick={() => remover(g.item.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
             )}
           />
