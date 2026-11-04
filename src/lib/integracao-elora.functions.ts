@@ -589,6 +589,14 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
           .limit(1)
           .maybeSingle();
         visaoId = primeira?.id ? String(primeira.id) : null;
+        if (!visaoId) {
+          const { count } = await (supabaseAdmin as any)
+            .from("elora_dashboard_visoes")
+            .select("id", { count: "exact", head: true })
+            .eq("cliente_id", data.clienteId);
+          // Só rascunhos: nada aparece (nunca mostrar rascunho por engano).
+          if ((count ?? 0) > 0) visaoId = "__nenhuma__";
+        }
       }
     }
 
