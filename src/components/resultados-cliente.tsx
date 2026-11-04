@@ -1202,8 +1202,12 @@ export function ResultadosCliente({
   clienteId,
   conta,
   equipe,
+  visaoId = null,
+  recarregarChave = 0,
 }: {
   clienteId: string;
+  visaoId?: string | null;
+  recarregarChave?: number;
   conta?: React.ReactNode;
   equipe?: React.ReactNode;
 }) {
@@ -1219,11 +1223,12 @@ export function ResultadosCliente({
 
   const carregar = useCallback(() => {
     setCarregando(true);
-    getResultadosCliente({ data: { clienteId, de, ate, pagina, porPagina: POR_PAGINA } })
+    getResultadosCliente({ data: { clienteId, de, ate, pagina, porPagina: POR_PAGINA, visaoId } })
       .then(setDados)
       .catch((e) => toast.error(e instanceof Error ? e.message : String(e)))
       .finally(() => setCarregando(false));
-  }, [clienteId, de, ate, pagina]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clienteId, de, ate, pagina, visaoId, recarregarChave]);
 
   useEffect(() => {
     carregar();
