@@ -41,6 +41,7 @@ import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidade
 import { Route as ParceiroIndexRouteImport } from './routes/parceiro.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as ClientesIdDadosEloraRouteImport } from './routes/clientes_.$id.dados-elora'
 import { Route as ClientesIdIntegracaoEloraRouteImport } from './routes/clientes_.$id.integracao-elora'
 import { Route as ApiPublicRelatorioDiarioListarClientesRouteImport } from './routes/api/public/relatorio-diario/listar-clientes'
 import { Route as ApiPublicRelatorioDiarioRegistrarRouteImport } from './routes/api/public/relatorio-diario/registrar'
@@ -208,6 +209,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ClientesIdDadosEloraRoute = ClientesIdDadosEloraRouteImport.update({
+  id: '/clientes_/$id/dados-elora',
+  path: '/clientes/$id/dados-elora',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesIdIntegracaoEloraRoute =
   ClientesIdIntegracaoEloraRouteImport.update({
     id: '/clientes_/$id/integracao-elora',
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/parceiro/': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/clientes/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
   '/api/public/relatorio-diario/registrar': typeof ApiPublicRelatorioDiarioRegistrarRoute
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/parceiro': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/clientes/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
   '/api/public/relatorio-diario/registrar': typeof ApiPublicRelatorioDiarioRegistrarRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/parceiro/': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/clientes_/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes_/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
   '/api/public/relatorio-diario/registrar': typeof ApiPublicRelatorioDiarioRegistrarRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/parceiro/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/clientes/$id/dados-elora'
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
     | '/api/public/relatorio-diario/registrar'
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/parceiro'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/clientes/$id/dados-elora'
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
     | '/api/public/relatorio-diario/registrar'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/parceiro/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/clientes_/$id/dados-elora'
     | '/clientes_/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
     | '/api/public/relatorio-diario/registrar'
@@ -479,6 +491,7 @@ export interface RootRouteChildren {
   BlogIndexRoute: typeof BlogIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ClientesIdDadosEloraRoute: typeof ClientesIdDadosEloraRoute
   ClientesIdIntegracaoEloraRoute: typeof ClientesIdIntegracaoEloraRoute
   ApiPublicRelatorioDiarioListarClientesRoute: typeof ApiPublicRelatorioDiarioListarClientesRoute
   ApiPublicRelatorioDiarioRegistrarRoute: typeof ApiPublicRelatorioDiarioRegistrarRoute
@@ -710,6 +723,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clientes_/$id/dados-elora': {
+      id: '/clientes_/$id/dados-elora'
+      path: '/clientes/$id/dados-elora'
+      fullPath: '/clientes/$id/dados-elora'
+      preLoaderRoute: typeof ClientesIdDadosEloraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes_/$id/integracao-elora': {
       id: '/clientes_/$id/integracao-elora'
       path: '/clientes/$id/integracao-elora'
@@ -799,6 +819,7 @@ const rootRouteChildren: RootRouteChildren = {
   BlogIndexRoute: BlogIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ClientesIdDadosEloraRoute: ClientesIdDadosEloraRoute,
   ClientesIdIntegracaoEloraRoute: ClientesIdIntegracaoEloraRoute,
   ApiPublicRelatorioDiarioListarClientesRoute:
     ApiPublicRelatorioDiarioListarClientesRoute,

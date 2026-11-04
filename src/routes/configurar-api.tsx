@@ -1,31 +1,30 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search } from "lucide-react";
 import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ConfigurarApiCliente } from "@/components/configurar-api-cliente";
-import { listarClientesParaVer } from "@/lib/cliente.functions";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CofreChavesAdmin } from "@/components/dados-elora-cliente";
+import { listarResumoIntegracoes } from "@/lib/integracao-elora.functions";
+import { estadoIntegracao, ROTULO_ESTADO } from "@/lib/dados-elora";
 
 export const Route = createFileRoute("/configurar-api")({
   validateSearch: z.object({ cliente: z.string().optional() }),
+  beforeLoad: ({ search }) => {
+    // Links antigos /configurar-api?cliente=... vão para a página do cliente.
+    if (search.cliente) {
+      throw redirect({ to: "/clientes/$id/dados-elora", params: { id: search.cliente }, replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Configurar API · Elora" },
-      {
-        name: "description",
-        content:
-          "Conecte a conta do cliente ao app Elora, descubra os campos disponíveis e monte os widgets do painel.",
-      },
+      { name: "description", content: "Cofre de chaves e visão geral das integrações dos clientes com o app Elora." },
       { property: "og:title", content: "Configurar API · Elora" },
-      {
-        property: "og:description",
-        content: "Conexão, campos, classificações e construtor de widgets do painel do cliente.",
-      },
+      { property: "og:description", content: "Cofre de chaves e visão geral das integrações dos clientes." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -33,96 +32,90 @@ export const Route = createFileRoute("/configurar-api")({
   component: ConfigurarApiPage,
 });
 
+type Linha = Awaited<ReturnType<typeof listarResumoIntegracoes>>[number];
+
 function ConfigurarApiPage() {
-  const { cliente } = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
-  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
+  const [linhas, setLinhas] = useState<Linha[] | null>(null);
   const [busca, setBusca] = useState("");
 
   useEffect(() => {
-    listarClientesParaVer()
-      .then(setClientes)
-      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+    listarResumoIntegracoes()
+      .then(setLinhas)
+      .catch((e) => {
+        setLinhas([]);
+        toast.error(e instanceof Error ? e.message : String(e));
+      });
   }, []);
 
-  const filtrados = useMemo(() => {
+  const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return clientes;
-    return clientes.filter((c) => c.nome.toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
-  }, [clientes, busca]);
-
-  const escolhido = clientes.find((c) => c.id === cliente);
+    return (linhas ?? []).filter((l) => !q || l.nome.toLowerCase().includes(q));
+  }, [linhas, busca]);
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold sm:text-2xl">Configurar API</h1>
-          <p className="text-sm text-muted-foreground">
-            Escolha o cliente para conectar a conta do app Elora e montar o painel dele.
-          </p>
-        </div>
-        {cliente && clientes.length > 0 && (
-          <div className="w-full space-y-1 sm:w-72">
-            <Label htmlFor="trocar-cliente">Trocar de cliente</Label>
-            <select
-              id="trocar-cliente"
-              value={cliente}
-              onChange={(e) => navigate({ search: { cliente: e.target.value } })}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-            >
-              {[...clientes]
-                .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-            </select>
-          </div>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+          Configurar API
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Administração geral. A configuração de cada cliente fica em Clientes → Dados do Elora.
+        </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Search className="h-4 w-4" /> Cliente
-          </CardTitle>
-          <CardDescription>
-            {escolhido ? `Configurando: ${escolhido.nome}` : "Busque pelo nome do cliente."}
-          </CardDescription>
+          <CardTitle className="text-base">Clientes com integração</CardTitle>
+          <CardDescription>Estado da conexão e canais ligados de cada cliente.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label htmlFor="busca-cliente">Buscar</Label>
-            <Input
-              id="busca-cliente"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Nome do cliente"
-            />
-          </div>
-          <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto">
-            {filtrados.map((c) => (
-              <Button
-                key={c.id}
-                size="sm"
-                variant={c.id === cliente ? "default" : "outline"}
-                onClick={() => navigate({ search: { cliente: c.id } })}
-              >
-                {c.nome}
-              </Button>
-            ))}
-            {filtrados.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
-            )}
-          </div>
+          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome" aria-label="Buscar cliente" />
+          {linhas === null ? (
+            <Skeleton className="h-32 w-full" />
+          ) : filtradas.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Cliente</th>
+                    <th className="px-3 py-2 font-medium">Estado</th>
+                    <th className="px-3 py-2 font-medium">Canais ligados</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtradas.map((l) => {
+                    const e = estadoIntegracao(l);
+                    return (
+                      <tr key={l.clienteId} className="border-t border-border/60">
+                        <td className="px-3 py-2 font-medium">{l.nome}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant={e === "com_erro" ? "destructive" : e === "conectado" ? "secondary" : "outline"}>
+                            {ROTULO_ESTADO[e]}
+                          </Badge>
+                          {!l.ativo && <span className="ml-2 text-xs text-muted-foreground">desligada</span>}
+                        </td>
+                        <td className="px-3 py-2">{l.canaisLigados}</td>
+                        <td className="px-3 py-2 text-right">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link to="/clientes/$id/dados-elora" params={{ id: l.clienteId }}>
+                              Abrir Dados do Elora
+                            </Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <CofreChavesAdmin />
-
-      {cliente && <ConfigurarApiCliente key={cliente} clienteId={cliente} />}
     </div>
   );
 }
