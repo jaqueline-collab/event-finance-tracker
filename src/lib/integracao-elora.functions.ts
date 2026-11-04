@@ -1797,3 +1797,33 @@ export const salvarHistoricoDesde = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/** Resumo para a administração geral: estado e canais ligados de cada cliente com integração. */
+export const listarResumoIntegracoes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirEquipeInterna(context.supabase);
+    const db = context.supabase as any;
+    const [{ data: contas, error }, { data: clientes }, { data: canais }] = await Promise.all([
+      db.from("elora_integracao_contas").select("cliente_id, ativo, ultimo_erro, api_key"),
+      db.from("elora_clientes").select("id, nome"),
+      db.from("elora_dados_canais_permitidos").select("cliente_id"),
+    ]);
+    if (error) throw new Error(error.message);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cofre } = await (supabaseAdmin as any).from("elora_credenciais").select("cliente_id");
+    const noCofre = new Set(((cofre ?? []) as any[]).map((c) => String(c.cliente_id)));
+    const nomes = new Map(((clientes ?? []) as any[]).map((c) => [String(c.id), String(c.nome)]));
+    const contagem = new Map<string, number>();
+    for (const c of (canais ?? []) as any[]) contagem.set(c.cliente_id, (contagem.get(c.cliente_id) ?? 0) + 1);
+    return ((contas ?? []) as any[])
+      .map((c) => ({
+        clienteId: String(c.cliente_id),
+        nome: nomes.get(String(c.cliente_id)) ?? String(c.cliente_id),
+        ativo: Boolean(c.ativo),
+        temChave: noCofre.has(String(c.cliente_id)) || Boolean(c.api_key && String(c.api_key).trim()),
+        ultimoErro: (c.ultimo_erro as string | null) ?? null,
+        canaisLigados: contagem.get(String(c.cliente_id)) ?? 0,
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  });
