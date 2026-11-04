@@ -165,8 +165,8 @@ export async function sincronizarFonte(
   }
   cursor.etapa ??= 0;
   cursor.pagina ??= 1;
-  let registros = Number(est?.registros ?? 0);
-  if (!est?.concluido_em && !est?.iniciado_em) registros = 0;
+  const novaPassada = !est || (cursor.etapa === 0 && cursor.pagina === 1);
+  let registros = novaPassada ? 0 : Number(est?.registros ?? 0);
   const salvar = async (concluido: boolean) => {
     const { error } = await db.from("elora_sync_estado").upsert(
       {
