@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDefinirMenuArea } from "@/components/area-externa-layout";
 import { mostrarEsqueletoArea } from "@/lib/area-externa";
 
@@ -18,6 +18,10 @@ import {
   Users,
   LayoutDashboard,
   GraduationCap,
+  Wallet,
+  Pencil,
+  Cable,
+  LogOut,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,13 +38,14 @@ import {
   removerPessoaEquipe,
 } from "@/lib/cliente.functions";
 import { ResultadosCliente } from "@/components/resultados-cliente";
-import { VisoesPainel } from "@/components/visoes-painel";
+import { VisoesPainel, type EstadoVisoes, type VisoesPainelHandle } from "@/components/visoes-painel";
+import { SecaoRelatorioDiario } from "@/components/resultados-cliente";
+import { abaAreaCliente } from "@/lib/area-cliente-menu";
 import { ConfigurarApiCliente } from "@/components/configurar-api-cliente";
 import { usePerfil } from "@/hooks/use-perfil";
 import { useCurrentUserAccess } from "@/lib/permissions";
 import { abaConfigurarDoEndereco, podeConfigurarArea, type AbaDadosElora } from "@/lib/dados-elora";
 import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-sheet";
-import { Settings2 } from "lucide-react";
 
 
 export const Route = createFileRoute("/area-do-cliente/")({
@@ -55,7 +60,8 @@ const dataBr = (v?: string | null) =>
 const APP_URL = "https://app.eloracrm.com.br/";
 
 function AreaCliente() {
-  const { como, aba, configurar } = Route.useSearch();
+  const { como, aba: abaBruta, configurar } = Route.useSearch();
+  const aba = abaAreaCliente(abaBruta);
   const navigate = useNavigate();
   const { isAdmin } = useCurrentUserAccess();
   const modoConfig = podeConfigurarArea({ isAdmin, como });
@@ -71,6 +77,10 @@ function AreaCliente() {
   const [salvando, setSalvando] = useState(false);
   const setAba = (v: string) =>
     navigate({ to: "/area-do-cliente", search: (s: any) => ({ ...s, aba: v }) as never });
+  const visoesRef = useRef<VisoesPainelHandle>(null);
+  const [estadoVisoes, setEstadoVisoes] = useState<EstadoVisoes | null>(null);
+  const aoEstadoVisoes = useCallback((e: EstadoVisoes) => setEstadoVisoes(e), []);
+  const [novoGrafico, setNovoGrafico] = useState(0);
   const jaCarregou = useRef(false);
   if (!carregando && (dados || erro)) jaCarregou.current = true;
 
@@ -79,6 +89,8 @@ function AreaCliente() {
       label: "Minha conta",
       itens: [
         { key: "conta", label: "Painel", icon: LayoutDashboard, ativo: aba === "conta", onSelect: () => setAba("conta") },
+        { key: "plano", label: "Conta", icon: Wallet, ativo: aba === "plano", onSelect: () => setAba("plano") },
+        { key: "equipe", label: "Minha equipe", icon: Users, ativo: aba === "equipe", onSelect: () => setAba("equipe") },
         { key: "treinamento", label: "Treinamento", icon: GraduationCap, ativo: aba === "treinamento", onSelect: () => setAba("treinamento") },
         { key: "novidades", label: "Novidades", icon: Sparkles, ativo: aba === "novidades", onSelect: () => setAba("novidades") },
       ],
@@ -195,24 +207,39 @@ function AreaCliente() {
   return (
     <div className="space-y-6">
       {modoVisualizacao && (
-        <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/15 px-4 py-3">
-          <p className="text-sm font-medium text-foreground">
-            Visualizando como <span className="font-semibold">{cliente.nome}</span> — modo administrador,
-            somente leitura.
-          </p>
-          <Button size="sm" variant="outline" onClick={() => navigate({ to: "/dashboard" })}>
-            Sair da visualização
+        <div className="sticky top-2 z-30 flex flex-wrap items-center gap-2 rounded-lg border bg-card/95 px-3 py-1.5 text-sm shadow-sm backdrop-blur">
+          <span className="text-muted-foreground">
+            Visualizando: <span className="font-medium text-foreground">{cliente.nome}</span>
+          </span>
+          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => navigate({ to: "/dashboard" })}>
+            <LogOut className="mr-1 h-3.5 w-3.5" /> Sair
           </Button>
-        </div>
-      )}
-      {modoConfig && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-2.5">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">Modo configuração</span> · só você (super admin) vê isto.
-          </p>
-          <Button size="sm" onClick={() => setConfigurar("conexao")}>
-            <Settings2 className="mr-2 h-4 w-4" /> Configurar
-          </Button>
+          {modoConfig && aba === "conta" && estadoVisoes?.podeEditar && (
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">
+              {!estadoVisoes.editando ? (
+                <Button size="sm" variant="outline" className="h-7" onClick={() => void visoesRef.current?.entrar()}>
+                  <Pencil className="mr-1 h-3.5 w-3.5" /> Editar
+                </Button>
+              ) : (
+                <>
+                  <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfigurar("conexao")}>
+                    <Cable className="mr-1 h-3.5 w-3.5" /> Conexão e canais
+                  </Button>
+                  {estadoVisoes.aceitaGraficos && (
+                    <Button size="sm" variant="ghost" className="h-7" onClick={() => setNovoGrafico((n) => n + 1)}>
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Gráfico
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="h-7" disabled={estadoVisoes.salvando} onClick={() => void visoesRef.current?.cancelar()}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" className="h-7" disabled={estadoVisoes.salvando} onClick={() => void visoesRef.current?.salvar()}>
+                    {estadoVisoes.salvando ? "Salvando…" : "Salvar"}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
       {modoConfig && (
@@ -258,11 +285,14 @@ function AreaCliente() {
         <TabsContent value="conta" className="mt-0 grid gap-4 md:grid-cols-2">
           <div className="min-w-0 md:col-span-2">
               <VisoesPainel
+                ref={visoesRef}
                 clienteId={cliente.id}
+                onEstado={aoEstadoVisoes}
+                relatorio={<SecaoRelatorioDiario clienteId={cliente.id} />}
                 editorGraficos={
                   modoConfig
                     ? (visaoId, aoMudar) => (
-                        <ConfigurarApiCliente clienteId={cliente.id} aba="painel" soGraficos visaoId={visaoId} aoMudarGraficos={aoMudar} />
+                        <ConfigurarApiCliente clienteId={cliente.id} aba="painel" soGraficos visaoId={visaoId} aoMudarGraficos={aoMudar} novoGraficoChave={novoGrafico} />
                       )
                     : undefined
                 }
@@ -272,7 +302,13 @@ function AreaCliente() {
               clienteId={cliente.id}
               visaoId={visaoId}
               recarregarChave={chave}
-              conta={
+            />
+                )}
+              </VisoesPainel>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="plano" className="mt-0">
                 <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -339,9 +375,9 @@ function AreaCliente() {
           </Card>
                   </div>
                 </div>
-              }
-              equipe={
-                <>
+        </TabsContent>
+
+        <TabsContent value="equipe" className="mt-0">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -387,14 +423,6 @@ function AreaCliente() {
               </div>
             </CardContent>
           </Card>
-                </>
-              }
-            />
-                )}
-              </VisoesPainel>
-          </div>
-
-
         </TabsContent>
 
 

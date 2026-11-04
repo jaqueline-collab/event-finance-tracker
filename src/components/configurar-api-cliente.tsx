@@ -92,6 +92,7 @@ export function ConfigurarApiCliente({
   visaoId = null,
   soGraficos = false,
   aoMudarGraficos,
+  novoGraficoChave = 0,
 }: {
   clienteId: string;
   aba: "estrutura" | "painel";
@@ -100,6 +101,7 @@ export function ConfigurarApiCliente({
   /** Mostra só o construtor de gráficos (modo Editar do painel). */
   soGraficos?: boolean;
   aoMudarGraficos?: () => void;
+  novoGraficoChave?: number;
 }) {
   const [fonte, setFonte] = useState<string>("contatos");
 
@@ -355,6 +357,8 @@ export function ConfigurarApiCliente({
         clienteId={clienteId}
         visaoId={visaoId}
         aoMudar={aoMudarGraficos}
+        novoChave={novoGraficoChave}
+        compacto
         rotulos={rotulos.map((r) => ({ id: r.id, nome: r.nome }))}
         campos={campos ?? []}
       />

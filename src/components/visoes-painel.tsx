@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Copy, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -37,17 +37,34 @@ const ehNova = (id: string) => id.startsWith("nova-");
  * Abas (visões) do painel do cliente. Quem não é super admin vê só as
  * visões publicadas, sem controle nenhum. O super admin tem o modo Editar.
  */
-export function VisoesPainel({
-  clienteId,
-  children,
-  editorGraficos,
-}: {
+/** Visão fixa do sistema (não salva, não editável). */
+export const VISAO_RELATORIO = "__relatorio";
+
+export type EstadoVisoes = {
+  podeEditar: boolean;
+  editando: boolean;
+  alterado: boolean;
+  salvando: boolean;
+  /** A visão ativa aceita gráficos (salva e não é a fixa). */
+  aceitaGraficos: boolean;
+};
+
+export type VisoesPainelHandle = {
+  entrar: () => Promise<void>;
+  salvar: () => Promise<void>;
+  cancelar: () => Promise<void>;
+};
+
+export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   clienteId: string;
+  /** Conteúdo da visão fixa "Relatório diário". */
+  relatorio?: ReactNode;
+  onEstado?: (e: EstadoVisoes) => void;
   /** Conteúdo da visão ativa (null = visão padrão). */
   children: (visaoId: string | null, chave: number) => ReactNode;
   /** Construtor de gráficos da visão ativa, mostrado só em modo Editar. */
   editorGraficos?: (visaoId: string, aoMudar: () => void) => ReactNode;
-}) {
+}>(function VisoesPainel({ clienteId, children, editorGraficos, relatorio, onEstado }, ref) {
   const [salvas, setSalvas] = useState<Visao[] | null>(null);
   const [podeEditar, setPodeEditar] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -64,7 +81,7 @@ export function VisoesPainel({
         const r = await listarVisoesCliente({ data: { clienteId, incluirRascunhos: comRascunhos } });
         setSalvas(r.visoes);
         setPodeEditar(r.podeEditar);
-        setAtiva((a) => (a && r.visoes.some((v) => v.id === a) ? a : (r.visoes[0]?.id ?? null)));
+        setAtiva((a) => (a === VISAO_RELATORIO || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
         return r.visoes;
       } catch (e) {
         toast.error(msg(e));
@@ -113,7 +130,9 @@ export function VisoesPainel({
       });
       setRascunho(r.visoes.map((v) => ({ ...v })));
       setSalvas(r.visoes);
-      setAtiva((a) => (a && r.visoes.some((v) => v.id === a) ? a : (r.visoes[0]?.id ?? null)));
+      setAtiva((a) => (a === VISAO_RELATORIO || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
+      setEditando(false);
+      setRenomeando(null);
       setChave((c) => c + 1);
       toast.success("Visões salvas.");
     } catch (e) {
@@ -123,12 +142,7 @@ export function VisoesPainel({
     }
   };
 
-  const sair = async () => {
-    setEditando(false);
-    setRenomeando(null);
-    await carregar(false);
-    setChave((c) => c + 1);
-  };
+  useImperativeHandle(ref, () => ({ entrar: entrarEdicao, salvar, cancelar: async () => { await cancelar(); setChave((c) => c + 1); } }));
 
   const alterar = (id: string, patch: Partial<VisaoEdit>) =>
     setRascunho((l) => l.map((v) => (v.id === id ? { ...v, ...patch } : v)));
@@ -162,87 +176,90 @@ export function VisoesPainel({
     setRascunho((l) => moverVisao(l, de, para));
   };
 
-  if (salvas === null) return <Skeleton className="h-64 w-full rounded-xl" />;
-
-  const lista: VisaoEdit[] = editando ? rascunho : salvas;
+  const lista: VisaoEdit[] = editando ? rascunho : (salvas ?? []);
   const alteradoNaoSalvo =
     editando &&
+    salvas !== null &&
     JSON.stringify(rascunho.map((v) => [v.id, v.nome, v.publicada])) !==
       JSON.stringify(salvas.slice().sort((a, b) => a.ordem - b.ordem).map((v) => [v.id, v.nome, v.publicada]));
-  const ativaEdit = lista.find((v) => v.id === ativa) ?? null;
-  const visaoParaConteudo = ativaEdit && !ehNova(ativaEdit.id) ? ativaEdit.id : salvas[0]?.id ?? null;
+  const naRelatorio = ativa === VISAO_RELATORIO && Boolean(relatorio);
+  const ativaEdit = naRelatorio ? null : (lista.find((v) => v.id === ativa) ?? null);
+  const visaoParaConteudo = ativaEdit && !ehNova(ativaEdit.id) ? ativaEdit.id : salvas?.[0]?.id ?? null;
+  const aceitaGraficos = !naRelatorio && Boolean(ativaEdit && !ehNova(ativaEdit.id));
+
+  useEffect(() => {
+    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos });
+  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos]);
+
+  if (salvas === null) return <Skeleton className="h-64 w-full rounded-xl" />;
+  const mostrarAbas = mostrarBarraDeAbas(lista.length, editando) || Boolean(relatorio);
 
   return (
     <div className="space-y-4">
-      {(mostrarBarraDeAbas(lista.length, editando) || podeEditar) && (
+      {mostrarAbas && (
         <div className="flex flex-wrap items-center gap-2">
-          {mostrarBarraDeAbas(lista.length, editando) && (
-            <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoArrastar}>
-              <SortableContext items={lista.map((v) => v.id)} strategy={horizontalListSortingStrategy}>
-                <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Visões">
-                  {lista.map((v) => (
-                    <AbaVisao
-                      key={v.id}
-                      visao={v}
-                      ativa={v.id === ativa}
-                      editando={editando}
-                      renomeando={renomeando === v.id}
-                      onSelecionar={() => setAtiva(v.id)}
-                      onRenomear={() => editando && setRenomeando(v.id)}
-                      onNome={(nome) => alterar(v.id, { nome })}
-                      onFimRenomear={() => setRenomeando(null)}
-                      onDuplicar={() => nova(v)}
-                      onExcluir={() => setExcluindo(v)}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
+          <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoArrastar}>
+            <SortableContext items={lista.map((v) => v.id)} strategy={horizontalListSortingStrategy}>
+              <div className="flex flex-wrap items-center gap-1 rounded-full border bg-muted/50 p-1" role="tablist" aria-label="Visões">
+                {lista.map((v) => (
+                  <AbaVisao
+                    key={v.id}
+                    visao={v}
+                    ativa={v.id === ativa}
+                    editando={editando}
+                    renomeando={renomeando === v.id}
+                    onSelecionar={() => setAtiva(v.id)}
+                    onRenomear={() => editando && setRenomeando(v.id)}
+                    onNome={(nome) => alterar(v.id, { nome })}
+                    onFimRenomear={() => setRenomeando(null)}
+                    onDuplicar={() => nova(v)}
+                    onExcluir={() => setExcluindo(v)}
+                  />
+                ))}
+                {relatorio && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={naRelatorio}
+                    onClick={() => setAtiva(VISAO_RELATORIO)}
+                    className={`rounded-full px-4 py-1.5 text-sm transition-colors ${naRelatorio ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Relatório diário
+                  </button>
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
           {editando && (
             <Button size="sm" variant="outline" className="rounded-full" onClick={() => nova()} aria-label="Nova visão">
               <Plus className="h-4 w-4" />
             </Button>
           )}
-          {podeEditar && !editando && (
-            <Button size="sm" variant="outline" className="ml-auto rounded-full" onClick={entrarEdicao}>
-              <Pencil className="mr-1 h-4 w-4" /> Editar
-            </Button>
-          )}
         </div>
       )}
 
-      {editando && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-primary/50 bg-primary/5 p-3">
-          {ativaEdit && (
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={ativaEdit.publicada} onCheckedChange={(v) => alterar(ativaEdit.id, { publicada: v })} />
-              Visível ao cliente
-            </label>
-          )}
+      {editando && ativaEdit && (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2">
+            <Switch checked={ativaEdit.publicada} onCheckedChange={(v) => alterar(ativaEdit.id, { publicada: v })} />
+            Visível ao cliente
+          </label>
           <span className="text-xs text-muted-foreground">
             Duplo clique no nome para renomear. Arraste as abas para reordenar.
           </span>
-          <div className="ml-auto flex gap-2">
-            <Button size="sm" variant="ghost" onClick={alteradoNaoSalvo ? cancelar : sair} disabled={salvando}>
-              {alteradoNaoSalvo ? "Cancelar" : "Sair do modo Editar"}
-            </Button>
-            <Button size="sm" onClick={salvar} disabled={salvando || !alteradoNaoSalvo}>
-              {salvando ? "Salvando…" : "Salvar"}
-            </Button>
-          </div>
         </div>
       )}
 
-      {editando && ativaEdit && ehNova(ativaEdit.id) ? (
+      {naRelatorio ? (
+        relatorio
+      ) : editando && ativaEdit && ehNova(ativaEdit.id) ? (
         <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
           Salve para começar a montar os gráficos desta visão.
         </p>
       ) : (
-        <>
-          {editando && visaoParaConteudo && editorGraficos?.(visaoParaConteudo, () => setChave((c) => c + 1))}
-          {children(visaoParaConteudo, chave)}
-        </>
+        editando && visaoParaConteudo && editorGraficos
+          ? editorGraficos(visaoParaConteudo, () => setChave((c) => c + 1))
+          : children(visaoParaConteudo, chave)
       )}
 
       <AlertDialog open={excluindo !== null} onOpenChange={(o) => !o && setExcluindo(null)}>
@@ -276,7 +293,7 @@ export function VisoesPainel({
       </AlertDialog>
     </div>
   );
-}
+});
 
 function AbaVisao({
   visao,
@@ -307,7 +324,7 @@ function AbaVisao({
     <div
       ref={setNodeRef}
       style={estilo}
-      className={`flex items-center gap-1 rounded-full border px-1 py-0.5 text-sm ${ativa ? "border-foreground bg-foreground text-background" : "bg-background text-foreground"}`}
+      className={`flex items-center gap-1 rounded-full px-1 text-sm transition-colors ${ativa ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
     >
       {editando && (
         <span {...attributes} {...listeners} className="cursor-grab px-1 opacity-60" aria-label="Arrastar">
@@ -325,7 +342,7 @@ function AbaVisao({
           onKeyDown={(e) => e.key === "Enter" && onFimRenomear()}
         />
       ) : (
-        <button type="button" role="tab" aria-selected={ativa} onClick={onSelecionar} onDoubleClick={onRenomear} className="px-3 py-1">
+        <button type="button" role="tab" aria-selected={ativa} onClick={onSelecionar} onDoubleClick={onRenomear} className="px-3 py-1.5">
           {visao.nome}
         </button>
       )}
