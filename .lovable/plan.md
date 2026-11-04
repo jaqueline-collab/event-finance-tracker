@@ -32,3 +32,7 @@ Tudo com as cores e componentes atuais do app, nos temas claro e escuro, conferi
 - `ResultadosCliente`: remove `Tabs` internas e props `conta`/`equipe`; cartões ganham cabeçalho com `DropdownMenu`; arrasto/redimensionar condicionados a `editando`.
 - "+ Gráfico" abre o construtor atual (`ConfigurarApiCliente soGraficos`).
 - Rodar a suíte inteira de testes ao final.
+
+## Depois da Etapa A (anotado, não faz parte desta rodada)
+
+- Etapa B passa a seguir o adendo: guardar o registro completo de cada contato e atendimento, mais colunas para os campos principais; contatos de todos os status; atendimentos de qualquer status; reprocessar os últimos 3 dias; mensagens ficam de fora. O diagnóstico lista todos os campos que o Elora devolve, e o resultado mostra contagens por dia e todos os campos encontrados.
