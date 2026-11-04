@@ -38,6 +38,7 @@ type IntegracaoVisivel = {
   ultimaSyncConversas: string | null;
   ultimoErro: string | null;
   relatorioDiarioAtivo: boolean;
+  cofre?: { noCofre: boolean; ultimos4: string | null; trocadaEm: string | null };
 };
 
 const listaTexto = (v: unknown): string[] =>
@@ -65,6 +66,8 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
     } catch {
       conta = null;
     }
+    const { estadoCofre } = await import("@/lib/credenciais.server");
+    const cofre = await estadoCofre(data.clienteId);
 
     const semFiltros: FiltrosElora = {
       usuarios: [],
@@ -100,7 +103,8 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       configurada: true,
       ativo: Boolean(c.ativo),
       baseUrl: c.base_url,
-      chaveMascarada: mascaraChave(String(c.api_key)),
+      chaveMascarada: cofre.ultimos4 ? `••••${cofre.ultimos4}` : mascaraChave(String(c.api_key)),
+      cofre,
       campoProcedimentoKey: c.campo_procedimento_key ? String(c.campo_procedimento_key) : null,
       campoDataConsultaKey: c.campo_data_consulta_key ? String(c.campo_data_consulta_key) : null,
       filtros: {
@@ -142,7 +146,7 @@ export const salvarIntegracaoCliente = createServerFn({ method: "POST" })
         {
           cliente_id: data.clienteId,
           base_url: data.baseUrl.replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, ""),
-          api_key: data.apiKey,
+          api_key: null,
           ativo: true,
           ultimo_erro: null,
           criado_por: context.userId,
@@ -150,6 +154,8 @@ export const salvarIntegracaoCliente = createServerFn({ method: "POST" })
         { onConflict: "cliente_id" },
       );
     if (error) throw new Error(`integracao: ${error.message}`);
+    const { gravarChaveElora } = await import("@/lib/credenciais.server");
+    await gravarChaveElora(data.clienteId, data.apiKey, context.userId);
     return { ok: true };
   });
 
@@ -290,6 +296,8 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
         .from("elora_integracao_contas")
         .update({ ultimo_erro: null })
         .eq("cliente_id", data.clienteId);
+      const { registrarUso } = await import("@/lib/credenciais.server");
+      await registrarUso(data.clienteId, "teste", true, null, context.userId);
       return { conectado: true as const, mensagem: "Conectado com sucesso." };
     } catch (e) {
       const mensagem = e instanceof Error ? e.message : "Falha desconhecida.";
@@ -297,6 +305,8 @@ export const testarIntegracaoCliente = createServerFn({ method: "POST" })
         .from("elora_integracao_contas")
         .update({ ultimo_erro: mensagem })
         .eq("cliente_id", data.clienteId);
+      const { registrarUso } = await import("@/lib/credenciais.server");
+      await registrarUso(data.clienteId, "teste", false, mensagem, context.userId);
       return { conectado: false as const, mensagem };
     }
   });
@@ -844,7 +854,11 @@ export async function contaDoCliente(clienteId: string) {
     .eq("cliente_id", clienteId)
     .maybeSingle();
   if (!conta) throw new Error("integracao: nenhuma chave configurada para este cliente.");
-  return { conta: conta as any, supabaseAdmin };
+  // A chave vem do cofre (decifrada só aqui, no servidor); a coluna antiga é fallback.
+  const { obterChaveElora } = await import("@/lib/credenciais.server");
+  const chave = await obterChaveElora(clienteId);
+  if (!chave) throw new Error("integracao: nenhuma chave configurada para este cliente.");
+  return { conta: { ...(conta as any), api_key: chave } as any, supabaseAdmin };
 }
 
 const listaDe = (resp: unknown): any[] => {
