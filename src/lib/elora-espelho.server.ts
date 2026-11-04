@@ -194,7 +194,7 @@ export async function sincronizarFonte(
         await salvar(false);
         return { concluido: false, registros };
       }
-      const p = cursor.pagina!;
+      const p: number = cursor.pagina!;
       let caminho: string;
       if (fonte === "apoio") caminho = `${APOIO[cursor.etapa!].caminho}?PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else if (fonte === "contatos")
