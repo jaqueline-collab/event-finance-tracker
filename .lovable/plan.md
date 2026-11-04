@@ -18,7 +18,8 @@
 ## 3. Relatório diário de 22/09 a 03/10 x monday
 - Regras do n8n: dia em America/Sao_Paulo pela data da mensagem. Conversa realizada = atendimento com ao menos uma mensagem TO_HUB, sem contar NOTE, TRANSITION e TRACK. "Usuário do sistema" = conversa em que alguma dessas mensagens tem `userId` real. "Bot" = as demais (só bot ou automação).
 - Tabela lado a lado: dia | nosso (realizadas/usuário/bot) | monday | diferença, com destaque onde divergir. Para cada divergência, digo a causa provável que eu conseguir confirmar nos dados (ex.: fuso, atendimento contado em dois dias, canal).
-- Uma dúvida que vou mostrar no resultado: o monday não tem 30/09; mostro o nosso valor desse dia separado.
+- 30/09 entra na comparação com os valores do monday: 50 / 9 / 41. Período completo de 22/09 a 03/10.
+- Ao começar a execução, registro as três tarefas no roadmap.
 - Essa conta é só uma consulta. Não mudo o Relatório diário do painel nesta rodada.
 
 ## Depois
