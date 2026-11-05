@@ -16,6 +16,11 @@ A tabela `elora_cards_historico` ainda não existe (o diagnóstico mostrou que a
 
 Ao final: conferir que os 12 dias de 22/09 a 03/10 continuam batendo com o monday nas colunas padrão, mostrar e parar. Nada apagado, nada publicado.
 
+## Adendo incorporado
+- **Leitura dos cards**: todos os painéis da conta, incluindo "Minhas tarefas"; uma leitura por status (abertos, `Statuses=WON`, `Statuses=LOST`, `Statuses=ARCHIVED`), PageSize 100, pausa de 250 ms, nova tentativa em 429. Assim entram os 39 ganhos e 98 perdidos.
+- **Sincronização automática a cada 30 min** (48 vezes por dia): só cards com `UpdatedAt.After` = última leitura menos 1 hora de folga. Quanto mais frequente, mais certo o dia de "entrou na etapa"; o custo é cerca de 48 rodadas leves por dia mesmo sem mudanças. Ela chama um endereço do app protegido pelo segredo `SYNC_CRON_SECRET` (vou pedir esse segredo se ainda não existir). Como o banco é seu (externo), o agendamento é criado no seu Supabase e eu mostro o comando para conferência antes.
+- **Antes de gravar no relatório diário**: mostro lado a lado, por dia, o que já existe (n8n) e o que o motor calculou nas colunas padrão. A gravação só acontece se os 12 dias de 22/09 a 03/10 baterem. Dias "estimado" aparecem com marca e nenhum total os soma sem a marca.
+
 ## Detalhes técnicos
 - Lógica pura em `src/lib/indicadores-motor.ts` (testável); leitura/gravação em `indicadores.server.ts`; funções com `exigirSuperAdmin`.
 - Condições: `{op:'E'|'OU', itens:[{campo, operador: preenchido|igual|contem|vazio, valor}]}` sobre o catálogo (contato, card, campos personalizados, utm).
