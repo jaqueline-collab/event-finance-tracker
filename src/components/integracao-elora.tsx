@@ -18,7 +18,7 @@ import {
 } from "@/lib/integracao-elora.functions";
 import { sincronizarAgoraCliente } from "@/lib/elora-espelho.functions";
 
-const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens" };
+const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens", cards: "cards" };
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
