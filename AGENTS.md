@@ -10,3 +10,4 @@
 - Derive the Conta contact allowance through the pure display-only helper `contatos-contratados.ts` from the authorized plan and explicit contact adjustments, excluding Setup; keep financial calculations and stored usage untouched to separate allowance from usage.
 
 - Espelho da conta Elora: tabelas `elora_*_espelho` + `elora_sync_estado` (RLS sem policy, só servidor, lógica em `elora-espelho.server.ts`); o painel lê o espelho quando a carga está concluída, exceto clientes em `LEITURA_ANTIGA`, para trocar de fonte sem quebrar widgets.
+- Painel visual do cliente: agregação pura em `src/lib/painel-visual.ts`, lida pelo servidor em `painel-visual.functions.ts` só para clientes com espelho; mensagens só via `lerMensagensSemTexto` em `elora-espelho.server.ts`, para o texto nunca sair do servidor.

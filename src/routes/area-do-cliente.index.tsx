@@ -46,6 +46,8 @@ import { usePerfil } from "@/hooks/use-perfil";
 import { useCurrentUserAccess } from "@/lib/permissions";
 import { abaConfigurarDoEndereco, podeConfigurarArea, type AbaDadosElora } from "@/lib/dados-elora";
 import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-sheet";
+import { PainelVisual, SeletorPeriodo } from "@/components/painel-visual";
+import { periodoDe, type Filtros, type Periodo, type PeriodoChave } from "@/lib/painel-visual";
 
 
 export const Route = createFileRoute("/area-do-cliente/")({
@@ -91,6 +93,10 @@ function AreaCliente() {
   const [estadoVisoes, setEstadoVisoes] = useState<EstadoVisoes | null>(null);
   const aoEstadoVisoes = useCallback((e: EstadoVisoes) => setEstadoVisoes(e), []);
   const [novoGrafico, setNovoGrafico] = useState(0);
+  const [periodoChave, setPeriodoChave] = useState<PeriodoChave>("30d");
+  const [periodo, setPeriodo] = useState<Periodo>(() => periodoDe("30d", new Date().toISOString()));
+  const [filtrosPainel, setFiltrosPainel] = useState<Filtros>({});
+  const [painelVisual, setPainelVisual] = useState(false);
   const jaCarregou = useRef(false);
   if (!carregando && (dados || erro)) jaCarregou.current = true;
 
@@ -261,6 +267,19 @@ function AreaCliente() {
           onFechar={() => setConfigurar("")}
         />
       )}
+      {aba === "conta" && painelVisual ? (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">{cliente.nome}</p>
+            <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+              {estadoVisoes?.nomeAtiva ?? "Resultados"}
+            </h1>
+          </div>
+          {estadoVisoes?.nomeAtiva !== "Relatório diário" && !estadoVisoes?.editando && (
+            <SeletorPeriodo chave={periodoChave} periodo={periodo} onMudar={(c, p) => { setPeriodoChave(c); setPeriodo(p); }} />
+          )}
+        </div>
+      ) : (
       <div className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/10 via-background to-background p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -286,6 +305,7 @@ function AreaCliente() {
           )}
         </div>
       </div>
+      )}
 
       <Tabs value={aba} onValueChange={setAba}>
         <TabsContent value="treinamento" className="mt-4">
@@ -308,11 +328,20 @@ function AreaCliente() {
                 }
               >
                 {(visaoId, chave) => (
+            <div className="space-y-5">
+            <PainelVisual
+              clienteId={cliente.id}
+              periodo={periodo}
+              filtros={filtrosPainel}
+              onFiltros={setFiltrosPainel}
+              onDisponivel={setPainelVisual}
+            />
             <ResultadosCliente
               clienteId={cliente.id}
               visaoId={visaoId}
               recarregarChave={chave}
             />
+            </div>
                 )}
               </VisoesPainel>
           </div>

@@ -366,3 +366,23 @@ export async function lerEspelhoNoFormatoAntigo(
   }));
   return { contatos, conversas };
 }
+
+/** Mensagens TO_HUB do período, só colunas sem texto (para o painel). */
+export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string) {
+  const l = await lerTudo(() =>
+    (db as any)
+      .from("elora_mensagens_espelho")
+      .select("sessao_id, enviada_em, tipo, origem:payload->>origin")
+      .eq("cliente_id", clienteId)
+      .eq("direcao", "TO_HUB")
+      .gte("enviada_em", inicio)
+      .lte("enviada_em", fim)
+      .order("externo_id"),
+  );
+  return l.map((m: any) => ({
+    sessao_id: String(m.sessao_id),
+    enviada_em: m.enviada_em as string | null,
+    tipo: m.tipo as string | null,
+    origem: m.origem as string | null,
+  }));
+}
