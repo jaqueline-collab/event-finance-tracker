@@ -60,13 +60,14 @@ export const limitesUtc = (p: Periodo) => ({
   fim: new Date(Date.parse(`${somaDias(p.ate, 1)}T03:00:00.000Z`) - 1).toISOString(),
 });
 
-/** 4800 → "1h 20min"; 90 → "1min 30s"; 40 → "40s". */
+/** 4800 → "1h 20min"; 90 → "1min 30s"; 40 → "40s"; 97h → "4d 1h". */
 export function formatarDuracao(seg: number | null | undefined): string {
   if (seg == null || !Number.isFinite(seg)) return "—";
   const s = Math.round(seg);
   if (s < 60) return `${s}s`;
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
+  if (h >= 24) return h % 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${Math.floor(h / 24)}d`;
   if (h > 0) return m ? `${h}h ${m}min` : `${h}h`;
   const r = s % 60;
   return r ? `${m}min ${r}s` : `${m}min`;

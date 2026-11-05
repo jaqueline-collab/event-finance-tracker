@@ -30,6 +30,7 @@ describe("painel visual", () => {
     expect(formatarDuracao(4800)).toBe("1h 20min");
     expect(formatarDuracao(90)).toBe("1min 30s");
     expect(formatarDuracao(null)).toBe("—");
+    expect(formatarDuracao(97 * 3600)).toBe("4d 1h");
   });
 
   it("variação sem base anterior é nula", () => {
