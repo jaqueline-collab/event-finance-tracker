@@ -30,7 +30,7 @@ function Valor({ c }: { c?: { valor: number; estimado: number } }) {
     <span className="tabular-nums">
       {c.valor}
       {c.estimado > 0 && (
-        <span className="ml-1 text-xs text-warning" title={`${c.estimado} estimado(s)`}>
+        <span className="ml-1 text-xs text-primary" title={`${c.estimado} estimado(s)`}>
           *
         </span>
       )}
@@ -56,7 +56,7 @@ function ValidacaoPage() {
         <CardHeader>
           <CardTitle>Validação do relatório diário</CardTitle>
           <CardDescription>
-            Últimos 30 dias calculados pelo motor. <span className="text-warning">*</span> = valor estimado (antes da primeira leitura
+            Últimos 30 dias calculados pelo motor. <span className="text-primary">*</span> = valor estimado (antes da primeira leitura
             do card). Entre parênteses, o que já está gravado.
           </CardDescription>
         </CardHeader>
