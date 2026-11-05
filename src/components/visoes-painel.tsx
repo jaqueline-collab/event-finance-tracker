@@ -49,6 +49,8 @@ export type EstadoVisoes = {
   aceitaGraficos: boolean;
   /** Nome da visão ativa (título do cabeçalho). */
   nomeAtiva: string | null;
+  /** Gráficos antigos salvos na visão ativa. */
+  graficosAtiva: number;
 };
 
 export type VisoesPainelHandle = {
@@ -63,7 +65,11 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   relatorio?: ReactNode;
   onEstado?: (e: EstadoVisoes) => void;
   /** Conteúdo da visão ativa (null = visão padrão). */
-  children: (visaoId: string | null, chave: number) => ReactNode;
+  children: (
+    visaoId: string | null,
+    chave: number,
+    ctx: { editando: boolean; totalGraficos: number; ocultos: string[]; alternarOculto: (id: string) => void },
+  ) => ReactNode;
   /** Construtor de gráficos da visão ativa, mostrado só em modo Editar. */
   editorGraficos?: (visaoId: string, aoMudar: () => void) => ReactNode;
 }>(function VisoesPainel({ clienteId, children, editorGraficos, relatorio, onEstado }, ref) {
@@ -127,6 +133,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
             ordem: i,
             publicada: v.publicada,
             novaDe: v.novaDe ?? null,
+            ocultos: v.ocultos ?? [],
           })),
         },
       });
@@ -182,16 +189,28 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const alteradoNaoSalvo =
     editando &&
     salvas !== null &&
-    JSON.stringify(rascunho.map((v) => [v.id, v.nome, v.publicada])) !==
-      JSON.stringify(salvas.slice().sort((a, b) => a.ordem - b.ordem).map((v) => [v.id, v.nome, v.publicada]));
+    JSON.stringify(rascunho.map((v) => [v.id, v.nome, v.publicada, [...(v.ocultos ?? [])].sort()])) !==
+      JSON.stringify(salvas.slice().sort((a, b) => a.ordem - b.ordem).map((v) => [v.id, v.nome, v.publicada, [...(v.ocultos ?? [])].sort()]));
   const naRelatorio = ativa === VISAO_RELATORIO && Boolean(relatorio);
   const ativaEdit = naRelatorio ? null : (lista.find((v) => v.id === ativa) ?? null);
   const visaoParaConteudo = ativaEdit && !ehNova(ativaEdit.id) ? ativaEdit.id : salvas?.[0]?.id ?? null;
   const aceitaGraficos = !naRelatorio && Boolean(ativaEdit && !ehNova(ativaEdit.id));
+  const visaoConteudo = lista.find((v) => v.id === visaoParaConteudo) ?? null;
+  const graficosAtiva = visaoConteudo?.totalGraficos ?? 0;
+  const ctx = {
+    editando,
+    totalGraficos: graficosAtiva,
+    ocultos: visaoConteudo?.ocultos ?? [],
+    alternarOculto: (id: string) => {
+      if (!editando || !visaoConteudo) return;
+      const atual = visaoConteudo.ocultos ?? [];
+      alterar(visaoConteudo.id, { ocultos: atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id] });
+    },
+  };
 
   useEffect(() => {
-    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naRelatorio ? "Relatório diário" : (ativaEdit?.nome ?? null) });
-  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naRelatorio, ativaEdit?.nome]);
+    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naRelatorio ? "Relatório diário" : (ativaEdit?.nome ?? null), graficosAtiva: naRelatorio ? 0 : graficosAtiva });
+  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naRelatorio, ativaEdit?.nome, graficosAtiva]);
 
   if (salvas === null) return <Skeleton className="h-64 w-full rounded-xl" />;
   const mostrarAbas = mostrarBarraDeAbas(lista.length, editando) || Boolean(relatorio);
@@ -261,7 +280,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
       ) : (
         editando && visaoParaConteudo && editorGraficos
           ? editorGraficos(visaoParaConteudo, () => setChave((c) => c + 1))
-          : children(visaoParaConteudo, chave)
+          : children(visaoParaConteudo, chave, ctx)
       )}
 
       <AlertDialog open={excluindo !== null} onOpenChange={(o) => !o && setExcluindo(null)}>
