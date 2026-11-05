@@ -111,7 +111,7 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
   const sincronizar = async () => {
     setSincronizando(true);
     try {
-      let fonte: "apoio" | "contatos" | "atendimentos" | "mensagens" | null = "apoio";
+      let fonte: "apoio" | "contatos" | "atendimentos" | "mensagens" | "cards" | null = "apoio";
       const total: Record<string, number> = {};
       while (fonte) {
         setProgresso(`Sincronizando ${NOME_FONTE[fonte]}…`);
