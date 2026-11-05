@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { contatosContratados } from "../contatos-contratados";
 
 describe("limite contratado na Conta", () => {
-  it("Dr. Ricardo tem 5000 inclusos, não os 500 gravados no Setup", () => {
+  it("cliente com 5000 inclusos, não os 500 gravados no Setup", () => {
     expect(contatosContratados(5000, "dw9efheo", [
       { data: "2026-09-20", tipo: "setup", plano_id: "dw9efheo", contatos_ativos: 500 },
       { data: "2026-09-23", tipo: "upgrade", contatos_ativos: null },
