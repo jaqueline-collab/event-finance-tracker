@@ -122,22 +122,8 @@ export const getPainelVisual = createServerFn({ method: "POST" })
     const ant = periodoAnterior({ de: data.de, ate: data.ate });
     const ini = limitesUtc(ant).inicio;
     const fim = limitesUtc({ de: data.de, ate: data.ate }).fim;
-    const msgs = await lerTudo(() =>
-      adm
-        .from("elora_mensagens_espelho")
-        .select("sessao_id, enviada_em, tipo, origem:payload->>origin")
-        .eq("cliente_id", id)
-        .eq("direcao", "TO_HUB")
-        .gte("enviada_em", ini)
-        .lte("enviada_em", fim)
-        .order("externo_id"),
-    );
-    const mensagens: MensagemP[] = msgs.map((m: any) => ({
-      sessao_id: String(m.sessao_id),
-      enviada_em: m.enviada_em,
-      tipo: m.tipo,
-      origem: m.origem,
-    }));
+    const { lerMensagensSemTexto } = await import("@/lib/elora-espelho.server");
+    const mensagens: MensagemP[] = await lerMensagensSemTexto(adm, id, ini, fim);
 
     const resumo = agregarPainel({ contatos: base.contatos, atendimentos: base.atendimentos, mensagens }, { de: data.de, ate: data.ate }, data.filtros);
     return { disponivel: true as const, ultimaSync, ...resumo };
