@@ -2226,6 +2226,35 @@ export type Database = {
           },
         ]
       }
+      elora_relatorio_corte_config: {
+        Row: {
+          atendentes_ignorados: Json
+          atualizado_em: string
+          cliente_id: string
+          equipe_por_canal: Json
+        }
+        Insert: {
+          atendentes_ignorados?: Json
+          atualizado_em?: string
+          cliente_id: string
+          equipe_por_canal?: Json
+        }
+        Update: {
+          atendentes_ignorados?: Json
+          atualizado_em?: string
+          cliente_id?: string
+          equipe_por_canal?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_relatorio_corte_config_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_relatorio_diario: {
         Row: {
           atendente: string
@@ -2453,6 +2482,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      elora_suporte_interno: {
+        Row: {
+          criado_em: string
+          email: string | null
+          id: string
+          nome: string | null
+        }
+        Insert: {
+          criado_em?: string
+          email?: string | null
+          id?: string
+          nome?: string | null
+        }
+        Update: {
+          criado_em?: string
+          email?: string | null
+          id?: string
+          nome?: string | null
+        }
+        Relationships: []
       }
       elora_sync_estado: {
         Row: {

@@ -281,17 +281,28 @@ export type CorteConfig = {
   nomeCanal: Record<string, string>;
   /** canal_id → equipe, definido por cliente. Sem entrada = equipe vazia. */
   equipePorCanal: Record<string, string>;
-  /** userId → nome, da lista de agentes da conta. */
-  agentes: Record<string, string>;
-  /** Atendentes cujas conversas não entram (ex.: login de suporte). */
-  ignorarAtendentes: string[];
+  /** userId → nome e e-mail, da lista de agentes da conta. */
+  agentes: Record<string, { nome: string; email?: string | null }>;
+  /** Pessoas cujas conversas não entram: suporte interno (global) + lista extra do cliente. Por e-mail ou nome. */
+  ignorar: { nome?: string | null; email?: string | null }[];
 };
 export const ORIGENS_NAO_HUMANAS = new Set(["BOT", "CAMPAIGN", "OFFICE_HOURS", "API", "PAYMENT"]);
 export type LinhaCorte = { dia: string; canal: string; atendente: string; equipe: string } & Record<(typeof COLUNAS_PADRAO)[number]["chave"], number>;
 
-export function calcularPadraoPorCorte(contatos: ContatoCorte[], msgs: MsgCorte[], sessoes: SessaoCorte[], cfg: CorteConfig): LinhaCorte[] {
+const norm = (x: string | null | undefined) => (x ?? "").trim().toLowerCase();
+
+export function calcularPadraoPorCorte(contatos: ContatoCorte[], msgs: MsgCorte[], sessoes: SessaoCorte[], cfg: CorteConfig) {
+  return calcularPadraoPorCorteDetalhado(contatos, msgs, sessoes, cfg).linhas;
+}
+
+/** Igual, devolvendo também quantas conversas saíram por dia por serem de atendente ignorado. */
+export function calcularPadraoPorCorteDetalhado(contatos: ContatoCorte[], msgs: MsgCorte[], sessoes: SessaoCorte[], cfg: CorteConfig) {
   const ses = new Map(sessoes.map((s) => [s.id, s]));
-  const ignorar = new Set(cfg.ignorarAtendentes.map((n) => n.trim().toLowerCase()));
+  const emails = new Set(cfg.ignorar.map((i) => norm(i.email)).filter(Boolean));
+  const nomes = new Set(cfg.ignorar.map((i) => norm(i.nome)).filter(Boolean));
+  const ehIgnorado = (agente: { nome: string; email?: string | null } | null, nome: string) =>
+    (!!agente && (emails.has(norm(agente.email)) || nomes.has(norm(agente.nome)))) || nomes.has(norm(nome));
+  const removidas = new Map<string, { conversas: number; usuario: number; bot: number }>();
   // conversa = sessão + dia com mensagem recebida válida
   type Conv = { s: string; dia: string; usuario: boolean; ultimoHumano: { em: string; user: string } | null };
   const conv = new Map<string, Conv>();
@@ -323,10 +334,17 @@ export function calcularPadraoPorCorte(contatos: ContatoCorte[], msgs: MsgCorte[
   const ordenadas = [...conv.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.s.localeCompare(b.s));
   for (const c of ordenadas) {
     const s = ses.get(c.s);
-    let atendente = "";
-    if (c.ultimoHumano) atendente = cfg.agentes[c.ultimoHumano.user] ?? "";
-    if (!atendente) atendente = (s?.responsavel_id && cfg.agentes[s.responsavel_id]) || s?.responsavel_nome || "";
-    if (ignorar.has(atendente.trim().toLowerCase())) continue;
+    let agente = c.ultimoHumano ? (cfg.agentes[c.ultimoHumano.user] ?? null) : null;
+    if (!agente && s?.responsavel_id) agente = cfg.agentes[s.responsavel_id] ?? null;
+    const atendente = agente?.nome || s?.responsavel_nome || "";
+    if (ehIgnorado(agente, atendente)) {
+      const r = removidas.get(c.dia) ?? { conversas: 0, usuario: 0, bot: 0 };
+      r.conversas++;
+      if (c.usuario) r.usuario++;
+      else r.bot++;
+      removidas.set(c.dia, r);
+      continue;
+    }
     const l = linha(c.dia, s?.canal_id ?? null, s?.canal_nome ?? null, atendente);
     l.conversas_total_dia++;
     if (c.usuario) l.conversas_usuario++;
@@ -341,6 +359,7 @@ export function calcularPadraoPorCorte(contatos: ContatoCorte[], msgs: MsgCorte[
     l.novos_contatos++;
     if (preenchido(ct.utm_campaign)) l.novos_contatos_ads++;
   }
-  return [...linhas.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.canal.localeCompare(b.canal) || a.atendente.localeCompare(b.atendente));
+  const ordem = [...linhas.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.canal.localeCompare(b.canal) || a.atendente.localeCompare(b.atendente));
+  return { linhas: ordem, removidas };
 }
 const TIPOS_IGNORADOS_MOTOR = new Set(["NOTE", "TRANSITION", "TRACK"]);

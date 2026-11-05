@@ -372,7 +372,7 @@ export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string
   const l = await lerTudo(() =>
     (db as any)
       .from("elora_mensagens_espelho")
-      .select("sessao_id, enviada_em, tipo, origem:payload->>origin")
+      .select("sessao_id, enviada_em, tipo, user_id_elora, origem:payload->>origin")
       .eq("cliente_id", clienteId)
       .eq("direcao", "TO_HUB")
       .gte("enviada_em", inicio)
@@ -384,5 +384,6 @@ export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string
     enviada_em: m.enviada_em as string | null,
     tipo: m.tipo as string | null,
     origem: m.origem as string | null,
+    user_id: (m.user_id_elora ?? null) as string | null,
   }));
 }

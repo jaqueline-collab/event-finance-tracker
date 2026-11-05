@@ -85,3 +85,49 @@ export async function lerRelatorioExistente(db: SupabaseClient, clienteId: strin
   }
   return out;
 }
+
+/**
+ * Colunas padrão por dia + canal + atendente + equipe. Tudo vem de configuração:
+ * suporte interno (global), mapa de equipe e lista extra (por cliente), agentes e canais da conta.
+ */
+export async function calcularCorteCliente(db: SupabaseClient, clienteId: string, p: Periodo) {
+  const { calcularPadraoPorCorteDetalhado } = await import("./indicadores-motor");
+  const { inicio, fim } = limitesUtc(p);
+  const [suporte, corte, apoio, msgsRaw, contatosRaw] = await Promise.all([
+    db.from("elora_suporte_interno" as any).select("nome, email"),
+    db.from("elora_relatorio_corte_config" as any).select("equipe_por_canal, atendentes_ignorados").eq("cliente_id", clienteId).maybeSingle(),
+    lerTudo(() => db.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["canal", "usuario"]).order("externo_id")),
+    lerMensagensSemTexto(db, clienteId, inicio, fim),
+    lerTudo(() =>
+      db.from("elora_contatos_espelho").select("externo_id, criado_em, origem, utm_campaign").eq("cliente_id", clienteId).gte("criado_em", inicio).lte("criado_em", fim).order("externo_id"),
+    ),
+  ]);
+  if (suporte.error) throw new Error(`elora_suporte_interno: ${suporte.error.message}`);
+  if (corte.error) throw new Error(`elora_relatorio_corte_config: ${corte.error.message}`);
+  const sids = [...new Set(msgsRaw.map((m: any) => String(m.sessao_id)))];
+  const sessoes: any[] = [];
+  for (let i = 0; i < sids.length; i += 200) {
+    const { data, error } = await db
+      .from("elora_atendimentos_espelho")
+      .select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome")
+      .eq("cliente_id", clienteId)
+      .in("externo_id", sids.slice(i, i + 200));
+    if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
+    for (const s of data ?? [])
+      sessoes.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome });
+  }
+  const nomeCanal: Record<string, string> = {};
+  const agentes: Record<string, { nome: string; email?: string | null }> = {};
+  for (const a of apoio as any[]) {
+    if (a.tipo === "canal") nomeCanal[a.externo_id] = a.payload?.identity?.humanId ?? a.nome ?? a.externo_id;
+    else agentes[a.externo_id] = { nome: a.nome ?? "", email: a.payload?.email ?? null };
+  }
+  const c: any = corte.data ?? {};
+  const extra = Array.isArray(c.atendentes_ignorados) ? c.atendentes_ignorados : [];
+  return calcularPadraoPorCorteDetalhado(
+    (contatosRaw as any[]).map((x) => ({ id: String(x.externo_id), criado_em: x.criado_em, origem: x.origem, utm_campaign: x.utm_campaign })),
+    msgsRaw,
+    sessoes,
+    { nomeCanal, agentes, equipePorCanal: c.equipe_por_canal ?? {}, ignorar: [...((suporte.data ?? []) as any[]), ...extra] },
+  );
+}
