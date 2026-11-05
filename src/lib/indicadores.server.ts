@@ -97,16 +97,7 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     db.from("elora_suporte_interno" as any).select("nome, email"),
     db.from("elora_relatorio_corte_config" as any).select("equipe_por_canal, atendentes_ignorados").eq("cliente_id", clienteId).maybeSingle(),
     lerTudo(() => db.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["canal", "usuario"]).order("externo_id")),
-    lerTudo(() =>
-      db
-        .from("elora_mensagens_espelho")
-        .select("externo_id, sessao_id, enviada_em, tipo, user_id_elora, origem:payload->>origin")
-        .eq("cliente_id", clienteId)
-        .eq("direcao", "TO_HUB")
-        .gte("enviada_em", inicio)
-        .lte("enviada_em", fim)
-        .order("externo_id"),
-    ),
+    lerMensagensSemTexto(db, clienteId, inicio, fim),
     lerTudo(() =>
       db.from("elora_contatos_espelho").select("externo_id, criado_em, origem, utm_campaign").eq("cliente_id", clienteId).gte("criado_em", inicio).lte("criado_em", fim).order("externo_id"),
     ),
@@ -135,7 +126,7 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
   const extra = Array.isArray(c.atendentes_ignorados) ? c.atendentes_ignorados : [];
   return calcularPadraoPorCorteDetalhado(
     (contatosRaw as any[]).map((x) => ({ id: String(x.externo_id), criado_em: x.criado_em, origem: x.origem, utm_campaign: x.utm_campaign })),
-    (msgsRaw as any[]).map((m) => ({ sessao_id: String(m.sessao_id), enviada_em: m.enviada_em, tipo: m.tipo, origem: m.origem, user_id: m.user_id_elora })),
+    msgsRaw,
     sessoes,
     { nomeCanal, agentes, equipePorCanal: c.equipe_por_canal ?? {}, ignorar: [...((suporte.data ?? []) as any[]), ...extra] },
   );
