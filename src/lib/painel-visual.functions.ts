@@ -109,7 +109,7 @@ export const getPainelVisual = createServerFn({ method: "POST" })
         atendimentos: at.map((a: any) => ({
           id: String(a.externo_id),
           contato_id: a.contato_id ? String(a.contato_id) : null,
-          canal: a.canal_nome || nomes.get(`canal:${a.canal_id}`) || "Canal sem nome",
+          canal: a.canal_nome || nomes.get(`canal:${a.canal_id}`) || NAO_DEFINIDO,
           atendente: a.atendente_nome || (a.atendente_id ? nomes.get(`usuario:${a.atendente_id}`) : null) || SEM_ATENDENTE,
           criado_em: a.criado_em,
           tmr: a.time_wait_segundos,
