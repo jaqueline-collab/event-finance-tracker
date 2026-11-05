@@ -11,3 +11,4 @@
 
 - Espelho da conta Elora: tabelas `elora_*_espelho` + `elora_sync_estado` (RLS sem policy, só servidor, lógica em `elora-espelho.server.ts`); o painel lê o espelho quando a carga está concluída, exceto clientes em `LEITURA_ANTIGA`, para trocar de fonte sem quebrar widgets.
 - Painel visual do cliente: agregação pura em `src/lib/painel-visual.ts`, lida pelo servidor em `painel-visual.functions.ts` só para clientes com espelho; mensagens só via `lerMensagensSemTexto` em `elora-espelho.server.ts`, para o texto nunca sair do servidor.
+- Indicadores: cada campo de evento/condição em `elora_indicadores_config` guarda `{fonte, campo}` escolhido na configuração; o motor nunca infere a fonte, para o mesmo nome poder existir no card e no contato.

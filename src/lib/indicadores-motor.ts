@@ -6,13 +6,16 @@
 import { conversasPorDia, diaSP, type MensagemP } from "./painel-visual";
 
 export type Operador = "preenchido" | "vazio" | "igual" | "contem";
-export type Condicao = { campo: string; operador: Operador; valor?: string };
+export type FonteCampo = "card" | "contato" | "atendimento" | "utm";
+/** Campo sempre com a fonte escolhida na configuração. Nada no código decide a fonte. */
+export type CampoRef = { fonte: FonteCampo; campo: string };
+export type Condicao = { campo: CampoRef; operador: Operador; valor?: string };
 export type Grupo = { op: "E" | "OU"; itens: (Condicao | Grupo)[] };
 export type Evento =
   | { tipo: "entrou_etapa"; etapa: string }
   | { tipo: "virou_ganho" }
   | { tipo: "virou_perdido" }
-  | { tipo: "campo_preenchido"; campo: string }
+  | { tipo: "campo_preenchido"; campo: CampoRef }
   | { tipo: "foi_criado" };
 
 export type IndicadorConfig = {
@@ -25,6 +28,8 @@ export type IndicadorConfig = {
   ordem: number;
   tipo: "app" | "manual" | "combinada" | "formula";
   ativo: boolean;
+  /** Campos de contato em indicador de card: qual contato do card usar. */
+  contato_do_card?: "primeiro";
 };
 
 /** Uma leitura do card: como ele estava quando o sistema o viu. */
@@ -63,8 +68,33 @@ export function avaliarGrupo(g: Grupo | undefined, campos: Record<string, unknow
   return g.op === "OU" ? res.some(Boolean) : res.every(Boolean);
 }
 
+export const FONTES: FonteCampo[] = ["card", "contato", "atendimento", "utm"];
+export const ehCampoRef = (x: unknown): x is CampoRef =>
+  !!x && typeof x === "object" && FONTES.includes((x as any).fonte) && typeof (x as any).campo === "string" && (x as any).campo !== "";
+
+/** Chave interna da leitura para {fonte, campo}. UTM vem do contato ligado ao card. */
+export function chaveLeitura(ref: CampoRef): string {
+  if (ref.fonte === "utm") return `contato.utm_${ref.campo.replace(/^utm_/, "")}`;
+  return `${ref.fonte}.${ref.campo}`;
+}
+
+/** Condições/eventos sem fonte são erro de configuração: não contam e são listados. */
+export function errosDeConfig(cfg: IndicadorConfig): string[] {
+  const erros: string[] = [];
+  const ver = (g: Grupo | undefined) =>
+    g?.itens?.forEach((i) => {
+      if (ehGrupo(i)) return ver(i);
+      if (!ehCampoRef(i.campo)) erros.push(`condição sem fonte: ${JSON.stringify(i.campo)}`);
+    });
+  ver(cfg.condicoes);
+  const ev = cfg.evento as Evento;
+  if (ev?.tipo === "campo_preenchido" && !ehCampoRef(ev.campo)) erros.push("evento sem fonte");
+  return erros;
+}
+
 export function avaliarCondicao(c: Condicao, campos: Record<string, unknown>): boolean {
-  const v = campos[c.campo];
+  if (!ehCampoRef(c.campo)) return false;
+  const v = campos[chaveLeitura(c.campo)];
   switch (c.operador) {
     case "preenchido":
       return preenchido(v);
@@ -88,7 +118,7 @@ export function eventoVale(ev: Evento, l: Leitura): boolean {
     case "virou_perdido":
       return l.status === "LOST";
     case "campo_preenchido":
-      return preenchido(l.campos[ev.campo]);
+      return ehCampoRef(ev.campo) && preenchido(l.campos[chaveLeitura(ev.campo)]);
     case "foi_criado":
       return true;
   }
@@ -100,7 +130,7 @@ export function eventoVale(ev: Evento, l: Leitura): boolean {
  */
 export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[]): { dia: string; estimado: boolean } | null {
   const ev = cfg.evento as Evento;
-  if (!ev?.tipo) return null;
+  if (!ev?.tipo || errosDeConfig(cfg).length) return null;
   const ordenadas = [...leituras].sort((a, b) => a.visto_em.localeCompare(b.visto_em));
   for (const l of ordenadas) {
     if (!eventoVale(ev, l) || !avaliarGrupo(cfg.condicoes, l.campos)) continue;
@@ -209,4 +239,33 @@ export function camposDaLeitura(card: any, contato: any | null): Record<string, 
 export function assinatura(l: Pick<Leitura, "etapa_id" | "status" | "campos">): string {
   const ord = Object.keys(l.campos).sort().map((k) => [k, l.campos[k]]);
   return JSON.stringify([l.etapa_id, l.status, ord]);
+}
+
+const NOMES_FONTE: Record<FonteCampo, string> = {
+  card: "Campos do card",
+  contato: "Campos do contato (primeiro contato do card)",
+  atendimento: "Atendimento",
+  utm: "UTM",
+};
+
+/** Catálogo agrupado por fonte; o mesmo nome pode aparecer em duas fontes. */
+export function catalogoCampos(leituras: Pick<Leitura, "campos">[]) {
+  const grupos: Record<FonteCampo, Map<string, number>> = { card: new Map(), contato: new Map(), atendimento: new Map(), utm: new Map() };
+  for (const l of leituras)
+    for (const [k, v] of Object.entries(l.campos ?? {})) {
+      let fonte: FonteCampo, campo: string;
+      if (k.startsWith("contato.utm_")) (fonte = "utm"), (campo = k.slice("contato.utm_".length));
+      else {
+        const [f, ...r] = k.split(".");
+        if (!FONTES.includes(f as FonteCampo)) continue;
+        (fonte = f as FonteCampo), (campo = r.join("."));
+      }
+      const m = grupos[fonte];
+      m.set(campo, (m.get(campo) ?? 0) + (preenchido(v) ? 1 : 0));
+    }
+  return FONTES.map((f) => ({
+    fonte: f,
+    nome: NOMES_FONTE[f],
+    campos: [...grupos[f]].map(([campo, preenchidos]) => ({ campo, preenchidos })).sort((a, b) => a.campo.localeCompare(b.campo)),
+  }));
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   calcularIndicadoresCards,
   calcularPadrao,
+  camposDaLeitura,
+  errosDeConfig,
   colunasDoCliente,
   montarRelatorio,
   type IndicadorConfig,
@@ -53,7 +55,7 @@ describe("motor de indicadores", () => {
   });
 
   it("campo preenchido conta no dia em que a condição passa a valer", () => {
-    const c = cfg({ chave: "pv", condicoes: { op: "E", itens: [{ campo: "contato.campo.data-procedimento", operador: "preenchido" }] } });
+    const c = cfg({ chave: "pv", condicoes: { op: "E", itens: [{ campo: { fonte: "contato", campo: "campo.data-procedimento" }, operador: "preenchido" }] } });
     const ls = [
       leitura({ visto_em: "2026-10-01T15:00:00Z", etapa_titulo: "Agendados" }),
       leitura({ visto_em: "2026-10-05T15:00:00Z", etapa_titulo: "Agendados", campos: { "contato.campo.data-procedimento": ["2026-10-15"] } }),
@@ -64,7 +66,7 @@ describe("motor de indicadores", () => {
   });
 
   it("versão ADS só conta com utm.campaign preenchido", () => {
-    const ads = cfg({ chave: "ads", condicoes: { op: "E", itens: [{ campo: "contato.utm_campaign", operador: "preenchido" }] } });
+    const ads = cfg({ chave: "ads", condicoes: { op: "E", itens: [{ campo: { fonte: "utm", campo: "campaign" }, operador: "preenchido" }] } });
     const ls = [
       leitura({ card_id: "a", etapa_titulo: "Agendados", campos: { "contato.utm_campaign": "promo" } }),
       leitura({ card_id: "b", etapa_titulo: "Agendados", campos: { "contato.utm_campaign": "" } }),
@@ -99,5 +101,34 @@ describe("motor de indicadores", () => {
     );
     expect(m.get("2026-10-01")?.novos_contatos.valor).toBe(1);
     expect(m.get("2026-10-01")?.novos_contatos_ads.valor).toBe(1);
+  });
+});
+
+describe("fonte do campo vem da configuração", () => {
+  // mesmo card visto pelos dois clientes: campo preenchido só no card
+  const ls = [
+    leitura({ etapa_titulo: "Agendados", campos: { "card.campo.data-da-consulta": "2026-10-10", "contato.campo.data-da-consulta": null } }),
+  ];
+  const regra = (fonte: "card" | "contato") =>
+    cfg({ chave: "ca", condicoes: { op: "E", itens: [{ campo: { fonte, campo: "campo.data-da-consulta" }, operador: "preenchido" }] } });
+
+  it("dois clientes, mesma regra, fontes diferentes, resultados diferentes", () => {
+    const clienteCard = calcularIndicadoresCards([regra("card")], ls);
+    const clienteContato = calcularIndicadoresCards([regra("contato")], ls);
+    expect(clienteCard.get("2026-10-01")?.ca.valor).toBe(1);
+    expect(clienteContato.get("2026-10-01")?.ca).toBeUndefined();
+  });
+
+  it("campo do contato usa o primeiro contato do card", () => {
+    const card = { customFields: {}, contactIds: ["p1", "p2"] };
+    const primeiro = { payload: { customFields: { "data-da-consulta": "2026-10-10" } } };
+    const campos = camposDaLeitura(card, primeiro);
+    expect(campos["contato.campo.data-da-consulta"]).toBe("2026-10-10");
+  });
+
+  it("condição sem fonte não conta e vira erro de configuração", () => {
+    const antiga = cfg({ chave: "old", condicoes: { op: "E", itens: [{ campo: "card.campo.data-da-consulta" as any, operador: "preenchido" }] } });
+    expect(errosDeConfig(antiga)).toHaveLength(1);
+    expect(calcularIndicadoresCards([antiga], ls).get("2026-10-01")).toBeUndefined();
   });
 });
