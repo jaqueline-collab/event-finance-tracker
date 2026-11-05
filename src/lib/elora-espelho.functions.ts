@@ -45,9 +45,10 @@ export const sincronizarAgoraCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: souAdmin } = await (context.supabase as any).rpc("is_admin");
     if (!souAdmin) throw new Error("acesso-negado: só a super admin pode sincronizar.");
-    const { LEITURA_ANTIGA, ORDEM_FONTES, sincronizarFonte } = await import("@/lib/elora-espelho.server");
-    if (LEITURA_ANTIGA.has(data.clienteId)) return { leituraAntiga: true as const, fonte: data.fonte, concluido: true, registros: 0, proxima: null };
+    const { lerFonteDados, ORDEM_FONTES, sincronizarFonte } = await import("@/lib/elora-espelho.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if ((await lerFonteDados(supabaseAdmin as any, data.clienteId)) === "antiga")
+      return { leituraAntiga: true as const, fonte: data.fonte, concluido: true, registros: 0, proxima: null };
     const { obterChaveElora } = await import("@/lib/credenciais.server");
     const chave = await obterChaveElora(data.clienteId);
     const { data: conta } = await (supabaseAdmin as any)

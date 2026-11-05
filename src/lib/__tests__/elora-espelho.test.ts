@@ -5,7 +5,7 @@ import {
   espera429,
   mapAtendimento,
   mapContato,
-  LEITURA_ANTIGA,
+  decidirEspelho,
   mapMensagem,
   ORDEM_FONTES,
 } from "../elora-espelho.server";
@@ -75,8 +75,12 @@ describe("mapeamento", () => {
   it("duração com dias", () => {
     expect(duracaoSegundos("1.02:00:00")).toBe(86400 + 7200);
   });
-  it("Dr. Gean continua na leitura antiga", () => {
-    expect(LEITURA_ANTIGA.has("jvu3dzqk")).toBe(true);
+  it("fonte \"antiga\" nunca usa o espelho, mesmo com carga completa", () => {
+    const completos = [{ fonte: "contatos", concluido_em: "2026-11-01" }, { fonte: "atendimentos", concluido_em: "2026-11-01" }];
+    expect(decidirEspelho("antiga", completos)).toBe(false);
+    expect(decidirEspelho("automatica", completos)).toBe(true);
+    expect(decidirEspelho("automatica", [completos[0]])).toBe(false);
+    expect(decidirEspelho(undefined, completos)).toBe(true);
   });
 
   it("mensagem: colunas visíveis sem texto; bot = FROM_HUB sem userId", () => {
