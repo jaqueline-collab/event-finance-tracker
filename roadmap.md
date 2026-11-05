@@ -11,3 +11,6 @@
 - [x] Mensagens 8c0ojhr2: testar endpoint do n8n x atual, carga completa com cursor
 - [x] Botão "Sincronizar agora" no app (espelho) e teste
 - [x] Relatório diário 22/09–03/10 (com 30/09) x monday
+- [x] Fase 1 do visual do Painel do cliente (8c0ojhr2): cabeçalho, período, chips, 4 indicadores, 6 gráficos interativos, abas sublinhadas. Conferência logada indisponível (Supabase externo).
+- [ ] Fase 2: construtor de gráfico (desenho página 5)
+- [ ] Fase 3: visão matriz (desenho página 6)
