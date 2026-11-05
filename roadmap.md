@@ -14,3 +14,7 @@
 - [x] Fase 1 do visual do Painel do cliente (8c0ojhr2): cabeçalho, período, chips, 4 indicadores, 6 gráficos interativos, abas sublinhadas. Conferência logada indisponível (Supabase externo).
 - [ ] Fase 2: construtor de gráfico (desenho página 5)
 - [ ] Fase 3: visão matriz (desenho página 6)
+
+- [x] Etapa C parte 2: cards (abertos/ganhos/perdidos/arquivados) + histórico, configuração de indicadores, motor único, tela de validação
+- [ ] Agendar sincronização de cards a cada 30 min — aguardando segredo SYNC_CRON_SECRET e o agendamento no n8n ou Supabase
+- [ ] Gravar o motor no relatório diário — aguardando aprovação (n8n só tem 25 e 26/09)

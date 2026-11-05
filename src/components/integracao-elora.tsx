@@ -18,7 +18,7 @@ import {
 } from "@/lib/integracao-elora.functions";
 import { sincronizarAgoraCliente } from "@/lib/elora-espelho.functions";
 
-const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens" };
+const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens", cards: "cards" };
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
@@ -111,7 +111,7 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
   const sincronizar = async () => {
     setSincronizando(true);
     try {
-      let fonte: "apoio" | "contatos" | "atendimentos" | "mensagens" | null = "apoio";
+      let fonte: "apoio" | "contatos" | "atendimentos" | "mensagens" | "cards" | null = "apoio";
       const total: Record<string, number> = {};
       while (fonte) {
         setProgresso(`Sincronizando ${NOME_FONTE[fonte]}…`);

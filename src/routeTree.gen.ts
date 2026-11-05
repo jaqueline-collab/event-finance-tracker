@@ -26,6 +26,7 @@ import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as RelatorioValidacaoRouteImport } from './routes/relatorio-validacao'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as SimuladorRouteImport } from './routes/simulador'
 import { Route as TreinamentoRouteImport } from './routes/treinamento'
@@ -41,6 +42,7 @@ import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidade
 import { Route as ParceiroIndexRouteImport } from './routes/parceiro.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as ApiPublicSyncCardsRouteImport } from './routes/api/public/sync-cards'
 import { Route as ClientesIdDadosEloraRouteImport } from './routes/clientes_.$id.dados-elora'
 import { Route as ClientesIdIntegracaoEloraRouteImport } from './routes/clientes_.$id.integracao-elora'
 import { Route as ApiPublicRelatorioDiarioListarClientesRouteImport } from './routes/api/public/relatorio-diario/listar-clientes'
@@ -131,6 +133,11 @@ const PlanosRoute = PlanosRouteImport.update({
   path: '/planos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelatorioValidacaoRoute = RelatorioValidacaoRouteImport.update({
+  id: '/relatorio-validacao',
+  path: '/relatorio-validacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResumoRoute = ResumoRouteImport.update({
   id: '/resumo',
   path: '/resumo',
@@ -209,6 +216,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSyncCardsRoute = ApiPublicSyncCardsRouteImport.update({
+  id: '/api/public/sync-cards',
+  path: '/api/public/sync-cards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesIdDadosEloraRoute = ClientesIdDadosEloraRouteImport.update({
   id: '/clientes_/$id/dados-elora',
   path: '/clientes/$id/dados-elora',
@@ -251,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
@@ -266,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/parceiro/': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/sync-cards': typeof ApiPublicSyncCardsRoute
   '/clientes/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -287,6 +301,7 @@ export interface FileRoutesByTo {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
@@ -302,6 +317,7 @@ export interface FileRoutesByTo {
   '/parceiro': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/sync-cards': typeof ApiPublicSyncCardsRoute
   '/clientes/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -326,6 +342,7 @@ export interface FileRoutesById {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
@@ -341,6 +358,7 @@ export interface FileRoutesById {
   '/parceiro/': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/sync-cards': typeof ApiPublicSyncCardsRoute
   '/clientes_/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes_/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -366,6 +384,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
     | '/treinamento'
@@ -381,6 +400,7 @@ export interface FileRouteTypes {
     | '/parceiro/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/sync-cards'
     | '/clientes/$id/dados-elora'
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
@@ -402,6 +422,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
     | '/treinamento'
@@ -417,6 +438,7 @@ export interface FileRouteTypes {
     | '/parceiro'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/sync-cards'
     | '/clientes/$id/dados-elora'
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
@@ -440,6 +462,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
     | '/treinamento'
@@ -455,6 +478,7 @@ export interface FileRouteTypes {
     | '/parceiro/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/sync-cards'
     | '/clientes_/$id/dados-elora'
     | '/clientes_/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
@@ -479,6 +503,7 @@ export interface RootRouteChildren {
   ParceirosRoute: typeof ParceirosRoute
   PerfilRoute: typeof PerfilRoute
   PlanosRoute: typeof PlanosRoute
+  RelatorioValidacaoRoute: typeof RelatorioValidacaoRoute
   ResumoRoute: typeof ResumoRoute
   SimuladorRoute: typeof SimuladorRoute
   TreinamentoRoute: typeof TreinamentoRoute
@@ -491,6 +516,7 @@ export interface RootRouteChildren {
   BlogIndexRoute: typeof BlogIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicSyncCardsRoute: typeof ApiPublicSyncCardsRoute
   ClientesIdDadosEloraRoute: typeof ClientesIdDadosEloraRoute
   ClientesIdIntegracaoEloraRoute: typeof ClientesIdIntegracaoEloraRoute
   ApiPublicRelatorioDiarioListarClientesRoute: typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -618,6 +644,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relatorio-validacao': {
+      id: '/relatorio-validacao'
+      path: '/relatorio-validacao'
+      fullPath: '/relatorio-validacao'
+      preLoaderRoute: typeof RelatorioValidacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resumo': {
       id: '/resumo'
       path: '/resumo'
@@ -723,6 +756,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sync-cards': {
+      id: '/api/public/sync-cards'
+      path: '/api/public/sync-cards'
+      fullPath: '/api/public/sync-cards'
+      preLoaderRoute: typeof ApiPublicSyncCardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes_/$id/dados-elora': {
       id: '/clientes_/$id/dados-elora'
       path: '/clientes/$id/dados-elora'
@@ -806,6 +846,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParceirosRoute: ParceirosRoute,
   PerfilRoute: PerfilRoute,
   PlanosRoute: PlanosRoute,
+  RelatorioValidacaoRoute: RelatorioValidacaoRoute,
   ResumoRoute: ResumoRoute,
   SimuladorRoute: SimuladorRoute,
   TreinamentoRoute: TreinamentoRoute,
@@ -819,6 +860,7 @@ const rootRouteChildren: RootRouteChildren = {
   BlogIndexRoute: BlogIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicSyncCardsRoute: ApiPublicSyncCardsRoute,
   ClientesIdDadosEloraRoute: ClientesIdDadosEloraRoute,
   ClientesIdIntegracaoEloraRoute: ClientesIdIntegracaoEloraRoute,
   ApiPublicRelatorioDiarioListarClientesRoute:

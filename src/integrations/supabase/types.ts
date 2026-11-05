@@ -195,6 +195,118 @@ export type Database = {
           },
         ]
       }
+      elora_cards_espelho: {
+        Row: {
+          atualizado_em: string | null
+          cliente_id: string
+          contato_ids: string[]
+          criado_em: string | null
+          etapa_fase: string | null
+          etapa_id: string | null
+          etapa_titulo: string | null
+          externo_id: string
+          painel_id: string | null
+          painel_titulo: string | null
+          payload: Json
+          sincronizado_em: string
+          status: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          cliente_id: string
+          contato_ids?: string[]
+          criado_em?: string | null
+          etapa_fase?: string | null
+          etapa_id?: string | null
+          etapa_titulo?: string | null
+          externo_id: string
+          painel_id?: string | null
+          painel_titulo?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          status?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          cliente_id?: string
+          contato_ids?: string[]
+          criado_em?: string | null
+          etapa_fase?: string | null
+          etapa_id?: string | null
+          etapa_titulo?: string | null
+          externo_id?: string
+          painel_id?: string | null
+          painel_titulo?: string | null
+          payload?: Json
+          sincronizado_em?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_cards_espelho_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elora_cards_historico: {
+        Row: {
+          campos: Json
+          card_id: string
+          cliente_id: string
+          criado_em: string
+          estimado: boolean
+          etapa_fase: string | null
+          etapa_id: string | null
+          etapa_titulo: string | null
+          hash: string
+          id: string
+          painel_id: string | null
+          status: string | null
+          visto_em: string
+        }
+        Insert: {
+          campos?: Json
+          card_id: string
+          cliente_id: string
+          criado_em?: string
+          estimado?: boolean
+          etapa_fase?: string | null
+          etapa_id?: string | null
+          etapa_titulo?: string | null
+          hash: string
+          id?: string
+          painel_id?: string | null
+          status?: string | null
+          visto_em: string
+        }
+        Update: {
+          campos?: Json
+          card_id?: string
+          cliente_id?: string
+          criado_em?: string
+          estimado?: boolean
+          etapa_fase?: string | null
+          etapa_id?: string | null
+          etapa_titulo?: string | null
+          hash?: string
+          id?: string
+          painel_id?: string | null
+          status?: string | null
+          visto_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_cards_historico_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_classificacoes_descobertas: {
         Row: {
           cliente_id: string
@@ -1150,6 +1262,62 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_indicadores_config: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          chave: string
+          cliente_id: string
+          condicoes: Json
+          criado_em: string
+          evento: Json
+          fonte: string
+          id: string
+          medida: string
+          nome: string
+          ordem: number
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave: string
+          cliente_id: string
+          condicoes?: Json
+          criado_em?: string
+          evento?: Json
+          fonte?: string
+          id?: string
+          medida?: string
+          nome: string
+          ordem?: number
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave?: string
+          cliente_id?: string
+          condicoes?: Json
+          criado_em?: string
+          evento?: Json
+          fonte?: string
+          id?: string
+          medida?: string
+          nome?: string
+          ordem?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_indicadores_config_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_integracao_contas: {
         Row: {
           api_key: string | null
@@ -2074,6 +2242,7 @@ export type Database = {
           criado_em: string
           data: string
           equipe: string
+          estimado: boolean
           id: string
           novos_contatos: number
           novos_contatos_ads: number
@@ -2095,6 +2264,7 @@ export type Database = {
           criado_em?: string
           data: string
           equipe?: string
+          estimado?: boolean
           id?: string
           novos_contatos?: number
           novos_contatos_ads?: number
@@ -2116,6 +2286,7 @@ export type Database = {
           criado_em?: string
           data?: string
           equipe?: string
+          estimado?: boolean
           id?: string
           novos_contatos?: number
           novos_contatos_ads?: number
