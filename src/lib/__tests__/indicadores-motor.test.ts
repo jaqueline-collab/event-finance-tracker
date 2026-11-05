@@ -135,7 +135,7 @@ describe("fonte do campo vem da configuração", () => {
 });
 
 describe("colunas padrão por canal/atendente/equipe", () => {
-  const cfgCorte = { nomeCanal: { c1: "(31) 1111" }, equipePorCanal: { c1: "Atendimento" }, agentes: { u1: "Ana", u2: "Bia" }, ignorarAtendentes: [] as string[] };
+  const cfgCorte = { nomeCanal: { c1: "(31) 1111" }, equipePorCanal: { c1: "Atendimento" }, agentes: { u1: { nome: "Ana", email: "ana@x.com" }, u2: { nome: "Bia" } }, ignorar: [] as { nome?: string; email?: string }[] };
   const sessoes = [
     { id: "s1", contato_id: "k1", canal_id: "c1", canal_nome: null, responsavel_id: "u2", responsavel_nome: "Bia" },
     { id: "s2", contato_id: "k2", canal_id: "c2", canal_nome: "@insta", responsavel_id: null, responsavel_nome: null },
@@ -164,8 +164,17 @@ describe("colunas padrão por canal/atendente/equipe", () => {
     expect(L.find((l) => l.canal === "@insta")?.equipe).toBe("");
     expect(L.find((l) => l.canal === "(31) 1111")?.equipe).toBe("Atendimento");
   });
-  it("atendente ignorado tira a conversa", () => {
-    const L = calcularPadraoPorCorte(contatos, msgs, sessoes, { ...cfgCorte, ignorarAtendentes: ["Ana"] });
+  it("suporte interno ignorado por e-mail, em qualquer conta (userId diferente)", () => {
+    const outraConta = { ...cfgCorte, agentes: { zz: { nome: "Ana S.", email: "ANA@x.com" }, u2: { nome: "Bia" } } };
+    const m2 = msgs.map((m) => (m.user_id === "u1" ? { ...m, user_id: "zz" } : m));
+    const L = calcularPadraoPorCorte(contatos, m2, sessoes, { ...outraConta, ignorar: [{ email: "ana@x.com" }] });
     expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
+  });
+  it("suporte interno ignorado por nome do responsável", () => {
+    const L = calcularPadraoPorCorte(contatos, [msgs[2]], sessoes, { ...cfgCorte, ignorar: [] });
+    expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
+    const s2 = [sessoes[0], { ...sessoes[1], responsavel_nome: "Suporte X" }];
+    const L2 = calcularPadraoPorCorte(contatos, [msgs[2]], s2, { ...cfgCorte, ignorar: [{ nome: "suporte x" }] });
+    expect(L2.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(0);
   });
 });
