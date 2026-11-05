@@ -144,6 +144,9 @@ export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[]): { dia: str
   return null;
 }
 
+/** Coluna combinada de cards ("app" é o nome antigo, aceito para não quebrar configurações). */
+export const ehCombinadaDeCard = (c: Pick<IndicadorConfig, "tipo" | "fonte">) => (c.tipo === "combinada" || c.tipo === "app") && c.fonte === "cards";
+
 export type Celula = { valor: number; estimado: number };
 /** dia → chave → { valor, quantos desse valor são estimados } */
 export type PorDia = Map<string, Record<string, Celula>>;
@@ -162,7 +165,7 @@ export function calcularIndicadoresCards(configs: IndicadorConfig[], leituras: L
   const porCard = new Map<string, Leitura[]>();
   for (const l of leituras) porCard.set(l.card_id, [...(porCard.get(l.card_id) ?? []), l]);
   for (const cfg of configs) {
-    if (!cfg.ativo || cfg.tipo !== "app" || cfg.fonte !== "cards") continue;
+    if (!cfg.ativo || !ehCombinadaDeCard(cfg)) continue;
     for (const ls of porCard.values()) {
       const r = diaDoCard(cfg, ls);
       if (r) somar(m, r.dia, cfg.chave, 1, r.estimado);

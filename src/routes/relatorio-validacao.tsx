@@ -111,28 +111,23 @@ function ValidacaoPage() {
         </CardContent>
       </Card>
       {r && r.erros?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-destructive">Configuração com erro (não conta)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            {r.erros.map((e) => (
-              <p key={e}>{e}</p>
-            ))}
-          </CardContent>
-        </Card>
+        <div className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+          <p className="font-medium">Colunas com configuração incompleta ficam fora da conta:</p>
+          {r.erros.map((e) => (
+            <p key={e}>{e}</p>
+          ))}
+        </div>
       )}
-      {r && (
+      {r && r.catalogo.some((g) => g.campos.length > 0) && (
         <Card>
           <CardHeader>
             <CardTitle>Catálogo de campos</CardTitle>
             <CardDescription>Agrupado por fonte. Campos do contato usam o primeiro contato do card.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-            {r.catalogo.map((g) => (
+            {r.catalogo.filter((g) => g.campos.length > 0).map((g) => (
               <div key={g.fonte}>
                 <p className="mb-1 font-semibold">{g.nome}</p>
-                {g.campos.length === 0 && <p className="text-muted-foreground">Nenhum campo lido.</p>}
                 {g.campos.map((c) => (
                   <p key={c.campo} className="flex justify-between gap-2">
                     <span>{c.campo}</span>

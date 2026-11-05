@@ -9,6 +9,7 @@ import {
   COLUNAS_PADRAO,
   montarRelatorio,
   errosDeConfig,
+  ehCombinadaDeCard,
   catalogoCampos,
   type IndicadorConfig,
   type Leitura,
@@ -44,7 +45,7 @@ export async function calcularRelatorioCliente(db: SupabaseClient, clienteId: st
         .order("externo_id"),
     ),
     lerMensagensSemTexto(db, clienteId, inicio, fim),
-    configs.some((c) => c.fonte === "cards" && c.tipo === "app" && c.ativo)
+    configs.some((c) => ehCombinadaDeCard(c) && c.ativo)
       ? lerTudo(() =>
           db
             .from("elora_cards_historico")
@@ -64,7 +65,7 @@ export async function calcularRelatorioCliente(db: SupabaseClient, clienteId: st
   calcularIndicadoresCards(configs, ls, m);
   const colunas = colunasDoCliente(configs);
   const { linhas, total } = montarRelatorio(m, listaDias(p), colunas.map((c) => c.chave));
-  const erros = configs.filter((c) => c.ativo && c.tipo === "app").flatMap((c) => errosDeConfig(c).map((e) => `${c.nome}: ${e}`));
+  const erros = configs.filter((c) => c.ativo && ehCombinadaDeCard(c)).flatMap((c) => errosDeConfig(c).map((e) => `${c.nome}: ${e}`));
   return { colunas, linhas, total, erros, catalogo: catalogoCampos(ls) };
 }
 
