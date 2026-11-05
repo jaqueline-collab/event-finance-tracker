@@ -18,6 +18,7 @@ Alvo visual: imagem da Matriz do desenho, com os tokens e componentes do app, cl
 - Célula estimada com marca "estimado"; total mostra a marca quando inclui dia estimado.
 - Cabeçalho fixo, rolagem lateral em telas estreitas, ordenação por coluna.
 - Lê o relatório diário gravado + motor de indicadores, por função de servidor que valida acesso e filtra pelo cliente.
+- Dr. Ricardo (8c0ojhr2) já abre com: as 5 padrão, as 4 combinadas gravadas (Consulta Agendada, Procedimento Vendido e versões ADS, dias de cards marcados "estimado") e uma coluna Manual "Social Selling" criada como dado do cliente, vazia (valores do monday não importados agora).
 
 ## 2. Colunas e editor (só super admin, recusado no servidor para os demais)
 - "+ Coluna" no fim do cabeçalho e "⋯" por coluna, só em modo Editar. Editor em painel lateral; grava na configuração de indicadores do cliente.
