@@ -212,7 +212,7 @@ export function colunasDoCliente(configs: IndicadorConfig[]) {
   return [
     ...COLUNAS_PADRAO.map((c) => ({ chave: c.chave, nome: c.nome, tipo: "padrao" as const })),
     ...configs
-      .filter((c) => c.ativo)
+      .filter((c) => c.ativo && !COLUNAS_PADRAO.some((p) => p.chave === c.chave))
       .sort((a, b) => a.ordem - b.ordem)
       .map((c) => ({ chave: c.chave, nome: c.nome, tipo: c.tipo })),
   ];
