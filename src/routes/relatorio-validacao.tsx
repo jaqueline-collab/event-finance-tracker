@@ -110,6 +110,40 @@ function ValidacaoPage() {
           )}
         </CardContent>
       </Card>
+      {r && r.erros?.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-destructive">Configuração com erro (não conta)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {r.erros.map((e) => (
+              <p key={e}>{e}</p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+      {r && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Catálogo de campos</CardTitle>
+            <CardDescription>Agrupado por fonte. Campos do contato usam o primeiro contato do card.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm md:grid-cols-2">
+            {r.catalogo.map((g) => (
+              <div key={g.fonte}>
+                <p className="mb-1 font-semibold">{g.nome}</p>
+                {g.campos.length === 0 && <p className="text-muted-foreground">Nenhum campo lido.</p>}
+                {g.campos.map((c) => (
+                  <p key={c.campo} className="flex justify-between gap-2">
+                    <span>{c.campo}</span>
+                    <span className="tabular-nums text-muted-foreground">{c.preenchidos} preenchidos</span>
+                  </p>
+                ))}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
