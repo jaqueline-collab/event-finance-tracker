@@ -41,6 +41,7 @@ import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidade
 import { Route as ParceiroIndexRouteImport } from './routes/parceiro.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as ApiPublicSyncCardsRouteImport } from './routes/api/public/sync-cards'
 import { Route as ClientesIdDadosEloraRouteImport } from './routes/clientes_.$id.dados-elora'
 import { Route as ClientesIdIntegracaoEloraRouteImport } from './routes/clientes_.$id.integracao-elora'
 import { Route as ApiPublicRelatorioDiarioListarClientesRouteImport } from './routes/api/public/relatorio-diario/listar-clientes'
@@ -209,6 +210,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSyncCardsRoute = ApiPublicSyncCardsRouteImport.update({
+  id: '/api/public/sync-cards',
+  path: '/api/public/sync-cards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesIdDadosEloraRoute = ClientesIdDadosEloraRouteImport.update({
   id: '/clientes_/$id/dados-elora',
   path: '/clientes/$id/dados-elora',
@@ -266,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/parceiro/': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/sync-cards': typeof ApiPublicSyncCardsRoute
   '/clientes/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByTo {
   '/parceiro': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/sync-cards': typeof ApiPublicSyncCardsRoute
   '/clientes/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -341,6 +349,7 @@ export interface FileRoutesById {
   '/parceiro/': typeof ParceiroIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/sync-cards': typeof ApiPublicSyncCardsRoute
   '/clientes_/$id/dados-elora': typeof ClientesIdDadosEloraRoute
   '/clientes_/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
     | '/parceiro/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/sync-cards'
     | '/clientes/$id/dados-elora'
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
     | '/parceiro'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/sync-cards'
     | '/clientes/$id/dados-elora'
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
@@ -455,6 +466,7 @@ export interface FileRouteTypes {
     | '/parceiro/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/sync-cards'
     | '/clientes_/$id/dados-elora'
     | '/clientes_/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
@@ -491,6 +503,7 @@ export interface RootRouteChildren {
   BlogIndexRoute: typeof BlogIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicSyncCardsRoute: typeof ApiPublicSyncCardsRoute
   ClientesIdDadosEloraRoute: typeof ClientesIdDadosEloraRoute
   ClientesIdIntegracaoEloraRoute: typeof ClientesIdIntegracaoEloraRoute
   ApiPublicRelatorioDiarioListarClientesRoute: typeof ApiPublicRelatorioDiarioListarClientesRoute
@@ -723,6 +736,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sync-cards': {
+      id: '/api/public/sync-cards'
+      path: '/api/public/sync-cards'
+      fullPath: '/api/public/sync-cards'
+      preLoaderRoute: typeof ApiPublicSyncCardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes_/$id/dados-elora': {
       id: '/clientes_/$id/dados-elora'
       path: '/clientes/$id/dados-elora'
@@ -819,6 +839,7 @@ const rootRouteChildren: RootRouteChildren = {
   BlogIndexRoute: BlogIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicSyncCardsRoute: ApiPublicSyncCardsRoute,
   ClientesIdDadosEloraRoute: ClientesIdDadosEloraRoute,
   ClientesIdIntegracaoEloraRoute: ClientesIdIntegracaoEloraRoute,
   ApiPublicRelatorioDiarioListarClientesRoute:

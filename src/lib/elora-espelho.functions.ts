@@ -40,7 +40,7 @@ export const sincronizarEspelhoCliente = createServerFn({ method: "POST" })
 export const sincronizarAgoraCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) =>
-    z.object({ clienteId: z.string().min(1), fonte: z.enum(["apoio", "contatos", "atendimentos", "mensagens"]).default("apoio") }).parse(i),
+    z.object({ clienteId: z.string().min(1), fonte: z.enum(["apoio", "contatos", "atendimentos", "mensagens", "cards"]).default("apoio") }).parse(i),
   )
   .handler(async ({ data, context }) => {
     const { data: souAdmin } = await (context.supabase as any).rpc("is_admin");
@@ -58,8 +58,13 @@ export const sincronizarAgoraCliente = createServerFn({ method: "POST" })
     if (!chave || !conta?.base_url) throw new Error("integracao: cliente sem conexão com o Elora.");
     const base = String(conta.base_url).replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, "");
     const ctx = { base, chave, chamadas: 0, retentativas: 0, erros: [] as string[] };
-    const r = await sincronizarFonte(supabaseAdmin as any, data.clienteId, data.fonte, ctx, 25_000);
-    const i = ORDEM_FONTES.indexOf(data.fonte);
-    const proxima = r.concluido ? (ORDEM_FONTES[i + 1] ?? null) : data.fonte;
+    // Depois das fontes do espelho, os cards (histórico de etapas).
+    const ordem = [...ORDEM_FONTES, "cards"] as const;
+    const r =
+      data.fonte === "cards"
+        ? await (await import("@/lib/elora-cards.server")).sincronizarCards(supabaseAdmin as any, data.clienteId, ctx, 25_000)
+        : await sincronizarFonte(supabaseAdmin as any, data.clienteId, data.fonte, ctx, 25_000);
+    const i = ordem.indexOf(data.fonte);
+    const proxima = r.concluido ? (ordem[i + 1] ?? null) : data.fonte;
     return { leituraAntiga: false as const, fonte: data.fonte, concluido: r.concluido, registros: r.registros, proxima };
   });
