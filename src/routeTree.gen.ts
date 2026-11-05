@@ -26,6 +26,7 @@ import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as RelatorioValidacaoRouteImport } from './routes/relatorio-validacao'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as SimuladorRouteImport } from './routes/simulador'
 import { Route as TreinamentoRouteImport } from './routes/treinamento'
@@ -130,6 +131,11 @@ const PerfilRoute = PerfilRouteImport.update({
 const PlanosRoute = PlanosRouteImport.update({
   id: '/planos',
   path: '/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatorioValidacaoRoute = RelatorioValidacaoRouteImport.update({
+  id: '/relatorio-validacao',
+  path: '/relatorio-validacao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResumoRoute = ResumoRouteImport.update({
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
   '/treinamento': typeof TreinamentoRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
     | '/treinamento'
@@ -412,6 +422,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
     | '/treinamento'
@@ -451,6 +462,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
     | '/treinamento'
@@ -491,6 +503,7 @@ export interface RootRouteChildren {
   ParceirosRoute: typeof ParceirosRoute
   PerfilRoute: typeof PerfilRoute
   PlanosRoute: typeof PlanosRoute
+  RelatorioValidacaoRoute: typeof RelatorioValidacaoRoute
   ResumoRoute: typeof ResumoRoute
   SimuladorRoute: typeof SimuladorRoute
   TreinamentoRoute: typeof TreinamentoRoute
@@ -629,6 +642,13 @@ declare module '@tanstack/react-router' {
       path: '/planos'
       fullPath: '/planos'
       preLoaderRoute: typeof PlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorio-validacao': {
+      id: '/relatorio-validacao'
+      path: '/relatorio-validacao'
+      fullPath: '/relatorio-validacao'
+      preLoaderRoute: typeof RelatorioValidacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resumo': {
@@ -826,6 +846,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParceirosRoute: ParceirosRoute,
   PerfilRoute: PerfilRoute,
   PlanosRoute: PlanosRoute,
+  RelatorioValidacaoRoute: RelatorioValidacaoRoute,
   ResumoRoute: ResumoRoute,
   SimuladorRoute: SimuladorRoute,
   TreinamentoRoute: TreinamentoRoute,
