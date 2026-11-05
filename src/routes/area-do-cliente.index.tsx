@@ -241,7 +241,7 @@ function AreaCliente() {
                   <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfigurar("conexao")}>
                     <Cable className="mr-1 h-3.5 w-3.5" /> Conexão e canais
                   </Button>
-                  {estadoVisoes.aceitaGraficos && (
+                  {estadoVisoes.aceitaGraficos && !painelVisual && (
                     <Button size="sm" variant="ghost" className="h-7" onClick={() => setNovoGrafico((n) => n + 1)}>
                       <Plus className="mr-1 h-3.5 w-3.5" /> Gráfico
                     </Button>
@@ -275,7 +275,7 @@ function AreaCliente() {
               {estadoVisoes?.nomeAtiva ?? "Resultados"}
             </h1>
           </div>
-          {estadoVisoes?.nomeAtiva !== "Relatório diário" && !estadoVisoes?.editando && (
+          {estadoVisoes?.nomeAtiva !== "Relatório diário" && !estadoVisoes?.editando && !estadoVisoes?.graficosAtiva && (
             <SeletorPeriodo chave={periodoChave} periodo={periodo} onMudar={(c, p) => { setPeriodoChave(c); setPeriodo(p); }} />
           )}
         </div>
@@ -320,29 +320,34 @@ function AreaCliente() {
                 onEstado={aoEstadoVisoes}
                 relatorio={<SecaoRelatorioDiario clienteId={cliente.id} />}
                 editorGraficos={
-                  modoConfig
+                  modoConfig && !painelVisual
                     ? (visaoId, aoMudar) => (
                         <ConfigurarApiCliente clienteId={cliente.id} aba="painel" soGraficos visaoId={visaoId} aoMudarGraficos={aoMudar} novoGraficoChave={novoGrafico} />
                       )
                     : undefined
                 }
               >
-                {(visaoId, chave) => (
-            <div className="space-y-5">
-            <PainelVisual
-              clienteId={cliente.id}
-              periodo={periodo}
-              filtros={filtrosPainel}
-              onFiltros={setFiltrosPainel}
-              onDisponivel={setPainelVisual}
-            />
-            <ResultadosCliente
-              clienteId={cliente.id}
-              visaoId={visaoId}
-              recarregarChave={chave}
-            />
-            </div>
-                )}
+                {(visaoId, chave, ctx) =>
+                  // Clientes com espelho: visão com gráficos antigos mostra só eles;
+                  // as demais mostram só o painel novo (um único seletor de período).
+                  painelVisual && ctx.totalGraficos > 0 ? (
+                    <ResultadosCliente clienteId={cliente.id} visaoId={visaoId} recarregarChave={chave} />
+                  ) : (
+                    <div className="space-y-5">
+                      <PainelVisual
+                        clienteId={cliente.id}
+                        periodo={periodo}
+                        filtros={filtrosPainel}
+                        onFiltros={setFiltrosPainel}
+                        onDisponivel={setPainelVisual}
+                        editando={ctx.editando}
+                        ocultos={ctx.ocultos}
+                        onAlternarOculto={ctx.alternarOculto}
+                      />
+                      {!painelVisual && <ResultadosCliente clienteId={cliente.id} visaoId={visaoId} recarregarChave={chave} />}
+                    </div>
+                  )
+                }
               </VisoesPainel>
           </div>
         </TabsContent>
