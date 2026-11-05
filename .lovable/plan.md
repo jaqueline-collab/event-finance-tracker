@@ -1,22 +1,27 @@
-# Gravação do relatório diário 22/09 a 03/10 (só colunas padrão)
+# Relatório diário separado por canal, atendente e equipe (conferência antes de gravar)
 
-O n8n gravou 25 e 26/09 em 12 linhas (8 + 4), separadas por canal, atendente e equipe. Você escolheu gravar uma linha por dia com o total.
+Nada foi gravado. Esta rodada só calcula e mostra. A gravação (etapa 4) fica para depois do seu ok.
 
-## 1. Backup (antes de qualquer gravação)
-- Nova tabela `elora_relatorio_diario_backup`: cópia completa de cada linha (todas as colunas, id original incluído) + data do backup + motivo. Só servidor (sem acesso pela API do navegador).
-- Copiar as 12 linhas de 25 e 26/09 do 8c0ojhr2.
-- Conferir: 12 linhas no backup, campo a campo iguais às originais. Se não bater, paro sem gravar.
+## 1. Descobrir o corte exato do n8n
+- As 12 linhas de 25 e 26/09 usam: canal = número ou @ do canal, atendente = nome do atendente ou vazio, equipe = "Atendimento", "Social Seller" ou "Pós Operatório".
+- Essas equipes não são os departamentos do Elora (Chronos Atendimento, Ricardo Atendimento, Pós Operatório, SDR Rabbit). Antes de calcular, levanto de onde vem cada uma: um mapa canal → equipe, ou departamento → equipe. Também vejo a quem o n8n atribui uma conversa (atendente responsável, último atendente, vazio quando foi só o bot) e um contato novo. Se o n8n tiver o mapa em algum lugar que eu não consiga ler, paro e te pergunto.
+- O corte vira configuração do cliente (mapa de equipe por canal ou departamento), nada fixo no código para o Dr. Ricardo.
 
-## 2. Gravação
-- Tirar do relatório as 12 linhas de 25 e 26/09 (ficam inteiras no backup).
-- Gravar 12 linhas, uma por dia de 22/09 a 03/10, com canal/atendente/equipe vazios e estimado = não:
-  novos contatos, novos ADS, conversas realizadas, usuário, bot (valores do motor, que batem com o monday).
-- Colunas de cards (consulta/procedimento e ADS) ficam 0, como estão hoje. Nada de cards gravado.
-- Nenhum outro dia ou cliente é mexido.
+## 2. Motor por canal/atendente/equipe
+- As 5 colunas padrão (novos contatos, novos ADS, conversas realizadas, usuário, bot) passam a sair por dia + canal + atendente + equipe.
+- Regras de cada coluna continuam as validadas: sem IMPORTED, ADS por campanha, conversa = mensagem recebida, usuário = enviada por pessoa pela plataforma.
+- Cada conversa e cada contato caem em uma única linha, para a soma do dia não contar duas vezes.
+- O resultado já sai no formato que o relatório diário lê, para os filtros de canal, atendente e equipe funcionarem nos 12 dias.
 
-## 3. Prova
-- Mostrar a tabela final gravada dos 12 dias, ao lado do monday.
-- Prova de volta: consulta que reconstrói 25 e 26/09 a partir do backup e mostra que os totais voltam a 90/... (os valores originais do n8n), mais o comando de restauração pronto (não executado).
+## 3. Conferência (mostrar e parar)
+- Por dia, de 22/09 a 03/10: soma das linhas separadas contra o monday nas 5 colunas, marcando onde divergir.
+- 25 e 26/09: comparação linha a linha com as 12 linhas do n8n, mostrando quais linhas só existem de um lado e as diferenças por coluna. O n8n soma 99 conversas em 25/09 e o monday tem 164, então já espero diferenças. Explico cada uma.
+- Testes: soma das linhas = total do dia, conversa sem atendente vai para atendente vazio, cliente sem mapa de equipe deixa a equipe vazia.
+
+## 4. Só depois do seu ok
+- Criar `elora_relatorio_diario_backup` (cópia completa das 12 linhas + data e motivo, só servidor) e conferir campo a campo.
+- Gravar as linhas separadas dos 12 dias, substituindo as 12 do n8n.
+- Mostrar a consulta de restauração, pronta mas não executada.
 
 ## Fora
-- Não publicar. Parar e mostrar.
+- Colunas de cards não são gravadas. Nada publicado.
