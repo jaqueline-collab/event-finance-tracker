@@ -291,12 +291,22 @@ export type LinhaCorte = { dia: string; canal: string; atendente: string; equipe
 
 const norm = (x: string | null | undefined) => (x ?? "").trim().toLowerCase();
 
-export function calcularPadraoPorCorte(contatos: ContatoCorte[], msgs: MsgCorte[], sessoes: SessaoCorte[], cfg: CorteConfig) {
-  return calcularPadraoPorCorteDetalhado(contatos, msgs, sessoes, cfg).linhas;
+export function calcularPadraoPorCorte(contatos: ContatoCorte[], msgs: MsgCorte[], sessoes: SessaoCorte[], cfg: CorteConfig, primeiras?: (SessaoCorte & { criado_em?: string | null })[]) {
+  return calcularPadraoPorCorteDetalhado(contatos, msgs, sessoes, cfg, primeiras).linhas;
 }
 
 /** Igual, devolvendo também quantas conversas saíram por dia por serem de atendente ignorado. */
-export function calcularPadraoPorCorteDetalhado(contatos: ContatoCorte[], msgs: MsgCorte[], sessoes: SessaoCorte[], cfg: CorteConfig) {
+/**
+ * `primeiras`: sessões dos contatos (qualquer data). Novos contatos vão para a linha da
+ * sessão mais antiga do contato; suporte/ignorados não tiram o contato, só deixam o atendente vazio.
+ */
+export function calcularPadraoPorCorteDetalhado(
+  contatos: ContatoCorte[],
+  msgs: MsgCorte[],
+  sessoes: SessaoCorte[],
+  cfg: CorteConfig,
+  primeiras: (SessaoCorte & { criado_em?: string | null })[] = sessoes,
+) {
   const ses = new Map(sessoes.map((s) => [s.id, s]));
   const emails = new Set(cfg.ignorar.map((i) => norm(i.email)).filter(Boolean));
   const nomes = new Set(cfg.ignorar.map((i) => norm(i.nome)).filter(Boolean));
@@ -329,15 +339,24 @@ export function calcularPadraoPorCorteDetalhado(contatos: ContatoCorte[], msgs: 
     }
     return l;
   };
-  /** contato → linha da primeira conversa do dia */
-  const linhaContatoDia = new Map<string, LinhaCorte>();
+  // último humano por sessão (qualquer dia), para o atendente da sessão
+  const humanoSessao = new Map<string, { em: string; user: string }>();
+  for (const c of conv.values())
+    if (c.ultimoHumano) {
+      const h = humanoSessao.get(c.s);
+      if (!h || c.ultimoHumano.em > h.em) humanoSessao.set(c.s, c.ultimoHumano);
+    }
+  const atendenteDaSessao = (s: SessaoCorte | undefined, humano: { user: string } | null) => {
+    let agente = humano ? (cfg.agentes[humano.user] ?? null) : null;
+    if (!agente && s?.responsavel_id) agente = cfg.agentes[s.responsavel_id] ?? null;
+    const nome = agente?.nome || s?.responsavel_nome || "";
+    return { nome, ignorado: ehIgnorado(agente, nome) };
+  };
   const ordenadas = [...conv.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.s.localeCompare(b.s));
   for (const c of ordenadas) {
     const s = ses.get(c.s);
-    let agente = c.ultimoHumano ? (cfg.agentes[c.ultimoHumano.user] ?? null) : null;
-    if (!agente && s?.responsavel_id) agente = cfg.agentes[s.responsavel_id] ?? null;
-    const atendente = agente?.nome || s?.responsavel_nome || "";
-    if (ehIgnorado(agente, atendente)) {
+    const at = atendenteDaSessao(s, c.ultimoHumano);
+    if (at.ignorado) {
       const r = removidas.get(c.dia) ?? { conversas: 0, usuario: 0, bot: 0 };
       r.conversas++;
       if (c.usuario) r.usuario++;
@@ -345,17 +364,26 @@ export function calcularPadraoPorCorteDetalhado(contatos: ContatoCorte[], msgs: 
       removidas.set(c.dia, r);
       continue;
     }
-    const l = linha(c.dia, s?.canal_id ?? null, s?.canal_nome ?? null, atendente);
+    const l = linha(c.dia, s?.canal_id ?? null, s?.canal_nome ?? null, at.nome);
     l.conversas_total_dia++;
     if (c.usuario) l.conversas_usuario++;
     else l.conversas_bot++;
-    if (s?.contato_id && !linhaContatoDia.has(`${s.contato_id}|${c.dia}`)) linhaContatoDia.set(`${s.contato_id}|${c.dia}`, l);
+  }
+  // primeira sessão (mais antiga) de cada contato
+  const primeira = new Map<string, SessaoCorte & { criado_em?: string | null }>();
+  for (const s of primeiras) {
+    if (!s.contato_id) continue;
+    const p = primeira.get(s.contato_id);
+    const chave = (x: { criado_em?: string | null; id: string }) => `${x.criado_em ?? "9999"}|${x.id}`;
+    if (!p || chave(s) < chave(p)) primeira.set(s.contato_id, s);
   }
   for (const ct of contatos) {
     if (String(ct.origem ?? "").toUpperCase() === "IMPORTED") continue;
     const dia = diaSP(ct.criado_em);
     if (!dia) continue;
-    const l = linhaContatoDia.get(`${ct.id}|${dia}`) ?? linha(dia, null, null, "");
+    const s = primeira.get(ct.id);
+    const at = s ? atendenteDaSessao(s, humanoSessao.get(s.id) ?? null) : { nome: "", ignorado: false };
+    const l = s ? linha(dia, s.canal_id, s.canal_nome, at.ignorado ? "" : at.nome) : linha(dia, null, null, "");
     l.novos_contatos++;
     if (preenchido(ct.utm_campaign)) l.novos_contatos_ads++;
   }
