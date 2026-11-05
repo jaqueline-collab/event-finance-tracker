@@ -53,7 +53,7 @@ describe("motor de indicadores", () => {
   });
 
   it("campo preenchido conta no dia em que a condição passa a valer", () => {
-    const c = cfg({ chave: "pv", condicoes: { op: "E", itens: [{ campo: "contato.campo.data-procedimento", operador: "preenchido" }] } });
+    const c = cfg({ chave: "pv", condicoes: { op: "E", itens: [{ campo: { fonte: "contato", campo: "campo.data-procedimento" }, operador: "preenchido" }] } });
     const ls = [
       leitura({ visto_em: "2026-10-01T15:00:00Z", etapa_titulo: "Agendados" }),
       leitura({ visto_em: "2026-10-05T15:00:00Z", etapa_titulo: "Agendados", campos: { "contato.campo.data-procedimento": ["2026-10-15"] } }),
@@ -64,7 +64,7 @@ describe("motor de indicadores", () => {
   });
 
   it("versão ADS só conta com utm.campaign preenchido", () => {
-    const ads = cfg({ chave: "ads", condicoes: { op: "E", itens: [{ campo: "contato.utm_campaign", operador: "preenchido" }] } });
+    const ads = cfg({ chave: "ads", condicoes: { op: "E", itens: [{ campo: { fonte: "utm", campo: "campaign" }, operador: "preenchido" }] } });
     const ls = [
       leitura({ card_id: "a", etapa_titulo: "Agendados", campos: { "contato.utm_campaign": "promo" } }),
       leitura({ card_id: "b", etapa_titulo: "Agendados", campos: { "contato.utm_campaign": "" } }),
