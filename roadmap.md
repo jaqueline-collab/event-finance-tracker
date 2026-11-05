@@ -18,3 +18,5 @@
 - [x] Etapa C parte 2: cards (abertos/ganhos/perdidos/arquivados) + histórico, configuração de indicadores, motor único, tela de validação
 - [ ] Agendar sincronização de cards a cada 30 min — segredo salvo; aguardando publicação e o agendamento no n8n
 - [ ] Gravar o motor no relatório diário — aguardando aprovação (n8n só tem 25 e 26/09)
+- [ ] Suporte interno global (por e-mail ou nome, só super admin) + lista extra por cliente; mapa de equipe por canal como configuração do cliente; revisar o que é específico do Dr. Ricardo
+- [ ] Gravar relatório por canal/atendente/equipe 22/09–03/10 com backup das 12 linhas do n8n — aguardando ok
