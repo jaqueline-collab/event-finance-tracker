@@ -116,6 +116,19 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     for (const s of data ?? [])
       sessoes.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome });
   }
+  // sessões de todos os contatos novos (qualquer data), para achar a primeira de cada um
+  const novosIds = [...new Set((contatosRaw as any[]).map((x) => String(x.externo_id)))];
+  const primeiras: any[] = [];
+  for (let i = 0; i < novosIds.length; i += 200) {
+    const { data, error } = await db
+      .from("elora_atendimentos_espelho")
+      .select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, criado_em")
+      .eq("cliente_id", clienteId)
+      .in("contato_id", novosIds.slice(i, i + 200));
+    if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
+    for (const s of data ?? [])
+      primeiras.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome, criado_em: s.criado_em });
+  }
   const nomeCanal: Record<string, string> = {};
   const agentes: Record<string, { nome: string; email?: string | null }> = {};
   for (const a of apoio as any[]) {
@@ -129,5 +142,6 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     msgsRaw,
     sessoes,
     { nomeCanal, agentes, equipePorCanal: c.equipe_por_canal ?? {}, ignorar: [...((suporte.data ?? []) as any[]), ...extra] },
+    primeiras,
   );
 }

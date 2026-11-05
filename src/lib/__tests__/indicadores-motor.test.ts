@@ -178,3 +178,28 @@ describe("colunas padrão por canal/atendente/equipe", () => {
     expect(L2.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(0);
   });
 });
+
+describe("novos contatos pela primeira sessão", () => {
+  const cfgC = { nomeCanal: { c1: "(31) 1111", c2: "(31) 2222" }, equipePorCanal: { c1: "Atendimento", c2: "Social" }, agentes: { sup: { nome: "Suporte", email: "sup@x.com" }, u1: { nome: "Ana" } }, ignorar: [{ email: "sup@x.com" }] };
+  const contatos = [{ id: "k1", criado_em: "2026-09-25T12:00:00Z", origem: "CHAT", utm_campaign: "ads" }];
+  it("única sessão de suporte: entra no canal e equipe, atendente vazio, não conta conversa", () => {
+    const s = [{ id: "s1", contato_id: "k1", canal_id: "c1", canal_nome: null, responsavel_id: "sup", responsavel_nome: "Suporte" }];
+    const m = [{ sessao_id: "s1", enviada_em: "2026-09-25T13:00:00Z", tipo: "TEXT", origem: "DEFAULT", user_id: "sup" }];
+    const L = calcularPadraoPorCorte(contatos, m, s, cfgC);
+    expect(L).toHaveLength(1);
+    expect(L[0]).toMatchObject({ canal: "(31) 1111", equipe: "Atendimento", atendente: "", novos_contatos: 1, novos_contatos_ads: 1, conversas_total_dia: 0 });
+    expect(L.some((l) => l.atendente === "Suporte")).toBe(false);
+  });
+  it("usa a sessão mais antiga do contato", () => {
+    const primeiras = [
+      { id: "s2", contato_id: "k1", canal_id: "c2", canal_nome: null, responsavel_id: "u1", responsavel_nome: "Ana", criado_em: "2026-09-25T15:00:00Z" },
+      { id: "s1", contato_id: "k1", canal_id: "c1", canal_nome: null, responsavel_id: null, responsavel_nome: null, criado_em: "2026-09-25T12:30:00Z" },
+    ];
+    const L = calcularPadraoPorCorte(contatos, [], [], cfgC, primeiras);
+    expect(L[0]).toMatchObject({ canal: "(31) 1111", equipe: "Atendimento", novos_contatos: 1 });
+  });
+  it("contato sem sessão fica na linha sem canal", () => {
+    const L = calcularPadraoPorCorte(contatos, [], [], cfgC, []);
+    expect(L[0]).toMatchObject({ canal: "", equipe: "", atendente: "", novos_contatos: 1 });
+  });
+});
