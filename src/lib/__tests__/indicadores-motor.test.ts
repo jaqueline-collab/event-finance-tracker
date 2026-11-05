@@ -3,6 +3,7 @@ import {
   calcularIndicadoresCards,
   calcularPadrao,
   camposDaLeitura,
+  calcularPadraoPorCorte,
   errosDeConfig,
   colunasDoCliente,
   montarRelatorio,
@@ -130,5 +131,41 @@ describe("fonte do campo vem da configuração", () => {
     const antiga = cfg({ chave: "old", condicoes: { op: "E", itens: [{ campo: "card.campo.data-da-consulta" as any, operador: "preenchido" }] } });
     expect(errosDeConfig(antiga)).toHaveLength(1);
     expect(calcularIndicadoresCards([antiga], ls).get("2026-10-01")).toBeUndefined();
+  });
+});
+
+describe("colunas padrão por canal/atendente/equipe", () => {
+  const cfgCorte = { nomeCanal: { c1: "(31) 1111" }, equipePorCanal: { c1: "Atendimento" }, agentes: { u1: "Ana", u2: "Bia" }, ignorarAtendentes: [] as string[] };
+  const sessoes = [
+    { id: "s1", contato_id: "k1", canal_id: "c1", canal_nome: null, responsavel_id: "u2", responsavel_nome: "Bia" },
+    { id: "s2", contato_id: "k2", canal_id: "c2", canal_nome: "@insta", responsavel_id: null, responsavel_nome: null },
+  ];
+  const msgs = [
+    { sessao_id: "s1", enviada_em: "2026-09-25T13:00:00Z", tipo: "TEXT", origem: "DEFAULT", user_id: "u1" },
+    { sessao_id: "s1", enviada_em: "2026-09-25T14:00:00Z", tipo: "TEXT", origem: "GATEWAY", user_id: null },
+    { sessao_id: "s2", enviada_em: "2026-09-25T15:00:00Z", tipo: "TEXT", origem: "BOT", user_id: "u1" },
+  ];
+  const contatos = [
+    { id: "k1", criado_em: "2026-09-25T12:00:00Z", origem: "CHAT", utm_campaign: "x" },
+    { id: "k9", criado_em: "2026-09-25T12:00:00Z", origem: "CHAT", utm_campaign: null },
+  ];
+  it("soma das linhas = total do dia", () => {
+    const L = calcularPadraoPorCorte(contatos, msgs, sessoes, cfgCorte);
+    expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(2);
+    expect(L.reduce((a, l) => a + l.novos_contatos, 0)).toBe(2);
+  });
+  it("atendente = última mensagem humana; sem humana usa responsável ou vazio", () => {
+    const L = calcularPadraoPorCorte(contatos, msgs, sessoes, cfgCorte);
+    expect(L.find((l) => l.canal === "(31) 1111")?.atendente).toBe("Ana");
+    expect(L.find((l) => l.canal === "@insta")?.atendente).toBe("");
+  });
+  it("canal sem mapa de equipe fica com equipe vazia", () => {
+    const L = calcularPadraoPorCorte(contatos, msgs, sessoes, cfgCorte);
+    expect(L.find((l) => l.canal === "@insta")?.equipe).toBe("");
+    expect(L.find((l) => l.canal === "(31) 1111")?.equipe).toBe("Atendimento");
+  });
+  it("atendente ignorado tira a conversa", () => {
+    const L = calcularPadraoPorCorte(contatos, msgs, sessoes, { ...cfgCorte, ignorarAtendentes: ["Ana"] });
+    expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
   });
 });
