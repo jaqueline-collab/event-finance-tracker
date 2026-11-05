@@ -95,7 +95,7 @@ export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
           <section className="space-y-2">
             <Label>Equipe de cada canal (este cliente)</Label>
             <div className="space-y-1.5">
-              {r.canais.map((c) => (
+              {r.canais.map((c: { id: string; nome: string }) => (
                 <div key={c.id} className="grid grid-cols-[1fr_1fr] items-center gap-2 text-sm">
                   <span className="truncate">{c.nome}</span>
                   <Input
