@@ -8,6 +8,8 @@ import {
   colunasDoCliente,
   COLUNAS_PADRAO,
   montarRelatorio,
+  errosDeConfig,
+  catalogoCampos,
   type IndicadorConfig,
   type Leitura,
 } from "./indicadores-motor";
@@ -62,7 +64,8 @@ export async function calcularRelatorioCliente(db: SupabaseClient, clienteId: st
   calcularIndicadoresCards(configs, ls, m);
   const colunas = colunasDoCliente(configs);
   const { linhas, total } = montarRelatorio(m, listaDias(p), colunas.map((c) => c.chave));
-  return { colunas, linhas, total };
+  const erros = configs.filter((c) => c.ativo && c.tipo === "app").flatMap((c) => errosDeConfig(c).map((e) => `${c.nome}: ${e}`));
+  return { colunas, linhas, total, erros, catalogo: catalogoCampos(ls) };
 }
 
 /** Soma por dia do que o n8n já gravou (colunas padrão). */
