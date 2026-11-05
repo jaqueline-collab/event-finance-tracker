@@ -157,6 +157,7 @@ export function PainelVisual({
   onFiltros,
   editando,
   menuCartao,
+  onDisponivel,
 }: {
   clienteId: string;
   periodo: Periodo;
@@ -164,6 +165,7 @@ export function PainelVisual({
   onFiltros: (f: Filtros) => void;
   editando?: boolean;
   menuCartao?: ReactNode;
+  onDisponivel?: (sim: boolean) => void;
 }) {
   const [dados, setDados] = useState<Dados | null>(null);
   const [indisponivel, setIndisponivel] = useState(false);
@@ -181,6 +183,7 @@ export function PainelVisual({
         if (!vivo) return;
         if (!r.disponivel) setIndisponivel(true);
         else setDados(r as Dados);
+        onDisponivel?.(r.disponivel);
       })
       .catch((e) => vivo && setErro(e instanceof Error ? e.message : String(e)))
       .finally(() => vivo && setCarregando(false));

@@ -47,6 +47,8 @@ export type EstadoVisoes = {
   salvando: boolean;
   /** A visão ativa aceita gráficos (salva e não é a fixa). */
   aceitaGraficos: boolean;
+  /** Nome da visão ativa (título do cabeçalho). */
+  nomeAtiva: string | null;
 };
 
 export type VisoesPainelHandle = {
@@ -188,8 +190,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const aceitaGraficos = !naRelatorio && Boolean(ativaEdit && !ehNova(ativaEdit.id));
 
   useEffect(() => {
-    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos });
-  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos]);
+    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naRelatorio ? "Relatório diário" : (ativaEdit?.nome ?? null) });
+  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naRelatorio, ativaEdit?.nome]);
 
   if (salvas === null) return <Skeleton className="h-64 w-full rounded-xl" />;
   const mostrarAbas = mostrarBarraDeAbas(lista.length, editando) || Boolean(relatorio);
@@ -197,10 +199,10 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   return (
     <div className="space-y-4">
       {mostrarAbas && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-b">
           <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoArrastar}>
             <SortableContext items={lista.map((v) => v.id)} strategy={horizontalListSortingStrategy}>
-              <div className="flex flex-wrap items-center gap-1 rounded-full border bg-muted/50 p-1" role="tablist" aria-label="Visões">
+              <div className="-mb-px flex flex-wrap items-center gap-1" role="tablist" aria-label="Visões">
                 {lista.map((v) => (
                   <AbaVisao
                     key={v.id}
@@ -222,7 +224,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
                     role="tab"
                     aria-selected={naRelatorio}
                     onClick={() => setAtiva(VISAO_RELATORIO)}
-                    className={`rounded-full px-4 py-1.5 text-sm transition-colors ${naRelatorio ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    className={`border-b-2 px-4 py-2.5 text-sm transition-colors ${naRelatorio ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                   >
                     Relatório diário
                   </button>
@@ -231,8 +233,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
             </SortableContext>
           </DndContext>
           {editando && (
-            <Button size="sm" variant="outline" className="rounded-full" onClick={() => nova()} aria-label="Nova visão">
-              <Plus className="h-4 w-4" />
+            <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => nova()}>
+              <Plus className="mr-1 h-4 w-4" /> Nova visão
             </Button>
           )}
         </div>
@@ -324,7 +326,7 @@ function AbaVisao({
     <div
       ref={setNodeRef}
       style={estilo}
-      className={`flex items-center gap-1 rounded-full px-1 text-sm transition-colors ${ativa ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+      className={`flex items-center gap-1 border-b-2 px-1 text-sm transition-colors ${ativa ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
     >
       {editando && (
         <span {...attributes} {...listeners} className="cursor-grab px-1 opacity-60" aria-label="Arrastar">
@@ -342,7 +344,7 @@ function AbaVisao({
           onKeyDown={(e) => e.key === "Enter" && onFimRenomear()}
         />
       ) : (
-        <button type="button" role="tab" aria-selected={ativa} onClick={onSelecionar} onDoubleClick={onRenomear} className="px-3 py-1.5">
+        <button type="button" role="tab" aria-selected={ativa} onClick={onSelecionar} onDoubleClick={onRenomear} className="px-3 py-2.5">
           {visao.nome}
         </button>
       )}
