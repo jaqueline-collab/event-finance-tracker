@@ -93,7 +93,7 @@ export function SeletorPeriodo({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
-        value={chave}
+        value={chave === "personalizado" ? "__atual" : chave}
         onValueChange={(v) => {
           const c = v as PeriodoChave;
           if (c === "personalizado") return setAberto(true);
@@ -397,7 +397,7 @@ function Indicadores({ dados, reduzido }: { dados: Dados; reduzido: boolean }) {
   const pctAds = a.novosLeads ? (a.leadsAds / a.novosLeads) * 100 : 0;
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <CartaoIndicador icone={<UserPlus className="h-4 w-4" />} cor="var(--chart-1)" rotulo="Novos leads" valor={nf.format(Math.round(leads))} selo={<Selo v={variacao(a.novosLeads, p.novosLeads)} />} />
+      <CartaoIndicador icone={<UserPlus className="h-4 w-4" />} cor="var(--chart-1)" rotulo="Novos leads" valor={nf.format(Math.round(leads))} selo={<Selo v={variacao(a.novosLeads, p.novosLeads)} />} rodape={a.importadosFora ? `${nf.format(a.importadosFora)} importados fora da conta` : undefined} />
       <CartaoIndicador icone={<MessagesSquare className="h-4 w-4" />} cor="var(--chart-2)" rotulo="Conversas realizadas" valor={nf.format(Math.round(conv))} selo={<Selo v={variacao(a.conversas, p.conversas)} />} />
       <CartaoIndicador
         icone={<Clock className="h-4 w-4" />}
