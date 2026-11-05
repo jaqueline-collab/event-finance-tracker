@@ -98,7 +98,11 @@ export function origemDoLead(utmSource: string | null, origem: string | null): s
   return ROTULO_ORIGEM[v.toUpperCase()] ?? titulo(v);
 }
 
-export type ContatoP = { id: string; criado_em: string | null; origem: string; etiquetas: string[]; campanha: string | null };
+/** `importado` = origem IMPORTED no Elora (importação em massa): fora dos leads por padrão. */
+export type ContatoP = { id: string; criado_em: string | null; origem: string; etiquetas: string[]; campanha: string | null; importado?: boolean };
+
+/** Sem filtro de Origem, importados não contam como lead; com filtro de Origem, contam. */
+export const contaComoLead = (c: ContatoP, filtros: Filtros) => Boolean(filtros.origem) || !c.importado;
 export type AtendimentoP = {
   id: string;
   contato_id: string | null;
@@ -190,12 +194,15 @@ export function agregarPainel(
     const v = l.filter((x): x is number => x != null && Number.isFinite(x));
     return { valor: v.length ? v.reduce((a, b) => a + b, 0) / v.length : null, medidas: v.length };
   };
+  const leadsTodos = leads;
+  const leadsContados = leadsTodos.filter((c) => contaComoLead(c, filtros));
   const kpis = (p: Periodo) => {
-    const ls = leads.filter((c) => dentro(diaSP(c.criado_em), p));
+    const ls = leadsContados.filter((c) => dentro(diaSP(c.criado_em), p));
     const ss = sessoes.filter((s) => dentro(diaSP(s.criado_em), p));
     return {
       novosLeads: ls.length,
       leadsAds: ls.filter((c) => c.campanha).length,
+      importadosFora: leadsTodos.filter((c) => !contaComoLead(c, filtros) && dentro(diaSP(c.criado_em), p)).length,
       conversas: pares.filter((x) => dentro(x.dia, p)).length,
       tmr: media(ss.map((s) => s.tmr)),
       tma: media(ss.map((s) => s.tma)),
@@ -203,7 +210,7 @@ export function agregarPainel(
   };
 
   const dias = listaDias(periodo);
-  const leadsPeriodo = leads.filter((c) => dentro(diaSP(c.criado_em), periodo));
+  const leadsPeriodo = leadsContados.filter((c) => dentro(diaSP(c.criado_em), periodo));
   const sessoesPeriodo = sessoes.filter((s) => dentro(diaSP(s.criado_em), periodo));
   const paresPeriodo = pares.filter((x) => dentro(x.dia, periodo));
 

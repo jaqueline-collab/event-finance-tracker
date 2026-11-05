@@ -104,6 +104,7 @@ export const getPainelVisual = createServerFn({ method: "POST" })
           origem: origemDoLead(c.utm_source, c.origem),
           etiquetas: Array.isArray(c.etiquetas) ? c.etiquetas.map(String) : [],
           campanha: c.utm_campaign || null,
+          importado: String(c.origem ?? "").toUpperCase() === "IMPORTED",
         })),
         atendimentos: at.map((a: any) => ({
           id: String(a.externo_id),
