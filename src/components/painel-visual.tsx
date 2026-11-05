@@ -11,12 +11,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronDown, Clock, Megaphone, MessagesSquare, Minus, UserPlus, X } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronDown, Clock, Eye, EyeOff, MoreHorizontal, Megaphone, MessagesSquare, Minus, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPainelVisual } from "@/lib/painel-visual.functions";
 import {
