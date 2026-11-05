@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { NAO_DEFINIDO } from "@/lib/nao-definido";
 import {
   agregarPainel,
   limitesUtc,

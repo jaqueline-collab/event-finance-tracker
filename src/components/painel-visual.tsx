@@ -578,7 +578,7 @@ function BarrasPorDia({
   );
 }
 
-const SEM_FILTRO = new Set(["Sem atendimento", "Sem etiqueta", "Sem campanha"]);
+const SEM_FILTRO = new Set<string>();
 const DIM_ROSCA: { chave: "origem" | "canal" | "etiqueta" | "campanha"; rotulo: string }[] = [
   { chave: "origem", rotulo: "Origem" },
   { chave: "canal", rotulo: "Canal" },

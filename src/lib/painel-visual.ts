@@ -2,6 +2,7 @@
  * Regras do Painel visual do cliente (puras, testáveis).
  * Fuso: America/Sao_Paulo (UTC-3 fixo, sem horário de verão desde 2019).
  */
+import { NAO_DEFINIDO } from "./nao-definido";
 
 export type PeriodoChave = "7d" | "30d" | "mes" | "mes_passado" | "personalizado";
 export type Periodo = { de: string; ate: string }; // YYYY-MM-DD, inclusivo
