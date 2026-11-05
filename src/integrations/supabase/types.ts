@@ -1337,6 +1337,7 @@ export type Database = {
           filtro_etapas_funil: Json | null
           filtro_etiquetas: Json | null
           filtro_usuarios: Json | null
+          fonte_dados: string
           grafico1_serie1_rotulo_id: string | null
           grafico1_serie2_rotulo_id: string | null
           grafico2_serie1_rotulo_id: string | null
@@ -1368,6 +1369,7 @@ export type Database = {
           filtro_etapas_funil?: Json | null
           filtro_etiquetas?: Json | null
           filtro_usuarios?: Json | null
+          fonte_dados?: string
           grafico1_serie1_rotulo_id?: string | null
           grafico1_serie2_rotulo_id?: string | null
           grafico2_serie1_rotulo_id?: string | null
@@ -1399,6 +1401,7 @@ export type Database = {
           filtro_etapas_funil?: Json | null
           filtro_etiquetas?: Json | null
           filtro_usuarios?: Json | null
+          fonte_dados?: string
           grafico1_serie1_rotulo_id?: string | null
           grafico1_serie2_rotulo_id?: string | null
           grafico2_serie1_rotulo_id?: string | null
@@ -2332,6 +2335,81 @@ export type Database = {
           },
         ]
       }
+      elora_relatorio_diario_backup: {
+        Row: {
+          atendente: string
+          atualizado_em: string
+          backup_em: string
+          backup_motivo: string
+          canal: string
+          cliente_id: string
+          consulta_agendada: number
+          consulta_agendada_ads: number
+          conversas_bot: number
+          conversas_origem_canal: number
+          conversas_total_dia: number
+          conversas_usuario: number
+          conversas_usuario_novos: number
+          criado_em: string
+          data: string
+          equipe: string
+          estimado: boolean
+          id: string
+          novos_contatos: number
+          novos_contatos_ads: number
+          procedimento_vendido: number
+          procedimento_vendido_ads: number
+        }
+        Insert: {
+          atendente?: string
+          atualizado_em?: string
+          backup_em?: string
+          backup_motivo?: string
+          canal?: string
+          cliente_id: string
+          consulta_agendada?: number
+          consulta_agendada_ads?: number
+          conversas_bot?: number
+          conversas_origem_canal?: number
+          conversas_total_dia?: number
+          conversas_usuario?: number
+          conversas_usuario_novos?: number
+          criado_em?: string
+          data: string
+          equipe?: string
+          estimado?: boolean
+          id?: string
+          novos_contatos?: number
+          novos_contatos_ads?: number
+          procedimento_vendido?: number
+          procedimento_vendido_ads?: number
+        }
+        Update: {
+          atendente?: string
+          atualizado_em?: string
+          backup_em?: string
+          backup_motivo?: string
+          canal?: string
+          cliente_id?: string
+          consulta_agendada?: number
+          consulta_agendada_ads?: number
+          conversas_bot?: number
+          conversas_origem_canal?: number
+          conversas_total_dia?: number
+          conversas_usuario?: number
+          conversas_usuario_novos?: number
+          criado_em?: string
+          data?: string
+          equipe?: string
+          estimado?: boolean
+          id?: string
+          novos_contatos?: number
+          novos_contatos_ads?: number
+          procedimento_vendido?: number
+          procedimento_vendido_ads?: number
+        }
+        Relationships: []
+      }
       elora_relatorio_social_seller: {
         Row: {
           atualizado_em: string
@@ -2827,6 +2905,10 @@ export type Database = {
         Returns: boolean
       }
       parceiro_ve_valores: { Args: never; Returns: boolean }
+      substituir_relatorio_periodo: {
+        Args: { _ate: string; _cliente_id: string; _de: string; _linhas: Json }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
