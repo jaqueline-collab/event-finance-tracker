@@ -16,5 +16,5 @@
 - [ ] Fase 3: visão matriz (desenho página 6)
 
 - [x] Etapa C parte 2: cards (abertos/ganhos/perdidos/arquivados) + histórico, configuração de indicadores, motor único, tela de validação
-- [ ] Agendar sincronização de cards a cada 30 min — aguardando segredo SYNC_CRON_SECRET e o agendamento no n8n ou Supabase
+- [ ] Agendar sincronização de cards a cada 30 min — segredo salvo; aguardando publicação e o agendamento no n8n
 - [ ] Gravar o motor no relatório diário — aguardando aprovação (n8n só tem 25 e 26/09)
