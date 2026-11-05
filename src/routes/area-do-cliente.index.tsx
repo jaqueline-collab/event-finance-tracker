@@ -96,7 +96,7 @@ function AreaCliente() {
   const [periodoChave, setPeriodoChave] = useState<PeriodoChave>("30d");
   const [periodo, setPeriodo] = useState<Periodo>(() => periodoDe("30d", new Date().toISOString()));
   const [filtrosPainel, setFiltrosPainel] = useState<Filtros>({});
-  const [painelVisual, setPainelVisual] = useState(false);
+  const [painelVisual, setPainelVisual] = useState<boolean | null>(null);
   const jaCarregou = useRef(false);
   if (!carregando && (dados || erro)) jaCarregou.current = true;
 
@@ -241,7 +241,7 @@ function AreaCliente() {
                   <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfigurar("conexao")}>
                     <Cable className="mr-1 h-3.5 w-3.5" /> Conexão e canais
                   </Button>
-                  {estadoVisoes.aceitaGraficos && !painelVisual && (
+                  {estadoVisoes.aceitaGraficos && painelVisual === false && (
                     <Button size="sm" variant="ghost" className="h-7" onClick={() => setNovoGrafico((n) => n + 1)}>
                       <Plus className="mr-1 h-3.5 w-3.5" /> Gráfico
                     </Button>
@@ -320,7 +320,7 @@ function AreaCliente() {
                 onEstado={aoEstadoVisoes}
                 relatorio={<SecaoRelatorioDiario clienteId={cliente.id} />}
                 editorGraficos={
-                  modoConfig && !painelVisual
+                  modoConfig && painelVisual === false
                     ? (visaoId, aoMudar) => (
                         <ConfigurarApiCliente clienteId={cliente.id} aba="painel" soGraficos visaoId={visaoId} aoMudarGraficos={aoMudar} novoGraficoChave={novoGrafico} />
                       )
@@ -344,7 +344,7 @@ function AreaCliente() {
                         ocultos={ctx.ocultos}
                         onAlternarOculto={ctx.alternarOculto}
                       />
-                      {!painelVisual && <ResultadosCliente clienteId={cliente.id} visaoId={visaoId} recarregarChave={chave} />}
+                      {painelVisual === false && <ResultadosCliente clienteId={cliente.id} visaoId={visaoId} recarregarChave={chave} />}
                     </div>
                   )
                 }
