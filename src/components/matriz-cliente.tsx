@@ -11,7 +11,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz } from "@/lib/matriz.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
-import { NAO_DEFINIDO } from "@/lib/nao-definido";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
 
 type Dados = Awaited<ReturnType<typeof lerMatriz>>;
@@ -526,4 +525,3 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo }: { cliente
   );
 }
 
-export { NAO_DEFINIDO };

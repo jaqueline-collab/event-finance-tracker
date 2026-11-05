@@ -18,6 +18,9 @@ export type ColunaMatriz = {
   ordem: number;
   ativo: boolean;
   formula?: Formula | null;
+  /** Regra da coluna combinada (para o editor). */
+  evento?: unknown;
+  condicoes?: unknown;
 };
 
 export type ConfigMatriz = IndicadorConfig & { formato?: Formato | null; formula?: Formula | null };
@@ -42,6 +45,8 @@ export function colunasMatriz(configs: ConfigMatriz[]): ColunaMatriz[] {
       ordem: c.ordem,
       ativo: c.ativo,
       formula: c.formula ?? null,
+      evento: c.evento,
+      condicoes: c.condicoes,
     }));
   return [...padrao, ...doCliente].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
 }

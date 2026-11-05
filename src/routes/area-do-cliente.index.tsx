@@ -47,6 +47,7 @@ import { useCurrentUserAccess } from "@/lib/permissions";
 import { abaConfigurarDoEndereco, podeConfigurarArea, type AbaDadosElora } from "@/lib/dados-elora";
 import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-sheet";
 import { PainelVisual, SeletorPeriodo } from "@/components/painel-visual";
+import { MatrizCliente } from "@/components/matriz-cliente";
 import { periodoDe, type Filtros, type Periodo, type PeriodoChave } from "@/lib/painel-visual";
 
 
@@ -319,6 +320,7 @@ function AreaCliente() {
                 clienteId={cliente.id}
                 onEstado={aoEstadoVisoes}
                 relatorio={<SecaoRelatorioDiario clienteId={cliente.id} />}
+                matriz={painelVisual ? (editando) => <MatrizCliente clienteId={cliente.id} periodo={periodo} editando={editando} /> : undefined}
                 editorGraficos={
                   modoConfig && painelVisual === false
                     ? (visaoId, aoMudar) => (

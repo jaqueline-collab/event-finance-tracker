@@ -39,6 +39,7 @@ const ehNova = (id: string) => id.startsWith("nova-");
  */
 /** Visão fixa do sistema (não salva, não editável). */
 export const VISAO_RELATORIO = "__relatorio";
+export const VISAO_MATRIZ = "__matriz";
 
 export type EstadoVisoes = {
   podeEditar: boolean;
@@ -63,6 +64,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   clienteId: string;
   /** Conteúdo da visão fixa "Relatório diário". */
   relatorio?: ReactNode;
+  /** Visão fixa "Matriz" (recebe o modo Editar). */
+  matriz?: (editando: boolean) => ReactNode;
   onEstado?: (e: EstadoVisoes) => void;
   /** Conteúdo da visão ativa (null = visão padrão). */
   children: (
@@ -72,7 +75,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   ) => ReactNode;
   /** Construtor de gráficos da visão ativa, mostrado só em modo Editar. */
   editorGraficos?: (visaoId: string, aoMudar: () => void) => ReactNode;
-}>(function VisoesPainel({ clienteId, children, editorGraficos, relatorio, onEstado }, ref) {
+}>(function VisoesPainel({ clienteId, children, editorGraficos, relatorio, matriz, onEstado }, ref) {
   const [salvas, setSalvas] = useState<Visao[] | null>(null);
   const [podeEditar, setPodeEditar] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -89,7 +92,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
         const r = await listarVisoesCliente({ data: { clienteId, incluirRascunhos: comRascunhos } });
         setSalvas(r.visoes);
         setPodeEditar(r.podeEditar);
-        setAtiva((a) => (a === VISAO_RELATORIO || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
+        setAtiva((a) => (a === VISAO_RELATORIO || a === VISAO_MATRIZ || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
         return r.visoes;
       } catch (e) {
         toast.error(msg(e));
@@ -139,7 +142,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
       });
       setRascunho(r.visoes.map((v) => ({ ...v })));
       setSalvas(r.visoes);
-      setAtiva((a) => (a === VISAO_RELATORIO || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
+      setAtiva((a) => (a === VISAO_RELATORIO || a === VISAO_MATRIZ || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
       setEditando(false);
       setRenomeando(null);
       setChave((c) => c + 1);
@@ -192,9 +195,10 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
     JSON.stringify(rascunho.map((v) => [v.id, v.nome, v.publicada, [...(v.ocultos ?? [])].sort()])) !==
       JSON.stringify(salvas.slice().sort((a, b) => a.ordem - b.ordem).map((v) => [v.id, v.nome, v.publicada, [...(v.ocultos ?? [])].sort()]));
   const naRelatorio = ativa === VISAO_RELATORIO && Boolean(relatorio);
-  const ativaEdit = naRelatorio ? null : (lista.find((v) => v.id === ativa) ?? null);
+  const naMatriz = ativa === VISAO_MATRIZ && Boolean(matriz);
+  const ativaEdit = naRelatorio || naMatriz ? null : (lista.find((v) => v.id === ativa) ?? null);
   const visaoParaConteudo = ativaEdit && !ehNova(ativaEdit.id) ? ativaEdit.id : salvas?.[0]?.id ?? null;
-  const aceitaGraficos = !naRelatorio && Boolean(ativaEdit && !ehNova(ativaEdit.id));
+  const aceitaGraficos = !naRelatorio && !naMatriz && Boolean(ativaEdit && !ehNova(ativaEdit.id));
   const visaoConteudo = lista.find((v) => v.id === visaoParaConteudo) ?? null;
   const graficosAtiva = visaoConteudo?.totalGraficos ?? 0;
   const ctx = {
@@ -209,11 +213,11 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   };
 
   useEffect(() => {
-    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naRelatorio ? "Relatório diário" : (ativaEdit?.nome ?? null), graficosAtiva: naRelatorio ? 0 : graficosAtiva });
-  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naRelatorio, ativaEdit?.nome, graficosAtiva]);
+    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naRelatorio ? "Relatório diário" : naMatriz ? "Matriz" : (ativaEdit?.nome ?? null), graficosAtiva: naRelatorio || naMatriz ? 0 : graficosAtiva });
+  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naRelatorio, naMatriz, ativaEdit?.nome, graficosAtiva]);
 
   if (salvas === null) return <Skeleton className="h-64 w-full rounded-xl" />;
-  const mostrarAbas = mostrarBarraDeAbas(lista.length, editando) || Boolean(relatorio);
+  const mostrarAbas = mostrarBarraDeAbas(lista.length, editando) || Boolean(relatorio) || Boolean(matriz);
 
   return (
     <div className="space-y-4">
@@ -237,6 +241,17 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
                     onExcluir={() => setExcluindo(v)}
                   />
                 ))}
+                {matriz && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={naMatriz}
+                    onClick={() => setAtiva(VISAO_MATRIZ)}
+                    className={`border-b-2 px-4 py-2.5 text-sm transition-colors ${naMatriz ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Matriz
+                  </button>
+                )}
                 {relatorio && (
                   <button
                     type="button"
@@ -273,6 +288,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
 
       {naRelatorio ? (
         relatorio
+      ) : naMatriz ? (
+        matriz!(editando)
       ) : editando && ativaEdit && ehNova(ativaEdit.id) ? (
         <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
           Salve para começar a montar os gráficos desta visão.
