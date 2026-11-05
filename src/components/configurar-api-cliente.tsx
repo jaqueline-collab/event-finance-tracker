@@ -43,6 +43,7 @@ import {
 
 import { WidgetBuilder } from "@/components/widget-builder";
 import { DadosIntegracaoCliente } from "@/components/dados-integracao-cliente";
+import { RegrasRelatorio } from "@/components/regras-relatorio";
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
@@ -322,10 +323,10 @@ export function ConfigurarApiCliente({
       {estado?.configurada && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Relatório diário</CardTitle>
+            <CardTitle className="text-base">Automação externa (n8n)</CardTitle>
             <CardDescription>
-              Quando ligado, este cliente entra na lista que a automação externa usa para enviar os
-              números de cada dia. Independe do interruptor "Ligada" e do mapeamento de campos.
+              O relatório diário já é calculado pelo próprio app. Ligue só se este cliente ainda
+              precisa entrar na lista que a automação externa (n8n) usa.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -337,7 +338,7 @@ export function ConfigurarApiCliente({
                   const anterior = estado.relatorioDiarioAtivo;
                   setEstado({ ...estado, relatorioDiarioAtivo: v });
                   salvarRelatorioDiarioAtivo({ data: { clienteId, ativo: v } })
-                    .then(() => toast.success(v ? "Relatório diário ligado." : "Relatório diário desligado."))
+                    .then(() => toast.success(v ? "Automação externa ligada." : "Automação externa desligada."))
                     .catch((e) => {
                       setEstado({ ...estado, relatorioDiarioAtivo: anterior });
                       toast.error(e instanceof Error ? e.message : String(e));
@@ -345,14 +346,17 @@ export function ConfigurarApiCliente({
                 }}
               />
               <Label htmlFor="relatorio-diario-ativo">
-                {estado.relatorioDiarioAtivo ? "Incluído no relatório diário" : "Fora do relatório diário"}
+                {estado.relatorioDiarioAtivo ? "Enviar à automação externa (n8n)" : "Fora da automação externa"}
               </Label>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* 5. Classificações */}
+      <RegrasRelatorio clienteId={clienteId} />
+
+      {/* 5. Classificações: só para quem usa (classificação sincronizada ou rótulo criado) */}
+      {(rotulos.length > 0 || Boolean(estado?.ultimaSyncConversas)) && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -512,13 +516,8 @@ export function ConfigurarApiCliente({
           </div>
         </CardContent>
       </Card>
-
-      {/* 6. Meu Dash: construtor de widgets */}
-      <WidgetBuilder
-        clienteId={clienteId}
-        rotulos={rotulos.map((r) => ({ id: r.id, nome: r.nome }))}
-        campos={campos ?? []}
-      />
+      )}
+      {/* "Meu Dash" saiu desta aba: Matriz e visões substituem. Widgets salvos continuam guardados. */}
 
 
       {/* 7. Listas da conta (alimentam os filtros dos widgets) */}
