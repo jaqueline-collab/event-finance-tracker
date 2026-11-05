@@ -2,6 +2,7 @@
  * Regras do Painel visual do cliente (puras, testáveis).
  * Fuso: America/Sao_Paulo (UTC-3 fixo, sem horário de verão desde 2019).
  */
+import { NAO_DEFINIDO } from "./nao-definido";
 
 export type PeriodoChave = "7d" | "30d" | "mes" | "mes_passado" | "personalizado";
 export type Periodo = { de: string; ate: string }; // YYYY-MM-DD, inclusivo
@@ -94,7 +95,7 @@ export const ROTULO_ORIGEM: Record<string, string> = {
 const titulo = (v: string) => v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
 export function origemDoLead(utmSource: string | null, origem: string | null): string {
   const v = utmSource || origem;
-  if (!v) return "Sem origem";
+  if (!v) return NAO_DEFINIDO;
   return ROTULO_ORIGEM[v.toUpperCase()] ?? titulo(v);
 }
 
@@ -125,7 +126,7 @@ export const DIMENSOES: { chave: Dimensao; rotulo: string; todos: string }[] = [
   { chave: "campanha", rotulo: "Campanha", todos: "todas" },
 ];
 
-export const SEM_ATENDENTE = "Sem atendente";
+export const SEM_ATENDENTE = NAO_DEFINIDO;
 
 /**
  * Conversas realizadas por dia (São Paulo): cada par atendimento+dia com
@@ -167,7 +168,7 @@ export function agregarPainel(
   }
   const canalDoContato = (id: string) => {
     const l = sessoesPorContato.get(id);
-    if (!l?.length) return "Sem atendimento";
+    if (!l?.length) return NAO_DEFINIDO;
     return l.slice().sort((x, y) => String(x.criado_em).localeCompare(String(y.criado_em)))[0].canal;
   };
 
@@ -175,8 +176,8 @@ export function agregarPainel(
   const contatoOk = (c: ContatoP | undefined) =>
     !!c &&
     (!filtros.origem || c.origem === filtros.origem) &&
-    (!filtros.etiqueta || c.etiquetas.includes(filtros.etiqueta)) &&
-    (!filtros.campanha || c.campanha === filtros.campanha);
+    (!filtros.etiqueta || (filtros.etiqueta === NAO_DEFINIDO ? c.etiquetas.length === 0 : c.etiquetas.includes(filtros.etiqueta))) &&
+    (!filtros.campanha || (c.campanha ?? NAO_DEFINIDO) === filtros.campanha);
   const sessaoAtributosOk = (a: AtendimentoP) =>
     (!filtros.canal || a.canal === filtros.canal) && (!filtros.atendente || a.atendente === filtros.atendente);
   const sessaoOk = (a: AtendimentoP) =>
@@ -232,8 +233,8 @@ export function agregarPainel(
   const leadsPor: Record<"origem" | "canal" | "etiqueta" | "campanha", { nome: string; valor: number }[]> = {
     origem: contar(leadsPeriodo.map((c) => c.origem)),
     canal: contar(leadsPeriodo.map((c) => canalDoContato(c.id))),
-    etiqueta: contar(leadsPeriodo.flatMap((c) => (c.etiquetas.length ? c.etiquetas : ["Sem etiqueta"]))),
-    campanha: contar(leadsPeriodo.map((c) => c.campanha ?? "Sem campanha")),
+    etiqueta: contar(leadsPeriodo.flatMap((c) => (c.etiquetas.length ? c.etiquetas : [NAO_DEFINIDO]))),
+    campanha: contar(leadsPeriodo.map((c) => c.campanha ?? NAO_DEFINIDO)),
   };
 
   const conversasPorAtendente = new Map<string, number>();

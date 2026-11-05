@@ -1,3 +1,4 @@
+import { NAO_DEFINIDO, rotuloDimensao as rotuloND } from "@/lib/nao-definido";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -465,9 +466,9 @@ const CAMPOS_SOMA = [
 ] as const;
 const TAMANHOS_PAGINA = [7, 15, 30, 60];
 
-const NAO_INFORMADO = "Não informado";
+const NAO_INFORMADO = NAO_DEFINIDO;
 const VALOR_NAO_INFORMADO = "nao_informado";
-const rotuloDimensao = (v: string) => (v ? v : NAO_INFORMADO);
+const rotuloDimensao = rotuloND;
 const chaveValor = (v: string) => v || VALOR_NAO_INFORMADO;
 const passaMulti = (sel: string[], v: string) => sel.length === 0 || sel.includes(chaveValor(v));
 

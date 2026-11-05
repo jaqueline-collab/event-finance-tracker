@@ -30,8 +30,8 @@ describe("dados do elora", () => {
     expect(abaDadosEloraValida("estrutura")).toBe("conexao");
   });
   it("modo configuração só para super admin vendo um cliente", () => {
-    expect(podeConfigurarArea({ isAdmin: true, como: "8c0ojhr2" })).toBe(true);
-    expect(podeConfigurarArea({ isAdmin: false, como: "8c0ojhr2" })).toBe(false);
+    expect(podeConfigurarArea({ isAdmin: true, como: "cliente-teste" })).toBe(true);
+    expect(podeConfigurarArea({ isAdmin: false, como: "cliente-teste" })).toBe(false);
     expect(podeConfigurarArea({ isAdmin: true, como: "  " })).toBe(false);
   });
 });

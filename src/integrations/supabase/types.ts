@@ -1272,6 +1272,8 @@ export type Database = {
           criado_em: string
           evento: Json
           fonte: string
+          formato: string
+          formula: Json | null
           id: string
           medida: string
           nome: string
@@ -1287,6 +1289,8 @@ export type Database = {
           criado_em?: string
           evento?: Json
           fonte?: string
+          formato?: string
+          formula?: Json | null
           id?: string
           medida?: string
           nome: string
@@ -1302,6 +1306,8 @@ export type Database = {
           criado_em?: string
           evento?: Json
           fonte?: string
+          formato?: string
+          formula?: Json | null
           id?: string
           medida?: string
           nome?: string
@@ -1502,6 +1508,44 @@ export type Database = {
           valor?: number | null
         }
         Relationships: []
+      }
+      elora_matriz_manual: {
+        Row: {
+          alterado_em: string
+          alterado_por: string | null
+          cliente_id: string
+          coluna_chave: string
+          data: string
+          id: string
+          valor: number | null
+        }
+        Insert: {
+          alterado_em?: string
+          alterado_por?: string | null
+          cliente_id: string
+          coluna_chave: string
+          data: string
+          id?: string
+          valor?: number | null
+        }
+        Update: {
+          alterado_em?: string
+          alterado_por?: string | null
+          cliente_id?: string
+          coluna_chave?: string
+          data?: string
+          id?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_matriz_manual_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       elora_medalhas: {
         Row: {
