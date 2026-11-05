@@ -13,10 +13,11 @@
 - [x] Relatório diário 22/09–03/10 (com 30/09) x monday
 - [x] Fase 1 do visual do Painel do cliente (8c0ojhr2): cabeçalho, período, chips, 4 indicadores, 6 gráficos interativos, abas sublinhadas. Conferência logada indisponível (Supabase externo).
 - [ ] Fase 2: construtor de gráfico (desenho página 5)
-- [ ] Fase 3: visão matriz (desenho página 6)
+- [ ] Fase 3: visão matriz (desenho página 6) + tela só super admin para editar suporte interno (global) e, por cliente, mapa de equipe e atendentes ignorados
 
 - [x] Etapa C parte 2: cards (abertos/ganhos/perdidos/arquivados) + histórico, configuração de indicadores, motor único, tela de validação
 - [ ] Agendar sincronização de cards a cada 30 min — segredo salvo; aguardando publicação e o agendamento no n8n
-- [ ] Gravar o motor no relatório diário — aguardando aprovação (n8n só tem 25 e 26/09)
-- [ ] Suporte interno global (por e-mail ou nome, só super admin) + lista extra por cliente; mapa de equipe por canal como configuração do cliente; revisar o que é específico do Dr. Ricardo
-- [ ] Gravar relatório por canal/atendente/equipe 22/09–03/10 com backup das 12 linhas do n8n — aguardando ok
+- [x] Gravar o motor no relatório diário (colunas padrão 22/09–03/10)
+- [x] Suporte interno global (por e-mail ou nome, só super admin) + lista extra por cliente; mapa de equipe por canal como configuração do cliente; revisar o que é específico do Dr. Ricardo
+- [x] Gravar relatório por canal/atendente/equipe 22/09–03/10 com backup das 12 linhas do n8n — aguardando ok
+- [x] Fonte dos dados por cliente (antiga/automática) no lugar do jvu3dzqk fixo

@@ -292,18 +292,31 @@ export async function estimarMensagens(ctx: Contexto, sessaoIds: string[], total
   return { amostra: sessaoIds.length, mediaPorAtendimento: media, mensagens, chamadas: Math.ceil(mensagens / PAGE_SIZE) + totalSessoes };
 }
 
-/** Clientes que continuam lendo as tabelas antigas até confirmação. */
-export const LEITURA_ANTIGA = new Set(["jvu3dzqk"]);
+export type FonteDados = "automatica" | "antiga";
 
-/** O cliente já tem carga completa de contatos e atendimentos no espelho? */
+/** Regra pura: "antiga" nunca usa o espelho; "automatica" usa quando contatos e atendimentos estão completos. */
+export function decidirEspelho(fonte: FonteDados | null | undefined, estados: { fonte: string; concluido_em: string | null }[]): boolean {
+  if (fonte === "antiga") return false;
+  const ok = new Set(estados.filter((e) => e.concluido_em).map((e) => e.fonte));
+  return ok.has("contatos") && ok.has("atendimentos");
+}
+
+/** Fonte dos dados configurada para o cliente (padrão "automatica"). */
+export async function lerFonteDados(db: SupabaseClient, clienteId: string): Promise<FonteDados> {
+  const { data } = await (db as any).from("elora_integracao_contas").select("fonte_dados").eq("cliente_id", clienteId).maybeSingle();
+  return data?.fonte_dados === "antiga" ? "antiga" : "automatica";
+}
+
+/** O cliente lê do espelho? Segue a configuração "fonte dos dados" do cliente. */
 export async function usaEspelho(db: SupabaseClient, clienteId: string): Promise<boolean> {
-  if (LEITURA_ANTIGA.has(clienteId)) return false;
+  const fonte = await lerFonteDados(db, clienteId);
+  if (fonte === "antiga") return false;
   const { data } = await db
     .from("elora_sync_estado")
     .select("fonte, concluido_em")
     .eq("cliente_id", clienteId)
     .in("fonte", ["contatos", "atendimentos"]);
-  return (data ?? []).filter((r: any) => r.concluido_em).length === 2;
+  return decidirEspelho(fonte, (data ?? []) as any);
 }
 
 async function lerTudo(q: () => any): Promise<any[]> {
