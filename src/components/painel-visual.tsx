@@ -11,12 +11,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronDown, Clock, Megaphone, MessagesSquare, Minus, UserPlus, X } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronDown, Clock, Eye, EyeOff, MoreHorizontal, Megaphone, MessagesSquare, Minus, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPainelVisual } from "@/lib/painel-visual.functions";
 import {
@@ -93,7 +94,7 @@ export function SeletorPeriodo({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
-        value={chave}
+        value={chave === "personalizado" ? "__atual" : chave}
         onValueChange={(v) => {
           const c = v as PeriodoChave;
           if (c === "personalizado") return setAberto(true);
@@ -156,7 +157,8 @@ export function PainelVisual({
   filtros,
   onFiltros,
   editando,
-  menuCartao,
+  ocultos = [],
+  onAlternarOculto,
   onDisponivel,
 }: {
   clienteId: string;
@@ -164,7 +166,9 @@ export function PainelVisual({
   filtros: Filtros;
   onFiltros: (f: Filtros) => void;
   editando?: boolean;
-  menuCartao?: ReactNode;
+  /** Cartões ocultos do cliente nesta visão (só some fora do modo Editar). */
+  ocultos?: string[];
+  onAlternarOculto?: (id: string) => void;
   onDisponivel?: (sim: boolean) => void;
 }) {
   const [dados, setDados] = useState<Dados | null>(null);
@@ -196,6 +200,29 @@ export function PainelVisual({
   if (indisponivel) return null;
   const aplicar = (dim: Dimensao, valor: string | undefined) => onFiltros({ ...filtros, [dim]: valor || undefined });
   const temFiltro = Object.values(filtros).some(Boolean);
+  const extra = (id: string) => {
+    const oculto = ocultos.includes(id);
+    return {
+      escondido: oculto && !editando,
+      oculto: oculto && editando,
+      menu:
+        editando && onAlternarOculto ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="rounded-full p-1 text-muted-foreground hover:text-foreground" aria-label="Opções do cartão">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onAlternarOculto(id)}>
+                {oculto ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
+                {oculto ? "Mostrar ao cliente" : "Ocultar do cliente"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null,
+    };
+  };
 
   return (
     <div className="space-y-5">
@@ -232,7 +259,7 @@ export function PainelVisual({
         <div className={`space-y-5 transition-opacity duration-300 ${carregando ? "opacity-60" : "opacity-100"}`} aria-busy={carregando}>
           <Indicadores dados={dados} reduzido={reduzido} />
           <div className="grid gap-5 lg:grid-cols-3">
-            <Cartao titulo="Leads por dia" className="lg:col-span-2" menu={editando ? menuCartao : null}>
+            <Cartao titulo="Leads por dia" className="lg:col-span-2" {...extra("leads-dia")}>
               <BarrasPorDia
                 dados={dados.porDia}
                 series={[
@@ -243,10 +270,10 @@ export function PainelVisual({
                 reduzido={reduzido}
               />
             </Cartao>
-            <Cartao titulo="Leads por" seletor className="" menu={editando ? menuCartao : null}>
+            <Cartao titulo="Leads por" seletor className="" {...extra("leads-por")}>
               <RoscaLeads dados={dados} reduzido={reduzido} onFiltrar={aplicar} />
             </Cartao>
-            <Cartao titulo="Conversas por dia" className="lg:col-span-2" menu={editando ? menuCartao : null}>
+            <Cartao titulo="Conversas por dia" className="lg:col-span-2" {...extra("conversas-dia")}>
               <BarrasPorDia
                 dados={dados.porDia}
                 series={[
@@ -257,13 +284,13 @@ export function PainelVisual({
                 reduzido={reduzido}
               />
             </Cartao>
-            <Cartao titulo="Principais campanhas" subtitulo="Leads com campanha (top 8)" menu={editando ? menuCartao : null}>
+            <Cartao titulo="Principais campanhas" subtitulo="Leads com campanha (top 8)" {...extra("campanhas")}>
               <Ranking itens={dados.campanhas} vazio="Nenhum lead de campanha neste período" onFiltrar={(v) => aplicar("campanha", v)} reduzido={reduzido} />
             </Cartao>
-            <Cartao titulo="Atendimentos por canal" menu={editando ? menuCartao : null}>
+            <Cartao titulo="Atendimentos por canal" {...extra("canais")}>
               <Ranking itens={dados.canais} vazio="Nenhum atendimento neste período" onFiltrar={(v) => aplicar("canal", v)} reduzido={reduzido} />
             </Cartao>
-            <Cartao titulo="Conversas por atendente" className="lg:col-span-2" menu={editando ? menuCartao : null}>
+            <Cartao titulo="Conversas por atendente" className="lg:col-span-2" {...extra("atendentes")}>
               <TabelaAtendentes itens={dados.atendentes} onFiltrar={(v) => aplicar("atendente", v)} reduzido={reduzido} />
             </Cartao>
           </div>
@@ -397,7 +424,7 @@ function Indicadores({ dados, reduzido }: { dados: Dados; reduzido: boolean }) {
   const pctAds = a.novosLeads ? (a.leadsAds / a.novosLeads) * 100 : 0;
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <CartaoIndicador icone={<UserPlus className="h-4 w-4" />} cor="var(--chart-1)" rotulo="Novos leads" valor={nf.format(Math.round(leads))} selo={<Selo v={variacao(a.novosLeads, p.novosLeads)} />} />
+      <CartaoIndicador icone={<UserPlus className="h-4 w-4" />} cor="var(--chart-1)" rotulo="Novos leads" valor={nf.format(Math.round(leads))} selo={<Selo v={variacao(a.novosLeads, p.novosLeads)} />} rodape={a.importadosFora ? `${nf.format(a.importadosFora)} importados fora da conta` : undefined} />
       <CartaoIndicador icone={<MessagesSquare className="h-4 w-4" />} cor="var(--chart-2)" rotulo="Conversas realizadas" valor={nf.format(Math.round(conv))} selo={<Selo v={variacao(a.conversas, p.conversas)} />} />
       <CartaoIndicador
         icone={<Clock className="h-4 w-4" />}
@@ -428,6 +455,8 @@ function Cartao({
   className = "",
   menu,
   seletor,
+  escondido,
+  oculto,
 }: {
   titulo: string;
   subtitulo?: string;
@@ -435,9 +464,14 @@ function Cartao({
   className?: string;
   menu?: ReactNode;
   seletor?: boolean;
+  escondido?: boolean;
+  oculto?: boolean;
 }) {
+  if (escondido) return null;
   return (
-    <section className={`min-w-0 rounded-xl border bg-card p-5 shadow-sm ${className}`} aria-label={seletor ? undefined : titulo}>
+    <section className={`relative min-w-0 rounded-xl border bg-card p-5 shadow-sm ${oculto ? "border-dashed opacity-60" : ""} ${className}`} aria-label={seletor ? undefined : titulo}>
+      {oculto && <span className="absolute left-5 top-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">Oculto do cliente</span>}
+      {seletor && menu && <div className="absolute right-3 top-3 z-10">{menu}</div>}
       {!seletor && (
         <header className="mb-4 flex items-start justify-between gap-2">
           <div>

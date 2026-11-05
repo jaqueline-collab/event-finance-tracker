@@ -9,7 +9,11 @@ export type Visao = {
   ordem: number;
   publicada: boolean;
   totalGraficos: number;
+  /** Cartões do painel novo ocultos do cliente nesta visão. */
+  ocultos?: string[];
 };
+
+const chaveOcultos = (l?: string[]) => [...new Set(l ?? [])].sort().join("|");
 
 /** Visões que a pessoa pode ver: rascunhos só para quem edita (super admin). */
 export function visoesVisiveis<T extends { publicada: boolean; ordem: number }>(
@@ -48,8 +52,8 @@ export function proximoNomeVisao(existentes: string[]): string {
 
 /** Diferença entre o salvo e o editado: o que criar, atualizar e excluir. */
 export function diffVisoes(
-  salvas: { id: string; nome: string; ordem: number; publicada: boolean }[],
-  editadas: { id: string; nome: string; ordem: number; publicada: boolean; novaDe?: string | null }[],
+  salvas: { id: string; nome: string; ordem: number; publicada: boolean; ocultos?: string[] }[],
+  editadas: { id: string; nome: string; ordem: number; publicada: boolean; novaDe?: string | null; ocultos?: string[] }[],
 ) {
   const idsEditados = new Set(editadas.map((v) => v.id));
   const porId = new Map(salvas.map((v) => [v.id, v]));
@@ -57,7 +61,7 @@ export function diffVisoes(
   const criar = editadas.filter((v) => !porId.has(v.id));
   const atualizar = editadas.filter((v) => {
     const s = porId.get(v.id);
-    return s && (s.nome !== v.nome || s.ordem !== v.ordem || s.publicada !== v.publicada);
+    return s && (s.nome !== v.nome || s.ordem !== v.ordem || s.publicada !== v.publicada || chaveOcultos(s.ocultos) !== chaveOcultos(v.ocultos));
   });
   return { criar, atualizar, excluir };
 }
