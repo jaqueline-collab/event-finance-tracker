@@ -40,3 +40,48 @@ export const sincronizarCardsCliente = createServerFn({ method: "POST" })
     if (!ctx) throw new Error("integracao: cliente sem conexão com o Elora.");
     return sincronizarCards(supabaseAdmin as any, data.clienteId, ctx, 25_000);
   });
+
+const pessoa = z.object({ nome: z.string().trim().max(200).optional().nullable(), email: z.string().trim().email().max(320).optional().nullable() })
+  .refine((p) => !!(p.nome || p.email), "informe nome ou e-mail");
+
+/** Lista global de suporte interno (vale para todos os clientes). Só super admin. */
+export const lerSuporteInterno = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any).from("elora_suporte_interno").select("id, nome, email").order("criado_em");
+    if (error) throw new Error(error.message);
+    return data as { id: string; nome: string | null; email: string | null }[];
+  });
+
+export const salvarSuporteInterno = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ acao: z.enum(["adicionar", "remover"]), id: z.string().uuid().optional(), pessoa: pessoa.optional() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const t = (supabaseAdmin as any).from("elora_suporte_interno");
+    const { error } =
+      data.acao === "adicionar"
+        ? await t.insert({ nome: data.pessoa?.nome || null, email: data.pessoa?.email || null })
+        : await t.delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Configuração do relatório por cliente: equipe de cada canal + atendentes ignorados extra. Só super admin. */
+export const salvarCorteCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z.object({ clienteId: z.string().min(1), equipePorCanal: z.record(z.string().max(100), z.string().trim().max(100)), atendentesIgnorados: z.array(pessoa).max(50) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("elora_relatorio_corte_config")
+      .upsert({ cliente_id: data.clienteId, equipe_por_canal: data.equipePorCanal, atendentes_ignorados: data.atendentesIgnorados, atualizado_em: new Date().toISOString() });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
