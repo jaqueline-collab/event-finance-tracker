@@ -269,3 +269,78 @@ export function catalogoCampos(leituras: Pick<Leitura, "campos">[]) {
     campos: [...grupos[f]].map(([campo, preenchidos]) => ({ campo, preenchidos })).sort((a, b) => a.campo.localeCompare(b.campo)),
   }));
 }
+
+// ---------------------------------------------------------------------------
+// Colunas padrão separadas por canal + atendente + equipe (mesmo corte do n8n).
+
+export type MsgCorte = { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null; user_id: string | null };
+export type SessaoCorte = { id: string; contato_id: string | null; canal_id: string | null; canal_nome: string | null; responsavel_id: string | null; responsavel_nome: string | null };
+export type ContatoCorte = { id: string; criado_em: string | null; origem: string | null; utm_campaign: string | null };
+export type CorteConfig = {
+  /** canal_id → nome exibido (ex.: "(31) 99086-1102"). */
+  nomeCanal: Record<string, string>;
+  /** canal_id → equipe, definido por cliente. Sem entrada = equipe vazia. */
+  equipePorCanal: Record<string, string>;
+  /** userId → nome, da lista de agentes da conta. */
+  agentes: Record<string, string>;
+  /** Atendentes cujas conversas não entram (ex.: login de suporte). */
+  ignorarAtendentes: string[];
+};
+export const ORIGENS_NAO_HUMANAS = new Set(["BOT", "CAMPAIGN", "OFFICE_HOURS", "API", "PAYMENT"]);
+export type LinhaCorte = { dia: string; canal: string; atendente: string; equipe: string } & Record<(typeof COLUNAS_PADRAO)[number]["chave"], number>;
+
+export function calcularPadraoPorCorte(contatos: ContatoCorte[], msgs: MsgCorte[], sessoes: SessaoCorte[], cfg: CorteConfig): LinhaCorte[] {
+  const ses = new Map(sessoes.map((s) => [s.id, s]));
+  const ignorar = new Set(cfg.ignorarAtendentes.map((n) => n.trim().toLowerCase()));
+  // conversa = sessão + dia com mensagem recebida válida
+  type Conv = { s: string; dia: string; usuario: boolean; ultimoHumano: { em: string; user: string } | null };
+  const conv = new Map<string, Conv>();
+  for (const m of msgs) {
+    if (m.tipo && TIPOS_IGNORADOS_MOTOR.has(m.tipo)) continue;
+    const dia = diaSP(m.enviada_em);
+    if (!dia) continue;
+    const k = `${m.sessao_id}|${dia}`;
+    const c = conv.get(k) ?? { s: m.sessao_id, dia, usuario: false, ultimoHumano: null };
+    if (m.origem === "DEFAULT") c.usuario = true;
+    if (m.user_id && !ORIGENS_NAO_HUMANAS.has(String(m.origem ?? "")) && m.enviada_em && (!c.ultimoHumano || m.enviada_em > c.ultimoHumano.em))
+      c.ultimoHumano = { em: m.enviada_em, user: m.user_id };
+    conv.set(k, c);
+  }
+  const linhas = new Map<string, LinhaCorte>();
+  const linha = (dia: string, canalId: string | null, canalNome: string | null, atendente: string) => {
+    const canal = (canalId && cfg.nomeCanal[canalId]) || canalNome || canalId || "";
+    const equipe = (canalId && cfg.equipePorCanal[canalId]) || "";
+    const k = [dia, canal, atendente, equipe].join("\u0001");
+    let l = linhas.get(k);
+    if (!l) {
+      l = { dia, canal, atendente, equipe, novos_contatos: 0, novos_contatos_ads: 0, conversas_total_dia: 0, conversas_usuario: 0, conversas_bot: 0 };
+      linhas.set(k, l);
+    }
+    return l;
+  };
+  /** contato → linha da primeira conversa do dia */
+  const linhaContatoDia = new Map<string, LinhaCorte>();
+  const ordenadas = [...conv.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.s.localeCompare(b.s));
+  for (const c of ordenadas) {
+    const s = ses.get(c.s);
+    let atendente = "";
+    if (c.ultimoHumano) atendente = cfg.agentes[c.ultimoHumano.user] ?? "";
+    if (!atendente) atendente = (s?.responsavel_id && cfg.agentes[s.responsavel_id]) || s?.responsavel_nome || "";
+    if (ignorar.has(atendente.trim().toLowerCase())) continue;
+    const l = linha(c.dia, s?.canal_id ?? null, s?.canal_nome ?? null, atendente);
+    l.conversas_total_dia++;
+    if (c.usuario) l.conversas_usuario++;
+    else l.conversas_bot++;
+    if (s?.contato_id && !linhaContatoDia.has(`${s.contato_id}|${c.dia}`)) linhaContatoDia.set(`${s.contato_id}|${c.dia}`, l);
+  }
+  for (const ct of contatos) {
+    if (String(ct.origem ?? "").toUpperCase() === "IMPORTED") continue;
+    const dia = diaSP(ct.criado_em);
+    if (!dia) continue;
+    const l = linhaContatoDia.get(`${ct.id}|${dia}`) ?? linha(dia, null, null, "");
+    l.novos_contatos++;
+    if (preenchido(ct.utm_campaign)) l.novos_contatos_ads++;
+  }
+  return [...linhas.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.canal.localeCompare(b.canal) || a.atendente.localeCompare(b.atendente));
+}
+const TIPOS_IGNORADOS_MOTOR = new Set(["NOTE", "TRANSITION", "TRACK"]);
