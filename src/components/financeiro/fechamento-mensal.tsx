@@ -1724,28 +1724,10 @@ export function FechamentoMensal() {
                                         </Badge>
                                       ) : (
                                         <>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7"
-                                            title="Renomear fechamento"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const novo = window.prompt("Novo título do fechamento:", f.titulo ?? "");
-                                              if (novo === null) return;
-                                              const t = novo.trim();
-                                              if (!t || t === f.titulo) return;
-                                              updateFechamento?.(f.id, { titulo: t })
-                                                .then(() => toast.success("Título atualizado."))
-                                                .catch(() => toast.error("Falha ao atualizar título."));
-                                            }}
-                                          >
-                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                          </Button>
                                           {isAdmin && (
-                                            <Button asChild size="sm" variant="outline" className="h-7 gap-1.5 text-xs" title="Editar este fechamento">
-                                              <Link to="/financeiro/fechamento/$id/editar" params={{ id: f.id }} onClick={(e) => e.stopPropagation()}>
-                                                <PencilLine className="h-3.5 w-3.5" /> Editar
+                                            <Button asChild size="icon" variant="ghost" className="h-7 w-7" title="Editar fechamento">
+                                              <Link to="/financeiro/fechamento/$id/editar" params={{ id: f.id }} onClick={(e) => e.stopPropagation()} aria-label="Editar fechamento">
+                                                <PencilLine className="h-3.5 w-3.5 text-muted-foreground" />
                                               </Link>
                                             </Button>
                                           )}
