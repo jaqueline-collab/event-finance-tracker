@@ -102,7 +102,7 @@ function EditarFechamento() {
     const c = clientes.find((x) => x.id === novoCliente);
     if (!c) return;
     const plano = planos.find((p) => p.id === c.planoId);
-    const sist = plano ? Number((plano as any).valorBase ?? (plano as any).valor ?? 0) : 0;
+    const sist = Number(plano?.valorMensal ?? 0);
     const acomp = Number(plano?.valorAcompanhamento ?? 0);
     setItens((xs) => [...xs!, {
       id: crypto.randomUUID(), clienteId: c.id, clienteNome: c.nome, planoId: c.planoId ?? null, planoNome: plano?.nome ?? null,
