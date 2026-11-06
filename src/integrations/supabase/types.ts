@@ -1104,6 +1104,50 @@ export type Database = {
           },
         ]
       }
+      elora_fechamento_edicoes: {
+        Row: {
+          campo: string
+          editado_em: string
+          editado_por: string | null
+          fechamento_id: string
+          id: string
+          item_id: string | null
+          motivo: string | null
+          valor_antigo: Json | null
+          valor_novo: Json | null
+        }
+        Insert: {
+          campo: string
+          editado_em?: string
+          editado_por?: string | null
+          fechamento_id: string
+          id?: string
+          item_id?: string | null
+          motivo?: string | null
+          valor_antigo?: Json | null
+          valor_novo?: Json | null
+        }
+        Update: {
+          campo?: string
+          editado_em?: string
+          editado_por?: string | null
+          fechamento_id?: string
+          id?: string
+          item_id?: string | null
+          motivo?: string | null
+          valor_antigo?: Json | null
+          valor_novo?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_fechamento_edicoes_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "elora_fechamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_fechamento_itens: {
         Row: {
           ciclo_fim: string | null
@@ -1115,6 +1159,8 @@ export type Database = {
           lancamento_financeiro_id: string | null
           payload_snapshot: Json | null
           plano_id: string | null
+          removido_em: string | null
+          removido_por: string | null
           valor_bruto: number
           valor_desconto: number
           valor_liquido: number
@@ -1130,6 +1176,8 @@ export type Database = {
           lancamento_financeiro_id?: string | null
           payload_snapshot?: Json | null
           plano_id?: string | null
+          removido_em?: string | null
+          removido_por?: string | null
           valor_bruto?: number
           valor_desconto?: number
           valor_liquido?: number
@@ -1145,6 +1193,8 @@ export type Database = {
           lancamento_financeiro_id?: string | null
           payload_snapshot?: Json | null
           plano_id?: string | null
+          removido_em?: string | null
+          removido_por?: string | null
           valor_bruto?: number
           valor_desconto?: number
           valor_liquido?: number
@@ -1168,6 +1218,8 @@ export type Database = {
           criado_por: string | null
           deletado_em: string | null
           descricao: string | null
+          editado_em: string | null
+          editado_por: string | null
           enviado_parceiro_em: string | null
           enviado_parceiro_por: string | null
           id: string
@@ -1185,6 +1237,8 @@ export type Database = {
           criado_por?: string | null
           deletado_em?: string | null
           descricao?: string | null
+          editado_em?: string | null
+          editado_por?: string | null
           enviado_parceiro_em?: string | null
           enviado_parceiro_por?: string | null
           id?: string
@@ -1202,6 +1256,8 @@ export type Database = {
           criado_por?: string | null
           deletado_em?: string | null
           descricao?: string | null
+          editado_em?: string | null
+          editado_por?: string | null
           enviado_parceiro_em?: string | null
           enviado_parceiro_por?: string | null
           id?: string
