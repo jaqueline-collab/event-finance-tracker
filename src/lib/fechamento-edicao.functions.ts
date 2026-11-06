@@ -1,13 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { aplicarEdicao, ConfirmacaoNecessaria, salvarEdicaoSchema } from "./fechamento-edicao.aplicar";
+import { aplicarEdicao, ConfirmacaoNecessaria, exigirAdmin, salvarEdicaoSchema } from "./fechamento-edicao.aplicar";
 export type { SalvarEdicaoInput } from "./fechamento-edicao.aplicar";
 
-async function exigirAdmin(db: any) {
-  const { data, error } = await db.rpc("is_admin");
-  if (error || data !== true) throw new Error("Sem permissão para editar fechamentos.");
-}
 
 export const listarEdicoesFechamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

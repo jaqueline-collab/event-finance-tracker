@@ -62,6 +62,11 @@ export const salvarEdicaoSchema = z.object({
 });
 export type SalvarEdicaoInput = z.input<typeof salvarEdicaoSchema>;
 
+export async function exigirAdmin(db: any) {
+  const { data, error } = await db.rpc("is_admin");
+  if (error || data !== true) throw new Error("Sem permissão para editar fechamentos.");
+}
+
 export class ConfirmacaoNecessaria extends Error {}
 
 /**
