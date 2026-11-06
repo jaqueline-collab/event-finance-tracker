@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Download, FileText, TrendingUp, TrendingDown, Eraser } from "lucide-react";
-import { FileSearch, Printer } from "lucide-react";
+import { FileSearch, Printer, PencilLine } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { HistoricoEdicoes, rotuloCampo, textoValor, type EdicaoFechamento } from "@/components/financeiro/historico-edicoes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -215,6 +217,7 @@ export function FechamentoMensal() {
   const [confirmDeleteFech, setConfirmDeleteFech] = useState<string | null>(null);
   const [confirmPurgeFech, setConfirmPurgeFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
+  const [edicoesAuditoria, setEdicoesAuditoria] = useState<EdicaoFechamento[]>([]);
   const [autoPrintCompetencia, setAutoPrintCompetencia] = useState<string | null>(null);
   // Estabiliza a data-base: se recriada a cada render, causa loop infinito
   // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
@@ -1647,6 +1650,11 @@ export function FechamentoMensal() {
                                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                                     <span className="font-medium text-sm">{f.titulo}</span>
                                     <Badge variant="outline" className="text-[10px] ml-1">{itens.length} conta(s)</Badge>
+                                    {f.editadoEm && (
+                                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                                        Editado em {new Date(f.editadoEm).toLocaleDateString("pt-BR")}
+                                      </Badge>
+                                    )}
                                     <span className="ml-auto flex items-center gap-3">
                                       <span className="text-xs text-muted-foreground">{criadoEmLabel}</span>
                                       {!f.legacyFinanceiroId && (() => {
@@ -1733,6 +1741,13 @@ export function FechamentoMensal() {
                                           >
                                             <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                                           </Button>
+                                          {isAdmin && (
+                                            <Button asChild size="sm" variant="outline" className="h-7 gap-1.5 text-xs" title="Editar este fechamento">
+                                              <Link to="/financeiro/fechamento/$id/editar" params={{ id: f.id }} onClick={(e) => e.stopPropagation()}>
+                                                <PencilLine className="h-3.5 w-3.5" /> Editar
+                                              </Link>
+                                            </Button>
+                                          )}
                                           <Button
                                             size="icon"
                                             variant="ghost"
@@ -2981,6 +2996,23 @@ export function FechamentoMensal() {
                 pdf.text(`Página ${p} de ${totalPages}`, pageW - 40, pageH - 20, { align: "right" });
               }
 
+              if (edicoesAuditoria.length > 0) {
+                pdf.addPage();
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(14);
+                pdf.text("Edições deste fechamento", 40, 40);
+                autoTable(pdf, {
+                  startY: 54,
+                  styles: { fontSize: 7 },
+                  head: [["Quando", "Quem", "Cliente", "Campo", "Antes", "Depois", "Motivo"]],
+                  body: edicoesAuditoria.map((e) => [
+                    new Date(e.editado_em).toLocaleString("pt-BR"), e.editado_por_nome ?? "—",
+                    (clientesFech.find((x) => x.it.id === e.item_id)?.cli?.nome) ?? "—",
+                    rotuloCampo(e.campo), textoValor(e.valor_antigo), textoValor(e.valor_novo), e.motivo ?? "—",
+                  ]),
+                });
+              }
               pdf.save(`auditoria-${f.titulo.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`);
             };
 
@@ -2992,8 +3024,16 @@ export function FechamentoMensal() {
                   </DialogTitle>
                   <p className="text-xs text-muted-foreground mt-1">
                     {clientesFech.length} cliente(s) · Total {formatBRL(f.totalLiquido)}
+                    {f.editadoEm ? ` · Editado em ${new Date(f.editadoEm).toLocaleDateString("pt-BR")}` : ""}
                   </p>
                 </DialogHeader>
+                {isAdmin && (
+                  <HistoricoEdicoes
+                    fechamentoId={f.id}
+                    nomeCliente={(id) => clientesFech.find((x) => x.it.id === id)?.cli?.nome ?? null}
+                    onCarregar={setEdicoesAuditoria}
+                  />
+                )}
 
                 <div className="flex justify-end">
                   <Button size="sm" variant="outline" onClick={exportarAuditoriaPdf} className="gap-1.5">
