@@ -218,6 +218,7 @@ export function FechamentoMensal() {
   const [confirmPurgeFech, setConfirmPurgeFech] = useState<string | null>(null);
   const [detalharFechamentoId, setDetalharFechamentoId] = useState<string | null>(null);
   const [edicoesAuditoria, setEdicoesAuditoria] = useState<EdicaoFechamento[]>([]);
+  useEffect(() => { setEdicoesAuditoria([]); }, [detalharFechamentoId]);
   const [autoPrintCompetencia, setAutoPrintCompetencia] = useState<string | null>(null);
   // Estabiliza a data-base: se recriada a cada render, causa loop infinito
   // (React #185) porque os useMemo/useEffect que dependem dela reexecutam.
