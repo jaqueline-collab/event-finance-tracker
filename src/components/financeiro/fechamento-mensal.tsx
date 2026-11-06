@@ -41,7 +41,7 @@ import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/
 import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
 import { getCicloCliente, isoFromDate } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2, Share2, Undo2 } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus, Loader2, Share2, Undo2 } from "lucide-react";
 import { alternarEnvioFechamentoParceiro } from "@/lib/parceiro.functions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
@@ -1724,28 +1724,10 @@ export function FechamentoMensal() {
                                         </Badge>
                                       ) : (
                                         <>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7"
-                                            title="Renomear fechamento"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const novo = window.prompt("Novo título do fechamento:", f.titulo ?? "");
-                                              if (novo === null) return;
-                                              const t = novo.trim();
-                                              if (!t || t === f.titulo) return;
-                                              updateFechamento?.(f.id, { titulo: t })
-                                                .then(() => toast.success("Título atualizado."))
-                                                .catch(() => toast.error("Falha ao atualizar título."));
-                                            }}
-                                          >
-                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                          </Button>
                                           {isAdmin && (
-                                            <Button asChild size="sm" variant="outline" className="h-7 gap-1.5 text-xs" title="Editar este fechamento">
-                                              <Link to="/financeiro/fechamento/$id/editar" params={{ id: f.id }} onClick={(e) => e.stopPropagation()}>
-                                                <PencilLine className="h-3.5 w-3.5" /> Editar
+                                            <Button asChild size="icon" variant="ghost" className="h-7 w-7" title="Editar fechamento">
+                                              <Link to="/financeiro/fechamento/$id/editar" params={{ id: f.id }} onClick={(e) => e.stopPropagation()} aria-label="Editar fechamento">
+                                                <PencilLine className="h-3.5 w-3.5 text-muted-foreground" />
                                               </Link>
                                             </Button>
                                           )}
