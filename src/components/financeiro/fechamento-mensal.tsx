@@ -2958,7 +2958,7 @@ export function FechamentoMensal() {
                   body: [
                     ...comp.itens.map((i) => [i.label, String(i.qtd), formatBRL(i.unit), formatBRL(i.total)]),
                     [{ content: "Custo Sistema", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: "", styles: { fillColor: [240, 240, 240] } }, { content: formatBRL(comp.subtotalSistema), styles: { fontStyle: "bold", fillColor: [240, 240, 240], halign: "right" } }],
-                    linhaSimples("Custo Acompanhamento", formatBRL(comp.acompanhamento)),
+                    linhaSimples(comp.acompanhamentoIsento ? "Acompanhamento (isento)" : "Custo Acompanhamento", formatBRL(comp.acompanhamento)),
                     ...(comp.mauExcedenteValor > 0 ? [linhaSimples("MAU excedente", formatBRL(comp.mauExcedenteValor))] : []),
                     ...(comp.desconto > 0 ? [linhaSimples("Desconto", `-${formatBRL(comp.desconto)}`)] : []),
                     [{ content: "Custo Mês (total)", styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255 } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: "", styles: { fillColor: [28, 63, 170] } }, { content: formatBRL(comp.total), styles: { fontStyle: "bold", fillColor: [28, 63, 170], textColor: 255, halign: "right" } }],
@@ -3182,7 +3182,7 @@ export function FechamentoMensal() {
                                     <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(comp.subtotalSistema)}</td>
                                   </tr>
                                   <tr className="border-b border-border/20">
-                                    <td className="py-1.5">Custo Acompanhamento</td>
+                                    <td className="py-1.5">{comp.acompanhamentoIsento ? "Acompanhamento (isento)" : "Custo Acompanhamento"}</td>
                                     <td colSpan={2}></td>
                                     <td className="py-1.5 text-right tabular-nums">{formatBRL(comp.acompanhamento)}</td>
                                   </tr>

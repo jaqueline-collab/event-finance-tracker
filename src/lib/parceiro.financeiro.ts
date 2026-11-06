@@ -54,7 +54,8 @@ export function composicaoDe(snapshot: unknown) {
   const mauQtd = num(s["mauExcedenteQtd"]);
   const mauValor = num(s["mauExcedenteValor"]);
   if (sistema) linhas.push({ label: "Sistema", total: sistema });
-  if (acompanhamento) linhas.push({ label: "Acompanhamento", total: acompanhamento });
+  if (s["acompanhamentoIsento"]) linhas.push({ label: "Acompanhamento (isento)", total: 0 });
+  else if (acompanhamento) linhas.push({ label: "Acompanhamento", total: acompanhamento });
   if (mauValor) linhas.push({ label: `MAU excedente (${mauQtd})`, total: mauValor });
   return linhas;
 }
@@ -77,7 +78,7 @@ export function montarFechamentosParceiro(params: {
     .filter((f) => Boolean(f.enviado_parceiro_em) && !f.deletado_em)
     .map((f) => {
       const meusItens = itens.filter(
-        (i) => i["fechamento_id"] === f.id && nomePorCliente.has(String(i["cliente_id"])),
+        (i) => i["fechamento_id"] === f.id && !i["removido_em"] && nomePorCliente.has(String(i["cliente_id"])),
       );
 
       const linhas: LinhaFechamentoParceiro[] = meusItens

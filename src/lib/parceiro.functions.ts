@@ -506,7 +506,8 @@ export const getFinanceiroParceiro = createServerFn({ method: "POST" })
       .select(
         "id, fechamento_id, cliente_id, ciclo_inicio, ciclo_fim, vencimento, valor_bruto, valor_desconto, valor_liquido, payload_snapshot, lancamento_financeiro_id",
       )
-      .in("cliente_id", ids);
+      .in("cliente_id", ids)
+      .is("removido_em", null);
     if (itensRes.error) throw new Error(`fechamento-itens: ${itensRes.error.message}`);
     const itensRows = (itensRes.data ?? []) as any[];
     if (itensRows.length === 0) return { ...vazio, habilitado: true };
@@ -684,7 +685,7 @@ export const getAuditoriaFechamentoParceiro = createServerFn({ method: "POST" })
     if (ids.length === 0) return { clientes: [] as AuditoriaClienteParceiro[] };
 
     const [itRes, mvRes, plRes] = await Promise.all([
-      adm.from("elora_fechamento_itens").select("*").eq("fechamento_id", data.fechamentoId).in("cliente_id", ids),
+      adm.from("elora_fechamento_itens").select("*").eq("fechamento_id", data.fechamentoId).in("cliente_id", ids).is("removido_em", null),
       adm.from("elora_movimentos").select("*").in("cliente_id", ids),
       adm.from("elora_planos").select("*"),
     ]);
