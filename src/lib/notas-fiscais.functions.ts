@@ -157,7 +157,8 @@ export const anexarNotaFiscal = createServerFn({ method: "POST" })
     const { data: itens, error: errItens } = await supabaseAdmin
       .from("elora_fechamento_itens")
       .select("lancamento_financeiro_id, cliente_id")
-      .in("lancamento_financeiro_id", data.lancamentoIds);
+      .in("lancamento_financeiro_id", data.lancamentoIds)
+      .is("removido_em", null);
     if (errItens) throw new Error(`itens de fechamento: ${errItens.message}`);
 
     const clienteIds = new Set<string>();
@@ -298,7 +299,8 @@ export const listarVinculosNotas = createServerFn({ method: "GET" })
       const { data: itens } = await context.supabase
         .from("elora_fechamento_itens")
         .select("lancamento_financeiro_id, ciclo_inicio, ciclo_fim, elora_fechamentos(titulo, deletado_em)")
-        .not("lancamento_financeiro_id", "is", null);
+        .not("lancamento_financeiro_id", "is", null)
+        .is("removido_em", null);
       const br = (d: string | null) => (d ? d.split("-").reverse().join("/") : "");
       for (const it of (itens ?? []) as any[]) {
         const f = it.elora_fechamentos;

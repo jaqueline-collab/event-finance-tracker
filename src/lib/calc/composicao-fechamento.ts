@@ -10,6 +10,7 @@ export interface ComposicaoFechamento {
   itens: ItemReceita[];
   subtotalSistema: number;
   acompanhamento: number;
+  acompanhamentoIsento: boolean;
   mauExcedenteValor: number;
   desconto: number;
   total: number;
@@ -37,7 +38,7 @@ export function composicaoDoFechamento(
   const planoNome =
     (snap["planoNome"] as string | null | undefined) ??
     (item.planoId ? planos.find((p) => p.id === item.planoId)?.nome ?? null : null);
-  const base = { planoNome, mauExcedenteValor, desconto, total };
+  const base = { planoNome, mauExcedenteValor, desconto, total, acompanhamentoIsento: Boolean(snap["acompanhamentoIsento"]) };
 
   const gravada = snap["composicao"] as
     | { itens?: ItemReceita[]; subtotalSistema?: number; acompanhamento?: number }

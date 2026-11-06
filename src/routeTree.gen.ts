@@ -47,6 +47,7 @@ import { Route as ClientesIdDadosEloraRouteImport } from './routes/clientes_.$id
 import { Route as ClientesIdIntegracaoEloraRouteImport } from './routes/clientes_.$id.integracao-elora'
 import { Route as ApiPublicRelatorioDiarioListarClientesRouteImport } from './routes/api/public/relatorio-diario/listar-clientes'
 import { Route as ApiPublicRelatorioDiarioRegistrarRouteImport } from './routes/api/public/relatorio-diario/registrar'
+import { Route as FinanceiroFechamentoIdEditarRouteImport } from './routes/financeiro_.fechamento.$id.editar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -244,6 +245,12 @@ const ApiPublicRelatorioDiarioRegistrarRoute =
     path: '/api/public/relatorio-diario/registrar',
     getParentRoute: () => rootRouteImport,
   } as any)
+const FinanceiroFechamentoIdEditarRoute =
+  FinanceiroFechamentoIdEditarRouteImport.update({
+    id: '/financeiro_/fechamento/$id/editar',
+    path: '/financeiro/fechamento/$id/editar',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -284,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
   '/api/public/relatorio-diario/registrar': typeof ApiPublicRelatorioDiarioRegistrarRoute
+  '/financeiro/fechamento/$id/editar': typeof FinanceiroFechamentoIdEditarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -322,6 +330,7 @@ export interface FileRoutesByTo {
   '/clientes/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
   '/api/public/relatorio-diario/registrar': typeof ApiPublicRelatorioDiarioRegistrarRoute
+  '/financeiro/fechamento/$id/editar': typeof FinanceiroFechamentoIdEditarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -363,6 +372,7 @@ export interface FileRoutesById {
   '/clientes_/$id/integracao-elora': typeof ClientesIdIntegracaoEloraRoute
   '/api/public/relatorio-diario/listar-clientes': typeof ApiPublicRelatorioDiarioListarClientesRoute
   '/api/public/relatorio-diario/registrar': typeof ApiPublicRelatorioDiarioRegistrarRoute
+  '/financeiro_/fechamento/$id/editar': typeof FinanceiroFechamentoIdEditarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
     | '/api/public/relatorio-diario/registrar'
+    | '/financeiro/fechamento/$id/editar'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -443,6 +454,7 @@ export interface FileRouteTypes {
     | '/clientes/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
     | '/api/public/relatorio-diario/registrar'
+    | '/financeiro/fechamento/$id/editar'
   id:
     | '__root__'
     | '/'
@@ -483,6 +495,7 @@ export interface FileRouteTypes {
     | '/clientes_/$id/integracao-elora'
     | '/api/public/relatorio-diario/listar-clientes'
     | '/api/public/relatorio-diario/registrar'
+    | '/financeiro_/fechamento/$id/editar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -521,6 +534,7 @@ export interface RootRouteChildren {
   ClientesIdIntegracaoEloraRoute: typeof ClientesIdIntegracaoEloraRoute
   ApiPublicRelatorioDiarioListarClientesRoute: typeof ApiPublicRelatorioDiarioListarClientesRoute
   ApiPublicRelatorioDiarioRegistrarRoute: typeof ApiPublicRelatorioDiarioRegistrarRoute
+  FinanceiroFechamentoIdEditarRoute: typeof FinanceiroFechamentoIdEditarRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -791,6 +805,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRelatorioDiarioRegistrarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/financeiro_/fechamento/$id/editar': {
+      id: '/financeiro_/fechamento/$id/editar'
+      path: '/financeiro/fechamento/$id/editar'
+      fullPath: '/financeiro/fechamento/$id/editar'
+      preLoaderRoute: typeof FinanceiroFechamentoIdEditarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -867,6 +888,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicRelatorioDiarioListarClientesRoute,
   ApiPublicRelatorioDiarioRegistrarRoute:
     ApiPublicRelatorioDiarioRegistrarRoute,
+  FinanceiroFechamentoIdEditarRoute: FinanceiroFechamentoIdEditarRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

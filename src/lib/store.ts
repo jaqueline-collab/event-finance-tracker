@@ -304,7 +304,7 @@ export const useStore = create<State>()(
             (supabase as any).from("elora_financeiro").select("*"),
             (supabase as any).from("elora_descontos").select("*"),
             (supabase as any).from("elora_fechamentos").select("*"),
-            (supabase as any).from("elora_fechamento_itens").select("*"),
+            (supabase as any).from("elora_fechamento_itens").select("*").is("removido_em", null),
           ]);
 
           try {
