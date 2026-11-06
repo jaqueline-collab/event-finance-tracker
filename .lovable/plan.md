@@ -32,6 +32,9 @@
 - Nova tabela `elora_fechamento_edicoes` (fechamento_id, item_id, campo, valor_antigo, valor_novo, motivo, editado_por, editado_em). Proteção ligada sem acesso direto; leitura e escrita só pelo servidor.
 - A janela de Auditoria ganha a seção "Edições" (data, quem, item, campo, antes → depois, motivo), também no PDF de auditoria.
 
+## Tudo que lê fechamentos e lançamentos
+Conferir e ajustar para usar os valores editados e ignorar itens removidos: lista e cartões de fechamentos, comparação entre fechamentos, PDF do fechamento e de auditoria, visão do parceiro, notas fiscais (vínculo item/lançamento), lançamentos do Financeiro, relatórios/resumos do Financeiro e a ferramenta de listagem de fechamentos. Ao final, entrego a lista das telas e funções verificadas e o que mudou em cada uma.
+
 ## Isolamento
 - Toda leitura e gravação filtra por `fechamento_id`; itens e lançamentos são conferidos como pertencentes àquele fechamento e cliente. Nada desativado, nada "em breve".
 
@@ -42,6 +45,7 @@
 - Não administrador é recusado no servidor.
 - Fechamento liberado ao parceiro exige confirmação.
 - PDF e visão do parceiro usam os valores editados (e ignoram item removido).
+- Comparação entre fechamentos depois de uma edição usa os valores novos e ignora item removido.
 
 Depois de executar: rodo os testes, mostro e paro. Sem publicar.
 
