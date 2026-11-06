@@ -41,7 +41,7 @@ import { descontosAplicaveis, calcularDesconto, descreverDesconto } from "@/lib/
 import type { Desconto, Fechamento, FechamentoItem, LancamentoFinanceiro } from "@/lib/types";
 import { getCicloCliente, isoFromDate } from "@/lib/calc/ciclo";
 import { toast } from "sonner";
-import { Mail, Send, Tag, Trash2, Plus, Pencil, Loader2, Share2, Undo2 } from "lucide-react";
+import { Mail, Send, Tag, Trash2, Plus, Loader2, Share2, Undo2 } from "lucide-react";
 import { alternarEnvioFechamentoParceiro } from "@/lib/parceiro.functions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
