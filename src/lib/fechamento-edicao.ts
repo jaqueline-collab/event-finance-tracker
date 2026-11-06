@@ -126,6 +126,7 @@ export function rotuloAcompanhamento(snap: Record<string, unknown>): string {
 export function composicaoInicial(
   snap: Record<string, unknown>,
   linhasReconstruidas: LinhaComposicao[] | null,
+  valorBrutoGravado?: number,
 ): ComposicaoEditavel {
   const num = (v: unknown) => Number(v) || 0;
   const gravada = snap["composicao"] as { itens?: LinhaComposicao[] } | undefined;
@@ -134,10 +135,17 @@ export function composicaoInicial(
   else if (linhasReconstruidas && linhasReconstruidas.length > 0) linhas = linhasReconstruidas.map((l) => ({ ...l }));
   else linhas = num(snap["sistema"]) ? [{ label: "Sistema", qtd: 1, unit: num(snap["sistema"]), total: num(snap["sistema"]) }] : [];
   const isento = Boolean(snap["acompanhamentoIsento"]);
+  const acompOrig = isento ? num(snap["acompanhamentoOriginal"]) : num(snap["acompanhamento"]);
+  // Se o gravado não fecha com a soma, uma linha de ajuste preserva o bruto atual.
+  if (valorBrutoGravado !== undefined) {
+    const soma = linhas.reduce((s, l) => s + linhaTotal(l), 0) + (isento ? 0 : acompOrig) + num(snap["mauExcedenteValor"]);
+    const dif = r2(valorBrutoGravado - soma);
+    if (Math.abs(dif) >= 0.01) linhas.push({ label: "Ajuste (diferença do gravado)", qtd: 1, unit: dif, total: dif });
+  }
   return {
     linhas,
     acompanhamentoIsento: isento,
-    acompanhamentoOriginal: isento ? num(snap["acompanhamentoOriginal"]) : num(snap["acompanhamento"]),
+    acompanhamentoOriginal: acompOrig,
     mauExcedenteValor: num(snap["mauExcedenteValor"]),
   };
 }
