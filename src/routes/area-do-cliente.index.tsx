@@ -1,3 +1,5 @@
+import { BookOpen } from "lucide-react";
+import { ELORA_APP_URL, ELORA_GUIA_URL } from "@/lib/links-globais";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
