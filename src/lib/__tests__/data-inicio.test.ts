@@ -3,7 +3,6 @@ import { competenciasQueMudam, incluidoNaCompetencia, proximoVencimentoMantendoD
 import type { Cliente } from "../types";
 
 const cli = (over: Partial<Cliente> = {}) =>
-  ({ id: "x", nome: "Teste", planoId: null, dataInicio: "2026-10-20", dataVencimento: "2026-11-19", dataChurn: null } as unknown as Cliente) &&
   ({ id: "x", nome: "Teste", planoId: null, dataInicio: "2026-10-20", dataVencimento: "2026-11-19", dataChurn: null, ...over } as unknown as Cliente);
 
 describe("alteração da data de início", () => {
