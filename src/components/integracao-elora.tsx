@@ -17,6 +17,7 @@ import {
   testarIntegracaoCliente,
 } from "@/lib/integracao-elora.functions";
 import { sincronizarAgoraCliente } from "@/lib/elora-espelho.functions";
+import { NOME_FONTE_SYNC, ORDEM_FONTES, rotuloFonte, ultimaRodada } from "@/lib/sync-fontes";
 
 const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens", cards: "cards" };
 
@@ -37,7 +38,6 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
   const [progresso, setProgresso] = useState<string | null>(null);
 
   const recarregar = useCallback(() => {
-    setCarregando(true);
     getIntegracaoCliente({ data: { clienteId } })
       .then((r) => {
         setEstado(r);
@@ -53,7 +53,8 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
 
   if (carregando || !estado) return <Skeleton className="h-32 w-full" />;
 
-  const mapeado = Boolean(estado.campoProcedimentoKey && estado.campoDataConsultaKey);
+  const fontes = estado.fontes ?? [];
+  const rodada = ultimaRodada(fontes);
 
   const salvar = async () => {
     if (!baseUrl.trim() || !apiKey.trim()) {
@@ -224,10 +225,25 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
             {sincronizando ? "Sincronizando…" : "Sincronizar agora"}
           </Button>
           {progresso && <p className="text-xs text-muted-foreground">{progresso}</p>}
-          {!mapeado && (
-            <p className="text-xs text-muted-foreground">Configure o mapeamento de campos primeiro.</p>
-          )}
         </div>
+
+        {fontes.length > 0 && (
+          <div className="space-y-1 rounded-lg border border-border/60 p-3 text-xs">
+            {ORDEM_FONTES.map((f) => {
+              const linha = fontes.find((x) => x.fonte === f);
+              return (
+                <div key={f} className="flex flex-wrap justify-between gap-2">
+                  <span className="font-medium">{NOME_FONTE_SYNC[f]}</span>
+                  <span className="text-muted-foreground">
+                    {rotuloFonte(linha)}
+                    {linha?.comErro ? " · com erro registrado" : ""}
+                  </span>
+                </div>
+              );
+            })}
+            {rodada && <p className="pt-1 text-muted-foreground">Última rodada: {rodada}</p>}
+          </div>
+        )}
 
         {estado.retomadaPendente && (
           <p className="text-xs text-muted-foreground">
@@ -236,9 +252,10 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
         )}
 
         <p className="text-xs text-muted-foreground">
-          {estado.ultimaSync
-            ? `Última sincronização concluída: ${dataHoraBr(estado.ultimaSync)}.`
-            : "Ainda não houve sincronização concluída."}
+          {fontes.length === 0 &&
+            (estado.ultimaSync
+              ? `Última sincronização concluída: ${dataHoraBr(estado.ultimaSync)}.`
+              : "Ainda não houve sincronização concluída.")}
           {estado.ultimoErro ? ` Último erro: ${estado.ultimoErro}` : ""}
           {" "}A chave nunca é exibida — apenas substituída.
         </p>

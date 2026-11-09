@@ -39,6 +39,7 @@ type IntegracaoVisivel = {
   ultimaSyncConversas: string | null;
   ultimoErro: string | null;
   relatorioDiarioAtivo: boolean;
+  fontes: import("@/lib/sync-fontes").FonteSync[];
   cofre?: { noCofre: boolean; ultimos4: string | null; trocadaEm: string | null };
 };
 
@@ -76,6 +77,20 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
     const { estadoCofre } = await import("@/lib/credenciais.server");
     const cofre = await estadoCofre(data.clienteId);
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: linhasSync } = await supabaseAdmin
+      .from("elora_sync_estado")
+      .select("fonte, iniciado_em, concluido_em, registros, atualizado_em, erros")
+      .eq("cliente_id", data.clienteId);
+    const fontes = (linhasSync ?? []).map((l: any) => ({
+      fonte: String(l.fonte),
+      iniciadoEm: l.iniciado_em ?? null,
+      concluidoEm: l.concluido_em ?? null,
+      registros: Number(l.registros ?? 0),
+      atualizadoEm: l.atualizado_em ?? null,
+      comErro: Array.isArray(l.erros) ? l.erros.length > 0 : Boolean(l.erros && Object.keys(l.erros).length),
+    }));
+
     const semFiltros: FiltrosElora = {
       usuarios: [],
       etiquetas: [],
@@ -99,6 +114,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimaSyncConversas: null,
       ultimoErro: null,
       relatorioDiarioAtivo: false,
+      fontes,
       };
     }
 
@@ -129,6 +145,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimaSyncConversas: c.sync_conversas_ultima ? String(c.sync_conversas_ultima) : null,
       ultimoErro: c.ultimo_erro ? String(c.ultimo_erro) : null,
       relatorioDiarioAtivo: Boolean(c.relatorio_diario_ativo),
+      fontes,
     };
 
   });
