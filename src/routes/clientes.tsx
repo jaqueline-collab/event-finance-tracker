@@ -56,6 +56,8 @@ const tiposMovimento: { value: TipoMovimento; label: string; color: string }[] =
   { value: "acompanhamento", label: "Ajustar acompanhamento", color: "bg-fin/20 text-fin" },
   // Gravado apenas pelo diálogo "Atribuir parceiro" (fora da lista de Tipo de Ação).
   { value: "parceiro", label: "Alteração de parceiro", color: "bg-muted text-muted-foreground" },
+  // Gravado apenas ao corrigir a Data de início no Setup Inicial (sem impacto financeiro).
+  { value: "data_inicio", label: "Data de início alterada", color: "bg-muted text-muted-foreground" },
 ];
 
 /** Tipos que trocam plano/recursos por diferença (deltas). */
@@ -63,7 +65,10 @@ const ehTipoDelta = (t: TipoMovimento) =>
   t === "upgrade" || t === "downgrade" || t === "alterar_plano";
 
 function ClientesPage() {
-  const { clientes, planos, custos, movimentos, parceiros, addCliente, updateCliente, removeCliente, addMovimento, removeMovimento } = useStore();
+  const { clientes, planos, custos, movimentos, parceiros, addCliente, updateCliente, removeCliente, addMovimento, removeMovimento, alterarDataInicio } = useStore();
+  const [dataInicioEdit, setDataInicioEdit] = useState<{ clienteId: string; valor: string } | null>(null);
+  const [dataInicioBloqueios, setDataInicioBloqueios] = useState<{ id: string; titulo: string | null; competencia: string | null; emitidoEm: string | null }[]>([]);
+  const [salvandoDataInicio, setSalvandoDataInicio] = useState(false);
   const [open, setOpen] = useState(false);
   
   // Modal de Ação (Movimento)
@@ -603,6 +608,29 @@ function ClientesPage() {
       toast.error(mensagemErroPersistencia(err, "Alteração de parceiro"));
     } finally {
       setSavingParceiro(false);
+    }
+  };
+
+  const salvarDataInicio = async () => {
+    if (!dataInicioEdit?.valor) {
+      toast.error("Informe a nova data de início.");
+      return;
+    }
+    setSalvandoDataInicio(true);
+    setDataInicioBloqueios([]);
+    try {
+      const r = await alterarDataInicio(dataInicioEdit.clienteId, dataInicioEdit.valor);
+      if (r.bloqueado) {
+        setDataInicioBloqueios(r.fechamentos);
+        toast.error("Alteração bloqueada: há fechamento emitido no caminho.");
+        return;
+      }
+      toast.success("Data de início alterada.");
+      setDataInicioEdit(null);
+    } catch (err) {
+      toast.error(mensagemErroPersistencia(err, "Alteração da data de início"));
+    } finally {
+      setSalvandoDataInicio(false);
     }
   };
 
@@ -1473,7 +1501,7 @@ function ClientesPage() {
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
             // Generate timeline events
-            const timelineEvents: { data: string; titulo: string; desc: string; icon: any; color: string; movId?: string; canEdit?: boolean }[] = [];
+            const timelineEvents: { data: string; titulo: string; desc: string; icon: any; color: string; movId?: string; canEdit?: boolean; editSetup?: boolean }[] = [];
             
             // 1. Setup Event
             timelineEvents.push({
@@ -1482,6 +1510,7 @@ function ClientesPage() {
               desc: `Conta criada no plano "${plano?.nome ?? 'Rabbit Essencial'}". Canais: ${cliente.canais || 1}, Usuários: ${cliente.usuariosAtivos ?? 0}, Contatos: ${cliente.contatosAtivos ?? 0}. Setup pago: ${formatBRL(cliente.valorSetupPago || 0)}.`,
               icon: Plus,
               color: "text-primary border-primary",
+              editSetup: true,
             });
             
             // 2. Add custom movement events from store
@@ -1692,6 +1721,18 @@ function ClientesPage() {
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-muted-foreground">{evt.data.split("-").reverse().join("/")}</span>
                                 <span className="text-xs font-semibold text-foreground uppercase tracking-wider">{evt.titulo}</span>
+                                {evt.editSetup && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="ml-auto h-6 w-6 p-0"
+                                    aria-label="Alterar data de início"
+                                    title="Alterar data de início"
+                                    onClick={() => { setDataInicioBloqueios([]); setDataInicioEdit({ clienteId: cliente.id, valor: cliente.dataInicio }); }}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                )}
                                 {evt.canEdit && mv && (
                                   <div className="ml-auto flex items-center gap-1">
                                     <Button
@@ -1714,6 +1755,31 @@ function ClientesPage() {
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground pr-4 leading-relaxed">{evt.desc}</p>
+                              {evt.editSetup && dataInicioEdit?.clienteId === cliente.id && (
+                                <div className="mt-2 space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                                  <Label className="block text-xs font-medium">Data de início</Label>
+                                  <div className="flex flex-col gap-2 sm:flex-row">
+                                    <Input type="date" className="sm:w-48" value={dataInicioEdit.valor} onChange={(e) => setDataInicioEdit({ ...dataInicioEdit, valor: e.target.value })} />
+                                    <div className="flex gap-2">
+                                      <Button size="sm" disabled={salvandoDataInicio} onClick={salvarDataInicio}>
+                                        {salvandoDataInicio && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}Salvar
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => { setDataInicioEdit(null); setDataInicioBloqueios([]); }}>Cancelar</Button>
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">O setup passa para a nova data. O dia de vencimento do cliente é mantido.</p>
+                                  {dataInicioBloqueios.length > 0 && (
+                                    <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                                      <p className="font-medium">Não é possível alterar: estes fechamentos emitidos mudariam.</p>
+                                      <ul className="mt-1 list-disc pl-4">
+                                        {dataInicioBloqueios.map((f) => (
+                                          <li key={f.id}>{f.titulo ?? "Fechamento"}{f.competencia ? ` (competência ${f.competencia.split("-").reverse().join("/")})` : ""}{f.emitidoEm ? `, emitido em ${f.emitidoEm.slice(0, 10).split("-").reverse().join("/")}` : ""}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
