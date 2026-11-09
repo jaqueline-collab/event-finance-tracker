@@ -70,7 +70,7 @@ type Painel = Awaited<ReturnType<typeof getPainelCliente>>;
 const dataBr = (v?: string | null) =>
   v ? new Date(`${v}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 
-const APP_URL = "https://app.eloracrm.com.br/";
+const APP_URL = ELORA_APP_URL;
 
 function AreaCliente() {
   const { como, aba: abaBruta, configurar } = Route.useSearch();
@@ -114,7 +114,9 @@ function AreaCliente() {
     },
     {
       label: "Links",
-      itens: [{ key: "app", label: "Acessar o aplicativo", icon: ArrowUpRight, href: APP_URL }],
+      itens: [{ key: "app", label: "Acessar o aplicativo", icon: ArrowUpRight, href: APP_URL },
+        { key: "guia", label: "Guia da ferramenta", icon: BookOpen, href: ELORA_GUIA_URL },
+      ],
     },
   ]);
 
