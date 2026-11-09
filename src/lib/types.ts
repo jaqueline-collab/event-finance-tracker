@@ -113,7 +113,8 @@ export type TipoMovimento =
   | "churn"
   | "servico"
   | "acompanhamento"
-  | "parceiro";
+  | "parceiro"
+  | "data_inicio";
 
 export interface Cliente {
   id: string;

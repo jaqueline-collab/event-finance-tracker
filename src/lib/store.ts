@@ -36,7 +36,7 @@ import { normalizarDataVencimento } from "./calc/datas";
 import { calcularPatchMovimento } from "./calc/movimento";
 import { toast } from "sonner";
 import { cadastrarClienteComSetup } from "./clientes.functions";
-import { registrarMovimento } from "./movimentos.functions";
+import { registrarMovimento, alterarDataInicioCliente } from "./movimentos.functions";
 import { gerarFechamentoCompleto } from "./fechamentos.functions";
 import { persistMutation } from "./mutations.functions";
 
@@ -210,6 +210,10 @@ interface State {
   // clientes
   addCliente: (c: Omit<Cliente, "id">) => Promise<string>;
   updateCliente: (id: string, c: Partial<Cliente>) => Promise<void>;
+  alterarDataInicio: (
+    id: string,
+    novaData: string,
+  ) => Promise<{ bloqueado: true; fechamentos: { id: string; titulo: string | null; competencia: string | null; emitidoEm: string | null }[] } | { bloqueado: false }>;
   removeCliente: (id: string) => Promise<void>;
   // movimentos
   addMovimento: (m: Omit<Movimento, "id">) => Promise<void>;
@@ -482,6 +486,19 @@ export const useStore = create<State>()(
           }
         }
         set({ clientes: get().clientes.map((x) => (x.id === id ? updated : x)) });
+      },
+      alterarDataInicio: async (id, novaData) => {
+        const r = await gravarComPrazo(alterarDataInicioCliente({ data: { clienteId: id, novaData } }), "alteração da data de início", 30000);
+        if (r.bloqueado) return r;
+        const setupIds = new Set(r.setupIds);
+        set({
+          clientes: get().clientes.map((c) => (c.id === id ? { ...c, dataInicio: novaData, dataVencimento: r.dataVencimento } : c)),
+          movimentos: [
+            ...get().movimentos.map((m) => (setupIds.has(m.id) ? { ...m, data: novaData } : m)),
+            { id: r.historico.id, clienteId: id, data: r.historico.data, tipo: "data_inicio", observacao: r.historico.observacao } as Movimento,
+          ],
+        });
+        return { bloqueado: false };
       },
       removeCliente: async (id) => {
         try {
