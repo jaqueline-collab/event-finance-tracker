@@ -25,7 +25,7 @@ const dataHora = (iso: string) =>
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  });
+  }).replace(",", "");
 
 const num = (n: number) => n.toLocaleString("pt-BR");
 
