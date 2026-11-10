@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CofreChavesAdmin } from "@/components/dados-elora-cliente";
+import { EloraIaConfigCard } from "@/components/elora-ia-config";
 import { listarResumoIntegracoes } from "@/lib/integracao-elora.functions";
 import { estadoIntegracao, ROTULO_ESTADO } from "@/lib/dados-elora";
 
@@ -116,6 +117,8 @@ function ConfigurarApiPage() {
       </Card>
 
       <CofreChavesAdmin />
+
+      <EloraIaConfigCard />
     </div>
   );
 }

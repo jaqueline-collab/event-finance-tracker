@@ -26,7 +26,7 @@ export async function lerLeiturasCards(db: SupabaseClient, clienteId: string): P
 }
 
 /** Linhas padrão por dia/canal/atendente/equipe: gravadas quando o dia existe, senão calculadas. */
-async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Periodo): Promise<LinhaCorteMatriz[]> {
+export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Periodo): Promise<LinhaCorteMatriz[]> {
   const cols = COLUNAS_PADRAO.map((c) => c.chave).join(", ");
   const gravadas = await lerTudo(() =>
     db.from("elora_relatorio_diario").select(`data, canal, atendente, equipe, ${cols}`).eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id"),

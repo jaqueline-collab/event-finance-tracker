@@ -34,6 +34,7 @@ import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as VerComoRouteImport } from './routes/ver-como'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as ApiEloraIaRouteImport } from './routes/api/elora-ia'
 import { Route as AreaDoClienteIndexRouteImport } from './routes/area-do-cliente.index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
@@ -176,6 +177,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiEloraIaRoute = ApiEloraIaRouteImport.update({
+  id: '/api/elora-ia',
+  path: '/api/elora-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AreaDoClienteIndexRoute = AreaDoClienteIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/ver-como': typeof VerComoRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/api/elora-ia': typeof ApiEloraIaRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/ver-como': typeof VerComoRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/api/elora-ia': typeof ApiEloraIaRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
@@ -359,6 +367,7 @@ export interface FileRoutesById {
   '/ver-como': typeof VerComoRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/api/elora-ia': typeof ApiEloraIaRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/ver-como'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/api/elora-ia'
     | '/auth/callback'
     | '/blog/$slug'
     | '/funcionalidades/$slug'
@@ -441,6 +451,7 @@ export interface FileRouteTypes {
     | '/ver-como'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/api/elora-ia'
     | '/auth/callback'
     | '/blog/$slug'
     | '/funcionalidades/$slug'
@@ -482,6 +493,7 @@ export interface FileRouteTypes {
     | '/ver-como'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/api/elora-ia'
     | '/auth/callback'
     | '/blog/$slug'
     | '/funcionalidades/$slug'
@@ -524,6 +536,7 @@ export interface RootRouteChildren {
   VerComoRoute: typeof VerComoRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiEloraIaRoute: typeof ApiEloraIaRoute
   BlogSlugRoute: typeof BlogSlugRoute
   FuncionalidadesSlugRoute: typeof FuncionalidadesSlugRoute
   BlogIndexRoute: typeof BlogIndexRoute
@@ -714,6 +727,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/elora-ia': {
+      id: '/api/elora-ia'
+      path: '/api/elora-ia'
+      fullPath: '/api/elora-ia'
+      preLoaderRoute: typeof ApiEloraIaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/area-do-cliente/': {
       id: '/area-do-cliente/'
       path: '/'
@@ -876,6 +896,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiEloraIaRoute: ApiEloraIaRoute,
   BlogSlugRoute: BlogSlugRoute,
   FuncionalidadesSlugRoute: FuncionalidadesSlugRoute,
   BlogIndexRoute: BlogIndexRoute,
