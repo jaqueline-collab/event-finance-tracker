@@ -32,7 +32,7 @@ export const Route = createFileRoute("/parceiro")({
 
 function ParceiroLayout() {
   return (
-    <AreaExternaLayout titulo="Área do parceiro">
+    <AreaExternaLayout area="parceiro" titulo="Área do parceiro">
       <Outlet />
     </AreaExternaLayout>
   );

@@ -16,6 +16,7 @@ import {
 import { EloraMark } from "@/components/landing/EloraMark";
 import { AppHeader } from "@/components/app-header";
 import { cn } from "@/lib/utils";
+import { EloraChat } from "@/components/elora-chat";
 
 export type ItemMenuArea = {
   key: string;
@@ -139,7 +140,7 @@ function AreaSidebar({ subtitulo, grupos }: { subtitulo: string; grupos: GrupoMe
 }
 
 /** Casca das áreas externas: menu lateral + barra superior sempre montados. */
-export function AreaExternaLayout({ titulo, children }: { titulo: string; children: ReactNode }) {
+export function AreaExternaLayout({ titulo, area, children }: { titulo: string; area: "cliente" | "parceiro"; children: ReactNode }) {
   const [grupos, setGrupos] = useState<GrupoMenuArea[]>([]);
   const [ctx] = useState<Ctx>(() => ({ definir: (g) => setGrupos(g) }));
   return (
@@ -149,6 +150,7 @@ export function AreaExternaLayout({ titulo, children }: { titulo: string; childr
         <AppHeader label={titulo} showTrigger email={null} />
         <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
       </div>
+      <EloraChat area={area} />
     </AreaMenuContext.Provider>
   );
 }

@@ -27,7 +27,7 @@ export const Route = createFileRoute("/area-do-cliente")({
 
 function ClienteLayout() {
   return (
-    <AreaExternaLayout titulo="Área do cliente">
+    <AreaExternaLayout area="cliente" titulo="Área do cliente">
       <Outlet />
     </AreaExternaLayout>
   );
