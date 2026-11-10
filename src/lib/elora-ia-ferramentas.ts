@@ -66,9 +66,9 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
     registrar(c.id);
     return c;
   };
-  const seguro = async (fonte: string, fn: () => Promise<unknown>) => {
+  const seguro = async (fonte: string, fn: () => Promise<unknown>, maxTexto = 300) => {
     try {
-      return embrulharDado(fonte, await fn());
+      return embrulharDado(fonte, await fn(), maxTexto);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return embrulharDado("erro", { erro: msg.replace(/^[a-z-]+:\s*/, "") });
@@ -88,7 +88,7 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
         seguro("guia", async () => {
           const achados = buscarNoGuia(await deps.guia(), pergunta);
           return { link_do_guia: deps.guiaUrl, encontrado: achados.length > 0, trechos: achados };
-        }),
+        }, 8000),
     }),
     indicadores_periodo: tool({
       description: "Totais dos indicadores (colunas da Matriz) de um cliente em um período.",
