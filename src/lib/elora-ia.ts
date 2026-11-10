@@ -209,7 +209,7 @@ const termos = (s: string) =>
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length > 2 && !PARADAS.has(t));
 
-export function buscarNoGuia(paginas: PaginaGuia[], pergunta: string, n = 4, maxChars = 3000): PaginaGuia[] {
+export function buscarNoGuia(paginas: PaginaGuia[], pergunta: string, n = 3, maxChars = 8000): PaginaGuia[] {
   const q = [...new Set(termos(pergunta))];
   if (!q.length) return [];
   const pont = paginas.map((p) => {
