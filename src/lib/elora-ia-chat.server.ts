@@ -13,6 +13,8 @@ import {
   pedeTextoDeMensagem,
   RESPOSTA_TEXTO_MENSAGEM,
   validarPergunta,
+  type AcessoEloraIa,
+  type ConfigEloraIa,
 } from "./elora-ia";
 import { criarFerramentasElora } from "./elora-ia-ferramentas";
 import { lerConfigEloraIa, lerGuia, resolverAcessoEloraIa } from "./elora-ia.server";
@@ -100,6 +102,52 @@ export async function tratarChatElora(request: Request): Promise<Response> {
     return respostaFixa(RESPOSTA_TEXTO_MENSAGEM);
   }
 
+  const { result, runIdFetch } = await executarElora({
+    admin,
+    acesso,
+    cfg,
+    mensagens,
+    apiKey,
+    request,
+    aoTerminar: async (fim, consultados) => {
+      const nomes = (fim.steps ?? []).flatMap((s: any) => (s.toolCalls ?? []).map((t: any) => t.toolName));
+      await admin.from("elora_ia_conversas").insert({
+        ...registro,
+        resposta: String(fim.text ?? "").slice(0, 20000),
+        clientes_consultados: consultados,
+        ferramentas: nomes,
+        tokens_entrada: fim.totalUsage?.inputTokens ?? 0,
+        tokens_saida: fim.totalUsage?.outputTokens ?? 0,
+      });
+    },
+  });
+
+  return withLovableAiGatewayRunIdHeader(
+    result.toUIMessageStreamResponse({
+      sendReasoning: false,
+      onError: (e: any) => {
+        const s = e?.statusCode ?? e?.status;
+        if (s === 402) return "Os créditos de IA acabaram. Avise a equipe Elora.";
+        if (s === 429) return "Muitas perguntas ao mesmo tempo. Tente de novo em instantes.";
+        if (s === 403) return "A IA recusou este pedido.";
+        return "Não consegui responder agora. Tente de novo.";
+      },
+    }),
+    runIdFetch,
+  );
+}
+
+/** Chamada ao modelo com as ferramentas de leitura, para um acesso já validado. */
+export async function executarElora(o: {
+  admin: any;
+  acesso: AcessoEloraIa;
+  cfg: ConfigEloraIa;
+  mensagens: UIMessage[];
+  apiKey: string;
+  request: Request;
+  aoTerminar?: (fim: any, consultados: string[]) => Promise<void> | void;
+}) {
+  const { admin, acesso, cfg, mensagens, apiKey, request } = o;
   const consultados = new Set<string>();
   const { montarMatrizCliente, linhasPadrao } = await import("./matriz.server");
   const ferramentas = criarFerramentasElora(
@@ -144,32 +192,12 @@ export async function tratarChatElora(request: Request): Promise<Response> {
     },
     onFinish: async (fim: any) => {
       try {
-        const nomes = (fim.steps ?? []).flatMap((s: any) => (s.toolCalls ?? []).map((t: any) => t.toolName));
-        await admin.from("elora_ia_conversas").insert({
-          ...registro,
-          resposta: String(fim.text ?? "").slice(0, 20000),
-          clientes_consultados: [...consultados],
-          ferramentas: nomes,
-          tokens_entrada: fim.totalUsage?.inputTokens ?? 0,
-          tokens_saida: fim.totalUsage?.outputTokens ?? 0,
-        });
+        await o.aoTerminar?.(fim, [...consultados]);
       } catch (e) {
         console.error("[elora-ia] registro:", e);
       }
     },
   } as any);
 
-  return withLovableAiGatewayRunIdHeader(
-    result.toUIMessageStreamResponse({
-      sendReasoning: false,
-      onError: (e: any) => {
-        const s = e?.statusCode ?? e?.status;
-        if (s === 402) return "Os créditos de IA acabaram. Avise a equipe Elora.";
-        if (s === 429) return "Muitas perguntas ao mesmo tempo. Tente de novo em instantes.";
-        if (s === 403) return "A IA recusou este pedido.";
-        return "Não consegui responder agora. Tente de novo.";
-      },
-    }),
-    runIdFetch,
-  );
+  return { result, runIdFetch };
 }
