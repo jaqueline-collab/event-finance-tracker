@@ -60,11 +60,11 @@ export async function lerGuia(admin: SupabaseClient): Promise<PaginaGuia[]> {
     const partes: string[] = [];
     let url: string | null = ELORA_GUIA_TEXTO_URL;
     for (let i = 0; url && i < 12; i++) {
-      const r = await fetch(url);
+      const r: Response = await fetch(url);
       if (!r.ok) throw new Error(`guia ${r.status}`);
-      const t = await r.text();
+      const t: string = await r.text();
       partes.push(t);
-      const prox = t.match(/^> Next part: (\S+)/m)?.[1] ?? null;
+      const prox: string | null = t.match(/^> Next part: (\S+)/m)?.[1] ?? null;
       url = prox && prox.startsWith("https://docs.flw.chat/") ? prox : null;
     }
     const conteudo = partes.join("\n\n");
