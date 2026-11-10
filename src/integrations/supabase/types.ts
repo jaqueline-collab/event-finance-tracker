@@ -1318,6 +1318,105 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_ia_config: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          id: number
+          ligado: boolean
+          limite_diario: number
+          max_pergunta: number
+          max_resposta_tokens: number
+          modelo: string
+          retencao_dias: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: number
+          ligado?: boolean
+          limite_diario?: number
+          max_pergunta?: number
+          max_resposta_tokens?: number
+          modelo?: string
+          retencao_dias?: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: number
+          ligado?: boolean
+          limite_diario?: number
+          max_pergunta?: number
+          max_resposta_tokens?: number
+          modelo?: string
+          retencao_dias?: number
+        }
+        Relationships: []
+      }
+      elora_ia_conversas: {
+        Row: {
+          area: string
+          cliente_id: string | null
+          clientes_consultados: string[]
+          criado_em: string
+          ferramentas: Json
+          id: string
+          modelo: string | null
+          pergunta: string
+          resposta: string | null
+          tokens_entrada: number | null
+          tokens_saida: number | null
+          usuario_id: string
+        }
+        Insert: {
+          area: string
+          cliente_id?: string | null
+          clientes_consultados?: string[]
+          criado_em?: string
+          ferramentas?: Json
+          id?: string
+          modelo?: string | null
+          pergunta: string
+          resposta?: string | null
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          usuario_id: string
+        }
+        Update: {
+          area?: string
+          cliente_id?: string | null
+          clientes_consultados?: string[]
+          criado_em?: string
+          ferramentas?: Json
+          id?: string
+          modelo?: string | null
+          pergunta?: string
+          resposta?: string | null
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          usuario_id?: string
+        }
+        Relationships: []
+      }
+      elora_ia_guia_cache: {
+        Row: {
+          conteudo: string
+          lido_em: string
+          url: string
+        }
+        Insert: {
+          conteudo: string
+          lido_em?: string
+          url: string
+        }
+        Update: {
+          conteudo?: string
+          lido_em?: string
+          url?: string
+        }
+        Relationships: []
+      }
       elora_indicadores_config: {
         Row: {
           ativo: boolean
