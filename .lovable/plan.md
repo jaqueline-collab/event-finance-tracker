@@ -1,32 +1,55 @@
-# Ajustes nas Etapas D e F: Novos ADS 251 x 250 e filtros padrão da Matriz
+# Ajustes D/F (Parte 1 e 2) e plano da Fase 4
 
-Nada será publicado. Paro e mostro ao fim de cada parte.
+Nada será publicado.
 
-## Parte 1. Diferença em Novos ADS (Dr. Ricardo, 22/09 a 03/10)
+## Parte 1. Resultado do diagnóstico (só leitura, já feito)
 
-O que já se sabe hoje: a Matriz sem filtro lê o relatório gravado (e calcula na hora só os dias sem gravação). Com qualquer filtro, ela recalcula tudo na hora. São dois caminhos, por isso podem divergir. A causa exata do 1 a mais **ainda não está confirmada**.
+Comparei, dia a dia de 22/09 a 03/10, o relatório gravado com o cálculo de agora, sem filtro:
 
-1. **Diagnóstico (só leitura).** Para cada dia, comparo Novos ADS gravado x recalculado, por canal/atendente/equipe. No dia que divergir, identifico o contato e verifico (sem nome ou telefone completos):
-   - data de criação no Elora x data em que entrou no espelho (chegou depois da gravação?);
-   - dia em America/Sao_Paulo x UTC (perto da meia-noite?);
-   - origem/UTM hoje x na gravação (mudou para ADS depois?);
-   - se a regra do motor mudou entre a gravação e agora.
-   Digo qual número está certo e por quê. Paro e mostro antes de mexer em qualquer coisa.
-2. **Uma regra só.** A Matriz passa a usar o mesmo cálculo nos dois caminhos: as linhas do dia saem sempre do mesmo motor, e o filtro só restringe o conjunto de contatos. Sem filtro = mesmo resultado de um filtro que mantém todos.
-3. **Relatório defasado.** Se o gravado estiver errado, guardo as linhas afetadas em `elora_relatorio_diario_backup`, confiro campo a campo, regravo só essas linhas e mostro a consulta de restauração (não executada). Totais diários das demais colunas continuam iguais; mostro a conferência.
-4. **Teste novo:** para todos os 12 dias, Matriz sem filtro e com filtro "não exclui ninguém" dão exatamente o mesmo número em todas as 5 colunas padrão. Sem nada fixo do Dr. Ricardo no teste.
+- Conversas, Usuário, Bot e Novos contatos: iguais nos 12 dias.
+- Novos ADS: igual em 11 dias. Só **01/10** difere: **24 calculado x 23 gravado**. É o 251 x 250.
+
+**Causa:** um contato de 01/10 (criado manualmente por uma atendente às 18:14 de Brasília, primeira conversa no mesmo minuto) ganhou a campanha do anúncio ("DR. RICARDO ASSUMPÇÃO", Instagram) só em 10/11. O relatório foi gravado em 05/11, quando ele ainda não tinha campanha.
+- Não é fuso: o horário fica no meio do dia de 01/10.
+- Não é regra diferente: os dois caminhos usam a mesma regra (campanha preenchida = ADS).
+- Ressalva: o espelho não guarda o valor antigo da campanha. Concluo pela data de atualização do contato (10/11, depois da gravação) e por ser o único contato ADS de 01/10 com essa situação.
+
+**Qual está certo:** o **251**. O contato veio de anúncio; o gravado ficou defasado.
+
+## Parte 1. Correção (após seu ok)
+
+1. Backup das linhas de 01/10 em `elora_relatorio_diario_backup`, conferência campo a campo, regravação só das linhas de 01/10 que mudarem (Novos ADS 23 → 24), consulta de restauração mostrada e não executada. Outras colunas e dias inalterados, com conferência.
+2. **Uma regra só:** sem filtro e com filtro, as linhas do dia saem do mesmo cálculo e o filtro só limita o conjunto de contatos. Assim um filtro que não exclui ninguém dá exatamente o mesmo número.
+3. **Teste novo:** para todos os dias do período, Matriz sem filtro = Matriz com filtro "não exclui ninguém", nas 5 colunas padrão. Sem nada fixo do Dr. Ricardo.
+4. Como contatos podem ganhar campanha depois, os dias gravados também podem ficar defasados no futuro. Proposta: a sincronização incremental recalcula os dias dos contatos alterados (com backup), em vez de só gravar uma vez. Executo só se você aprovar este item.
 
 ## Parte 2. Filtros padrão na Matriz
 
-- Em modo Editar (a mesma porta única da barra da super admin), a Matriz ganha "Salvar como padrão da visão", igual às outras visões.
-- Só super admin grava; o servidor confere.
-- Ao abrir a Matriz, todos (cliente, parceiro, equipe) começam com esses filtros.
-- O cliente pode mudar filtros só para ele, na sessão; nada é salvo para os outros.
-- Matriz sem filtros padrão continua como hoje (padrão vazio).
-- Testes: não super admin não grava; ao abrir, filtro padrão é aplicado; filtro do cliente não altera o padrão.
+- Em modo Editar (mesma porta única), "Salvar como padrão da visão" também na Matriz. Só super admin grava; o servidor confere.
+- Todos começam com esses filtros ao abrir a Matriz. O cliente muda só para si, na sessão.
+- Sem padrão salvo = como hoje.
+- Testes: não super admin não grava; o padrão é aplicado ao abrir; o filtro do cliente não muda o padrão.
+
+## Fase 4. Construtor de gráficos (só depois de você fechar os números)
+
+**Reaproveitado (ampliar, não duplicar):** a visão e seus widgets (`elora_dashboard_visoes`, só servidor), o modo Editar e a barra da super admin, o catálogo Campos do Elora (rótulos e ocultos), o "+ Filtro" e os chips, o clique no gráfico que cria chip, o motor de indicadores e as colunas da Matriz (combinadas, manuais, fórmulas) e a marca de "estimado".
+
+**Novo:**
+- Em modo Editar, "+ Gráfico" abre um painel lateral com prévia ao vivo: fonte, medida (contagem, distinta, soma, média, tempo médio, ou indicador da Matriz), dimensão e segunda dimensão do catálogo, granularidade dia/semana/mês, ordenação, Top N com "Outros", comparação com o período anterior, formato, título e tamanho.
+- Tipos: número grande, barras agrupadas e empilhadas, linhas, área, pizza, rosca, funil, tabela paginada (20 por página, ordenar, ocultar colunas) e mapa só se houver campo geográfico. Tipo sem dados para o cliente não aparece.
+- Filtro próprio por cartão (mesmo "+ Filtro"), somado ao da visão; legenda liga e desliga séries.
+- Grade de duas colunas, arrastar para reordenar, menu "⋯" com editar, duplicar, remover e mover para outra visão. Remover não apaga dados.
+- Cálculo único no servidor: indicador da Matriz no gráfico usa a mesma função da Matriz (mesmo número). Filtro de outra fonte vira conjunto de contatos (sem duplicar linhas). Dias estimados ficam marcados e fora de totais sem marca. O texto das mensagens nunca é lido.
+
+**Sai do painel visual atual (substituído):** os seis gráficos fixos da Fase 1 passam a ser cartões configurados criados como padrão de cada visão, com o mesmo resultado. O construtor antigo de blocos de montagem do modo Editar sai. Os "Widgets antigos" continuam guardados como rascunho e não são apagados.
+
+**Testes:** cliente sem cards ou classificação só vê tipos e campos que existem, sem erro; dois clientes com campos diferentes têm opções diferentes; não super admin não cria nem edita (no servidor); gráfico com indicador = Matriz; filtro de outra fonte sem duplicar; dias estimados marcados.
+
+**Entrega:** executar após seu ok, rodar os testes, conferir em 390, 834 e 1440 nos dois temas, listar o que mudou e parar.
 
 ## Detalhes técnicos
 
-- `matriz.server.ts > linhasPadrao`: hoje lê `elora_relatorio_diario` sem filtro e chama `calcularCorteCliente(..., soContatos)` com filtro. Unificar: decidir com base no diagnóstico se o caminho único é "motor sempre" ou "gravado + mesmo filtro aplicado às linhas gravadas"; a regra de filtro de outra fonte via conjunto de contatos se mantém.
-- Filtros padrão da Matriz guardados no mesmo lugar das outras visões (`elora_dashboard_visoes`, via `dashboard-visoes.functions.ts`), reaproveitando o botão existente; sem tabela nova.
-- Revisão final do princípio de dados incompletos (nada fixo de cliente) e listagem do que encontrar.
+- Causa da diferença entre caminhos: `matriz.server.ts > linhasPadrao` lê `elora_relatorio_diario` sem filtro e chama `calcularCorteCliente(…, soContatos)` com filtro. Novo caminho único: `calcularCorteCliente` sempre (gravado fica como registro e referência), ou gravado sempre com recálculo quando defasado; escolho o primeiro, por dar o mesmo número nos dois casos por construção.
+- Filtros padrão da Matriz: guardados como visão fixa em `elora_dashboard_visoes` via `dashboard-visoes.functions.ts`, reaproveitando o botão já existente.
+- Fase 4: configuração de cartão no JSON de widgets da visão; nova função de servidor de agregação genérica reaproveitando `painel-visual.ts`, `campos-elora.ts` e `indicadores-motor.ts`.
+- `roadmap.md` será atualizado com Parte 1, Parte 2 e Fase 4 ao sair do modo de plano.
