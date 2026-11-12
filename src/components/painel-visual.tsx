@@ -302,8 +302,8 @@ function Indicadores({ dados, reduzido }: { dados: Dados; reduzido: boolean }) {
   const pctAds = a.novosLeads ? (a.leadsAds / a.novosLeads) * 100 : 0;
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <CartaoIndicador icone={<UserPlus className="h-4 w-4" />} cor="var(--chart-1)" rotulo="Novos leads" valor={nf.format(Math.round(leads))} selo={<Selo v={variacao(a.novosLeads, p.novosLeads)} />} rodape={a.importadosFora ? `${nf.format(a.importadosFora)} importados fora da conta` : undefined} />
-      <CartaoIndicador icone={<MessagesSquare className="h-4 w-4" />} cor="var(--chart-2)" rotulo="Conversas realizadas" valor={nf.format(Math.round(conv))} selo={<Selo v={variacao(a.conversas, p.conversas)} />} />
+      <CartaoIndicador icone={<UserPlus className="h-4 w-4" />} cor="var(--chart-1)" rotulo="Novos leads" valor={dados.cobertura !== "confirmado" && a.novosLeads === 0 ? "—" : nf.format(Math.round(leads))} selo={<Selo v={variacao(a.novosLeads, p.novosLeads)} />} rodape={a.importadosFora ? `${nf.format(a.importadosFora)} importados fora da conta` : undefined} />
+      <CartaoIndicador icone={<MessagesSquare className="h-4 w-4" />} cor="var(--chart-2)" rotulo="Conversas realizadas" valor={dados.cobertura !== "confirmado" && a.conversas === 0 ? "—" : nf.format(Math.round(conv))} selo={<Selo v={variacao(a.conversas, p.conversas)} />} />
       <CartaoIndicador
         icone={<Clock className="h-4 w-4" />}
         cor="var(--chart-4)"
@@ -316,7 +316,7 @@ function Indicadores({ dados, reduzido }: { dados: Dados; reduzido: boolean }) {
         icone={<Megaphone className="h-4 w-4" />}
         cor="var(--chart-3)"
         rotulo="Leads de ADS"
-        valor={nf.format(Math.round(ads))}
+        valor={dados.cobertura !== "confirmado" && a.leadsAds === 0 ? "—" : nf.format(Math.round(ads))}
         selo={<Selo v={variacao(a.leadsAds, p.leadsAds)} />}
         rodape={`${pctAds.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% dos novos leads`}
       />
