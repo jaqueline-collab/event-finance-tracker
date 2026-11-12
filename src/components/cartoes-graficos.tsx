@@ -194,13 +194,21 @@ function CartaoView({
 }: {
   clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; onFiltroGrafico?: (f: FiltroCampo) => void; menu?: React.ReactNode; previa?: boolean;
 }) {
-  const { r, erro } = useResultado(clienteId, cartao, periodo, filtrosVisao, previa);
+  const [dim, setDim] = useState(cartao.dimensao);
+  const efetivo = cartao.painel === "leads-por" ? { ...cartao, dimensao: dim } : cartao;
+  const { r, erro } = useResultado(clienteId, efetivo, periodo, filtrosVisao, previa);
   if (r?.oculto) return null;
   return (
     <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold">{cartao.titulo}</h3>
-        {menu}
+        <div className="flex items-center gap-1">
+          {cartao.painel === "leads-por" && <Select value={dim?.campo ?? "origem"} onValueChange={(campo) => setDim({ fonte: campo === "canal" ? "atendimento" : campo === "campaign" ? "utm" : "contato", campo })}>
+            <SelectTrigger className="h-8 w-auto" aria-label="Dimensão da rosca"><SelectValue /></SelectTrigger>
+            <SelectContent>{[["origem", "Origem"], ["canal", "Canal"], ["etiquetas", "Etiqueta"], ["campaign", "Campanha"]].map(([v, t]) => <SelectItem key={v} value={v}>{t}</SelectItem>)}</SelectContent>
+          </Select>}
+          {menu}
+        </div>
       </header>
       {erro && !r ? (
         <p className="text-sm text-muted-foreground">Não foi possível calcular agora.</p>
@@ -209,7 +217,7 @@ function CartaoView({
       ) : !r.r ? (
         <p className="text-sm text-muted-foreground">Sem dados para esta configuração.</p>
       ) : (
-        <Grafico cartao={cartao} r={r.r} onClique={onFiltroGrafico && cartao.dimensao && cartao.medida !== "indicador" ? (rot) => rot !== "Outros" && onFiltroGrafico({ fonte: cartao.dimensao!.fonte, campo: cartao.dimensao!.campo, op: "em", valores: [rot] }) : undefined} />
+        <Grafico cartao={efetivo} r={r.r} onClique={onFiltroGrafico && efetivo.dimensao && cartao.medida !== "indicador" ? (rot) => rot !== "Outros" && onFiltroGrafico({ fonte: efetivo.dimensao?.fonte ?? cartao.fonte, campo: efetivo.dimensao?.campo ?? "origem", op: "em", valores: [rot] }) : undefined} />
       )}
       {r?.r && r.r.estimados.length > 0 && (
         <p className="mt-2 text-xs text-muted-foreground">
@@ -305,7 +313,7 @@ function TabelaCartao({ cartao: c, r }: { cartao: CartaoGrafico; r: ResultadoCar
   const [pagina, setPagina] = useState(0);
   const [ordem, setOrdem] = useState<{ col: string; desc: boolean }>({ col: "total", desc: true });
   const [ocultas, setOcultas] = useState<string[]>([]);
-  const cols = (r.series.length > 1 ? [...r.series, "total"] : ["total"]).filter((x) => !ocultas.includes(x));
+  const cols = (c.painel === "atendentes" ? r.series : r.series.length > 1 ? [...r.series, "total"] : ["total"]).filter((x) => !ocultas.includes(x));
   const linhas = [...r.categorias].sort((a, b) => {
     const x = ordem.col === "rotulo" ? a.rotulo : ordem.col === "total" ? a.total : (a.valores[ordem.col] ?? 0);
     const y = ordem.col === "rotulo" ? b.rotulo : ordem.col === "total" ? b.total : (b.valores[ordem.col] ?? 0);
@@ -344,7 +352,7 @@ function TabelaCartao({ cartao: c, r }: { cartao: CartaoGrafico; r: ResultadoCar
             {vis.map((l) => (
               <tr key={l.rotulo} className="border-b last:border-0">
                 <td className="px-2 py-1.5">{l.rotulo}</td>
-                {cols.map((x) => <td key={x} className="px-2 py-1.5 text-right tabular-nums">{fmt(x === "total" ? l.total : l.valores[x], c)}</td>)}
+                {cols.map((x) => <td key={x} className="px-2 py-1.5 text-right tabular-nums">{x === "Proporção (%)" ? `${(l.valores[x] ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : fmt(x === "total" ? l.total : l.valores[x], c)}</td>)}
               </tr>
             ))}
           </tbody>

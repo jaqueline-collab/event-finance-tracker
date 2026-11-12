@@ -18,17 +18,11 @@ const pessoaDe = (t: string): Pessoa => (t.includes("@") ? { email: t.trim() } :
 /** Regras do relatório (só super admin): suporte interno global + mapa de equipe, ignorados e fonte por cliente. */
 export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
   const [r, setR] = useState<Regras | null>(null);
-  const [suporte, setSuporte] = useState<{ id: string; nome: string | null; email: string | null }[]>([]);
-  const [novoSuporte, setNovoSuporte] = useState("");
   const [novoIgnorado, setNovoIgnorado] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const carregar = () =>
-    Promise.all([lerRegrasRelatorio({ data: { clienteId } }), lerSuporteInterno()])
-      .then(([a, b]) => {
-        setR(a);
-        setSuporte(b);
-      })
+    lerRegrasRelatorio({ data: { clienteId } }).then(setR)
       .catch((e) => toast.error(msg(e)));
   useEffect(() => {
     void carregar();
@@ -57,39 +51,7 @@ export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
         <CardDescription>Valem para o relatório diário e a Matriz. Tudo é opcional: o que não for definido aparece como "{NAO_DEFINIDO}".</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <section className="space-y-2">
-          <Label>Suporte interno (todos os clientes)</Label>
-          <p className="text-xs text-muted-foreground">Conversas dessas pessoas não entram nas colunas de conversas de nenhum cliente. Por nome ou e-mail.</p>
-          {suporte.map((p) => (
-            <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
-              <span>{p.nome || p.email}</span>
-              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Remover" onClick={async () => {
-                try {
-                  await salvarSuporteInterno({ data: { acao: "remover", id: p.id } });
-                  setSuporte((l) => l.filter((x) => x.id !== p.id));
-                } catch (e) {
-                  toast.error(msg(e));
-                }
-              }}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <Input value={novoSuporte} placeholder="Nome ou e-mail" onChange={(e) => setNovoSuporte(e.target.value)} />
-            <Button variant="outline" disabled={!novoSuporte.trim()} onClick={async () => {
-              try {
-                await salvarSuporteInterno({ data: { acao: "adicionar", pessoa: pessoaDe(novoSuporte) } });
-                setNovoSuporte("");
-                setSuporte(await lerSuporteInterno());
-              } catch (e) {
-                toast.error(msg(e));
-              }
-            }}>
-              <Plus className="mr-1 h-4 w-4" /> Adicionar
-            </Button>
-          </div>
-        </section>
+        <p className="text-xs text-muted-foreground">Suporte interno é definido na administração geral, em Configurar API.</p>
 
         {r.canais.length > 0 && (
           <section className="space-y-2">
@@ -159,4 +121,46 @@ export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
       </CardContent>
     </Card>
   );
+}
+
+/** Global support has one editor in general administration; server checks super admin. */
+export function SuporteInternoGlobal() {
+  const [suporte, setSuporte] = useState<{ id: string; nome: string | null; email: string | null }[]>([]);
+  const [novoSuporte, setNovoSuporte] = useState("");
+  const [liberado, setLiberado] = useState(false);
+  useEffect(() => { lerSuporteInterno().then(r => { setSuporte(r); setLiberado(true); }).catch(() => setLiberado(false)); }, []);
+  if (!liberado) return null;
+  return <div className="space-y-3 border-t pt-5">        <section className="space-y-2">
+          <Label>Suporte interno (todos os clientes)</Label>
+          <p className="text-xs text-muted-foreground">Conversas dessas pessoas não entram nas colunas de conversas de nenhum cliente. Por nome ou e-mail.</p>
+          {suporte.map((p) => (
+            <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
+              <span>{p.nome || p.email}</span>
+              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Remover" onClick={async () => {
+                try {
+                  await salvarSuporteInterno({ data: { acao: "remover", id: p.id } });
+                  setSuporte((l) => l.filter((x) => x.id !== p.id));
+                } catch (e) {
+                  toast.error(msg(e));
+                }
+              }}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <Input value={novoSuporte} placeholder="Nome ou e-mail" onChange={(e) => setNovoSuporte(e.target.value)} />
+            <Button variant="outline" disabled={!novoSuporte.trim()} onClick={async () => {
+              try {
+                await salvarSuporteInterno({ data: { acao: "adicionar", pessoa: pessoaDe(novoSuporte) } });
+                setNovoSuporte("");
+                setSuporte(await lerSuporteInterno());
+              } catch (e) {
+                toast.error(msg(e));
+              }
+            }}>
+              <Plus className="mr-1 h-4 w-4" /> Adicionar
+            </Button>
+          </div>
+        </section></div>;
 }
