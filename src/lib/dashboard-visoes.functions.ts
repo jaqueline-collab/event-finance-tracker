@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { cartoesValidos } from "@/lib/graficos";
 import { filtroCampoSchema } from "@/lib/campos-elora";
 import { diffVisoes, visoesVisiveis, type Visao } from "@/lib/dashboard-visoes";
 
@@ -46,6 +47,7 @@ async function lerVisoes(admin: any, clienteId: string): Promise<(Visao & { filt
     totalGraficos: contagem.get(String(v.id)) ?? 0,
     ocultos: Array.isArray(v.filtros?.cartoesOcultos) ? v.filtros.cartoesOcultos.map(String) : [],
     filtrosPadrao: Array.isArray(v.filtros?.filtrosPadrao) ? v.filtros.filtrosPadrao.filter((f: unknown) => filtroCampoSchema.safeParse(f).success) : [],
+    cartoes: cartoesValidos(v.filtros?.cartoes),
     filtrosBrutos: v.filtros ?? {},
   }));
 }

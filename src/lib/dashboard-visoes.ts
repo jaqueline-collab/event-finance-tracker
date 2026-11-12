@@ -13,6 +13,8 @@ export type Visao = {
   ocultos?: string[];
   /** Filtros padrão da visão (só super admin grava; cliente aplica os seus sem salvar). */
   filtrosPadrao?: import("./campos-elora").FiltroCampo[];
+  /** Cartões do construtor de gráficos (Fase 4), na ordem da grade. */
+  cartoes?: import("./graficos").CartaoGrafico[];
 };
 
 const chaveOcultos = (l?: string[]) => [...new Set(l ?? [])].sort().join("|");
