@@ -162,7 +162,29 @@ const APOIO: { tipo: string; caminho: string; nome: (i: any) => unknown }[] = [
   { tipo: "painel", caminho: "/crm/v2/panel", nome: (i) => i.title },
 ];
 
-type Cursor = { etapa?: number; pagina?: number; desde?: string | null };
+type Cursor = { etapa?: number; pagina?: number; desde?: string | null; dias?: string[] };
+
+/** Dias (America/Sao_Paulo) cujo cálculo padrão pode mudar com estas linhas novas/alteradas. */
+async function diasAfetados(db: SupabaseClient, clienteId: string, tabela: string, linhas: any[], campos: string[], campoData: string): Promise<string[]> {
+  if (!linhas.length) return [];
+  const { diaSP } = await import("./painel-visual");
+  const ids = linhas.map((l) => l.externo_id);
+  const antes = new Map<string, any>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await (db as any).from(tabela).select(["externo_id", ...campos].join(",")).eq("cliente_id", clienteId).in("externo_id", ids.slice(i, i + 200));
+    for (const r of data ?? []) antes.set(String(r.externo_id), r);
+  }
+  const dias = new Set<string>();
+  for (const l of linhas) {
+    const a = antes.get(String(l.externo_id));
+    if (a && campos.every((c) => String(a[c] ?? "") === String(l[c] ?? ""))) continue;
+    for (const v of [l[campoData], a?.[campoData]]) {
+      const d = diaSP(v);
+      if (d) dias.add(d);
+    }
+  }
+  return [...dias];
+}
 
 async function upsert(db: SupabaseClient, tabela: string, linhas: any[], conflito: string) {
   if (!linhas.length) return;
@@ -256,10 +278,14 @@ export async function sincronizarFonte(
           "cliente_id,tipo,externo_id",
         );
       } else if (fonte === "contatos") {
-        await upsert(db, "elora_contatos_espelho", itens.map((c) => mapContato(clienteId, c)), "cliente_id,externo_id");
+        const linhas = itens.map((c) => mapContato(clienteId, c));
+        if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_contatos_espelho", linhas, ["criado_em", "origem", "utm_campaign"], "criado_em"))])];
+        await upsert(db, "elora_contatos_espelho", linhas, "cliente_id,externo_id");
       } else if (fonte === "mensagens") {
         const sid = sessoes[cursor.etapa!];
-        await upsert(db, "elora_mensagens_espelho", itens.map((m) => mapMensagem(clienteId, m, sid)), "cliente_id,externo_id");
+        const linhas = itens.map((m) => mapMensagem(clienteId, m, sid));
+        if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_mensagens_espelho", linhas, ["enviada_em", "direcao", "tipo", "user_id_elora"], "enviada_em"))])];
+        await upsert(db, "elora_mensagens_espelho", linhas, "cliente_id,externo_id");
       } else {
         await upsert(db, "elora_atendimentos_espelho", itens.map((x) => mapAtendimento(clienteId, x)), "cliente_id,externo_id");
       }
@@ -271,6 +297,11 @@ export async function sincronizarFonte(
         cursor.pagina = 1;
       }
       await salvar(false);
+    }
+    // Dias já gravados que mudaram: recalcula com backup das linhas anteriores (só esses dias).
+    if (cursor.dias?.length && (await usaEspelho(db, clienteId))) {
+      const { recalcularDiasGravados } = await import("./relatorio-recalculo.server");
+      await recalcularDiasGravados(db, clienteId, cursor.dias, `sincronização ${fonte}: dados alterados`);
     }
     await salvar(true);
     return { concluido: true, registros };
