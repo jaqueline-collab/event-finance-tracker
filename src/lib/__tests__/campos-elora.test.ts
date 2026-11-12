@@ -86,8 +86,8 @@ describe("Filtro por campo", () => {
     );
     expect(diretos).toEqual({ canal: ["X", "Y"] });
     expect(outros).toHaveLength(1);
-    const linhas = [{ dia: "2026-10-01", canal: "X", atendente: "", equipe: "", conversas_realizadas: 2 }, { dia: "2026-10-01", canal: "Z", atendente: "", equipe: "", conversas_realizadas: 5 }];
-    expect(somarPadraoPorDia(linhas as any, { canal: ["X", "Y"] }).get("2026-10-01")!.conversas_realizadas.valor).toBe(2);
+    const linhas = [{ dia: "2026-10-01", canal: "X", atendente: "", equipe: "", conversas_total_dia: 2 }, { dia: "2026-10-01", canal: "Z", atendente: "", equipe: "", conversas_total_dia: 5 }];
+    expect(somarPadraoPorDia(linhas as any, { canal: ["X", "Y"] }).get("2026-10-01")!.conversas_total_dia.valor).toBe(2);
   });
 
   it("sem filtro por campo, o painel calcula igual a antes (painel do Gean não muda)", () => {
