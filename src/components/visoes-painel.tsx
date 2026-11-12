@@ -71,7 +71,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   children: (
     visaoId: string | null,
     chave: number,
-    ctx: { editando: boolean; podeEditar: boolean; totalGraficos: number; ocultos: string[]; filtrosPadrao: import("@/lib/campos-elora").FiltroCampo[]; alternarOculto: (id: string) => void },
+    ctx: { editando: boolean; podeEditar: boolean; totalGraficos: number; ocultos: string[]; filtrosPadrao: import("@/lib/campos-elora").FiltroCampo[]; cartoes: import("@/lib/graficos").CartaoGrafico[]; outrasVisoes: { id: string; nome: string }[]; alternarOculto: (id: string) => void },
   ) => ReactNode;
   /** Construtor de gráficos da visão ativa, mostrado só em modo Editar. */
   editorGraficos?: (visaoId: string, aoMudar: () => void) => ReactNode;
@@ -207,6 +207,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
     totalGraficos: graficosAtiva,
     ocultos: visaoConteudo?.ocultos ?? [],
     filtrosPadrao: visaoConteudo?.filtrosPadrao ?? [],
+    cartoes: visaoConteudo?.cartoes ?? [],
+    outrasVisoes: lista.filter((v) => v.id !== visaoConteudo?.id && !ehNova(v.id)).map((v) => ({ id: v.id, nome: v.nome })),
     alternarOculto: (id: string) => {
       if (!editando || !visaoConteudo) return;
       const atual = visaoConteudo.ocultos ?? [];
