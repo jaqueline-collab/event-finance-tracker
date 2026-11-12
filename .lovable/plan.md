@@ -1,55 +1,99 @@
-# Ajustes D/F (Parte 1 e 2) e plano da Fase 4
+# Fase 5 — Limpeza e acabamento
 
-Nada será publicado.
+## Limites e ordem
 
-## Parte 1. Resultado do diagnóstico (só leitura, já feito)
+Executar somente depois da aprovação deste plano, na ordem abaixo. **Não publicar.** Nenhum dado financeiro, mensagem, widget antigo, relatório ou backup será apagado. “Widgets antigos” continua rascunho, sem acesso do cliente. A edição continua entrando por um único botão **Editar**, na barra da super admin.
 
-Comparei, dia a dia de 22/09 a 03/10, o relatório gravado com o cálculo de agora, sem filtro:
+Toda configuração continua por cliente, com padrão vazio; dimensões ausentes continuam “Não definido”. Não exigir cards, equipes, UTMs ou outro recurso para abrir ou calcular o painel. Mensagens continuam sem texto no navegador.
 
-- Conversas, Usuário, Bot e Novos contatos: iguais nos 12 dias.
-- Novos ADS: igual em 11 dias. Só **01/10** difere: **24 calculado x 23 gravado**. É o 251 x 250.
+## 1. Comparar antes de substituir os seis gráficos fixos
 
-**Causa:** um contato de 01/10 (criado manualmente por uma atendente às 18:14 de Brasília, primeira conversa no mesmo minuto) ganhou a campanha do anúncio ("DR. RICARDO ASSUMPÇÃO", Instagram) só em 10/11. O relatório foi gravado em 05/11, quando ele ainda não tinha campanha.
-- Não é fuso: o horário fica no meio do dia de 01/10.
-- Não é regra diferente: os dois caminhos usam a mesma regra (campanha preenchida = ADS).
-- Ressalva: o espelho não guarda o valor antigo da campanha. Concluo pela data de atualização do contato (10/11, depois da gravação) e por ser o único contato ADS de 01/10 com essa situação.
+Ampliar os cartões do construtor existente e criar as configurações padrão das visões sem sobrescrever cartões ou filtros já salvos. Preservar títulos, séries, ordenação, tamanhos, campos, ocultações e interação de filtro. Não criar valores ou regras específicos de um cliente no código.
 
-**Qual está certo:** o **251**. O contato veio de anúncio; o gravado ficou defasado.
+| Gráfico atual | Conferência exigida no cartão novo |
+|---|---|
+| Leads por dia | Cada dia, Sem campanha e ADS |
+| Leads por | Cada fatia, total e percentual; conferir todas as dimensões do seletor |
+| Conversas por dia | Cada dia, Usuário do sistema e Bot |
+| Principais campanhas | Cada campanha, quantidade e ordem do top 8 |
+| Atendimentos por canal | Cada canal e quantidade |
+| Conversas por atendente | Cada atendente e todas as colunas da tabela |
 
-## Parte 1. Correção (após seu ok)
+Comparar na conta do Dr. Ricardo com o mesmo período e filtros: 22/09–03/10/2026, outubro completo e ao menos um recorte não vazio. Conferir também filtro que não exclui ninguém, importados fora da conta por padrão, dimensões ausentes e período anterior quando usado.
 
-1. Backup das linhas de 01/10 em `elora_relatorio_diario_backup`, conferência campo a campo, regravação só das linhas de 01/10 que mudarem (Novos ADS 23 → 24), consulta de restauração mostrada e não executada. Outras colunas e dias inalterados, com conferência.
-2. **Uma regra só:** sem filtro e com filtro, as linhas do dia saem do mesmo cálculo e o filtro só limita o conjunto de contatos. Assim um filtro que não exclui ninguém dá exatamente o mesmo número.
-3. **Teste novo:** para todos os dias do período, Matriz sem filtro = Matriz com filtro "não exclui ninguém", nas 5 colunas padrão. Sem nada fixo do Dr. Ricardo.
-4. Como contatos podem ganhar campanha depois, os dias gravados também podem ficar defasados no futuro. Proposta: a sincronização incremental recalcula os dias dos contatos alterados (com backup), em vez de só gravar uma vez. Executo só se você aprovar este item.
+**Porta de segurança:** produzir e mostrar a tabela `gráfico / período / filtro / categoria / série / fixo / novo / diferença` antes de retirar os fixos. Só substituir os que forem idênticos em todos os valores comparados; diferença não pode ser escondida por arredondamento. Se houver divergência, corrigir o cartão e repetir a comparação, ou manter o fixo e informar a pendência. Não mudar o cálculo validado da Matriz para forçar igualdade.
 
-## Parte 2. Filtros padrão na Matriz
+Depois da igualdade, retirar a renderização fixa e os estados, importações e funções que ficarem realmente órfãos. Manter os quatro indicadores do cabeçalho e um só período e “+ Filtro” por visão.
 
-- Em modo Editar (mesma porta única), "Salvar como padrão da visão" também na Matriz. Só super admin grava; o servidor confere.
-- Todos começam com esses filtros ao abrir a Matriz. O cliente muda só para si, na sessão.
-- Sem padrão salvo = como hoje.
-- Testes: não super admin não grava; o padrão é aplicado ao abrir; o filtro do cliente não muda o padrão.
+## 2. Retirar a aba Relatório diário sem perder funções
 
-## Fase 4. Construtor de gráficos (só depois de você fechar os números)
+Remover a aba fixa e seu caminho de seleção no painel; a Matriz passa a ser a única tabela diária. Não apagar `elora_relatorio_diario`, backups ou funções usadas fora dessa aba.
 
-**Reaproveitado (ampliar, não duplicar):** a visão e seus widgets (`elora_dashboard_visoes`, só servidor), o modo Editar e a barra da super admin, o catálogo Campos do Elora (rótulos e ocultos), o "+ Filtro" e os chips, o clique no gráfico que cria chip, o motor de indicadores e as colunas da Matriz (combinadas, manuais, fórmulas) e a marca de "estimado".
+**Dependências encontradas e destino:**
 
-**Novo:**
-- Em modo Editar, "+ Gráfico" abre um painel lateral com prévia ao vivo: fonte, medida (contagem, distinta, soma, média, tempo médio, ou indicador da Matriz), dimensão e segunda dimensão do catálogo, granularidade dia/semana/mês, ordenação, Top N com "Outros", comparação com o período anterior, formato, título e tamanho.
-- Tipos: número grande, barras agrupadas e empilhadas, linhas, área, pizza, rosca, funil, tabela paginada (20 por página, ordenar, ocultar colunas) e mapa só se houver campo geográfico. Tipo sem dados para o cliente não aparece.
-- Filtro próprio por cartão (mesmo "+ Filtro"), somado ao da visão; legenda liga e desliga séries.
-- Grade de duas colunas, arrastar para reordenar, menu "⋯" com editar, duplicar, remover e mover para outra visão. Remover não apaga dados.
-- Cálculo único no servidor: indicador da Matriz no gráfico usa a mesma função da Matriz (mesmo número). Filtro de outra fonte vira conjunto de contatos (sem duplicar linhas). Dias estimados ficam marcados e fora de totais sem marca. O texto das mensagens nunca é lido.
+| Dependência atual | Tratamento |
+|---|---|
+| Área do cliente e `VisoesPainel` | Remover conteúdo, seleção e condições exclusivas da aba antiga |
+| `SecaoRelatorioDiario` | Revisar período, ordenação, agrupamento, exportação PDF/Excel e congelamento antes de retirar a tela |
+| Relatórios congelados | Preservar registros e leitura; levar acesso/ações ainda necessários à Matriz, dentro do controle existente, sem uma segunda tabela |
+| Filtros e preferências da tabela antiga | Não apagar dados salvos; reutilizar o que for compatível com Matriz/“+ Filtro”, informando o que não tiver equivalência |
+| `/api/public/relatorio-diario/registrar` e `/listar-clientes` | Manter endereços, segurança e contrato da automação externa |
+| `getRelatorioDiarioCliente`, recálculo e backups | Manter consumidores necessários; remover somente código sem consumidor |
+| Elora IA, totais por dimensão | Manter leitura autorizada pelo cálculo existente; atualizar referência à tela sem confundir registro gravado com cálculo atual |
+| `/relatorio-validacao` | Absorver a comparação na Matriz em modo Editar e redirecionar o endereço antigo, preservando cliente e permissão |
 
-**Sai do painel visual atual (substituído):** os seis gráficos fixos da Fase 1 passam a ser cartões configurados criados como padrão de cada visão, com o mesmo resultado. O construtor antigo de blocos de montagem do modo Editar sai. Os "Widgets antigos" continuam guardados como rascunho e não são apagados.
+Inventariar todos os consumidores antes da remoção e testar a automação sem gravar registros de teste em produção.
 
-**Testes:** cliente sem cards ou classificação só vê tipos e campos que existem, sem erro; dois clientes com campos diferentes têm opções diferentes; não super admin não cria nem edita (no servidor); gráfico com indicador = Matriz; filtro de outra fonte sem duplicar; dias estimados marcados.
+## 3. Estimativas e dias sem sincronização
 
-**Entrega:** executar após seu ok, rodar os testes, conferir em 390, 834 e 1440 nos dois temas, listar o que mudou e parar.
+- Trocar a etiqueta repetida por ponto discreto com tooltip: **“Valor estimado: o Elora não guarda quando o card mudou de etapa antes de dd/mm”**. Usar a data real da primeira leitura aplicável ao cliente/card, nunca uma data fixa.
+- Tooltip acessível também por foco/toque e uma única nota no rodapé da tabela. Mesmo ponto no total quando ele incluir dias estimados. Aplicar o padrão aos cartões que exibem estimativa, preservando os respectivos critérios de totalização.
+- Nenhum cálculo, inclusão ou exclusão de estimados muda.
+- Distinguir **zero confirmado**, **aguardando sincronização** e **parcial** usando evidências da sincronização das fontes necessárias. Ausência de registros não prova zero nem falta de sincronização.
+- Conferir se o estado/cursor atual prova cobertura diária. Se não provar, ampliar o registro de cobertura por fonte/cliente, sem inventar cobertura histórica. Valores incompletos ficam identificados; nunca um zero apresentado como confirmado. Estados propagam para totais e gráficos sem mudar as regras numéricas.
+
+## 4. Unificar as quatro duplicidades do levantamento
+
+O histórico recuperado listava seis candidatos; os quatro primeiros são os quatro tratados aqui. Os gráficos antigos e a localização das regras, os outros dois, entram na limpeza dos itens 1 e 4 sem apagar widgets.
+
+1. **Validação × Matriz:** incorporar comparação calculado/gravado na Matriz, só super admin em modo Editar; endereço antigo redireciona. Preservar a possibilidade de conferir divergências, não apenas retirar a página.
+2. **Catálogo duplicado:** “Campos do Elora” permanece o catálogo único. Matriz, validação e construtor o consomem com os mesmos rótulos e ocultações; retirar a listagem paralela da validação.
+3. **Suporte interno global dentro do cliente:** mover a edição da lista para a administração geral existente, só super admin. Dentro do cliente ficam apenas ignorados extras e mapa de equipe, com referência à lista global, sem outro editor global.
+4. **Dados do cliente em Configurar API × painel lateral:** centralizar conexão, canais e campos do cliente no painel lateral existente; entradas antigas redirecionam para ele. Configurar API mantém somente administração geral. Regras do cliente ficam no controle existente, sem segundo editor de indicadores.
+
+Cliente de fonte antiga continua atendido pelo caminho compatível; não retirar seu construtor necessário só porque o cliente com espelho já usa cartões novos.
+
+## 5. Ranking de atendentes na Elora IA
+
+Conferir outubro/2026 do Dr. Ricardo: o resultado citado de **1.447 para Vinicio** versus **744 Usuário do sistema no mês** não será tratado como prova nem corrigido por suposição.
+
+- Rastrear a atribuição por atendente no cálculo e comparar, por atendente e no mês, conversas totais, com humano e só bot; respeitar suporte interno/ignorados e “Não definido”.
+- Se o ranking total incluir conversas só bot atribuídas ao atendente, devolver essa informação junto dos dados da ferramenta e fazer a resposta explicitar isso, oferecendo separar **“atendidas por ele”** e **“pelo bot”**.
+- Não chamar responsabilidade atribuída de participação humana comprovada. Se o cálculo só provar que houve algum humano na conversa, dizer isso, sem atribuir a autoria a esse atendente.
+- Preservar permissões, limites e bloqueio de conteúdo de mensagens.
+
+## 6. Medir desempenho e listar segurança, sem alterações de segurança
+
+**Desempenho:** medir abertura da Matriz para 30, 90 e 180 dias no Dr. Ricardo, com mesmos filtros/colunas e data final declarada. Separar tempo de cálculo, resposta e tabela pronta, com primeira abertura e pelo menos três repetições; apresentar mediana, variação e volume. Informar se cache é necessário e qual invalidação exigiria. Não implementar cache nesta fase sem necessidade demonstrada e autorização adicional.
+
+**Segurança:** buscar a lista atual dos avisos do banco conectado e apresentar cada aviso por gravidade, objeto e motivo, separando tabelas/objetos do EloraCRM dos demais; marcar objetos sem origem confirmável. Conferir se ainda são 43 e explicar diferença de quantidade. **Só leitura: não alterar grants, políticas, funções ou avisos; não ocultar achados.**
+
+## 7. Testes, conferência e entrega
+
+- Testes de igualdade de todos os valores dos seis gráficos, filtros e exclusão padrão de importados; preservar o teste de todos os dias e cinco colunas padrão da Matriz.
+- Testes dos estados aguardando/parcial/zero confirmado, fontes opcionais e clientes com estruturas diferentes. Estimativas mantêm os mesmos valores e totais.
+- Testes de permissões: cliente não grava configurações; rascunho não vaza; parceiro sem permissão não recebe valores financeiros; automação mantém contrato e proteção.
+- Testes de ranking com conversa humana e só bot atribuídas ao mesmo atendente, sem fixar pessoas reais nos testes.
+- Conferir a experiência em **390, 834 e 1440 px, temas claro e escuro**: abrir visão, período, filtros, Matriz, Editar, cartões, tooltip, comparação e rascunhos.
+- O projeto usa Supabase externo: a conferência logada exige uma sessão autorizada disponível. Se continuar indisponível, declarar exatamente os fluxos não verificados; não usar acesso privilegiado para fabricar sessão nem apresentar tela vazia como validação.
+- Entregar tabela comparativa dos seis gráficos, verificação do ranking, tempos, avisos de segurança, testes e lista exata do que saiu/foi preservado. Listar suposições específicas de cliente encontradas e corrigidas.
+
+**Ao terminar, parar e mostrar. Não publicar.**
 
 ## Detalhes técnicos
 
-- Causa da diferença entre caminhos: `matriz.server.ts > linhasPadrao` lê `elora_relatorio_diario` sem filtro e chama `calcularCorteCliente(…, soContatos)` com filtro. Novo caminho único: `calcularCorteCliente` sempre (gravado fica como registro e referência), ou gravado sempre com recálculo quando defasado; escolho o primeiro, por dar o mesmo número nos dois casos por construção.
-- Filtros padrão da Matriz: guardados como visão fixa em `elora_dashboard_visoes` via `dashboard-visoes.functions.ts`, reaproveitando o botão já existente.
-- Fase 4: configuração de cartão no JSON de widgets da visão; nova função de servidor de agregação genérica reaproveitando `painel-visual.ts`, `campos-elora.ts` e `indicadores-motor.ts`.
-- `roadmap.md` será atualizado com Parte 1, Parte 2 e Fase 4 ao sair do modo de plano.
+- Ampliar `graficos.ts`, `graficos.functions.ts` e `cartoes-graficos.tsx`; manter cartões em `elora_dashboard_visoes.filtros.cartoes`, catálogo único e filtros existentes.
+- Limpeza em `painel-visual.tsx`, `visoes-painel.tsx`, `area-do-cliente.index.tsx` e consumidores de `resultados-cliente.tsx`, após a porta de comparação.
+- Estimativa/cobertura em Matriz e cartões; cobertura derivada das fontes/cursor ou registro adicional mínimo se faltar evidência, com grants e acesso só servidor quando necessário.
+- Comparação reutiliza as funções existentes de validação e o caminho único de `matriz.server.ts`; ranking amplia `elora-ia-ferramentas.ts` e instruções existentes.
+- Revisar metadados das páginas tocadas e atualizar decisões estruturais em `AGENTS.md` durante a execução.
