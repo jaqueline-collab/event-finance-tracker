@@ -38,7 +38,6 @@ export const lerCatalogoFiltro = createServerFn({ method: "POST" })
     const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
     const { catalogoVisivel } = await import("@/lib/campos-elora");
     const g = catalogoVisivel((await catalogoDoCliente(supabaseAdmin as any, data.clienteId)).catalogo, "filtro");
-    // telefone e nome não viram lista de opções
     return { grupos: g };
   });
 
