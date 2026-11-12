@@ -203,8 +203,10 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const graficosAtiva = visaoConteudo?.totalGraficos ?? 0;
   const ctx = {
     editando,
+    podeEditar,
     totalGraficos: graficosAtiva,
     ocultos: visaoConteudo?.ocultos ?? [],
+    filtrosPadrao: visaoConteudo?.filtrosPadrao ?? [],
     alternarOculto: (id: string) => {
       if (!editando || !visaoConteudo) return;
       const atual = visaoConteudo.ocultos ?? [];

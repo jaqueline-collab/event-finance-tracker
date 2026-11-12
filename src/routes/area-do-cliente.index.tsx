@@ -50,7 +50,9 @@ import { abaConfigurarDoEndereco, podeConfigurarArea, type AbaDadosElora } from 
 import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-sheet";
 import { PainelVisual, SeletorPeriodo } from "@/components/painel-visual";
 import { MatrizCliente } from "@/components/matriz-cliente";
-import { periodoDe, type Filtros, type Periodo, type PeriodoChave } from "@/lib/painel-visual";
+import { salvarFiltrosPadraoVisao } from "@/lib/dashboard-visoes.functions";
+import type { FiltroCampo } from "@/lib/campos-elora";
+import { periodoDe, type Periodo, type PeriodoChave } from "@/lib/painel-visual";
 
 
 export const Route = createFileRoute("/area-do-cliente/")({
@@ -98,7 +100,6 @@ function AreaCliente() {
   const [novoGrafico, setNovoGrafico] = useState(0);
   const [periodoChave, setPeriodoChave] = useState<PeriodoChave>("30d");
   const [periodo, setPeriodo] = useState<Periodo>(() => periodoDe("30d", new Date().toISOString()));
-  const [filtrosPainel, setFiltrosPainel] = useState<Filtros>({});
   const [painelVisual, setPainelVisual] = useState<boolean | null>(null);
   const jaCarregou = useRef(false);
   if (!carregando && (dados || erro)) jaCarregou.current = true;
@@ -340,11 +341,13 @@ function AreaCliente() {
                     <ResultadosCliente clienteId={cliente.id} visaoId={visaoId} recarregarChave={chave} />
                   ) : (
                     <div className="space-y-5">
-                      <PainelVisual
+                      <PainelComFiltros
+                        key={visaoId ?? "padrao"}
+                        visaoId={visaoId}
+                        padrao={ctx.filtrosPadrao}
+                        podeSalvarPadrao={ctx.podeEditar && ctx.editando}
                         clienteId={cliente.id}
                         periodo={periodo}
-                        filtros={filtrosPainel}
-                        onFiltros={setFiltrosPainel}
                         onDisponivel={setPainelVisual}
                         editando={ctx.editando}
                         ocultos={ctx.ocultos}
@@ -505,6 +508,47 @@ function AreaCliente() {
         </TabsContent>
 
               </Tabs>
+    </div>
+  );
+}
+
+/** Painel de uma visão: começa com os filtros padrão dela; o cliente aplica os seus sem salvar. */
+function PainelComFiltros({
+  visaoId,
+  padrao,
+  podeSalvarPadrao,
+  ...rest
+}: Omit<React.ComponentProps<typeof PainelVisual>, "filtros" | "onFiltros"> & { visaoId: string | null; padrao: FiltroCampo[]; podeSalvarPadrao: boolean }) {
+  const [filtros, setFiltros] = useState<FiltroCampo[]>(padrao);
+  const [salvando, setSalvando] = useState(false);
+  const iguais = JSON.stringify(filtros) === JSON.stringify(padrao);
+  return (
+    <div className="space-y-2">
+      {podeSalvarPadrao && visaoId && !iguais && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Os filtros desta visão mudaram.</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7"
+            disabled={salvando}
+            onClick={async () => {
+              setSalvando(true);
+              try {
+                await salvarFiltrosPadraoVisao({ data: { clienteId: rest.clienteId, visaoId, filtros } });
+                toast.success("Filtros padrão da visão salvos.");
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : String(e));
+              } finally {
+                setSalvando(false);
+              }
+            }}
+          >
+            Salvar como padrão da visão
+          </Button>
+        </div>
+      )}
+      <PainelVisual {...rest} filtros={filtros} onFiltros={setFiltros} />
     </div>
   );
 }
