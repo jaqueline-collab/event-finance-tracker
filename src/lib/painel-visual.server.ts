@@ -1,6 +1,7 @@
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
 import type { FiltroCampo } from "@/lib/campos-elora";
 import type { Filtros, Periodo } from "./painel-visual";
+import { estadoCobertura } from "./sync-cobertura";
 import {
   agregarPainel,
   limitesUtc,
@@ -97,5 +98,6 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
       soContatos = aplicarFiltrosCampos(await lerBaseCampos(adm, id), campos as any)?.contatos ?? null;
     }
     const resumo = agregarPainel({ contatos: base.contatos, atendimentos: base.atendimentos, mensagens }, { de: p.de, ate: p.ate }, filtros, soContatos);
-    return { disponivel: true as const, ultimaSync, ...resumo };
+     const cobertura = estadoCobertura(p.ate, ["contatos", "atendimentos", "mensagens"], estado ?? []);
+     return { disponivel: true as const, ultimaSync, cobertura, ...resumo };
 }

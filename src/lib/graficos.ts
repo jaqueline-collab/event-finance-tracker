@@ -168,6 +168,8 @@ export type ResultadoCartao = {
   anterior: number | null;
   estimados: string[];
   linhas: number;
+  cobertura?: string;
+  primeiraLeitura?: string | null;
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };

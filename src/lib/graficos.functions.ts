@@ -62,7 +62,8 @@ export const calcularCartao = createServerFn({ method: "POST" })
       const { cartaoDoPainel } = await import("@/lib/graficos");
       const nativos = { canal: { fonte: "atendimento" as const, campo: "canal" }, atendente: { fonte: "atendimento" as const, campo: "atendente" }, origem: { fonte: "contato" as const, campo: "origem" }, etiqueta: { fonte: "contato" as const, campo: "etiquetas" }, campanha: { fonte: "utm" as const, campo: "campaign" } };
       const { diretos, outros } = separarFiltros([...data.filtrosVisao, ...c.filtros], nativos);
-      return { oculto: false as const, r: cartaoDoPainel(await calcularPainelVisual(db, data.clienteId, p, diretos, outros), c) };
+      const painel = await calcularPainelVisual(db, data.clienteId, p, diretos, outros);
+      return { oculto: false as const, r: { ...cartaoDoPainel(painel, c), cobertura: painel.cobertura } };
     }
     const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
     const cat = await catalogoDoCliente(db, data.clienteId);
@@ -79,7 +80,7 @@ export const calcularCartao = createServerFn({ method: "POST" })
         const ma = await montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos });
         ant = cartaoDeIndicador(ma.linhas as any, c.indicador, c, null).total;
       }
-      return { oculto: false as const, r: cartaoDeIndicador(m.linhas as any, c.indicador, c, ant) };
+      return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), primeiraLeitura: m.primeiraLeitura, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
     }
     const { agregarCartao } = await import("@/lib/graficos");
     return { oculto: false as const, r: agregarCartao(cat.base, c, p, data.filtrosVisao as any, cat.catalogo) };

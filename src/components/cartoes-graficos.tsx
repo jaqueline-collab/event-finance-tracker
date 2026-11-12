@@ -21,6 +21,7 @@ import {
 } from "@/lib/graficos";
 import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
+import { MarcaEstimativa } from "@/components/marca-estimativa";
 
 const CORES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--primary)", "var(--muted-foreground)"];
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -221,10 +222,11 @@ function CartaoView({
       )}
       {r?.r && r.r.estimados.length > 0 && (
         <p className="mt-2 text-xs text-muted-foreground">
-          <span className="mr-1 rounded bg-muted px-1.5 py-0.5 font-medium">estimado</span>
+          <MarcaEstimativa desde={r.r.primeiraLeitura} />
           {r.r.estimados.length} dia(s) estimado(s), fora do total.
         </p>
       )}
+      {r?.r?.cobertura && r.r.cobertura !== "confirmado" && <p className="mt-2 text-xs text-muted-foreground">{r.r.cobertura} · cobertura diária não confirmada</p>}
     </section>
   );
 }
@@ -242,7 +244,7 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
     const varia = r.anterior != null && r.anterior !== 0 ? ((r.total - r.anterior) / r.anterior) * 100 : null;
     return (
       <div className="flex flex-1 flex-col justify-center py-4">
-        <p className="text-4xl font-bold tracking-tight">{fmt(r.total, c)}</p>
+        <p className="text-4xl font-bold tracking-tight">{r.total === 0 && r.cobertura && r.cobertura !== "confirmado" ? "—" : fmt(r.total, c)}</p>
         {c.comparar && (
           <p className={`mt-1 flex items-center gap-1 text-sm ${varia == null ? "text-muted-foreground" : varia >= 0 ? "text-primary" : "text-destructive"}`}>
             {varia != null && (varia >= 0 ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />)}

@@ -223,6 +223,7 @@ export function PainelVisual({
       ) : dados ? (
         <div className={`space-y-5 transition-opacity duration-300 ${carregando ? "opacity-60" : "opacity-100"}`} aria-busy={carregando}>
           <Indicadores dados={dados} reduzido={reduzido} />
+          {dados.cobertura !== "confirmado" && <p className="text-xs text-muted-foreground">{dados.cobertura} · cobertura diária não confirmada</p>}
 
         </div>
       ) : null}
