@@ -3,7 +3,7 @@ import { ELORA_APP_URL, ELORA_GUIA_URL } from "@/lib/links-globais";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { useDefinirMenuArea } from "@/components/area-externa-layout";
 import { mostrarEsqueletoArea } from "@/lib/area-externa";
 
@@ -518,7 +518,7 @@ function PainelComFiltros({
   padrao,
   podeSalvarPadrao,
   ...rest
-}: Omit<React.ComponentProps<typeof PainelVisual>, "filtros" | "onFiltros"> & { visaoId: string | null; padrao: FiltroCampo[]; podeSalvarPadrao: boolean }) {
+}: Omit<ComponentProps<typeof PainelVisual>, "filtros" | "onFiltros"> & { visaoId: string | null; padrao: FiltroCampo[]; podeSalvarPadrao: boolean }) {
   const [filtros, setFiltros] = useState<FiltroCampo[]>(padrao);
   const [salvando, setSalvando] = useState(false);
   const iguais = JSON.stringify(filtros) === JSON.stringify(padrao);
