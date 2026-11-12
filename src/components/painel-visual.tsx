@@ -20,6 +20,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPainelVisual } from "@/lib/painel-visual.functions";
+import { FiltroCampos } from "@/components/filtro-campos";
+import { separarFiltros, type FiltroCampo, type FonteCampo } from "@/lib/campos-elora";
 import {
   DIMENSOES,
   ROTULO_PERIODO,
@@ -31,6 +33,15 @@ import {
   type Periodo,
   type PeriodoChave,
 } from "@/lib/painel-visual";
+
+/** Dimensões que o painel aplica direto; o resto do catálogo liga pelo contato. */
+export const NATIVOS_PAINEL: Record<Dimensao, { fonte: FonteCampo; campo: string }> = {
+  canal: { fonte: "atendimento", campo: "canal" },
+  atendente: { fonte: "atendimento", campo: "atendente" },
+  origem: { fonte: "contato", campo: "origem" },
+  etiqueta: { fonte: "contato", campo: "etiquetas" },
+  campanha: { fonte: "utm", campo: "campaign" },
+};
 
 type Dados = Extract<Awaited<ReturnType<typeof getPainelVisual>>, { disponivel: true }>;
 
@@ -163,8 +174,8 @@ export function PainelVisual({
 }: {
   clienteId: string;
   periodo: Periodo;
-  filtros: Filtros;
-  onFiltros: (f: Filtros) => void;
+  filtros: FiltroCampo[];
+  onFiltros: (f: FiltroCampo[]) => void;
   editando?: boolean;
   /** Cartões ocultos do cliente nesta visão (só some fora do modo Editar). */
   ocultos?: string[];
@@ -182,7 +193,8 @@ export function PainelVisual({
     let vivo = true;
     setCarregando(true);
     setErro(null);
-    getPainelVisual({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros } })
+    const { diretos, outros } = separarFiltros(filtros, NATIVOS_PAINEL);
+    getPainelVisual({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros: diretos, campos: outros } })
       .then((r) => {
         if (!vivo) return;
         if (!r.disponivel) setIndisponivel(true);
@@ -198,8 +210,12 @@ export function PainelVisual({
   }, [clienteId, periodo.de, periodo.ate, chaveFiltros]);
 
   if (indisponivel) return null;
-  const aplicar = (dim: Dimensao, valor: string | undefined) => onFiltros({ ...filtros, [dim]: valor || undefined });
-  const temFiltro = Object.values(filtros).some(Boolean);
+  // Clique num gráfico vira filtro comum do "+ Filtro" (substitui o da mesma dimensão).
+  const aplicar = (dim: Dimensao, valor: string | undefined) => {
+    const n = NATIVOS_PAINEL[dim];
+    const resto = filtros.filter((f) => !(f.fonte === n.fonte && f.campo === n.campo));
+    onFiltros(valor ? [...resto, { ...n, op: "em", valores: [valor] }] : resto);
+  };
   const extra = (id: string) => {
     const oculto = ocultos.includes(id);
     return {
@@ -227,21 +243,13 @@ export function PainelVisual({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        {DIMENSOES.map((d) => (
-          <ChipFiltro
-            key={d.chave}
-            rotulo={d.rotulo}
-            todos={d.todos}
-            valor={filtros[d.chave]}
-            opcoes={dados?.opcoes[d.chave] ?? []}
-            onValor={(v) => aplicar(d.chave, v)}
-          />
-        ))}
-        {temFiltro && (
-          <Button variant="ghost" size="sm" className="h-8 rounded-full" onClick={() => onFiltros({})}>
-            Limpar filtros
-          </Button>
-        )}
+        <FiltroCampos
+          clienteId={clienteId}
+          filtros={filtros}
+          onFiltros={onFiltros}
+          fonteDaVisao="varias"
+          opcoesNativas={Object.fromEntries(DIMENSOES.map((d) => [`${NATIVOS_PAINEL[d.chave].fonte}|${NATIVOS_PAINEL[d.chave].campo}`, dados?.opcoes[d.chave] ?? []]))}
+        />
         {dados?.ultimaSync && (
           <span className="ml-auto text-sm text-muted-foreground" title={new Date(dados.ultimaSync).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}>
             atualizado {haQuanto(dados.ultimaSync)}
