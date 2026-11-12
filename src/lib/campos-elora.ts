@@ -108,12 +108,14 @@ const tipoDaDefinicao = (t?: string | null): TipoCampo | null => {
   return "texto";
 };
 function tipoDosValores(vals: unknown[]): TipoCampo {
-  const v = vals.filter(preenchidoCampo);
+  // o Elora embrulha valores de campo em lista: [valor]
+  const multi = vals.some((x) => Array.isArray(x) && x.length > 1);
+  const v = vals.flatMap((x) => (Array.isArray(x) ? x : [x])).filter(preenchidoCampo);
   if (!v.length) return "texto";
+  if (multi) return "lista";
   if (v.every((x) => typeof x === "boolean")) return "simnao";
   if (v.every((x) => typeof x === "number" || (typeof x === "string" && /^-?\d+([.,]\d+)?$/.test(x)))) return "numero";
   if (v.every((x) => typeof x === "string" && /^\d{4}-\d{2}-\d{2}/.test(x))) return "data";
-  if (v.some(Array.isArray)) return "lista";
   return new Set(v.map(String)).size <= 50 ? "lista" : "texto";
 }
 
