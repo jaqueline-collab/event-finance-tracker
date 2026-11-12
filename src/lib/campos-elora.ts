@@ -160,7 +160,7 @@ function personalizados(fonte: "contato" | "card", regs: { cf?: Record<string, u
 
 export function montarCatalogo(base: BaseCampos, ajustes: AjusteCampo[] = []): GrupoCatalogo[] {
   const fixos = (fonte: FonteCampo, lista: Fixo[], regs: any[]) =>
-    lista.map((f) => campoDe(fonte, f.campo, f.nome, f.tipo === "lista" ? null : f.tipo, regs.map(f.ler))).map((c, i) => (lista[i].tipo === "lista" ? { ...c, tipo: "lista" as const, opcoes: opcoesDe(regs.map(lista[i].ler)), usos: c.usos.includes("grafico") ? c.usos : [...c.usos, "grafico" as const] } : c)).filter((c) => c.preenchidos > 0);
+    lista.map((f) => campoDe(fonte, f.campo, f.nome, f.tipo, regs.map(f.ler))).filter((c) => c.preenchidos > 0);
   const g: Record<FonteCampo, CampoCatalogo[]> = {
     contato: base.contatos.length ? [...fixos("contato", FIXOS.contato, base.contatos), ...personalizados("contato", base.contatos, base.definicoes)] : [],
     atendimento: base.atendimentos.length ? fixos("atendimento", FIXOS.atendimento, base.atendimentos) : [],
