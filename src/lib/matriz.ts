@@ -161,10 +161,10 @@ export function montarMatriz(
 
 /** Linhas por canal/atendente/equipe → soma por dia, com filtros opcionais ("Não definido" = vazio). */
 export type LinhaCorteMatriz = { dia: string; canal: string; atendente: string; equipe: string } & Record<string, unknown>;
-export type FiltrosMatriz = Partial<Record<"canal" | "atendente" | "equipe", string>>;
+export type FiltrosMatriz = Partial<Record<"canal" | "atendente" | "equipe", string | string[]>>;
 
 export function somarPadraoPorDia(linhas: LinhaCorteMatriz[], filtros: FiltrosMatriz, m: PorDia = new Map()): PorDia {
-  const ok = (v: string, f?: string) => !f || (v || NAO_DEFINIDO) === f;
+  const ok = (v: string, f?: string | string[]) => !f || f.length === 0 || (Array.isArray(f) ? f.includes(v || NAO_DEFINIDO) : (v || NAO_DEFINIDO) === f);
   for (const l of linhas) {
     if (!ok(l.canal, filtros.canal) || !ok(l.atendente, filtros.atendente) || !ok(l.equipe, filtros.equipe)) continue;
     const linha = m.get(l.dia) ?? {};

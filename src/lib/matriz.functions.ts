@@ -1,12 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { filtroCampoSchema } from "@/lib/campos-elora";
 import { ehChavePadrao, slugColuna } from "@/lib/matriz";
 
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const filtros = z
-  .object({ canal: z.string().max(200).optional(), atendente: z.string().max(200).optional(), equipe: z.string().max(200).optional() })
-  .default({});
+const valorDim = z.union([z.string().max(200), z.array(z.string().max(200)).max(100)]).optional();
+const filtros = z.object({ canal: valorDim, atendente: valorDim, equipe: valorDim }).default({});
+
 
 async function podeVer(db: any, clienteId: string) {
   const [{ data: interno }, { data: meu }, { data: parceiro }] = await Promise.all([
@@ -71,13 +72,13 @@ function paraLinha(clienteId: string, c: Coluna, chave: string, ordem: number) {
 /** Matriz do cliente: qualquer pessoa com acesso ao painel; edição só super admin. */
 export const lerMatriz = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => z.object({ clienteId: z.string().min(1), de: dia, ate: dia, filtros }).parse(i))
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), de: dia, ate: dia, filtros, campos: z.array(filtroCampoSchema).max(20).default([]) }).parse(i))
   .handler(async ({ data, context }) => {
     await podeVer(context.supabase, data.clienteId);
     const podeEditar = await ehSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { montarMatrizCliente } = await import("@/lib/matriz.server");
-    const r = await montarMatrizCliente(supabaseAdmin as any, data.clienteId, { de: data.de, ate: data.ate }, data.filtros, { comCatalogo: podeEditar });
+    const r = await montarMatrizCliente(supabaseAdmin as any, data.clienteId, { de: data.de, ate: data.ate }, data.filtros, { comCatalogo: podeEditar, campos: data.campos as any });
     return {
       podeEditar,
       colunas: r.colunas,

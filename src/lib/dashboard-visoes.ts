@@ -11,6 +11,8 @@ export type Visao = {
   totalGraficos: number;
   /** Cartões do painel novo ocultos do cliente nesta visão. */
   ocultos?: string[];
+  /** Filtros padrão da visão (só super admin grava; cliente aplica os seus sem salvar). */
+  filtrosPadrao?: import("./campos-elora").FiltroCampo[];
 };
 
 const chaveOcultos = (l?: string[]) => [...new Set(l ?? [])].sort().join("|");

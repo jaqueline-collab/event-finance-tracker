@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { DadosEloraCliente } from "@/components/dados-elora-cliente";
 import { ConfigurarApiCliente } from "@/components/configurar-api-cliente";
+import { CamposEloraConfig } from "@/components/campos-elora-config";
 import { IntegracaoElora } from "@/components/integracao-elora";
 import { getIntegracaoCliente } from "@/lib/integracao-elora.functions";
 import {
@@ -100,6 +101,7 @@ export function ConfiguracaoClienteSheet({
           )}
           {aba === "canais" && <DadosEloraCliente clienteId={clienteId} aba="canais" />}
           {aba === "painel" && <ConfigurarApiCliente clienteId={clienteId} aba="painel" />}
+          {aba === "campos" && <CamposEloraConfig clienteId={clienteId} />}
         </div>
       </SheetContent>
     </Sheet>

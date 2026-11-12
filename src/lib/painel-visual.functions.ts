@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
+import { filtroCampoSchema } from "@/lib/campos-elora";
 import {
   agregarPainel,
   limitesUtc,
@@ -13,20 +14,16 @@ import {
   type MensagemP,
 } from "@/lib/painel-visual";
 
+const vd = z.union([z.string().max(300), z.array(z.string().max(300)).max(100)]).optional();
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const schema = z.object({
   clienteId: z.string().min(1),
   de: dia,
   ate: dia,
   filtros: z
-    .object({
-      canal: z.string().max(200).optional(),
-      origem: z.string().max(200).optional(),
-      atendente: z.string().max(200).optional(),
-      etiqueta: z.string().max(200).optional(),
-      campanha: z.string().max(300).optional(),
-    })
+    .object({ canal: vd, origem: vd, atendente: vd, etiqueta: vd, campanha: vd })
     .default({}),
+  campos: z.array(filtroCampoSchema).max(20).default([]),
 });
 
 async function lerTudo(q: () => any): Promise<any[]> {
@@ -127,6 +124,12 @@ export const getPainelVisual = createServerFn({ method: "POST" })
     const { lerMensagensSemTexto } = await import("@/lib/elora-espelho.server");
     const mensagens: MensagemP[] = await lerMensagensSemTexto(adm, id, ini, fim);
 
-    const resumo = agregarPainel({ contatos: base.contatos, atendimentos: base.atendimentos, mensagens }, { de: data.de, ate: data.ate }, data.filtros);
+    let soContatos: Set<string> | null = null;
+    if (data.campos.length) {
+      const { lerBaseCampos } = await import("@/lib/campos-elora.server");
+      const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
+      soContatos = aplicarFiltrosCampos(await lerBaseCampos(adm, id), data.campos as any)?.contatos ?? null;
+    }
+    const resumo = agregarPainel({ contatos: base.contatos, atendimentos: base.atendimentos, mensagens }, { de: data.de, ate: data.ate }, data.filtros, soContatos);
     return { disponivel: true as const, ultimaSync, ...resumo };
   });

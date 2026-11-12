@@ -103,7 +103,7 @@ export function origemDoLead(utmSource: string | null, origem: string | null): s
 export type ContatoP = { id: string; criado_em: string | null; origem: string; etiquetas: string[]; campanha: string | null; importado?: boolean };
 
 /** Sem filtro de Origem, importados não contam como lead; com filtro de Origem, contam. */
-export const contaComoLead = (c: ContatoP, filtros: Filtros) => Boolean(filtros.origem) || !c.importado;
+export const contaComoLead = (c: ContatoP, filtros: Filtros) => temDim(filtros.origem) || !c.importado;
 export type AtendimentoP = {
   id: string;
   contato_id: string | null;
@@ -117,7 +117,10 @@ export type AtendimentoP = {
 export type MensagemP = { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null };
 
 export type Dimensao = "origem" | "canal" | "etiqueta" | "campanha" | "atendente";
-export type Filtros = Partial<Record<Dimensao, string>>;
+export type Filtros = Partial<Record<Dimensao, string | string[]>>;
+/** Filtro de dimensão: vazio = todos; lista = qualquer uma. */
+export const bateDim = (v: string, f?: string | string[]) => !f || f.length === 0 || (Array.isArray(f) ? f.includes(v) : v === f);
+const temDim = (f?: string | string[]) => Boolean(f && f.length);
 export const DIMENSOES: { chave: Dimensao; rotulo: string; todos: string }[] = [
   { chave: "canal", rotulo: "Canal", todos: "todos" },
   { chave: "origem", rotulo: "Origem", todos: "todas" },
@@ -156,7 +159,16 @@ export function agregarPainel(
   base: { contatos: ContatoP[]; atendimentos: AtendimentoP[]; mensagens: MensagemP[] },
   periodo: Periodo,
   filtros: Filtros,
+  /** Conjunto de contatos vindo dos filtros por campo (ligação pelo contato). */
+  soContatos?: Set<string> | null,
 ) {
+  if (soContatos) {
+    base = {
+      ...base,
+      contatos: base.contatos.filter((c) => soContatos.has(c.id)),
+      atendimentos: base.atendimentos.filter((a) => !!a.contato_id && soContatos.has(a.contato_id)),
+    };
+  }
   const anterior = periodoAnterior(periodo);
   const contatoPorId = new Map(base.contatos.map((c) => [c.id, c]));
   const sessoesPorContato = new Map<string, AtendimentoP[]>();
@@ -172,18 +184,18 @@ export function agregarPainel(
     return l.slice().sort((x, y) => String(x.criado_em).localeCompare(String(y.criado_em)))[0].canal;
   };
 
-  const temFiltroContato = Boolean(filtros.origem || filtros.etiqueta || filtros.campanha);
+  const temFiltroContato = temDim(filtros.origem) || temDim(filtros.etiqueta) || temDim(filtros.campanha);
+  const etq = filtros.etiqueta == null ? [] : Array.isArray(filtros.etiqueta) ? filtros.etiqueta : [filtros.etiqueta];
   const contatoOk = (c: ContatoP | undefined) =>
     !!c &&
-    (!filtros.origem || c.origem === filtros.origem) &&
-    (!filtros.etiqueta || (filtros.etiqueta === NAO_DEFINIDO ? c.etiquetas.length === 0 : c.etiquetas.includes(filtros.etiqueta))) &&
-    (!filtros.campanha || (c.campanha ?? NAO_DEFINIDO) === filtros.campanha);
-  const sessaoAtributosOk = (a: AtendimentoP) =>
-    (!filtros.canal || a.canal === filtros.canal) && (!filtros.atendente || a.atendente === filtros.atendente);
+    bateDim(c.origem, filtros.origem) &&
+    (!etq.length || etq.some((e) => (e === NAO_DEFINIDO ? c.etiquetas.length === 0 : c.etiquetas.includes(e)))) &&
+    bateDim(c.campanha ?? NAO_DEFINIDO, filtros.campanha);
+  const sessaoAtributosOk = (a: AtendimentoP) => bateDim(a.canal, filtros.canal) && bateDim(a.atendente, filtros.atendente);
   const sessaoOk = (a: AtendimentoP) =>
     sessaoAtributosOk(a) && (!temFiltroContato || contatoOk(a.contato_id ? contatoPorId.get(a.contato_id) : undefined));
   const leadOk = (c: ContatoP) =>
-    contatoOk(c) && (!(filtros.canal || filtros.atendente) || (sessoesPorContato.get(c.id) ?? []).some(sessaoAtributosOk));
+    contatoOk(c) && (!(temDim(filtros.canal) || temDim(filtros.atendente)) || (sessoesPorContato.get(c.id) ?? []).some(sessaoAtributosOk));
 
   const sessoes = base.atendimentos.filter(sessaoOk);
   const sessoesIds = new Set(sessoes.map((s) => s.id));

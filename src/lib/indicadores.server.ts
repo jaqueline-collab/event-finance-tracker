@@ -91,7 +91,7 @@ export async function lerRelatorioExistente(db: SupabaseClient, clienteId: strin
  * Colunas padrão por dia + canal + atendente + equipe. Tudo vem de configuração:
  * suporte interno (global), mapa de equipe e lista extra (por cliente), agentes e canais da conta.
  */
-export async function calcularCorteCliente(db: SupabaseClient, clienteId: string, p: Periodo) {
+export async function calcularCorteCliente(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>) {
   const { calcularPadraoPorCorteDetalhado } = await import("./indicadores-motor");
   const { inicio, fim } = limitesUtc(p);
   const [suporte, corte, apoio, msgsRaw, contatosRaw] = await Promise.all([
@@ -135,6 +135,17 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
   for (const a of apoio as any[]) {
     if (a.tipo === "canal") nomeCanal[a.externo_id] = a.payload?.identity?.humanId ?? a.nome ?? a.externo_id;
     else agentes[a.externo_id] = { nome: a.nome ?? "", email: a.payload?.email ?? null };
+  }
+  if (soContatos) {
+    // filtro por campo: só contatos do conjunto (sem juntar linhas)
+    const ok = (id: unknown) => id != null && soContatos.has(String(id));
+    const sessoesOk = sessoes.filter((s) => ok(s.contato_id));
+    const ids = new Set(sessoesOk.map((s) => s.id));
+    sessoes.length = 0;
+    sessoes.push(...sessoesOk);
+    msgsRaw.splice(0, msgsRaw.length, ...msgsRaw.filter((m: any) => ids.has(String(m.sessao_id))));
+    contatosRaw.splice(0, contatosRaw.length, ...(contatosRaw as any[]).filter((x) => ok(x.externo_id)));
+    primeiras.splice(0, primeiras.length, ...primeiras.filter((s) => ok(s.contato_id)));
   }
   const c: any = corte.data ?? {};
   const extra = Array.isArray(c.atendentes_ignorados) ? c.atendentes_ignorados : [];

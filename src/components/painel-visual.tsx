@@ -20,6 +20,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPainelVisual } from "@/lib/painel-visual.functions";
+import { FiltroCampos } from "@/components/filtro-campos";
+import { separarFiltros, type FiltroCampo, type FonteCampo } from "@/lib/campos-elora";
 import {
   DIMENSOES,
   ROTULO_PERIODO,
@@ -27,10 +29,18 @@ import {
   periodoDe,
   variacao,
   type Dimensao,
-  type Filtros,
   type Periodo,
   type PeriodoChave,
 } from "@/lib/painel-visual";
+
+/** Dimensões que o painel aplica direto; o resto do catálogo liga pelo contato. */
+export const NATIVOS_PAINEL: Record<Dimensao, { fonte: FonteCampo; campo: string }> = {
+  canal: { fonte: "atendimento", campo: "canal" },
+  atendente: { fonte: "atendimento", campo: "atendente" },
+  origem: { fonte: "contato", campo: "origem" },
+  etiqueta: { fonte: "contato", campo: "etiquetas" },
+  campanha: { fonte: "utm", campo: "campaign" },
+};
 
 type Dados = Extract<Awaited<ReturnType<typeof getPainelVisual>>, { disponivel: true }>;
 
@@ -163,8 +173,8 @@ export function PainelVisual({
 }: {
   clienteId: string;
   periodo: Periodo;
-  filtros: Filtros;
-  onFiltros: (f: Filtros) => void;
+  filtros: FiltroCampo[];
+  onFiltros: (f: FiltroCampo[]) => void;
   editando?: boolean;
   /** Cartões ocultos do cliente nesta visão (só some fora do modo Editar). */
   ocultos?: string[];
@@ -182,7 +192,8 @@ export function PainelVisual({
     let vivo = true;
     setCarregando(true);
     setErro(null);
-    getPainelVisual({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros } })
+    const { diretos, outros } = separarFiltros(filtros, NATIVOS_PAINEL);
+    getPainelVisual({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros: diretos, campos: outros } })
       .then((r) => {
         if (!vivo) return;
         if (!r.disponivel) setIndisponivel(true);
@@ -198,8 +209,12 @@ export function PainelVisual({
   }, [clienteId, periodo.de, periodo.ate, chaveFiltros]);
 
   if (indisponivel) return null;
-  const aplicar = (dim: Dimensao, valor: string | undefined) => onFiltros({ ...filtros, [dim]: valor || undefined });
-  const temFiltro = Object.values(filtros).some(Boolean);
+  // Clique num gráfico vira filtro comum do "+ Filtro" (substitui o da mesma dimensão).
+  const aplicar = (dim: Dimensao, valor: string | undefined) => {
+    const n = NATIVOS_PAINEL[dim];
+    const resto = filtros.filter((f) => !(f.fonte === n.fonte && f.campo === n.campo));
+    onFiltros(valor ? [...resto, { ...n, op: "em", valores: [valor] }] : resto);
+  };
   const extra = (id: string) => {
     const oculto = ocultos.includes(id);
     return {
@@ -227,21 +242,13 @@ export function PainelVisual({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        {DIMENSOES.map((d) => (
-          <ChipFiltro
-            key={d.chave}
-            rotulo={d.rotulo}
-            todos={d.todos}
-            valor={filtros[d.chave]}
-            opcoes={dados?.opcoes[d.chave] ?? []}
-            onValor={(v) => aplicar(d.chave, v)}
-          />
-        ))}
-        {temFiltro && (
-          <Button variant="ghost" size="sm" className="h-8 rounded-full" onClick={() => onFiltros({})}>
-            Limpar filtros
-          </Button>
-        )}
+        <FiltroCampos
+          clienteId={clienteId}
+          filtros={filtros}
+          onFiltros={onFiltros}
+          fonteDaVisao="varias"
+          opcoesNativas={Object.fromEntries(DIMENSOES.map((d) => [`${NATIVOS_PAINEL[d.chave].fonte}|${NATIVOS_PAINEL[d.chave].campo}`, dados?.opcoes[d.chave] ?? []]))}
+        />
         {dados?.ultimaSync && (
           <span className="ml-auto text-sm text-muted-foreground" title={new Date(dados.ultimaSync).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}>
             atualizado {haQuanto(dados.ultimaSync)}
@@ -327,59 +334,6 @@ function EsqueletoPainel() {
 
 /* ---------------- Chips ---------------- */
 
-function ChipFiltro({
-  rotulo,
-  todos,
-  valor,
-  opcoes,
-  onValor,
-}: {
-  rotulo: string;
-  todos: string;
-  valor?: string;
-  opcoes: string[];
-  onValor: (v?: string) => void;
-}) {
-  const [aberto, setAberto] = useState(false);
-  const ativo = Boolean(valor);
-  return (
-    <div className={`inline-flex h-8 items-center rounded-full text-sm transition-colors ${ativo ? "bg-brand-soft text-foreground ring-1 ring-brand" : "bg-muted text-foreground"}`}>
-      <Popover open={aberto} onOpenChange={setAberto}>
-        <PopoverTrigger asChild>
-          <button type="button" className="flex h-full items-center gap-1 rounded-full pl-3.5 pr-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span className={ativo ? "font-medium" : ""}>
-              {rotulo}: {valor ?? todos}
-            </span>
-            {!ativo && <ChevronDown className="h-3.5 w-3.5 opacity-60" />}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64 p-0" align="start">
-          <Command>
-            {opcoes.length > 8 && <CommandInput placeholder={`Buscar ${rotulo.toLowerCase()}…`} />}
-            <CommandList>
-              <CommandEmpty>Nada encontrado.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem onSelect={() => { onValor(undefined); setAberto(false); }}>
-                  <Check className={`mr-2 h-4 w-4 ${!valor ? "opacity-100" : "opacity-0"}`} /> {rotulo}: {todos}
-                </CommandItem>
-                {opcoes.map((o) => (
-                  <CommandItem key={o} value={o} onSelect={() => { onValor(o); setAberto(false); }}>
-                    <Check className={`mr-2 h-4 w-4 ${valor === o ? "opacity-100" : "opacity-0"}`} /> {o}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {ativo && (
-        <button type="button" onClick={() => onValor(undefined)} className="mr-1.5 rounded-full p-0.5 hover:bg-background/60" aria-label={`Remover filtro ${rotulo}`}>
-          <X className="h-3.5 w-3.5" />
-        </button>
-      )}
-    </div>
-  );
-}
 
 /* ---------------- Indicadores ---------------- */
 

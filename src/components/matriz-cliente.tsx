@@ -12,17 +12,20 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz } from "@/lib/matriz.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
+import { FiltroCampos } from "@/components/filtro-campos";
+import { separarFiltros, type FiltroCampo } from "@/lib/campos-elora";
 
 type Dados = Awaited<ReturnType<typeof lerMatriz>>;
 type Dim = "canal" | "atendente" | "equipe";
 
 const COR: Record<TipoColuna, string> = { app: "var(--chart-1)", manual: "var(--chart-3)", combinada: "var(--chart-4)", formula: "var(--chart-2)" };
 const ROTULO_TIPO: Record<TipoColuna, string> = { app: "Do app", manual: "Manual", combinada: "Combinada", formula: "Fórmula" };
-const DIMS: { k: Dim; rotulo: string }[] = [
-  { k: "canal", rotulo: "Canal" },
-  { k: "atendente", rotulo: "Atendente" },
-  { k: "equipe", rotulo: "Equipe" },
-];
+/** Dimensões que a Matriz aplica direto nas linhas gravadas; o resto liga pelo contato. */
+const NATIVOS_MATRIZ: Record<Dim, { fonte: "atendimento"; campo: string }> = {
+  canal: { fonte: "atendimento", campo: "canal" },
+  atendente: { fonte: "atendimento", campo: "atendente" },
+  equipe: { fonte: "atendimento", campo: "equipe" },
+};
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const dataBr = (d: string) => d.split("-").reverse().slice(0, 2).join("/");
 
@@ -51,7 +54,7 @@ function Celula({ c, formato }: { c?: { valor: number | null; estimado: boolean;
 export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: string; periodo: Periodo; editando: boolean }) {
   const [d, setD] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [filtros, setFiltros] = useState<Partial<Record<Dim, string>>>({});
+  const [filtros, setFiltros] = useState<FiltroCampo[]>([]);
   const [ordem, setOrdem] = useState<{ chave: string; desc: boolean }>({ chave: "dia", desc: true });
   const [editor, setEditor] = useState<ColunaMatriz | "nova" | null>(null);
   const [v, setV] = useState(0);
@@ -59,7 +62,8 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
 
   useEffect(() => {
     let vivo = true;
-    lerMatriz({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros } })
+    const { diretos, outros } = separarFiltros(filtros, NATIVOS_MATRIZ);
+    lerMatriz({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros: diretos, campos: outros } })
       .then((r) => vivo && (setD(r), setErro(null)))
       .catch((e) => vivo && setErro(msg(e)));
     return () => {
@@ -104,35 +108,16 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   const alternar = (c: ColunaMatriz) => void salvarOrdem(d.todasColunas.map((x) => (x.chave === c.chave ? { ...x, ativo: !x.ativo } : x)));
 
   const ordenar = (chave: string) => setOrdem((o) => ({ chave, desc: o.chave === chave ? !o.desc : true }));
-  const dimsVisiveis = DIMS.filter((x) => (d.opcoes[x.k]?.length ?? 0) > 1);
 
   return (
     <div className="space-y-3">
-      {dimsVisiveis.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {dimsVisiveis.map((x) => (
-            <Select key={x.k} value={filtros[x.k] ?? "__todos"} onValueChange={(val) => setFiltros((f) => ({ ...f, [x.k]: val === "__todos" ? undefined : val }))}>
-              <SelectTrigger className={`h-8 w-auto gap-1 rounded-full px-3 text-xs ${filtros[x.k] ? "border-primary text-foreground" : "text-muted-foreground"}`}>
-                <span>{x.rotulo}:</span>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__todos">Todos</SelectItem>
-                {d.opcoes[x.k].map((o) => (
-                  <SelectItem key={o} value={o}>
-                    {o}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ))}
-          {Object.values(filtros).some(Boolean) && (
-            <Button variant="ghost" size="sm" className="h-8 rounded-full text-xs" onClick={() => setFiltros({})}>
-              Limpar
-            </Button>
-          )}
-        </div>
-      )}
+      <FiltroCampos
+        clienteId={clienteId}
+        filtros={filtros}
+        onFiltros={setFiltros}
+        fonteDaVisao="atendimento"
+        opcoesNativas={{ "atendimento|canal": d.opcoes.canal, "atendimento|atendente": d.opcoes.atendente, "atendimento|equipe": d.opcoes.equipe }}
+      />
 
       <div className="max-h-[70vh] overflow-auto rounded-xl border bg-card">
         <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
@@ -289,7 +274,7 @@ function SeletorCampo({ valor, catalogo, onMudar }: { valor: Ref | null; catalog
             <SelectLabel>{g.nome}</SelectLabel>
             {g.campos.map((c) => (
               <SelectItem key={`${g.fonte}|${c.campo}`} value={`${g.fonte}|${c.campo}`}>
-                {c.campo.replace(/^campo\./, "")} <span className="text-muted-foreground">({c.preenchidos})</span>
+                {c.rotulo} <span className="text-muted-foreground">({c.preenchidos})</span>
               </SelectItem>
             ))}
           </SelectGroup>

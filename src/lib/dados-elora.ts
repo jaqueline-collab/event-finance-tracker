@@ -4,6 +4,7 @@ export const ABAS_DADOS_ELORA = [
   { key: "conexao", label: "Conexão" },
   { key: "canais", label: "Canais" },
   { key: "painel", label: "Painel do cliente" },
+  { key: "campos", label: "Campos do Elora" },
 ] as const;
 
 export type AbaDadosElora = (typeof ABAS_DADOS_ELORA)[number]["key"];

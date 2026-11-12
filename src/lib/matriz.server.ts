@@ -1,7 +1,8 @@
 /** Leitura da visão Matriz (somente servidor). Nunca lê texto de mensagens. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { listaDias, type Periodo } from "./painel-visual";
-import { calcularIndicadoresCards, catalogoCampos, COLUNAS_PADRAO, ehCombinadaDeCard, type Leitura, type PorDia } from "./indicadores-motor";
+import type { FiltroCampo } from "./campos-elora";
+import { calcularIndicadoresCards, COLUNAS_PADRAO, ehCombinadaDeCard, type Leitura, type PorDia } from "./indicadores-motor";
 import { calcularCorteCliente, lerConfig } from "./indicadores.server";
 import { colunasMatriz, montarMatriz, opcoesDimensoes, somarPadraoPorDia, type ConfigMatriz, type FiltrosMatriz, type LinhaCorteMatriz } from "./matriz";
 
@@ -26,7 +27,12 @@ export async function lerLeiturasCards(db: SupabaseClient, clienteId: string): P
 }
 
 /** Linhas padrão por dia/canal/atendente/equipe: gravadas quando o dia existe, senão calculadas. */
-export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Periodo): Promise<LinhaCorteMatriz[]> {
+export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>): Promise<LinhaCorteMatriz[]> {
+  if (soContatos) {
+    // com filtro por campo, tudo vem do motor restrito ao conjunto de contatos
+    const calc = await calcularCorteCliente(db, clienteId, p, soContatos);
+    return calc.linhas as any;
+  }
   const cols = COLUNAS_PADRAO.map((c) => c.chave).join(", ");
   const gravadas = await lerTudo(() =>
     db.from("elora_relatorio_diario").select(`data, canal, atendente, equipe, ${cols}`).eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id"),
@@ -47,18 +53,28 @@ export async function montarMatrizCliente(
   clienteId: string,
   p: Periodo,
   filtros: FiltrosMatriz,
-  opcoes: { rascunho?: ConfigMatriz; comCatalogo?: boolean } = {},
+  opcoes: { rascunho?: ConfigMatriz; comCatalogo?: boolean; campos?: FiltroCampo[] } = {},
 ) {
+  let filtro: { contatos: Set<string>; cards: Set<string> } | null = null;
+  let catalogo: any[] = [];
+  if (opcoes.campos?.length || opcoes.comCatalogo) {
+    const { catalogoDoCliente } = await import("./campos-elora.server");
+    const { aplicarFiltrosCampos, catalogoVisivel } = await import("./campos-elora");
+    const cat = await catalogoDoCliente(db, clienteId);
+    if (opcoes.campos?.length) filtro = aplicarFiltrosCampos(cat.base, opcoes.campos);
+    if (opcoes.comCatalogo)
+      catalogo = catalogoVisivel(cat.catalogo, "coluna").map((g) => ({ fonte: g.fonte, nome: g.nome, campos: g.campos.map((c) => ({ campo: c.campo, rotulo: c.rotulo, preenchidos: c.preenchidos })) }));
+  }
   const salvas = (await lerConfig(db, clienteId)) as ConfigMatriz[];
   const configs = opcoes.rascunho ? [...salvas.filter((c) => c.chave !== opcoes.rascunho!.chave), opcoes.rascunho] : salvas;
   const precisaCards = configs.some((c) => c.ativo && ehCombinadaDeCard(c)) || opcoes.comCatalogo;
   const [linhas, leituras, manuaisRaw] = await Promise.all([
-    linhasPadrao(db, clienteId, p),
+    linhasPadrao(db, clienteId, p, filtro?.contatos),
     precisaCards ? lerLeiturasCards(db, clienteId) : Promise.resolve([] as Leitura[]),
     lerTudo(() => db.from("elora_matriz_manual" as any).select("coluna_chave, data, valor").eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id")),
   ]);
   const m: PorDia = somarPadraoPorDia(linhas, filtros);
-  calcularIndicadoresCards(configs, leituras, m);
+  calcularIndicadoresCards(configs, filtro ? leituras.filter((l) => filtro!.cards.has(l.card_id)) : leituras, m);
   const manuais = new Map<string, Record<string, number>>();
   for (const r of manuaisRaw as any[]) {
     if (r.valor == null) continue;
@@ -75,6 +91,6 @@ export async function montarMatrizCliente(
     opcoes: opcoesDimensoes(linhas),
     temCards: leituras.length > 0,
     etapas: opcoes.comCatalogo ? etapas : [],
-    catalogo: opcoes.comCatalogo ? catalogoCampos(leituras).filter((g) => g.campos.length > 0) : [],
+    catalogo: catalogo as { fonte: "card" | "contato" | "atendimento" | "utm"; nome: string; campos: { campo: string; rotulo: string; preenchidos: number }[] }[],
   };
 }

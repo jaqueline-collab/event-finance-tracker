@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { filtroCampoSchema } from "@/lib/campos-elora";
 import { diffVisoes, visoesVisiveis, type Visao } from "@/lib/dashboard-visoes";
 
 /**
@@ -44,6 +45,7 @@ async function lerVisoes(admin: any, clienteId: string): Promise<(Visao & { filt
     publicada: Boolean(v.publicada),
     totalGraficos: contagem.get(String(v.id)) ?? 0,
     ocultos: Array.isArray(v.filtros?.cartoesOcultos) ? v.filtros.cartoesOcultos.map(String) : [],
+    filtrosPadrao: Array.isArray(v.filtros?.filtrosPadrao) ? v.filtros.filtrosPadrao.filter((f: unknown) => filtroCampoSchema.safeParse(f).success) : [],
     filtrosBrutos: v.filtros ?? {},
   }));
 }
@@ -130,4 +132,26 @@ export const salvarVisoesCliente = createServerFn({ method: "POST" })
     const { visaoPadrao } = await import("@/lib/dashboard-visoes.server");
     await visaoPadrao(db, data.clienteId);
     return { visoes: (await lerVisoes(db, data.clienteId)).map(({ filtrosBrutos: _f, ...v }) => v) };
+  });
+
+/** Filtros padrão de uma visão. Só super admin. */
+export const salvarFiltrosPadraoVisao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ clienteId: z.string().min(1), visaoId: z.string().uuid(), filtros: z.array(filtroCampoSchema).max(20) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    if (!(await ehSuperAdmin(context.supabase))) throw new Error("acesso-negado: apenas super admin.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: v, error } = await db.from("elora_dashboard_visoes").select("filtros").eq("id", data.visaoId).eq("cliente_id", data.clienteId).maybeSingle();
+    if (error) throw new Error(`visoes: ${error.message}`);
+    if (!v) throw new Error("visão não encontrada.");
+    const { error: e2 } = await db
+      .from("elora_dashboard_visoes")
+      .update({ filtros: { ...(v.filtros ?? {}), filtrosPadrao: data.filtros } })
+      .eq("id", data.visaoId)
+      .eq("cliente_id", data.clienteId);
+    if (e2) throw new Error(`visoes: ${e2.message}`);
+    return { ok: true };
   });
