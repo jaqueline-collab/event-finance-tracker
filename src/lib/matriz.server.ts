@@ -64,7 +64,8 @@ export async function montarMatrizCliente(
       catalogo = catalogoVisivel(cat.catalogo, "coluna").map((g) => ({ fonte: g.fonte, nome: g.nome, campos: g.campos.map((c) => ({ campo: c.campo, rotulo: c.rotulo, preenchidos: c.preenchidos })) }));
   }
   const salvas = (await lerConfig(db, clienteId)) as ConfigMatriz[];
-  const configs = opcoes.rascunho ? [...salvas.filter((c) => c.chave !== opcoes.rascunho!.chave), opcoes.rascunho] : salvas;
+  const rascunho = opcoes.rascunho;
+  const configs = rascunho ? [...salvas.filter((c) => c.chave !== rascunho.chave), rascunho] : salvas;
   const precisaCards = configs.some((c) => c.ativo && ehCombinadaDeCard(c)) || opcoes.comCatalogo;
   const [linhas, leituras, manuaisRaw] = await Promise.all([
     linhasPadrao(db, clienteId, p, filtro?.contatos),
@@ -72,7 +73,8 @@ export async function montarMatrizCliente(
     lerTudo(() => db.from("elora_matriz_manual" as any).select("coluna_chave, data, valor").eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id")),
   ]);
   const m: PorDia = somarPadraoPorDia(linhas, filtros);
-  calcularIndicadoresCards(configs, filtro ? leituras.filter((l) => filtro!.cards.has(l.card_id)) : leituras, m);
+  const cardsFiltrados = filtro?.cards;
+  calcularIndicadoresCards(configs, cardsFiltrados ? leituras.filter((l) => cardsFiltrados.has(l.card_id)) : leituras, m);
   const manuais = new Map<string, Record<string, number>>();
   for (const r of manuaisRaw as any[]) {
     if (r.valor == null) continue;

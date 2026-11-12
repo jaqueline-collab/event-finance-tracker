@@ -235,8 +235,10 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
                     {editavel && c.tipo === "manual" && c.ativo ? (
                       <CelulaManual clienteId={clienteId} chave={c.chave} dia={l.dia} valor={l.celulas[c.chave]?.valor ?? null} aoSalvar={recarregar} />
                     ) : ativasPorChave.has(c.chave) ? (
+                      <>
                       <Celula c={l.celulas[c.chave]} formato={c.formato} desde={d.primeiraLeitura} />
                       {comparacao && comparacao.existente[l.dia]?.[c.chave] !== undefined && <span className="ml-2 text-xs text-muted-foreground">gravado {comparacao.existente[l.dia][c.chave]} · Δ {(l.celulas[c.chave]?.valor ?? 0) - comparacao.existente[l.dia][c.chave]}</span>}
+                      </>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
