@@ -89,6 +89,8 @@ export const lerMatriz = createServerFn({ method: "POST" })
       todasColunas: podeEditar ? r.todasColunas : r.colunas,
       linhas: r.linhas,
       total: r.total,
+      cobertura: r.cobertura,
+      primeiraLeitura: r.primeiraLeitura,
       erros: podeEditar ? r.erros : [],
       opcoes: r.opcoes,
       temCards: r.temCards,

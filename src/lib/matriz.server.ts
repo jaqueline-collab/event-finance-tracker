@@ -5,6 +5,7 @@ import type { FiltroCampo } from "./campos-elora";
 import { calcularIndicadoresCards, COLUNAS_PADRAO, ehCombinadaDeCard, type Leitura, type PorDia } from "./indicadores-motor";
 import { calcularCorteCliente, lerConfig } from "./indicadores.server";
 import { colunasMatriz, montarMatriz, opcoesDimensoes, somarPadraoPorDia, type ConfigMatriz, type FiltrosMatriz, type LinhaCorteMatriz } from "./matriz";
+import { estadoCobertura } from "./sync-cobertura";
 
 async function lerTudo(q: () => any): Promise<any[]> {
   const out: any[] = [];
@@ -82,11 +83,19 @@ export async function montarMatrizCliente(
   const todas = colunasMatriz(configs);
   const r = montarMatriz(todas, listaDias(p), m, manuais);
   const etapas = [...new Set(leituras.map((l) => l.etapa_titulo).filter(Boolean) as string[])].sort();
+  const { data: sync, error: syncError } = await db.from("elora_sync_estado").select("fonte, concluido_em, cursor").eq("cliente_id", clienteId);
+  if (syncError) throw new Error(syncError.message);
+  const estados = sync ?? [];
+  const fontes = ["contatos", "atendimentos", "mensagens", ...(precisaCards ? ["cards"] : [])];
+  const cobertura = Object.fromEntries(listaDias(p).map(d => [d, estadoCobertura(d, fontes, estados)]));
+  const primeiraLeitura = leituras.map(l => l.visto_em).filter(Boolean).sort()[0] ?? null;
   return {
     ...r,
     todasColunas: todas,
     opcoes: opcoesDimensoes(linhas),
     temCards: leituras.length > 0,
+    cobertura,
+    primeiraLeitura,
     etapas: opcoes.comCatalogo ? etapas : [],
     catalogo: catalogo as { fonte: "card" | "contato" | "atendimento" | "utm"; nome: string; campos: { campo: string; rotulo: string; preenchidos: number }[] }[],
   };
