@@ -8,18 +8,15 @@ import { COLUNAS_PADRAO } from "./indicadores-motor";
 import { calcularCorteCliente } from "./indicadores.server";
 
 const COLS = COLUNAS_PADRAO.map((c) => c.chave);
-const chave = (l: any) => [String(l.dia ?? l.data), l.canal ?? "", l.atendente ?? "", l.equipe ?? ""].join("|");
 
-/** Pura: dias em que as linhas calculadas diferem das gravadas (colunas padrão). */
+/**
+ * Pura: dias em que o total do dia (colunas padrão) calculado difere do gravado.
+ * Compara totais, não a quebra por canal/atendente/equipe, para uma mudança só de
+ * configuração (ex.: mapa de equipe) não reescrever dias cujos números não mudaram.
+ */
 export function diasDiferentes(gravadas: any[], calculadas: any[], dias: string[]): string[] {
-  const out: string[] = [];
-  for (const d of dias) {
-    const g = new Map(gravadas.filter((l) => String(l.data ?? l.dia) === d).map((l) => [chave(l), l]));
-    const c = new Map(calculadas.filter((l) => String(l.dia) === d && COLS.some((k) => Number(l[k] ?? 0) !== 0)).map((l) => [chave(l), l]));
-    const ks = new Set([...g.keys(), ...c.keys()]);
-    if ([...ks].some((k) => COLS.some((col) => Number(g.get(k)?.[col] ?? 0) !== Number(c.get(k)?.[col] ?? 0)))) out.push(d);
-  }
-  return out;
+  const soma = (ls: any[], d: string, col: string, k: "data" | "dia") => ls.filter((l) => String(l[k] ?? l.dia) === d).reduce((a, l) => a + Number(l[col] ?? 0), 0);
+  return dias.filter((d) => COLS.some((col) => soma(gravadas, d, col, "data") !== soma(calculadas, d, col, "dia")));
 }
 
 export async function recalcularDiasGravados(db: SupabaseClient, clienteId: string, dias: string[], motivo: string) {
