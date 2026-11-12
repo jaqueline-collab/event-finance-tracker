@@ -55,7 +55,7 @@ export function CartoesGraficos({
   const [editor, setEditor] = useState<CartaoGrafico | null>(null);
   const [arrastando, setArrastando] = useState<string | null>(null);
   const editavel = editando && podeEditar;
-  useEffect(() => setCartoes(iniciais), [visaoId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setCartoes(iniciais), [visaoId, iniciais]);
   useEffect(() => {
     if (novoChave > 0 && editavel) setEditor(novoCartao(crypto.randomUUID().slice(0, 12)));
   }, [novoChave]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -448,7 +448,7 @@ function EditorCartao({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Medida</Label>
-                  <Select value={c.medida} onValueChange={(v) => set({ medida: v as any, ...(v === "indicador" ? { indicador: op.indicadores[0]?.chave ?? null, dimensao: null, serie: null } : {}) })}>
+                  <Select value={c.medida} onValueChange={(v) => set({ painel: undefined, medida: v as any, ...(v === "indicador" ? { indicador: op.indicadores[0]?.chave ?? null, dimensao: null, serie: null } : {}) })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{medidasOk.map((m) => <SelectItem key={m} value={m}>{ROTULO_MEDIDA[m]}</SelectItem>)}</SelectContent>
                   </Select>
@@ -464,7 +464,7 @@ function EditorCartao({
                 ) : (
                   <div className="space-y-1">
                     <Label>Fonte</Label>
-                    <Select value={c.fonte} onValueChange={(v) => set({ fonte: v as FonteCampo })}>
+                    <Select value={c.fonte} onValueChange={(v) => set({ painel: undefined, fonte: v as FonteCampo })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{FONTES_CATALOGO.filter((f) => fontes.includes(f.fonte)).map((f) => <SelectItem key={f.fonte} value={f.fonte}>{f.nome}</SelectItem>)}</SelectContent>
                     </Select>
