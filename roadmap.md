@@ -25,4 +25,4 @@
 - [x] Novos ADS 251 x 250: causa (campanha adicionada depois), 01/10 corrigido com backup, Matriz com regra única + teste
 - [x] Sincronização recalcula dias alterados com backup
 - [x] Matriz: filtros padrão da visão (só super admin)
-- [ ] Trocar os seis gráficos fixos do painel por cartões configurados — aguardando decisão da Jaqueline
+- [ ] Fase 5: comparar e substituir os seis gráficos fixos; retirar aba Relatório diário preservando dependências; acabamento das estimativas e sincronização; unificar duplicidades; conferir ranking da IA, desempenho e avisos de segurança — plano aguardando aprovação, sem publicar.
