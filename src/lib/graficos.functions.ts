@@ -56,6 +56,14 @@ export const calcularCartao = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const p = { de: data.de, ate: data.ate };
+    if (c.painel) {
+      const { calcularPainelVisual } = await import("@/lib/painel-visual.server");
+      const { separarFiltros } = await import("@/lib/campos-elora");
+      const { cartaoDoPainel } = await import("@/lib/graficos");
+      const nativos = { canal: { fonte: "atendimento" as const, campo: "canal" }, atendente: { fonte: "atendimento" as const, campo: "atendente" }, origem: { fonte: "contato" as const, campo: "origem" }, etiqueta: { fonte: "contato" as const, campo: "etiquetas" }, campanha: { fonte: "utm" as const, campo: "campaign" } };
+      const { diretos, outros } = separarFiltros([...data.filtrosVisao, ...c.filtros], nativos);
+      return { oculto: false as const, r: cartaoDoPainel(await calcularPainelVisual(db, data.clienteId, p, diretos, outros), c) };
+    }
     const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
     const cat = await catalogoDoCliente(db, data.clienteId);
     if (c.medida === "indicador") {
