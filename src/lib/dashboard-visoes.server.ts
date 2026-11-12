@@ -12,9 +12,10 @@ export async function visaoPadrao(admin: any, clienteId: string): Promise<string
     .limit(1)
     .maybeSingle();
   if (atual?.id) return String(atual.id);
+  const espelho = await (await import("./elora-espelho.server")).usaEspelho(admin, clienteId);
   const { data: nova, error } = await admin
     .from("elora_dashboard_visoes")
-    .insert({ cliente_id: clienteId, nome: "Resultados", ordem: 0, publicada: true, filtros: { cartoes: (await import("./graficos")).CARTOES_PAINEL, painelCartoesMigrado: true } })
+    .insert({ cliente_id: clienteId, nome: "Resultados", ordem: 0, publicada: true, filtros: espelho ? { cartoes: (await import("./graficos")).CARTOES_PAINEL, painelCartoesMigrado: true } : {} })
     .select("id")
     .single();
   if (error) throw new Error(`visoes: ${error.message}`);

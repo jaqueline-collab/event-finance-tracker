@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
 import { MarcaEstimativa } from "@/components/marca-estimativa";
+import { exportarMatriz } from "@/lib/matriz-exportar";
 import { MatrizDimensionalLegada } from "@/components/resultados-cliente";
 import { validarRelatorioDiario } from "@/lib/indicadores.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
@@ -152,6 +153,12 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
       <div className="flex flex-wrap items-center gap-2">
         <Select value={modo} onValueChange={setModo}><SelectTrigger className="w-auto" aria-label="Modo da Matriz"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="diaria">Diária · cálculo atual</SelectItem><SelectItem value="dimensoes">Por dimensões · registros e congelamentos</SelectItem></SelectContent></Select>
         {editavel && modo === "diaria" && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} disabled={filtros.length > 0} />Comparar com gravado</label>}
+        {modo === "diaria" && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm">Exportar</Button></DropdownMenuTrigger><DropdownMenuContent>{(["csv", "xlsx", "pdf"] as const).map(f => <DropdownMenuItem key={f} onClick={() => {
+          const cols = d.colunas;
+          const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? "—"}${v?.estimado ? " (estimado)" : ""}`; }), d.cobertura[l.dia]]);
+          corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? "—"}${d.total[c.chave]?.estimado ? " (estimado)" : ""}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "parcial" : "confirmado"]);
+          void exportarMatriz(f, ["Dia", ...cols.map(c=>c.nome), "Cobertura"], corpo, `matriz-${periodo.de}-${periodo.ate}`).catch(e=>toast.error(msg(e)));
+        }}>{f.toUpperCase()}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
       </div>
       {modo === "dimensoes" ? <MatrizDimensionalLegada clienteId={clienteId} /> : <>
       {editavel && mudouPadrao && (
