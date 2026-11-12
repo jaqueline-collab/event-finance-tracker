@@ -2464,18 +2464,21 @@ export type Database = {
           atualizado_em: string
           cliente_id: string
           equipe_por_canal: Json
+          matriz_filtros_padrao: Json
         }
         Insert: {
           atendentes_ignorados?: Json
           atualizado_em?: string
           cliente_id: string
           equipe_por_canal?: Json
+          matriz_filtros_padrao?: Json
         }
         Update: {
           atendentes_ignorados?: Json
           atualizado_em?: string
           cliente_id?: string
           equipe_por_canal?: Json
+          matriz_filtros_padrao?: Json
         }
         Relationships: [
           {
