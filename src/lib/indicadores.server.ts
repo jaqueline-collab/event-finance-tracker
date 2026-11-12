@@ -137,15 +137,12 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     else agentes[a.externo_id] = { nome: a.nome ?? "", email: a.payload?.email ?? null };
   }
   if (soContatos) {
-    // filtro por campo: só contatos do conjunto (sem juntar linhas)
-    const ok = (id: unknown) => id != null && soContatos.has(String(id));
-    const sessoesOk = sessoes.filter((s) => ok(s.contato_id));
-    const ids = new Set(sessoesOk.map((s) => s.id));
-    sessoes.length = 0;
-    sessoes.push(...sessoesOk);
-    msgsRaw.splice(0, msgsRaw.length, ...msgsRaw.filter((m: any) => ids.has(String(m.sessao_id))));
-    contatosRaw.splice(0, contatosRaw.length, ...(contatosRaw as any[]).filter((x) => ok(x.externo_id)));
-    primeiras.splice(0, primeiras.length, ...primeiras.filter((s) => ok(s.contato_id)));
+    const { restringirAContatos } = await import("./indicadores-motor");
+    const r = restringirAContatos(soContatos, { sessoes, msgs: msgsRaw as any[], contatos: contatosRaw as any[], primeiras });
+    sessoes.splice(0, sessoes.length, ...r.sessoes);
+    msgsRaw.splice(0, msgsRaw.length, ...r.msgs);
+    contatosRaw.splice(0, contatosRaw.length, ...r.contatos);
+    primeiras.splice(0, primeiras.length, ...r.primeiras);
   }
   const c: any = corte.data ?? {};
   const extra = Array.isArray(c.atendentes_ignorados) ? c.atendentes_ignorados : [];

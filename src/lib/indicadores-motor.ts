@@ -394,3 +394,19 @@ export function calcularPadraoPorCorteDetalhado(
   return { linhas: ordem, removidas };
 }
 const TIPOS_IGNORADOS_MOTOR = new Set(["NOTE", "TRANSITION", "TRACK"]);
+
+/** Filtro por campo: mantém só o conjunto de contatos (sem juntar linhas). Mesma regra do caminho sem filtro. */
+export function restringirAContatos<S extends { id: string; contato_id?: unknown }, M extends { sessao_id: unknown }, C extends { externo_id: unknown }, P extends { contato_id?: unknown }>(
+  soContatos: Set<string>,
+  d: { sessoes: S[]; msgs: M[]; contatos: C[]; primeiras: P[] },
+) {
+  const ok = (id: unknown) => id != null && soContatos.has(String(id));
+  const sessoes = d.sessoes.filter((s) => ok(s.contato_id));
+  const ids = new Set(sessoes.map((s) => s.id));
+  return {
+    sessoes,
+    msgs: d.msgs.filter((m) => ids.has(String(m.sessao_id))),
+    contatos: d.contatos.filter((x) => ok(x.externo_id)),
+    primeiras: d.primeiras.filter((s) => ok(s.contato_id)),
+  };
+}
