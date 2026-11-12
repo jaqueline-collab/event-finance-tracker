@@ -249,7 +249,7 @@ function AreaCliente() {
                   <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfigurar("conexao")}>
                     <Cable className="mr-1 h-3.5 w-3.5" /> Conexão e canais
                   </Button>
-                  {estadoVisoes.aceitaGraficos && painelVisual !== undefined && painelVisual !== null && (
+                  {estadoVisoes.aceitaGraficos && (painelVisual === false || (painelVisual === true && !estadoVisoes.graficosAtiva)) && (
                     <Button size="sm" variant="ghost" className="h-7" onClick={() => setNovoGrafico((n) => n + 1)}>
                       <Plus className="mr-1 h-3.5 w-3.5" /> Gráfico
                     </Button>
@@ -522,10 +522,10 @@ function PainelComFiltros({
   visaoId,
   padrao,
   podeSalvarPadrao,
-  ...rest
   cartoes,
   outrasVisoes,
   novoGraficoChave,
+  ...rest
 }: Omit<ComponentProps<typeof PainelVisual>, "filtros" | "onFiltros"> & {
   visaoId: string | null;
   padrao: FiltroCampo[];
