@@ -12,7 +12,7 @@
 - [x] Botão "Sincronizar agora" no app (espelho) e teste
 - [x] Relatório diário 22/09–03/10 (com 30/09) x monday
 - [x] Fase 1 do visual do Painel do cliente (8c0ojhr2): cabeçalho, período, chips, 4 indicadores, 6 gráficos interativos, abas sublinhadas. Conferência logada indisponível (Supabase externo).
-- [ ] Fase 2: construtor de gráfico (desenho página 5)
+- [x] Fase 4 (antiga Fase 2): construtor de gráficos em cartões por visão. Conferência logada em 390/834/1440 indisponível (banco externo).
 - [x] Fase 3: princípio dados incompletos aplicado; visão Matriz com editor de colunas; Regras do relatório; limpeza da aba Painel do cliente. Conferência visual logada pendente (banco externo).
 
 - [x] Etapa C parte 2: cards (abertos/ganhos/perdidos/arquivados) + histórico, configuração de indicadores, motor único, tela de validação
@@ -21,3 +21,8 @@
 - [x] Suporte interno global (por e-mail ou nome, só super admin) + lista extra por cliente; mapa de equipe por canal como configuração do cliente; revisar o que é específico do Dr. Ricardo
 - [x] Gravar relatório por canal/atendente/equipe 22/09–03/10 com backup das 12 linhas do n8n — aguardando ok
 - [x] Fonte dos dados por cliente (antiga/automática) no lugar do jvu3dzqk fixo
+
+- [x] Novos ADS 251 x 250: causa (campanha adicionada depois), 01/10 corrigido com backup, Matriz com regra única + teste
+- [x] Sincronização recalcula dias alterados com backup
+- [x] Matriz: filtros padrão da visão (só super admin)
+- [ ] Trocar os seis gráficos fixos do painel por cartões configurados — aguardando decisão da Jaqueline

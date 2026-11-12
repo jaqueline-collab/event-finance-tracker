@@ -1,0 +1,1 @@
+ALTER TABLE public.elora_relatorio_corte_config ADD COLUMN IF NOT EXISTS matriz_filtros_padrao jsonb NOT NULL DEFAULT '[]'::jsonb;

@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz } from "@/lib/matriz.functions";
+import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
 import { FiltroCampos } from "@/components/filtro-campos";
@@ -55,6 +55,9 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   const [d, setD] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltroCampo[]>([]);
+  // padrão da visão: aplicado uma vez ao abrir; depois o filtro é só da sessão
+  const [padrao, setPadrao] = useState<FiltroCampo[] | null>(null);
+  const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [ordem, setOrdem] = useState<{ chave: string; desc: boolean }>({ chave: "dia", desc: true });
   const [editor, setEditor] = useState<ColunaMatriz | "nova" | null>(null);
   const [v, setV] = useState(0);
@@ -64,7 +67,18 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
     let vivo = true;
     const { diretos, outros } = separarFiltros(filtros, NATIVOS_MATRIZ);
     lerMatriz({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros: diretos, campos: outros } })
-      .then((r) => vivo && (setD(r), setErro(null)))
+      .then((r) => {
+        if (!vivo) return;
+        setErro(null);
+        if (padrao === null) {
+          setPadrao(r.filtrosPadrao);
+          if (r.filtrosPadrao.length) {
+            setFiltros(r.filtrosPadrao);
+            return; // recarrega já com o padrão, sem mostrar a matriz sem filtro
+          }
+        }
+        setD(r);
+      })
       .catch((e) => vivo && setErro(msg(e)));
     return () => {
       vivo = false;
@@ -109,8 +123,31 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
 
   const ordenar = (chave: string) => setOrdem((o) => ({ chave, desc: o.chave === chave ? !o.desc : true }));
 
+  const padraoAtual = padrao ?? [];
+  const mudouPadrao = JSON.stringify(filtros) !== JSON.stringify(padraoAtual);
+  const salvarPadrao = async () => {
+    setSalvandoPadrao(true);
+    try {
+      await salvarFiltrosPadraoMatriz({ data: { clienteId, filtros } });
+      setPadrao(filtros);
+      toast.success("Filtros padrão da Matriz salvos.");
+    } catch (e) {
+      toast.error(msg(e));
+    } finally {
+      setSalvandoPadrao(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
+      {editavel && mudouPadrao && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Os filtros desta visão mudaram.</span>
+          <Button size="sm" variant="outline" className="h-7" disabled={salvandoPadrao} onClick={salvarPadrao}>
+            Salvar como padrão da visão
+          </Button>
+        </div>
+      )}
       <FiltroCampos
         clienteId={clienteId}
         filtros={filtros}

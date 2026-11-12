@@ -51,6 +51,8 @@ import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-shee
 import { PainelVisual, SeletorPeriodo } from "@/components/painel-visual";
 import { MatrizCliente } from "@/components/matriz-cliente";
 import { salvarFiltrosPadraoVisao } from "@/lib/dashboard-visoes.functions";
+import { CartoesGraficos } from "@/components/cartoes-graficos";
+import type { CartaoGrafico } from "@/lib/graficos";
 import type { FiltroCampo } from "@/lib/campos-elora";
 import { periodoDe, type Periodo, type PeriodoChave } from "@/lib/painel-visual";
 
@@ -247,7 +249,7 @@ function AreaCliente() {
                   <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfigurar("conexao")}>
                     <Cable className="mr-1 h-3.5 w-3.5" /> Conexão e canais
                   </Button>
-                  {estadoVisoes.aceitaGraficos && painelVisual === false && (
+                  {estadoVisoes.aceitaGraficos && (painelVisual === false || (painelVisual === true && !estadoVisoes.graficosAtiva)) && (
                     <Button size="sm" variant="ghost" className="h-7" onClick={() => setNovoGrafico((n) => n + 1)}>
                       <Plus className="mr-1 h-3.5 w-3.5" /> Gráfico
                     </Button>
@@ -352,6 +354,9 @@ function AreaCliente() {
                         editando={ctx.editando}
                         ocultos={ctx.ocultos}
                         onAlternarOculto={ctx.alternarOculto}
+                        cartoes={ctx.cartoes}
+                        outrasVisoes={ctx.outrasVisoes}
+                        novoGraficoChave={painelVisual ? novoGrafico : 0}
                       />
                       {painelVisual === false && <ResultadosCliente clienteId={cliente.id} visaoId={visaoId} recarregarChave={chave} />}
                     </div>
@@ -517,8 +522,18 @@ function PainelComFiltros({
   visaoId,
   padrao,
   podeSalvarPadrao,
+  cartoes,
+  outrasVisoes,
+  novoGraficoChave,
   ...rest
-}: Omit<ComponentProps<typeof PainelVisual>, "filtros" | "onFiltros"> & { visaoId: string | null; padrao: FiltroCampo[]; podeSalvarPadrao: boolean }) {
+}: Omit<ComponentProps<typeof PainelVisual>, "filtros" | "onFiltros"> & {
+  visaoId: string | null;
+  padrao: FiltroCampo[];
+  podeSalvarPadrao: boolean;
+  cartoes: CartaoGrafico[];
+  outrasVisoes: { id: string; nome: string }[];
+  novoGraficoChave: number;
+}) {
   const [filtros, setFiltros] = useState<FiltroCampo[]>(padrao);
   const [salvando, setSalvando] = useState(false);
   const iguais = JSON.stringify(filtros) === JSON.stringify(padrao);
@@ -549,6 +564,20 @@ function PainelComFiltros({
         </div>
       )}
       <PainelVisual {...rest} filtros={filtros} onFiltros={setFiltros} />
+      {visaoId && (
+        <CartoesGraficos
+          clienteId={rest.clienteId}
+          visaoId={visaoId}
+          iniciais={cartoes}
+          editando={Boolean(rest.editando)}
+          podeEditar={podeSalvarPadrao}
+          periodo={rest.periodo}
+          filtrosVisao={filtros}
+          onFiltroGrafico={(f) => setFiltros((l) => [...l.filter((x) => !(x.fonte === f.fonte && x.campo === f.campo)), f])}
+          outrasVisoes={outrasVisoes}
+          novoChave={novoGraficoChave}
+        />
+      )}
     </div>
   );
 }
