@@ -26,10 +26,15 @@ export async function lerLeiturasCards(db: SupabaseClient, clienteId: string): P
   return leituras.map((l: any) => ({ ...l, card_id: String(l.card_id), criado_em: criados.get(String(l.card_id)) ?? null }));
 }
 
-/** Linhas padrão por dia/canal/atendente/equipe: gravadas quando o dia existe, senão calculadas. */
+/**
+ * Linhas padrão por dia/canal/atendente/equipe. Regra única: cliente com espelho
+ * usa sempre o motor (com ou sem filtro, o filtro só restringe contatos), para
+ * "sem filtro" e "filtro que não exclui ninguém" darem o mesmo número.
+ * Cliente sem espelho (fonte antiga) lê o que está gravado.
+ */
 export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>): Promise<LinhaCorteMatriz[]> {
-  if (soContatos) {
-    // com filtro por campo, tudo vem do motor restrito ao conjunto de contatos
+  const { usaEspelho } = await import("./elora-espelho.server");
+  if (soContatos || (await usaEspelho(db, clienteId))) {
     const calc = await calcularCorteCliente(db, clienteId, p, soContatos);
     return calc.linhas as any;
   }
@@ -37,15 +42,7 @@ export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Per
   const gravadas = await lerTudo(() =>
     db.from("elora_relatorio_diario").select(`data, canal, atendente, equipe, ${cols}`).eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id"),
   );
-  const out: LinhaCorteMatriz[] = gravadas.map((r: any) => ({ ...r, dia: String(r.data), canal: r.canal ?? "", atendente: r.atendente ?? "", equipe: r.equipe ?? "" }));
-  const comDado = new Set(out.map((l) => l.dia));
-  const faltam = listaDias(p).filter((d) => !comDado.has(d));
-  if (faltam.length) {
-    const calc = await calcularCorteCliente(db, clienteId, { de: faltam[0], ate: faltam[faltam.length - 1] });
-    const set = new Set(faltam);
-    for (const l of calc.linhas) if (set.has(l.dia)) out.push(l as any);
-  }
-  return out;
+  return gravadas.map((r: any) => ({ ...r, dia: String(r.data), canal: r.canal ?? "", atendente: r.atendente ?? "", equipe: r.equipe ?? "" }));
 }
 
 export async function montarMatrizCliente(
