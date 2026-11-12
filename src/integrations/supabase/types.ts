@@ -195,6 +195,36 @@ export type Database = {
           },
         ]
       }
+      elora_campos_ajustes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          campo: string
+          cliente_id: string
+          fonte: string
+          oculto: boolean
+          rotulo: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          campo: string
+          cliente_id: string
+          fonte: string
+          oculto?: boolean
+          rotulo?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          campo?: string
+          cliente_id?: string
+          fonte?: string
+          oculto?: boolean
+          rotulo?: string | null
+        }
+        Relationships: []
+      }
       elora_cards_espelho: {
         Row: {
           atualizado_em: string | null
