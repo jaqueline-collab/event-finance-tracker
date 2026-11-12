@@ -26,3 +26,4 @@
 - [x] Sincronização recalcula dias alterados com backup
 - [x] Matriz: filtros padrão da visão (só super admin)
 - [ ] Fase 5 aprovada: comparar e substituir os seis gráficos fixos automaticamente se idênticos; retirar aba Relatório diário só com consumidores preservados; acabamento das estimativas e sincronização; unificar duplicidades; conferir ranking da IA, desempenho e avisos de segurança. Perguntar apenas sobre divergência incorrigível; entregar relatório final, sem publicar.
+- [ ] Bloqueio da porta de preservação: banco de produção confirmado com apenas Resultados, sem Widgets antigos e zero widgets do Dr. Ricardo (duas leituras independentes). Falta localizar a cópia das três configurações antigas antes de afirmar preservação; nenhuma tela ou dado alterado na Fase 5.
