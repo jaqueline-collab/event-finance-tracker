@@ -299,3 +299,8 @@ export const filtroCampoSchema = z.object({
   de: z.string().max(10).optional(),
   ate: z.string().max(10).optional(),
 });
+
+/** Filtros padrão gravados (visão ou Matriz): só os válidos; vazio quando ausente. */
+export function filtrosPadraoValidos(v: unknown): FiltroCampo[] {
+  return (Array.isArray(v) ? v : []).filter((f) => filtroCampoSchema.safeParse(f).success) as FiltroCampo[];
+}

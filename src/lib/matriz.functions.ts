@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { filtroCampoSchema } from "@/lib/campos-elora";
+import { filtroCampoSchema, filtrosPadraoValidos } from "@/lib/campos-elora";
 import { ehChavePadrao, slugColuna } from "@/lib/matriz";
 
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -80,10 +80,10 @@ export const lerMatriz = createServerFn({ method: "POST" })
     const { montarMatrizCliente } = await import("@/lib/matriz.server");
     const r = await montarMatrizCliente(supabaseAdmin as any, data.clienteId, { de: data.de, ate: data.ate }, data.filtros, { comCatalogo: podeEditar, campos: data.campos as any });
     const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_filtros_padrao").eq("cliente_id", data.clienteId).maybeSingle();
-    const filtrosPadrao = (Array.isArray(cfg?.matriz_filtros_padrao) ? cfg.matriz_filtros_padrao : []).filter((f: unknown) => filtroCampoSchema.safeParse(f).success);
+    const filtrosPadrao = filtrosPadraoValidos(cfg?.matriz_filtros_padrao);
     return {
       podeEditar,
-      filtrosPadrao: filtrosPadrao as z.infer<typeof filtroCampoSchema>[],
+      filtrosPadrao,
       colunas: r.colunas,
       // colunas ocultas só para quem edita
       todasColunas: podeEditar ? r.todasColunas : r.colunas,
