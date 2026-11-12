@@ -41,7 +41,6 @@ import {
 } from "@/lib/cliente.functions";
 import { ResultadosCliente } from "@/components/resultados-cliente";
 import { VisoesPainel, type EstadoVisoes, type VisoesPainelHandle } from "@/components/visoes-painel";
-import { SecaoRelatorioDiario } from "@/components/resultados-cliente";
 import { abaAreaCliente } from "@/lib/area-cliente-menu";
 import { ConfigurarApiCliente } from "@/components/configurar-api-cliente";
 import { usePerfil } from "@/hooks/use-perfil";
@@ -79,7 +78,7 @@ const dataBr = (v?: string | null) =>
 const APP_URL = ELORA_APP_URL;
 
 function AreaCliente() {
-  const { como, aba: abaBruta, configurar } = Route.useSearch();
+  const { como, aba: abaBruta, configurar, visao } = Route.useSearch();
   const aba = abaAreaCliente(abaBruta);
   const navigate = useNavigate();
   const { isAdmin } = useCurrentUserAccess();
@@ -326,8 +325,8 @@ function AreaCliente() {
                 ref={visoesRef}
                 clienteId={cliente.id}
                 onEstado={aoEstadoVisoes}
-                relatorio={<SecaoRelatorioDiario clienteId={cliente.id} />}
-                matriz={painelVisual ? (editando) => <MatrizCliente clienteId={cliente.id} periodo={periodo} editando={editando} /> : undefined}
+                iniciarNaMatriz={visao === "matriz"}
+                matriz={(editando) => <MatrizCliente clienteId={cliente.id} periodo={periodo} editando={editando} />}
                 editorGraficos={
                   modoConfig && painelVisual === false
                     ? (visaoId, aoMudar) => (

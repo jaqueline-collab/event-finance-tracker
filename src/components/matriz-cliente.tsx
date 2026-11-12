@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
+import { MarcaEstimativa } from "@/components/marca-estimativa";
+import { MatrizDimensionalLegada } from "@/components/resultados-cliente";
+import { validarRelatorioDiario } from "@/lib/indicadores.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
 import { FiltroCampos } from "@/components/filtro-campos";
@@ -36,22 +39,21 @@ function formatar(v: number | null, f: Formato) {
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 }
 
-function Celula({ c, formato }: { c?: { valor: number | null; estimado: boolean; erro?: string }; formato: Formato }) {
+function Celula({ c, formato, desde }: { c?: { valor: number | null; estimado: boolean; erro?: string }; formato: Formato; desde?: string | null }) {
   if (!c) return <span className="text-muted-foreground">—</span>;
   if (c.erro) return <span className="text-xs text-destructive" title={c.erro}>Configuração com erro</span>;
   return (
     <span className="tabular-nums">
       {formatar(c.valor, formato)}
-      {c.estimado && (
-        <span className="ml-1 rounded bg-muted px-1 text-[10px] font-medium uppercase text-muted-foreground" title="Inclui dia estimado (antes da primeira leitura do card)">
-          estimado
-        </span>
-      )}
+      {c.estimado && <MarcaEstimativa desde={desde} />}
     </span>
   );
 }
 
 export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: string; periodo: Periodo; editando: boolean }) {
+  const [modo, setModo] = useState("diaria");
+  const [comparar, setComparar] = useState(false);
+  const [comparacao, setComparacao] = useState<Awaited<ReturnType<typeof validarRelatorioDiario>> | null>(null);
   const [d, setD] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltroCampo[]>([]);
@@ -84,6 +86,13 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
       vivo = false;
     };
   }, [clienteId, periodo.de, periodo.ate, JSON.stringify(filtros), v]);
+
+  useEffect(() => {
+    if (!comparar || !editando || !d?.podeEditar || filtros.length) { setComparacao(null); return; }
+    let vivo = true;
+    validarRelatorioDiario({ data: { clienteId, de: periodo.de, ate: periodo.ate } }).then(r => vivo && setComparacao(r)).catch(e => toast.error(msg(e)));
+    return () => { vivo = false; };
+  }, [comparar, editando, d?.podeEditar, clienteId, periodo.de, periodo.ate, JSON.stringify(filtros)]);
 
   const linhas = useMemo(() => {
     if (!d) return [];
@@ -140,6 +149,11 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={modo} onValueChange={setModo}><SelectTrigger className="w-auto" aria-label="Modo da Matriz"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="diaria">Diária · cálculo atual</SelectItem><SelectItem value="dimensoes">Por dimensões · registros e congelamentos</SelectItem></SelectContent></Select>
+        {editavel && modo === "diaria" && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} disabled={filtros.length > 0} />Comparar com gravado</label>}
+      </div>
+      {modo === "dimensoes" ? <MatrizDimensionalLegada clienteId={clienteId} /> : <>
       {editavel && mudouPadrao && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm">
           <span className="text-muted-foreground">Os filtros desta visão mudaram.</span>
@@ -215,13 +229,14 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
           <tbody>
             {linhas.map((l) => (
               <tr key={l.dia} className="hover:bg-muted/40">
-                <td className="sticky left-0 border-b bg-card px-3 py-2 tabular-nums text-muted-foreground">{dataBr(l.dia)}</td>
+                <td className="sticky left-0 border-b bg-card px-3 py-2 tabular-nums text-muted-foreground">{dataBr(l.dia)}{d.cobertura[l.dia] !== "confirmado" && <span className="ml-2 text-[10px]">{d.cobertura[l.dia]}</span>}</td>
                 {colunasTela.map((c) => (
                   <td key={c.chave} className={`border-b px-3 py-2 text-right ${!c.ativo ? "opacity-50" : ""}`}>
                     {editavel && c.tipo === "manual" && c.ativo ? (
                       <CelulaManual clienteId={clienteId} chave={c.chave} dia={l.dia} valor={l.celulas[c.chave]?.valor ?? null} aoSalvar={recarregar} />
                     ) : ativasPorChave.has(c.chave) ? (
-                      <Celula c={l.celulas[c.chave]} formato={c.formato} />
+                      <Celula c={l.celulas[c.chave]} formato={c.formato} desde={d.primeiraLeitura} />
+                      {comparacao && comparacao.existente[l.dia]?.[c.chave] !== undefined && <span className="ml-2 text-xs text-muted-foreground">gravado {comparacao.existente[l.dia][c.chave]} · Δ {(l.celulas[c.chave]?.valor ?? 0) - comparacao.existente[l.dia][c.chave]}</span>}
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -236,7 +251,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
               <td className="sticky left-0 border-t bg-card px-3 py-2.5">Total</td>
               {colunasTela.map((c) => (
                 <td key={c.chave} className="border-t px-3 py-2.5 text-right">
-                  {ativasPorChave.has(c.chave) ? <Celula c={d.total[c.chave]} formato={c.formato} /> : <span className="text-muted-foreground">—</span>}
+                  {ativasPorChave.has(c.chave) ? <Celula c={d.total[c.chave]} formato={c.formato} desde={d.primeiraLeitura} /> : <span className="text-muted-foreground">—</span>}
                 </td>
               ))}
               {editavel && <td className="border-t" />}
@@ -244,6 +259,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
           </tfoot>
         </table>
       </div>
+      <p className="text-xs text-muted-foreground">● Valores estimados incluem dias anteriores à primeira leitura do card; o total mantém essa marca. {Object.values(d.cobertura).some(s => s !== "confirmado") && "Parcial: a sincronização atual não comprova cobertura completa de todos os dias, inclusive no total."}</p>
       {editavel && d.erros.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Colunas com configuração incompleta: {d.erros.map((e) => `${e.nome} (${e.erro})`).join("; ")}.
@@ -261,6 +277,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
           }}
         />
       )}
+      </>}
     </div>
   );
 }
