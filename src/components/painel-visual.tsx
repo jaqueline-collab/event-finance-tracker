@@ -29,7 +29,6 @@ import {
   periodoDe,
   variacao,
   type Dimensao,
-  type Filtros,
   type Periodo,
   type PeriodoChave,
 } from "@/lib/painel-visual";
@@ -335,59 +334,6 @@ function EsqueletoPainel() {
 
 /* ---------------- Chips ---------------- */
 
-function ChipFiltro({
-  rotulo,
-  todos,
-  valor,
-  opcoes,
-  onValor,
-}: {
-  rotulo: string;
-  todos: string;
-  valor?: string;
-  opcoes: string[];
-  onValor: (v?: string) => void;
-}) {
-  const [aberto, setAberto] = useState(false);
-  const ativo = Boolean(valor);
-  return (
-    <div className={`inline-flex h-8 items-center rounded-full text-sm transition-colors ${ativo ? "bg-brand-soft text-foreground ring-1 ring-brand" : "bg-muted text-foreground"}`}>
-      <Popover open={aberto} onOpenChange={setAberto}>
-        <PopoverTrigger asChild>
-          <button type="button" className="flex h-full items-center gap-1 rounded-full pl-3.5 pr-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span className={ativo ? "font-medium" : ""}>
-              {rotulo}: {valor ?? todos}
-            </span>
-            {!ativo && <ChevronDown className="h-3.5 w-3.5 opacity-60" />}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64 p-0" align="start">
-          <Command>
-            {opcoes.length > 8 && <CommandInput placeholder={`Buscar ${rotulo.toLowerCase()}…`} />}
-            <CommandList>
-              <CommandEmpty>Nada encontrado.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem onSelect={() => { onValor(undefined); setAberto(false); }}>
-                  <Check className={`mr-2 h-4 w-4 ${!valor ? "opacity-100" : "opacity-0"}`} /> {rotulo}: {todos}
-                </CommandItem>
-                {opcoes.map((o) => (
-                  <CommandItem key={o} value={o} onSelect={() => { onValor(o); setAberto(false); }}>
-                    <Check className={`mr-2 h-4 w-4 ${valor === o ? "opacity-100" : "opacity-0"}`} /> {o}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {ativo && (
-        <button type="button" onClick={() => onValor(undefined)} className="mr-1.5 rounded-full p-0.5 hover:bg-background/60" aria-label={`Remover filtro ${rotulo}`}>
-          <X className="h-3.5 w-3.5" />
-        </button>
-      )}
-    </div>
-  );
-}
 
 /* ---------------- Indicadores ---------------- */
 

@@ -71,7 +71,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   children: (
     visaoId: string | null,
     chave: number,
-    ctx: { editando: boolean; totalGraficos: number; ocultos: string[]; alternarOculto: (id: string) => void },
+    ctx: { editando: boolean; podeEditar: boolean; totalGraficos: number; ocultos: string[]; filtrosPadrao: import("@/lib/campos-elora").FiltroCampo[]; alternarOculto: (id: string) => void },
   ) => ReactNode;
   /** Construtor de gráficos da visão ativa, mostrado só em modo Editar. */
   editorGraficos?: (visaoId: string, aoMudar: () => void) => ReactNode;
