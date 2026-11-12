@@ -1,22 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { filtroCampoSchema } from "@/lib/campos-elora";
 import { ehChavePadrao, slugColuna } from "@/lib/matriz";
 
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const valorDim = z.union([z.string().max(200), z.array(z.string().max(200)).max(100)]).optional();
 const filtros = z.object({ canal: valorDim, atendente: valorDim, equipe: valorDim }).default({});
-export const filtroCampoSchema = z.object({
-  fonte: z.enum(["contato", "atendimento", "card", "utm"]),
-  campo: z.string().min(1).max(200),
-  op: z.enum(["em", "contem", "maior", "menor", "entre", "periodo", "vazio", "preenchido"]),
-  valores: z.array(z.string().max(300)).max(100).optional(),
-  texto: z.string().max(200).optional(),
-  min: z.number().finite().optional(),
-  max: z.number().finite().optional(),
-  de: z.string().max(10).optional(),
-  ate: z.string().max(10).optional(),
-});
+
 
 async function podeVer(db: any, clienteId: string) {
   const [{ data: interno }, { data: meu }, { data: parceiro }] = await Promise.all([

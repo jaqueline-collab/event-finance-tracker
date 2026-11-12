@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
-import { filtroCampoSchema } from "@/lib/matriz.functions";
+import { filtroCampoSchema } from "@/lib/campos-elora";
 import {
   agregarPainel,
   limitesUtc,

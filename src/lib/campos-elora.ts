@@ -3,6 +3,7 @@
  * Montado só com o que o cliente tem: grupo sem dado não aparece.
  * Valor ausente = "Não definido". Nada específico de cliente aqui.
  */
+import { z } from "zod";
 import { NAO_DEFINIDO } from "./nao-definido";
 
 export type FonteCampo = "contato" | "atendimento" | "card" | "utm";
@@ -284,3 +285,15 @@ export function descreverFiltro(f: FiltroCampo, rotulo: string): string {
     case "preenchido": return `${rotulo}: preenchido`;
   }
 }
+
+export const filtroCampoSchema = z.object({
+  fonte: z.enum(["contato", "atendimento", "card", "utm"]),
+  campo: z.string().min(1).max(200),
+  op: z.enum(["em", "contem", "maior", "menor", "entre", "periodo", "vazio", "preenchido"]),
+  valores: z.array(z.string().max(300)).max(100).optional(),
+  texto: z.string().max(200).optional(),
+  min: z.number().finite().optional(),
+  max: z.number().finite().optional(),
+  de: z.string().max(10).optional(),
+  ate: z.string().max(10).optional(),
+});
