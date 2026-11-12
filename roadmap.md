@@ -25,5 +25,7 @@
 - [x] Novos ADS 251 x 250: causa (campanha adicionada depois), 01/10 corrigido com backup, Matriz com regra única + teste
 - [x] Sincronização recalcula dias alterados com backup
 - [x] Matriz: filtros padrão da visão (só super admin)
-- [ ] Fase 5 aprovada: comparar e substituir os seis gráficos fixos automaticamente se idênticos; retirar aba Relatório diário só com consumidores preservados; acabamento das estimativas e sincronização; unificar duplicidades; conferir ranking da IA, desempenho e avisos de segurança. Perguntar apenas sobre divergência incorrigível; entregar relatório final, sem publicar.
+- [x] Fase 5: 794 valores idênticos; seis cartões substituídos; aba antiga retirada com compatibilidade dimensional na Matriz; comparação e catálogo únicos; suporte global centralizado; ranking 1447=562 humano+885 bot; 209 testes; 43 avisos listados; tempos medidos; relatório entregue sem publicar.
+- [ ] Conferência interna autenticada em 390/834/1440 nos dois temas, exportações/congelamento/IA e tabela pronta — bloqueada por ausência de sessão autorizada no Supabase externo. Tela pública e endpoints sem segredo verificados, não substituem essa conferência.
+- [ ] Cobertura diária persistida na sincronização: não registrada nesta fase; todos os intervalos sem prova permanecem parciais, sem confirmar zeros históricos. Cache novo não implementado conforme limite do plano.
 - [x] Ressalva autorizada: produção só tem Resultados e zero widgets antigos do Dr. Ricardo; continuar sem recriar configurações ausentes, registrando no relatório.

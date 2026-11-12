@@ -83,7 +83,11 @@ export const calcularCartao = createServerFn({ method: "POST" })
       return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), primeiraLeitura: m.primeiraLeitura, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
     }
     const { agregarCartao } = await import("@/lib/graficos");
-    return { oculto: false as const, r: agregarCartao(cat.base, c, p, data.filtrosVisao as any, cat.catalogo) };
+    const { estadoCobertura } = await import("@/lib/sync-cobertura");
+    const { data: estados, error: erroSync } = await db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId);
+    if (erroSync) throw new Error(erroSync.message);
+    const fonte = c.fonte === "card" ? "cards" : c.fonte === "atendimento" ? "atendimentos" : "contatos";
+    return { oculto: false as const, r: { ...agregarCartao(cat.base, c, p, data.filtrosVisao as any, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
   });
 
 /** Grava a lista de cartões de uma visão (ordem incluída). Só super admin. Remover cartão não apaga dado. */
