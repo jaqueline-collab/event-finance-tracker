@@ -37,15 +37,51 @@ export const cartaoSchema = z.object({
   comparar: z.boolean().default(false),
   formato: z.enum(["numero", "percentual", "moeda"]).default("numero"),
   tamanho: z.enum(["metade", "inteiro"]).default("metade"),
+  painel: z.enum(["leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
 });
 export type CartaoGrafico = z.infer<typeof cartaoSchema>;
 export type CampoRef = z.infer<typeof ref>;
 
 export const cartoesValidos = (v: unknown): CartaoGrafico[] =>
-  (Array.isArray(v) ? v : []).map((c) => cartaoSchema.safeParse(c)).filter((r) => r.success).map((r) => r.data!);
+  (Array.isArray(v) ? v : []).flatMap((c) => { const r = cartaoSchema.safeParse(c); return r.success ? [r.data] : []; });
 
 export const novoCartao = (id: string): CartaoGrafico => cartaoSchema.parse({ id, titulo: "Novo gráfico", tipo: "barras", fonte: "contato", dimensao: { fonte: "contato", campo: "origem" } });
+
+/** Cartões padrão: mesma agregação autorizada do painel, sem uma segunda regra. */
+export const CARTOES_PAINEL = [
+  ["leads-dia", "Leads por dia", "barras_empilhadas", "contato", "criado_em"],
+  ["leads-por", "Leads por", "rosca", "contato", "origem"],
+  ["conversas-dia", "Conversas por dia", "barras_empilhadas", "atendimento", "criado_em"],
+  ["campanhas", "Principais campanhas", "barras", "utm", "campaign"],
+  ["canais", "Atendimentos por canal", "barras", "atendimento", "canal"],
+  ["atendentes", "Conversas por atendente", "tabela", "atendimento", "atendente"],
+].map(([id, titulo, tipo, fonte, campo]) => cartaoSchema.parse({ id, titulo, tipo, fonte, painel: id, dimensao: { fonte, campo } }));
+
+export function cartaoDoPainel(r: import("./painel-visual").ResumoPainel, c: CartaoGrafico): ResultadoCartao {
+  const categoria = (rotulo: string, valores: Record<string, number>) => ({ rotulo, valores, total: Object.values(valores).reduce((a,b) => a+b,0) });
+  let categorias: ResultadoCartao["categorias"] = [];
+  let series = ["Valor"];
+  let total: number | undefined;
+  switch (c.painel) {
+    case "leads-dia": series = ["Sem campanha", "Vindos de ADS"]; categorias = r.porDia.map(d => categoria(d.dia, { "Sem campanha": d.organicos, "Vindos de ADS": d.ads })); break;
+    case "conversas-dia": series = ["Usuário do sistema", "Bot"]; categorias = r.porDia.map(d => categoria(d.dia, { "Usuário do sistema": d.usuario, Bot: d.bot })); break;
+    case "leads-por": {
+      const dim = c.dimensao?.campo === "canal" ? "canal" : c.dimensao?.campo === "etiquetas" ? "etiqueta" : c.dimensao?.campo === "campaign" ? "campanha" : "origem";
+      const todos = r.leadsPor[dim];
+      const fatias = todos.length > 5 ? [...todos.slice(0,4), { nome: "Outros", valor: todos.slice(4).reduce((a,b)=>a+b.valor,0) }] : todos;
+      categorias = fatias.map(d => categoria(d.nome, { Valor: d.valor }));
+      total = dim === "etiqueta" ? r.kpis.atual.novosLeads : todos.reduce((a,b)=>a+b.valor,0); break;
+    }
+    case "campanhas": categorias = r.campanhas.map(d => categoria(d.nome, { Valor: d.valor })); break;
+    case "canais": categorias = r.canais.map(d => categoria(d.nome, { Valor: d.valor })); break;
+    case "atendentes":
+      series = ["Atendimentos", "Conversas", "Proporção (%)"];
+      total = r.atendentes.reduce((a,b)=>a+b.conversas,0);
+      categorias = r.atendentes.map(d => ({ rotulo: d.nome, valores: { Atendimentos: d.atendimentos, Conversas: d.conversas, "Proporção (%)": total ? d.conversas / total * 100 : 0 }, total: d.conversas })); break;
+  }
+  return { categorias, series, total: total ?? categorias.reduce((a,b)=>a+b.total,0), anterior: null, estimados: [], linhas: categorias.length };
+}
 
 const GEO = /(^|\.|\b)(estado|uf|cidade|municipio|município|regiao|região|pais|país)\b/i;
 export const campoGeo = (c: Pick<CampoCatalogo, "campo" | "nome" | "rotulo">) => GEO.test(c.campo) || GEO.test(c.nome) || GEO.test(c.rotulo);
