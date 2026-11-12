@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AreaExternaLayout } from "@/components/area-externa-layout";
 
 const searchSchema = z.object({
+  visao: fallback(z.string(), "").default(""),
   como: fallback(z.string(), "").default(""),
   aba: fallback(z.enum(["conta", "plano", "equipe", "treinamento", "novidades"]), "conta").default("conta"),
   // Aba do painel lateral de configuração (só super admin); validada no componente.

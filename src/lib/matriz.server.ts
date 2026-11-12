@@ -5,6 +5,7 @@ import type { FiltroCampo } from "./campos-elora";
 import { calcularIndicadoresCards, COLUNAS_PADRAO, ehCombinadaDeCard, type Leitura, type PorDia } from "./indicadores-motor";
 import { calcularCorteCliente, lerConfig } from "./indicadores.server";
 import { colunasMatriz, montarMatriz, opcoesDimensoes, somarPadraoPorDia, type ConfigMatriz, type FiltrosMatriz, type LinhaCorteMatriz } from "./matriz";
+import { estadoCobertura } from "./sync-cobertura";
 
 async function lerTudo(q: () => any): Promise<any[]> {
   const out: any[] = [];
@@ -63,7 +64,8 @@ export async function montarMatrizCliente(
       catalogo = catalogoVisivel(cat.catalogo, "coluna").map((g) => ({ fonte: g.fonte, nome: g.nome, campos: g.campos.map((c) => ({ campo: c.campo, rotulo: c.rotulo, preenchidos: c.preenchidos })) }));
   }
   const salvas = (await lerConfig(db, clienteId)) as ConfigMatriz[];
-  const configs = opcoes.rascunho ? [...salvas.filter((c) => c.chave !== opcoes.rascunho!.chave), opcoes.rascunho] : salvas;
+  const rascunho = opcoes.rascunho;
+  const configs = rascunho ? [...salvas.filter((c) => c.chave !== rascunho.chave), rascunho] : salvas;
   const precisaCards = configs.some((c) => c.ativo && ehCombinadaDeCard(c)) || opcoes.comCatalogo;
   const [linhas, leituras, manuaisRaw] = await Promise.all([
     linhasPadrao(db, clienteId, p, filtro?.contatos),
@@ -71,7 +73,8 @@ export async function montarMatrizCliente(
     lerTudo(() => db.from("elora_matriz_manual" as any).select("coluna_chave, data, valor").eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id")),
   ]);
   const m: PorDia = somarPadraoPorDia(linhas, filtros);
-  calcularIndicadoresCards(configs, filtro ? leituras.filter((l) => filtro!.cards.has(l.card_id)) : leituras, m);
+  const cardsFiltrados = filtro?.cards;
+  calcularIndicadoresCards(configs, cardsFiltrados ? leituras.filter((l) => cardsFiltrados.has(l.card_id)) : leituras, m);
   const manuais = new Map<string, Record<string, number>>();
   for (const r of manuaisRaw as any[]) {
     if (r.valor == null) continue;
@@ -82,11 +85,19 @@ export async function montarMatrizCliente(
   const todas = colunasMatriz(configs);
   const r = montarMatriz(todas, listaDias(p), m, manuais);
   const etapas = [...new Set(leituras.map((l) => l.etapa_titulo).filter(Boolean) as string[])].sort();
+  const { data: sync, error: syncError } = await db.from("elora_sync_estado").select("fonte, concluido_em, cursor").eq("cliente_id", clienteId);
+  if (syncError) throw new Error(syncError.message);
+  const estados = sync ?? [];
+  const fontes = ["contatos", "atendimentos", "mensagens", ...(precisaCards ? ["cards"] : [])];
+  const cobertura = Object.fromEntries(listaDias(p).map(d => [d, estadoCobertura(d, fontes, estados)]));
+  const primeiraLeitura = leituras.map(l => l.visto_em).filter(Boolean).sort()[0] ?? null;
   return {
     ...r,
     todasColunas: todas,
     opcoes: opcoesDimensoes(linhas),
     temCards: leituras.length > 0,
+    cobertura,
+    primeiraLeitura,
     etapas: opcoes.comCatalogo ? etapas : [],
     catalogo: catalogo as { fonte: "card" | "contato" | "atendimento" | "utm"; nome: string; campos: { campo: string; rotulo: string; preenchidos: number }[] }[],
   };

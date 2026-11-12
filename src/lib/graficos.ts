@@ -93,7 +93,8 @@ export function fontesDisponiveis(cat: GrupoCatalogo[]): FonteCampo[] {
 
 /** Tipos que fazem sentido para a configuração e os dados do cliente; o resto não aparece. */
 export function tiposDisponiveis(cat: GrupoCatalogo[], cfg: Pick<CartaoGrafico, "dimensao" | "medida">): TipoGrafico[] {
-  const campo = cfg.dimensao ? cat.find((g) => g.fonte === cfg.dimensao!.fonte)?.campos.find((c) => c.campo === cfg.dimensao!.campo) : undefined;
+  const dim = cfg.dimensao;
+  const campo = dim ? cat.find((g) => g.fonte === dim.fonte)?.campos.find((c) => c.campo === dim.campo) : undefined;
   const ehData = campo?.tipo === "data" || cfg.dimensao?.campo === "criado_em" || cfg.medida === "indicador";
   const temGeo = cat.some((g) => g.campos.some((c) => !c.oculto && c.preenchidos > 0 && campoGeo(c)));
   const out: TipoGrafico[] = ["numero", "tabela"];
@@ -167,6 +168,8 @@ export type ResultadoCartao = {
   anterior: number | null;
   estimados: string[];
   linhas: number;
+  cobertura?: string;
+  primeiraLeitura?: string | null;
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };
@@ -232,7 +235,7 @@ export function agregarCartao(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, 
   const series = [...new Set([...grupos.values()].flatMap((g) => [...g.keys()]))];
   let categorias = [...grupos.entries()].map(([rotulo, g]) => {
     const valores: Record<string, number> = {};
-    for (const s of series) valores[s] = g.get(s) ? valorAcc(g.get(s)!, cfg.medida) : 0;
+    for (const s of series) { const a = g.get(s); valores[s] = a ? valorAcc(a, cfg.medida) : 0; }
     return { rotulo, valores, total: Object.values(valores).reduce((x, y) => x + y, 0) };
   });
   return { ...finalizar(categorias, series, cfg, ehCampoData(cfg.dimensao, cat)), total: valorAcc(geral, cfg.medida), anterior, estimados: [], linhas: atuais.length };

@@ -19,10 +19,11 @@ export const validarRelatorioDiario = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { calcularRelatorioCliente, lerRelatorioExistente } = await import("@/lib/indicadores.server");
+    const { lerRelatorioExistente } = await import("@/lib/indicadores.server");
+    const { montarMatrizCliente } = await import("@/lib/matriz.server");
     const p = { de: data.de, ate: data.ate };
     const [r, existente] = await Promise.all([
-      calcularRelatorioCliente(supabaseAdmin as any, data.clienteId, p),
+      montarMatrizCliente(supabaseAdmin as any, data.clienteId, p, {}),
       lerRelatorioExistente(supabaseAdmin as any, data.clienteId, p),
     ]);
     return { ...r, existente: Object.fromEntries(existente) };

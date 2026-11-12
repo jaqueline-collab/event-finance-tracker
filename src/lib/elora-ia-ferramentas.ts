@@ -136,7 +136,7 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
       description: "Totais de novos contatos, novos ADS e conversas (realizadas, usuário, bot) separados por canal, atendente ou equipe.",
       inputSchema: z.object({ cliente, de: dia, ate: dia, dimensao: z.enum(["canal", "atendente", "equipe"]) }),
       execute: async (i) =>
-        seguro("Relatório diário", async () => {
+        seguro("Matriz por dimensão", async () => {
           const c = alvo(i.cliente);
           const p = periodoValido(i.de, i.ate);
           const linhas = await deps.linhasDimensao(c.id, p);
@@ -144,7 +144,7 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
           const tot = totaisPorDimensao(linhas, i.dimensao, chaves).map((r) =>
             Object.fromEntries(Object.entries(r).map(([k, v]) => [COLUNAS_DIMENSAO.find((x) => x.chave === k)?.nome ?? k, v])),
           );
-          return { cliente: c.nome, fonte: `Relatório diário, ${br(p.de)} a ${br(p.ate)}`, por: i.dimensao, linhas: tot };
+          return { cliente: c.nome, fonte: `Matriz por dimensão, ${br(p.de)} a ${br(p.ate)}`, por: i.dimensao, linhas: tot, criterio_atribuicao: "Conversas totais incluem conversas só bot atribuídas ao atendente. Usuário do sistema comprova alguma participação humana na conversa, não necessariamente desse atendente. Para ranking, separe Usuário do sistema e Bot; não chame responsabilidade de atendimento humano comprovado." };
         }),
     }),
     matriz_por_dia: tool({

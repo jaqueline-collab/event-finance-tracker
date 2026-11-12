@@ -575,7 +575,7 @@ function CabecalhoOrdenavel({ c, travado }: { c: ColunaRelatorio; travado: boole
 }
 
 /** Matriz do relatório diário: uma linha por dia, mais recente no topo. */
-export function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
+export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
   const chaveOrdem = `elora.relatorio.ordem.${clienteId}`;
   const [de, setDe] = useState(diasAtrasIso(30));
   const [ate, setAte] = useState(hojeIso());
@@ -920,7 +920,7 @@ export function SecaoRelatorioDiario({ clienteId }: { clienteId: string }) {
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarDays className="h-4 w-4" /> Relatório diário
+              <CalendarDays className="h-4 w-4" /> Matriz por dimensões
             </CardTitle>
             <CardDescription>Números de cada dia, enviados pela automação.</CardDescription>
           </div>
