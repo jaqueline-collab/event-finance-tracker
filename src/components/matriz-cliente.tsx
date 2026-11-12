@@ -289,7 +289,7 @@ function SeletorCampo({ valor, catalogo, onMudar }: { valor: Ref | null; catalog
             <SelectLabel>{g.nome}</SelectLabel>
             {g.campos.map((c) => (
               <SelectItem key={`${g.fonte}|${c.campo}`} value={`${g.fonte}|${c.campo}`}>
-                {c.campo.replace(/^campo\./, "")} <span className="text-muted-foreground">({c.preenchidos})</span>
+                {c.rotulo} <span className="text-muted-foreground">({c.preenchidos})</span>
               </SelectItem>
             ))}
           </SelectGroup>
