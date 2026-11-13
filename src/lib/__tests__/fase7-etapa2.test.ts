@@ -75,3 +75,21 @@ describe("Fase 7 · Etapa 2 · novos tipos de bloco", () => {
     expect(t).not.toContain("tabela_itens");
   });
 });
+
+describe("Fase 7 · Etapa 3", () => {
+  it("Matriz por UTM com a regra da Matriz: conversa sem contato vai para Não definido e a soma fecha", () => {
+    const conv = [{ sessao: "a1", dia: "2026-10-01" }, { sessao: "a1", dia: "2026-10-02" }, { sessao: "a3", dia: "2026-10-03" }, { sessao: "a4", dia: "2026-10-03" }, { sessao: "zz", dia: "2026-10-03" }];
+    const r = agregarMatrizUtm(base, cartaoSchema.parse({ id: "m", titulo: "M", tipo: "matriz_utm", fonte: "utm" }), p, [], conv);
+    expect(r.total).toBe(4);
+    expect(r.categorias.find((c) => c.rotulo === "Não definido")?.valores["Novas conversas"]).toBe(2);
+    const so = agregarMatrizUtm(base, cartaoSchema.parse({ id: "m", titulo: "M", tipo: "matriz_utm", fonte: "utm", soPatrocinados: true }), p, [], conv);
+    expect(so.total).toBe(2);
+  });
+  it("Dois valores por indicador: quantidade = cards contados, valor = soma desses cards", async () => {
+    const { doisValoresDeCards } = await import("../graficos");
+    const r = doisValoresDeCards(base, cartaoSchema.parse({ id: "d", titulo: "D", tipo: "dois_valores", fonte: "card", campoMedida: { fonte: "card", campo: "valor" } }), [{ card_id: "k1", estimado: true }], null);
+    expect(r.qtd).toBe(1);
+    expect(r.total).toBe(1000);
+    expect(r.qtdEstimados).toBe(1);
+  });
+});
