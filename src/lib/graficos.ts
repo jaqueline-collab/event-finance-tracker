@@ -424,38 +424,88 @@ export function diasAguardando(p: Periodo, r: Pick<ResultadoCartao, "categorias"
   return out;
 }
 
-export type ItemDia = { id: string; nome: string; telefone: string; atendente: string; valor: number | null; campos: Record<string, string> };
-const DINHEIRO = /valor|preco|preço|monetar|moeda|receita|faturamento|ticket/i;
+export type ItemDia = { id: string; nome: string; telefone: string; atendente: string; valor: number | null; campos: Record<string, string>; tipo: number; hora: string };
+const DINHEIRO = DINHEIRO_RE;
 
-/** Itens de um dia do calendário. Sem texto de mensagem; dinheiro some para quem não vê valores. */
+/** Campos de data do calendário, na ordem: o principal (`dimensao`) e os extras. Índice = "tipo" do compromisso. */
+export const camposDataCalendario = (cfg: Pick<CartaoGrafico, "dimensao" | "camposData">): CampoRef[] =>
+  [cfg.dimensao, ...cfg.camposData].filter((x): x is CampoRef => !!x);
+
+/** "campo.data-da-consulta" → "Consultas"; "criado_em" → "Criados". Genérico, sem nome de cliente. */
+export function rotuloTipoData(f: CampoRef, rotuloCatalogo?: string): string {
+  if (f.campo === "criado_em") return "Criados";
+  const base = rotuloCorrido(rotuloCatalogo || f.campo).replace(/^data\s+(d[aeo]s?\s+)?/i, "").trim();
+  if (!base) return rotuloCorrido(rotuloCatalogo || f.campo);
+  const cap = base.charAt(0).toUpperCase() + base.slice(1);
+  return /s$/i.test(cap.split(" ")[0]) ? cap : cap.replace(/^(\S+)/, "$1s");
+}
+
+/** Filtro do calendário: "todos" ou o índice de um campo de data. Quem vê alterna; nada é gravado. */
+export type FiltroTipoCalendario = "todos" | number;
+export const filtrarPorTipo = <T extends { tipo: number }>(xs: T[], f: FiltroTipoCalendario) => (f === "todos" ? xs : xs.filter((x) => x.tipo === f));
+
+export type EventoCalendario = { id: string; dia: string; tipo: number; nome: string; hora: string };
+
+function valorBrutoData(base: BaseCampos, fonte: FonteCampo, f: CampoRef, r: any, idx: Indices): unknown {
+  const v = f.campo === "criado_em" && (f.fonte === fonte || (f.fonte === "utm" && fonte === "contato")) ? r.criado_em : valorLigado(base, fonte, f, r, idx);
+  return Array.isArray(v) ? v[0] : v;
+}
+
+/** Compromissos do período em todos os campos de data do calendário (só nome e hora; telefone e valor ficam na lista do dia). */
+export function eventosCalendario(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = [], limite = 3000): EventoCalendario[] {
+  const campos = camposDataCalendario(cfg);
+  if (!campos.length) return [];
+  const idx = indices(base);
+  const out: EventoCalendario[] = [];
+  const txt = (v: unknown) => { const t = textos(v); return t[0] === NAO_DEFINIDO ? NAO_DEFINIDO : t.join(", "); };
+  for (const r of registrosCalendario(base, cfg, filtrosVisao)) {
+    const cid = contatoDe(cfg.fonte, r)[0];
+    const contato = cid ? idx.contato.get(cid) : undefined;
+    campos.forEach((f, tipo) => {
+      const d = diaDoCampo(base, cfg.fonte, f, r, idx);
+      if (!d || d < p.de || d > p.ate) return;
+      out.push({ id: `${r.id}:${tipo}`, dia: d, tipo, nome: txt(contato?.nome ?? r.nome ?? r.titulo), hora: horaDe(valorBrutoData(base, cfg.fonte, f, r, idx)) });
+    });
+    if (out.length >= limite) break;
+  }
+  return out.sort((a, b) => a.dia.localeCompare(b.dia) || (a.hora || "99").localeCompare(b.hora || "99") || a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+/** Itens de um dia do calendário, de todos os campos de data (com tipo e hora). Sem texto de mensagem; dinheiro some para quem não vê valores. */
 export function itensDoDia(base: BaseCampos, cfg: CartaoGrafico, dia: string, filtrosVisao: FiltroCampo[], semDinheiro: boolean, limite = 200): ItemDia[] {
-  if (!cfg.dimensao) return [];
+  const campos = camposDataCalendario(cfg);
+  if (!campos.length) return [];
   const idx = indices(base);
   const out: ItemDia[] = [];
   const txt = (v: unknown) => { const t = textos(v); return t[0] === NAO_DEFINIDO ? NAO_DEFINIDO : t.join(", "); };
   for (const r of registrosCalendario(base, cfg, filtrosVisao)) {
-    if (diaDoCampo(base, cfg.fonte, cfg.dimensao, r, idx) !== dia) continue;
-    const cid = contatoDe(cfg.fonte, r)[0];
-    const contato = cid ? idx.contato.get(cid) : undefined;
-    const sessao = cfg.fonte === "atendimento" ? r : cid ? idx.atendimento.get(cid) : undefined;
-    const campos: Record<string, string> = {};
-    for (const f of cfg.camposLista) {
-      if (semDinheiro && DINHEIRO.test(f.campo)) continue;
-      campos[`${f.fonte}|${f.campo}`] = txt(valorLigado(base, cfg.fonte, f, r, idx));
+    for (let tipo = 0; tipo < campos.length; tipo += 1) {
+      const f = campos[tipo];
+      if (diaDoCampo(base, cfg.fonte, f, r, idx) !== dia) continue;
+      const cid = contatoDe(cfg.fonte, r)[0];
+      const contato = cid ? idx.contato.get(cid) : undefined;
+      const sessao = cfg.fonte === "atendimento" ? r : cid ? idx.atendimento.get(cid) : undefined;
+      const extras: Record<string, string> = {};
+      for (const e of cfg.camposLista) {
+        if (semDinheiro && DINHEIRO.test(e.campo)) continue;
+        extras[`${e.fonte}|${e.campo}`] = formatarCelula(e.campo, txt(valorLigado(base, cfg.fonte, e, r, idx)));
+      }
+      const valorBruto = cfg.campoMedida ? numero(valorLigado(base, cfg.fonte, cfg.campoMedida, r, idx)) : null;
+      const dinheiroMedida = cfg.formato === "moeda" || DINHEIRO.test(cfg.campoMedida?.campo ?? "");
+      out.push({
+        id: `${r.id ?? out.length}:${tipo}`,
+        nome: txt(contato?.nome ?? r.nome ?? r.titulo),
+        telefone: formatarTelefone(txt(contato?.telefone)),
+        atendente: txt(sessao ? valorDe("atendimento", "atendente", sessao) : null),
+        valor: semDinheiro && dinheiroMedida ? null : valorBruto,
+        campos: extras,
+        tipo,
+        hora: horaDe(valorBrutoData(base, cfg.fonte, f, r, idx)),
+      });
     }
-    const valorBruto = cfg.campoMedida ? numero(valorLigado(base, cfg.fonte, cfg.campoMedida, r, idx)) : null;
-    const dinheiroMedida = cfg.formato === "moeda" || DINHEIRO.test(cfg.campoMedida?.campo ?? "");
-    out.push({
-      id: String(r.id ?? out.length),
-      nome: txt(contato?.nome ?? r.nome ?? r.titulo),
-      telefone: txt(contato?.telefone),
-      atendente: txt(sessao ? valorDe("atendimento", "atendente", sessao) : null),
-      valor: semDinheiro && dinheiroMedida ? null : valorBruto,
-      campos,
-    });
     if (out.length >= limite) break;
   }
-  return out;
+  return out.sort((a, b) => (a.hora || "99").localeCompare(b.hora || "99") || a.tipo - b.tipo);
 }
 
 /**
@@ -553,20 +603,26 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const fonte: FonteCampo = cfg.fonte === "card" ? "card" : "contato";
   const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
   const ehOrigem = (f: CampoRef) => f.fonte === "contato" && f.campo === "origem";
-  const rot = (f: CampoRef & { rotulo?: string }) => f.rotulo || (cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, ""));
+  const rot = (f: CampoRef & { rotulo?: string }) => rotuloCorrido(f.rotulo || (cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, "")));
   const colunas: (CampoRef & { rotulo?: string })[] = cfg.colunas.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
   const temOrigem = colunas.some(ehOrigem);
   const colunasItens = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem" } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
   const txt = (v: unknown) => textos(v).join(", ");
-  const itens: { id: string; valores: Record<string, string> }[] = [];
+  const itens: { id: string; valores: Record<string, string>; brutos: Record<string, string> }[] = [];
   for (const r of registros(base, fonte)) {
     if (soCards ? !soCards.has(String(r.id)) : !noPer(r.criado_em, p)) continue;
     if (filtro && !(fonte === "card" ? filtro.cards.has(r.id) : filtro.contatos.has(r.id))) continue;
     const valores: Record<string, string> = {};
-    for (const f of colunas) if (!ehOrigem(f)) valores[`${f.fonte}|${f.campo}`] = txt(valorLigado(base, fonte, f, r, idx));
+    const brutos: Record<string, string> = {};
+    for (const f of colunas) if (!ehOrigem(f)) {
+      const k = `${f.fonte}|${f.campo}`;
+      const b = txt(valorLigado(base, fonte, f, r, idx));
+      brutos[k] = b;
+      valores[k] = f.fonte === "card" && f.campo === "valor" ? formatarMoeda(b === "" ? null : Number(b)) : formatarCelula(f.campo, b);
+    }
     const cid = contatoDe(fonte, r)[0];
     valores.origem_calc = origemCalculada(cid ? idx.contato.get(cid) : undefined);
-    itens.push({ id: String(r.id), valores });
+    itens.push({ id: String(r.id), valores, brutos });
     if (itens.length >= limite) break;
   }
   return { categorias: [], series: [], total: itens.length, anterior: null, estimados: [], linhas: itens.length, colunasItens, itens };
