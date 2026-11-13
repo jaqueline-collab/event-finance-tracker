@@ -781,3 +781,9 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, onFechar }: { client
     </Sheet>
   );
 }
+
+/** Prévia ao vivo de um cartão (últimos 30 dias), usada pelo assistente de configuração. */
+export function PreviaCartao({ clienteId, cartao }: { clienteId: string; cartao: CartaoGrafico }) {
+  const periodo = useMemo(() => { const ate = hojeSP(); return { de: somarDias(ate, -29), ate }; }, []);
+  return <CartaoView clienteId={clienteId} cartao={cartao} periodo={periodo} filtrosVisao={[]} previa />;
+}
