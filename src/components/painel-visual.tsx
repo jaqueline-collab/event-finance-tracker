@@ -153,10 +153,7 @@ export function PainelVisual({
   ocultos = [],
   onAlternarOculto,
   onDisponivel,
-  kpisNaGrade = false,
 }: {
-  /** Os 4 indicadores viraram blocos da grade da visão: o cabeçalho fixo não aparece. */
-  kpisNaGrade?: boolean;
   clienteId: string;
   periodo: Periodo;
   filtros: FiltroCampo[];
@@ -221,7 +218,7 @@ export function PainelVisual({
         <EsqueletoPainel />
       ) : dados ? (
         <div className={`space-y-5 transition-opacity duration-300 ${carregando ? "opacity-60" : "opacity-100"}`} aria-busy={carregando}>
-          {!kpisNaGrade && <Indicadores dados={dados} reduzido={reduzido} />}
+          {/* Indicadores são só blocos da visão (filtros.cartoes); aqui fica apenas o aviso único de cobertura. */}
           {dados.cobertura !== "confirmado" && <p className="text-xs text-muted-foreground">{dados.cobertura} · cobertura diária não confirmada</p>}
 
         </div>
@@ -258,68 +255,4 @@ function EsqueletoPainel() {
 /* ---------------- Chips ---------------- */
 
 
-/* ---------------- Indicadores ---------------- */
-
-function Selo({ v, menorMelhor, sufixo = "%" }: { v: number | null; menorMelhor?: boolean; sufixo?: string }) {
-  if (v == null || !Number.isFinite(v))
-    return <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"><Minus className="h-3 w-3" /> sem base</span>;
-  const neutro = Math.abs(v) < 0.05;
-  const bom = menorMelhor ? v < 0 : v > 0;
-  const cls = neutro ? "bg-muted text-muted-foreground" : bom ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive";
-  const Icone = neutro ? Minus : v > 0 ? ArrowUpRight : ArrowDownRight;
-  const txt = `${v > 0 ? "+" : ""}${v.toLocaleString("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}${sufixo}`;
-  return (
-    <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${cls}`} title="Contra o período anterior de mesmo tamanho">
-      <Icone className="h-3 w-3" aria-hidden /> {txt}
-    </span>
-  );
-}
-
-function CartaoIndicador({ icone, cor, rotulo, valor, selo, rodape }: { icone: ReactNode; cor: string; rotulo: string; valor: ReactNode; selo: ReactNode; rodape?: ReactNode }) {
-  return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${cor} 16%, transparent)`, color: cor }}>
-          {icone}
-        </span>
-        {rotulo}
-      </div>
-      <div className="mt-3 flex flex-wrap items-baseline gap-2">
-        <span className="text-3xl font-bold tracking-tight tabular-nums" style={{ fontFamily: "var(--font-display)" }}>{valor}</span>
-        {selo}
-      </div>
-      {rodape && <p className="mt-1.5 text-xs text-muted-foreground">{rodape}</p>}
-    </div>
-  );
-}
-
-function Indicadores({ dados, reduzido }: { dados: Dados; reduzido: boolean }) {
-  const { atual: a, anterior: p } = dados.kpis;
-  const leads = useContagem(a.novosLeads, reduzido);
-  const conv = useContagem(a.conversas, reduzido);
-  const ads = useContagem(a.leadsAds, reduzido);
-  const pctAds = a.novosLeads ? (a.leadsAds / a.novosLeads) * 100 : 0;
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <CartaoIndicador icone={<UserPlus className="h-4 w-4" />} cor="var(--chart-1)" rotulo="Novos leads" valor={dados.cobertura !== "confirmado" && a.novosLeads === 0 ? "—" : nf.format(Math.round(leads))} selo={<Selo v={variacao(a.novosLeads, p.novosLeads)} />} rodape={a.importadosFora ? `${nf.format(a.importadosFora)} importados fora da conta` : undefined} />
-      <CartaoIndicador icone={<MessagesSquare className="h-4 w-4" />} cor="var(--chart-2)" rotulo="Conversas realizadas" valor={dados.cobertura !== "confirmado" && a.conversas === 0 ? "—" : nf.format(Math.round(conv))} selo={<Selo v={variacao(a.conversas, p.conversas)} />} />
-      <CartaoIndicador
-        icone={<Clock className="h-4 w-4" />}
-        cor="var(--chart-4)"
-        rotulo="TMR · TMA"
-        valor={<span className="text-2xl">{formatarDuracao(a.tmr.valor)} · {formatarDuracao(a.tma.valor)}</span>}
-        selo={<Selo v={a.tmr.valor != null && p.tmr.valor ? variacao(a.tmr.valor, p.tmr.valor) : null} menorMelhor />}
-        rodape={`${nf.format(a.tmr.medidas)} conversas medidas (TMR) · ${nf.format(a.tma.medidas)} (TMA)`}
-      />
-      <CartaoIndicador
-        icone={<Megaphone className="h-4 w-4" />}
-        cor="var(--chart-3)"
-        rotulo="Leads de ADS"
-        valor={dados.cobertura !== "confirmado" && a.leadsAds === 0 ? "—" : nf.format(Math.round(ads))}
-        selo={<Selo v={variacao(a.leadsAds, p.leadsAds)} />}
-        rodape={`${pctAds.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% dos novos leads`}
-      />
-    </div>
-  );
-}
 
