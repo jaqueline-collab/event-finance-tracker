@@ -22,6 +22,7 @@ export const ROTULO_MEDIDA: Record<Medida, string> = {
 };
 
 const ref = z.object({ fonte: z.enum(["contato", "atendimento", "card", "utm"]), campo: z.string().min(1).max(200) });
+const painelEnum = z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-tma", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]);
 export const cartaoSchema = z.object({
   id: z.string().min(1).max(60),
   titulo: z.string().trim().min(1).max(80),
@@ -44,7 +45,7 @@ export const cartaoSchema = z.object({
   /** Calendário: visualização inicial e campos extras na lista do dia. */
   visualCalendario: z.enum(["mes", "semana", "agenda"]).default("mes"),
   camposLista: z.array(ref).max(8).default([]),
-  painel: z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-tma", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
+  painel: painelEnum.optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
   /** Funil: "ranking" (% do total) ou "etapas" (conversão entre uma faixa e a seguinte). */
   modoFunil: z.enum(["ranking", "etapas"]).default("ranking"),
@@ -56,7 +57,7 @@ export const cartaoSchema = z.object({
     campoMedida: ref.nullable().optional(),
     serie: ref.nullable().optional(),
     /** Bloco padrão do painel (mesma regra), quando a alternativa é um deles. */
-    painel: z.string().max(40).optional(),
+    painel: painelEnum.optional(),
   })).max(3).default([]),
   /** Calendário: outros campos de data que quem vê alterna (o principal é `dimensao`). */
   camposData: z.array(ref).max(4).default([]),
@@ -541,7 +542,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const fonte: FonteCampo = cfg.fonte === "card" ? "card" : "contato";
   const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
   const ehOrigem = (f: CampoRef) => f.fonte === "contato" && f.campo === "origem";
-  const rot = (f: CampoRef & { rotulo?: string }) => f.rotulo || cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, "");
+  const rot = (f: CampoRef & { rotulo?: string }) => f.rotulo || (cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, ""));
   const colunas: (CampoRef & { rotulo?: string })[] = cfg.colunas.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
   const temOrigem = colunas.some(ehOrigem);
   const colunasItens = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem" } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
