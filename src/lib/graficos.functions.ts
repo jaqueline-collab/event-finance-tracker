@@ -123,9 +123,12 @@ export const calcularCartao = createServerFn({ method: "POST" })
       return { oculto: false as const, r: { ...itensTabela(cat.base, c, p, data.filtrosVisao as any, a.semDinheiro, cat.catalogo, 2000, c.fonte === "card" && c.indicadoresItens.length ? new Set((await contadosPor(c.indicadoresItens, p)).map((x) => x.card_id)) : undefined), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
     }
     if (c.tipo === "calendario") {
+      const { eventosCalendario, camposDataCalendario, rotuloTipoData } = await import("@/lib/graficos");
       const r = agregarCalendario(cat.base, c, p, data.filtrosVisao as any);
       const aguardando = diasAguardando(p, r, (d) => estadoCobertura(d, [fonte], estados ?? []));
-      return { oculto: false as const, r: { ...r, aguardando, cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
+      const rotCat = (f: { fonte: string; campo: string }) => cat.catalogo.find((g: any) => g.fonte === f.fonte)?.campos.find((x: any) => x.campo === f.campo)?.rotulo;
+      const tiposCalendario = camposDataCalendario(c).map((f) => rotuloTipoData(f, rotCat(f)));
+      return { oculto: false as const, r: { ...r, aguardando, eventos: eventosCalendario(cat.base, c, p, data.filtrosVisao as any), tiposCalendario, cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
     }
     return { oculto: false as const, r: { ...agregarCartao(cat.base, c, p, data.filtrosVisao as any, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
   });

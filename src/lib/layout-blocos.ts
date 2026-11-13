@@ -22,7 +22,7 @@ const LIMITES: Record<TipoGrafico, Limite> = {
   funil: { minL: 3, maxL: 12, minA: 2, maxA: 6, l: 6, a: 3 },
   tabela: { minL: 4, maxL: 12, minA: 2, maxA: 8, l: 6, a: 3 },
   mapa: { minL: 4, maxL: 12, minA: 2, maxA: 6, l: 6, a: 3 },
-  calendario: { minL: 6, maxL: 12, minA: 3, maxA: 8, l: 12, a: 4 },
+  calendario: { minL: 4, maxL: 12, minA: 3, maxA: 12, l: 12, a: 4 },
   dois_valores: { minL: 3, maxL: 8, minA: 1, maxA: 2, l: 6, a: 1 },
   matriz_utm: { minL: 6, maxL: 12, minA: 2, maxA: 8, l: 12, a: 4 },
   tabela_itens: { minL: 6, maxL: 12, minA: 3, maxA: 10, l: 12, a: 5 },

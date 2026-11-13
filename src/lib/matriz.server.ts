@@ -37,7 +37,11 @@ export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Per
   const { usaEspelho } = await import("./elora-espelho.server");
   if (soContatos || (await usaEspelho(db, clienteId))) {
     const calc = await calcularCorteCliente(db, clienteId, p, soContatos);
-    return calc.linhas as any;
+    // Só exibição: nome do canal = apelido da super admin (ou "Canal sem nome"), nunca o código da instância.
+    const { lerMapaCanais } = await import("./nome-canal.server");
+    const { exibirCanal } = await import("./nome-canal");
+    const mapa = await lerMapaCanais(db, clienteId);
+    return (calc.linhas as any[]).map((l) => ({ ...l, canal: l.canal ? exibirCanal(mapa, null, l.canal) : "" })) as any;
   }
   const cols = COLUNAS_PADRAO.map((c) => c.chave).join(", ");
   const gravadas = await lerTudo(() =>
