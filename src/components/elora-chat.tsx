@@ -9,7 +9,7 @@ import { PropostaConfig } from "@/components/proposta-config";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
-import { EloraMark } from "@/components/landing/EloraMark";
+import { EloraLogo, EloraIcone } from "@/components/elora-logo";
 import { Button } from "@/components/ui/button";
 import { getCachedAccessToken } from "@/lib/auth-session";
 import { supabase } from "@/integrations/supabase/client-configured";
@@ -76,7 +76,7 @@ export function EloraChat({ area }: { area: "cliente" | "parceiro" }) {
           aria-label="Falar com a Elora"
           className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition hover:scale-[1.03]"
         >
-          <EloraMark className="size-5" />
+          <EloraIcone className="size-6 rounded-md" />
           Elora
         </button>
       )}
@@ -86,9 +86,7 @@ export function EloraChat({ area }: { area: "cliente" | "parceiro" }) {
           className="fixed inset-0 z-50 flex flex-col bg-background sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(640px,calc(100vh-40px))] sm:w-[400px] sm:rounded-2xl sm:border sm:shadow-2xl"
         >
           <header className="flex items-center gap-2 border-b px-4 py-3">
-            <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <EloraMark className="size-4" />
-            </span>
+            <EloraIcone className="size-8 rounded-lg" />
             <div className="flex-1 leading-tight">
               <p className="text-sm font-semibold">Elora</p>
               <p className="text-xs text-muted-foreground">{modo === "admin" ? "Assistente de configuração: propõe, você aplica." : "Só lê e explica. Não altera nada."}</p>

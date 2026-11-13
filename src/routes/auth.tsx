@@ -1,3 +1,4 @@
+import { EloraLogo } from "@/components/elora-logo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client-configured";
@@ -76,7 +77,7 @@ function AuthPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-landing-bg text-landing-fg"
+      className="min-h-screen flex flex-col bg-landing-bg text-foreground"
       style={{ fontFamily: "var(--font-body)" }}
     >
       <Navbar />
@@ -93,13 +94,14 @@ function AuthPage() {
 
       <section className="flex-1 bg-background px-6 py-14 md:py-20">
         <div className="max-w-md mx-auto">
-          <div className="rounded-2xl border border-landing-border bg-landing-surface p-7 md:p-8 shadow-sm">
+          <div className="rounded-card border border-border bg-card text-card-foreground p-7 md:p-8 shadow-sm">
+            <div className="mb-6 flex justify-center"><EloraLogo cor="auto" className="h-8" /></div>
             {step === "email" ? (
               <form onSubmit={enviarCodigo} className="space-y-4">
                 <div className="space-y-2">
                   <label
                     htmlFor="email"
-                    className="block text-sm font-semibold text-landing-fg"
+                    className="block text-sm font-semibold text-foreground"
                   >
                     E-mail
                   </label>
@@ -128,7 +130,7 @@ function AuthPage() {
               <div className="space-y-4">
                 <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
                   <CheckCircle2 className="h-5 w-5 text-rabbit-navy mt-0.5 shrink-0" />
-                  <div className="text-sm text-landing-muted">
+                  <div className="text-sm text-muted-foreground">
                     Não esqueça de verificar a pasta de <strong>spam</strong> ou{" "}
                     <strong>promoções</strong>. O link expira em 1 hora.
                   </div>
@@ -145,7 +147,7 @@ function AuthPage() {
                 </button>
                 <button
                   type="button"
-                  className="w-full text-sm text-landing-muted hover:text-landing-fg"
+                  className="w-full text-sm text-muted-foreground hover:text-foreground"
                   onClick={() => setStep("email")}
                 >
                   Usar outro e-mail
@@ -155,7 +157,7 @@ function AuthPage() {
           </div>
 
           <div className="mt-6 rounded-2xl bg-primary text-primary-foreground p-6 text-center">
-            <div className="text-xs font-semibold uppercase tracking-widest text-landing-yellow-vivo">
+            <div className="text-xs font-semibold uppercase tracking-widest text-brand">
               Ainda não sou cliente
             </div>
             <p className="text-sm text-primary-foreground/75 mt-2">

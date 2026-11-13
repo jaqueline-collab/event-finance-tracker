@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export const THEME_KEY = "elora.theme";
 
 /** Script inline (roda antes da hidratação) para não piscar tela clara. */
-export const themeInitScript = `(function(){try{var t=localStorage.getItem("${THEME_KEY}");if(t!=="light"){document.documentElement.classList.add("dark");}}catch(e){document.documentElement.classList.add("dark");}})();`;
+export const themeInitScript = `(function(){try{var t=localStorage.getItem("${THEME_KEY}");document.documentElement.classList.toggle("dark",t!=="light");}catch(e){document.documentElement.classList.add("dark");}})();`;
 
 function aplicar(tema: "dark" | "light") {
   const root = document.documentElement;
