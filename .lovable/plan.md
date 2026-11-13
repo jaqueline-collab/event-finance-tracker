@@ -11,7 +11,8 @@ Arquivos usados como estão, sem redesenhar.
 |---|---|---|
 | Menu lateral interno | marinho | logo branco |
 | Menu das Áreas do cliente e do parceiro | marinho | logo branco |
-| Cabeçalho do site e tela de login | escuro/marinho | logo branco |
+| Cabeçalho do site | escuro/marinho | logo branco |
+| Cartão do formulário de login | claro no tema claro / escuro no tema escuro | marinho no claro, branco no escuro (conferido nos dois temas) |
 | Rodapé do site | escuro | logo branco |
 | Elora IA (botão e topo do painel) | claro / escuro | ícone do app |
 | Indicador "Elora pensando" | qualquer | ícone do app, com o ponto amarelo pulsando por cima do ponto da marca |
