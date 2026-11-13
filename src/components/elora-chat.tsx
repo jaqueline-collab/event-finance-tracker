@@ -1,3 +1,4 @@
+import { EloraPensando } from "@/components/elora-pensando";
 import { useMemo, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
@@ -134,7 +135,7 @@ export function EloraChat({ area }: { area: "cliente" | "parceiro" }) {
                 })
               )}
               {status === "submitted" || (status === "streaming" && !messages.at(-1)?.parts.some((p) => p.type === "text" && p.text)) ? (
-                <p className="text-sm text-muted-foreground">Elora está consultando…</p>
+                <EloraPensando />
               ) : null}
               {erroTexto && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{erroTexto}</p>}
             </ConversationContent>
