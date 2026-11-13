@@ -506,6 +506,8 @@ function EditorCartao({
       </SelectContent>
     </Select>
   );
+  const ehData = (r: CampoRef) => r.campo === "criado_em" || op?.catalogo.find((g) => g.fonte === r.fonte)?.campos.find((x) => x.campo === r.campo)?.tipo === "data";
+  const primeiraData = (): CampoRef | null => { const g = camposPor((t) => t === "data").find((x) => x.fonte === c.fonte) ?? camposPor((t) => t === "data")[0]; return g?.campos[0] ? { fonte: g.fonte, campo: g.campos[0].campo } : null; };
   const ehIndicador = c.medida === "indicador";
   const medidasOk = MEDIDAS.filter((m) => (m === "indicador" ? (op?.indicadores.length ?? 0) > 0 : m === "tempo_medio" ? fontes.includes("atendimento") : true));
 
@@ -553,14 +555,38 @@ function EditorCartao({
               )}
               {!ehIndicador && (
                 <>
-                  <div className="space-y-1"><Label>Dimensão principal</Label><SelCampo valor={c.dimensao} onMudar={(r) => set({ dimensao: r })} nenhum="Nenhuma (só o total)" /></div>
-                  {c.dimensao && <div className="space-y-1"><Label>Série (segunda dimensão)</Label><SelCampo valor={c.serie} onMudar={(r) => set({ serie: r })} nenhum="Nenhuma" /></div>}
+                  {c.tipo === "calendario" ? (
+                    <>
+                      <div className="space-y-1"><Label>Campo de data</Label><SelCampo valor={c.dimensao} onMudar={(r) => set({ dimensao: r })} filtro={(t) => t === "data"} /></div>
+                      <div className="space-y-1">
+                        <Label>Visualização inicial</Label>
+                        <Select value={c.visualCalendario} onValueChange={(v) => set({ visualCalendario: v as any })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="mes">Mês</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="agenda">Lista de agenda</SelectItem></SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Campos na lista do dia</Label>
+                        <SelCampo valor={null} onMudar={(r) => r && !c.camposLista.some((x) => x.fonte === r.fonte && x.campo === r.campo) && set({ camposLista: [...c.camposLista, r].slice(0, 8) })} nenhum="Adicionar campo…" />
+                        <div className="flex flex-wrap gap-1">
+                          {c.camposLista.map((f) => (
+                            <button key={`${f.fonte}|${f.campo}`} type="button" className="rounded-full border px-2 py-0.5 text-xs" onClick={() => set({ camposLista: c.camposLista.filter((x) => x !== f) })}>
+                              {op.catalogo.find((g) => g.fonte === f.fonte)?.campos.find((x) => x.campo === f.campo)?.rotulo ?? f.campo} ×
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-1"><Label>Dimensão principal</Label><SelCampo valor={c.dimensao} onMudar={(r) => set({ dimensao: r })} nenhum="Nenhuma (só o total)" /></div>
+                  )}
+                  {c.dimensao && c.tipo !== "calendario" && <div className="space-y-1"><Label>Série (segunda dimensão)</Label><SelCampo valor={c.serie} onMudar={(r) => set({ serie: r })} nenhum="Nenhuma" /></div>}
                 </>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Tipo</Label>
-                  <Select value={c.tipo} onValueChange={(v) => set({ tipo: v as any })}>
+                  <Select value={c.tipo} onValueChange={(v) => set(v === "calendario" ? { tipo: "calendario", serie: null, granularidade: "dia", dimensao: c.dimensao && ehData(c.dimensao) ? c.dimensao : primeiraData() } : { tipo: v as any })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{tipos.map((t) => <SelectItem key={t} value={t}>{ROTULO_TIPO_GRAFICO[t]}</SelectItem>)}</SelectContent>
                   </Select>
@@ -591,8 +617,8 @@ function EditorCartao({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Tamanho</Label>
-                  <Select value={c.tamanho} onValueChange={(v) => set({ tamanho: v as any })}>
+                  <Label>Tamanho inicial</Label>
+                  <Select value={c.tamanho} onValueChange={(v) => set({ tamanho: v as any, largura: undefined })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="metade">Meia largura</SelectItem><SelectItem value="inteiro">Largura inteira</SelectItem></SelectContent>
                   </Select>
@@ -622,6 +648,135 @@ function EditorCartao({
             {salvando ? "Salvando…" : "Salvar gráfico"}
           </Button>
         </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/* ---------------- calendário ---------------- */
+
+const SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const somarDias = (dia: string, n: number) => { const d = new Date(`${dia}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+const segunda = (dia: string) => somarDias(dia, -((new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7));
+
+function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; menu?: React.ReactNode; previa?: boolean }) {
+  const [visual, setVisual] = useState(cartao.visualCalendario);
+  const [ref, setRef] = useState(hojeSP());
+  const [diaAberto, setDiaAberto] = useState<string | null>(null);
+  useEffect(() => setVisual(cartao.visualCalendario), [cartao.visualCalendario]);
+  const per: Periodo = useMemo(() => {
+    if (visual === "semana") { const de = segunda(ref); return { de, ate: somarDias(de, 6) }; }
+    const de = `${ref.slice(0, 7)}-01`;
+    const fim = new Date(`${de}T12:00:00Z`); fim.setUTCMonth(fim.getUTCMonth() + 1); fim.setUTCDate(0);
+    return { de, ate: iso(fim) };
+  }, [visual, ref]);
+  const { r, erro } = useResultado(clienteId, { ...cartao, granularidade: "dia" }, per, filtrosVisao, previa);
+  if (r?.oculto) return null;
+  const res = r?.r;
+  const valores = new Map((res?.categorias ?? []).map((c) => [c.rotulo, c.total]));
+  const estimados = new Set(res?.estimados ?? []);
+  const aguardando = new Set(res?.aguardando ?? []);
+  const max = Math.max(1, ...valores.values());
+  const navegar = (n: number) => setRef((d) => (visual === "semana" ? somarDias(d, 7 * n) : (() => { const x = new Date(`${d.slice(0, 7)}-01T12:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return iso(x); })()));
+  const titulo = visual === "semana" ? `${per.de.split("-").reverse().join("/")} – ${per.ate.split("-").reverse().join("/")}` : new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+  const inicio = visual === "semana" ? per.de : segunda(per.de);
+  const dias: string[] = [];
+  for (let d = inicio; d <= per.ate || dias.length % 7 !== 0; d = somarDias(d, 1)) dias.push(d);
+  const celula = (dia: string) => {
+    const fora = dia < per.de || dia > per.ate;
+    const v = valores.get(dia);
+    const est = estimados.has(dia);
+    const ag = aguardando.has(dia);
+    const intens = v ? Math.round((v / max) * 70) + 8 : 0;
+    return (
+      <button
+        key={dia}
+        type="button"
+        disabled={fora}
+        onClick={() => setDiaAberto(dia)}
+        className={`flex min-h-14 flex-col items-start rounded-md border p-1.5 text-left text-xs transition-colors ${fora ? "opacity-30" : "hover:border-primary"} ${dia === hojeSP() ? "border-primary" : ""}`}
+        style={intens ? { background: `color-mix(in oklch, var(--primary) ${intens}%, var(--card))` } : undefined}
+        aria-label={`${dia.split("-").reverse().join("/")}: ${ag ? "aguardando sincronização" : fmt(v ?? 0, cartao)}`}
+      >
+        <span className="text-muted-foreground">{Number(dia.slice(8))}</span>
+        <span className="mt-auto font-semibold tabular-nums">{ag ? <span className="font-normal text-muted-foreground">aguardando</span> : v ? fmt(v, cartao) : ""}</span>
+        {est && <MarcaEstimativa desde={res?.primeiraLeitura} />}
+      </button>
+    );
+  };
+  return (
+    <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{cartao.titulo}</h3>
+        <div className="flex flex-wrap items-center gap-1">
+          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Anterior" onClick={() => navegar(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+          <span className="min-w-28 text-center text-sm capitalize">{titulo}</span>
+          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Próximo" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>
+          <Button size="sm" variant="outline" className="h-7" onClick={() => setRef(hojeSP())}>Hoje</Button>
+          <Select value={visual} onValueChange={(v) => setVisual(v as any)}>
+            <SelectTrigger className="h-7 w-auto" aria-label="Visualização"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="mes">Mês</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="agenda">Agenda</SelectItem></SelectContent>
+          </Select>
+          {menu}
+        </div>
+      </header>
+      {erro && !r ? (
+        <p className="text-sm text-muted-foreground">Não foi possível calcular agora.</p>
+      ) : !r ? (
+        <Skeleton className="h-64 w-full" />
+      ) : visual === "agenda" ? (
+        <ul className="divide-y text-sm">
+          {[...valores.entries()].filter(([, v]) => v).map(([dia, v]) => (
+            <li key={dia}><button type="button" className="flex w-full justify-between py-1.5 text-left hover:text-primary" onClick={() => setDiaAberto(dia)}><span>{new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" })}{estimados.has(dia) && <MarcaEstimativa desde={res?.primeiraLeitura} />}</span><span className="tabular-nums">{fmt(v, cartao)}</span></button></li>
+          ))}
+          {![...valores.values()].some(Boolean) && <li className="py-2 text-muted-foreground">Nenhum item neste período.</li>}
+        </ul>
+      ) : (
+        <div className="grid grid-cols-7 gap-1">
+          {SEMANA.map((d) => <span key={d} className="pb-1 text-center text-[11px] uppercase text-muted-foreground">{d}</span>)}
+          {dias.map(celula)}
+        </div>
+      )}
+      {res && <p className="mt-2 text-xs text-muted-foreground">Total no período: {fmt(res.total, cartao)}{estimados.size ? ` · ${estimados.size} dia(s) estimado(s), fora do total` : ""}</p>}
+      {diaAberto && <ItensDoDia clienteId={clienteId} cartao={cartao} dia={diaAberto} filtrosVisao={filtrosVisao} onFechar={() => setDiaAberto(null)} />}
+    </section>
+  );
+}
+
+function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, onFechar }: { clienteId: string; cartao: CartaoGrafico; dia: string; filtrosVisao: FiltroCampo[]; onFechar: () => void }) {
+  const [itens, setItens] = useState<ItemDia[] | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } }).then((r) => vivo && setItens(r.itens as ItemDia[])).catch((e) => { toast.error(msg(e)); vivo && setItens([]); });
+    return () => { vivo = false; };
+  }, [clienteId, dia]); // eslint-disable-line react-hooks/exhaustive-deps
+  const extras = itens?.length ? Object.keys(itens[0].campos) : [];
+  const temValor = itens?.some((i) => i.valor != null);
+  return (
+    <Sheet open onOpenChange={(o) => !o && onFechar()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetHeader>
+          <SheetTitle>{cartao.titulo} · {dia.split("-").reverse().join("/")}</SheetTitle>
+          <SheetDescription>{cartao.medida === "indicador" ? "A lista do dia existe para calendários de campo de data." : itens ? `${itens.length} item(ns)` : "Carregando…"}</SheetDescription>
+        </SheetHeader>
+        {!itens ? <Skeleton className="mt-4 h-40 w-full" /> : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-2">Nome</th><th className="py-1 pr-2">Telefone</th><th className="py-1 pr-2">Atendente</th>{temValor && <th className="py-1 pr-2 text-right">Valor</th>}{extras.map((k) => <th key={k} className="py-1 pr-2">{k.split("|")[1]?.replace(/^campo\./, "")}</th>)}</tr></thead>
+              <tbody>
+                {itens.map((i) => (
+                  <tr key={i.id} className="border-t">
+                    <td className="py-1.5 pr-2">{i.nome}</td><td className="py-1.5 pr-2 tabular-nums">{i.telefone}</td><td className="py-1.5 pr-2">{i.atendente}</td>
+                    {temValor && <td className="py-1.5 pr-2 text-right tabular-nums">{i.valor == null ? "—" : fmt(i.valor, cartao)}</td>}
+                    {extras.map((k) => <td key={k} className="py-1.5 pr-2">{i.campos[k]}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
