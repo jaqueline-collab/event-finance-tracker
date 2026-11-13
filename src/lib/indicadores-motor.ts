@@ -144,6 +144,15 @@ export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[]): { dia: str
   return null;
 }
 
+/** Cards contados por um indicador no período (mesma regra de `calcularIndicadoresCards`). */
+export function cardsDoIndicador(cfg: IndicadorConfig, leituras: Leitura[], de: string, ate: string): { card_id: string; dia: string; estimado: boolean }[] {
+  const porCard = new Map<string, Leitura[]>();
+  for (const l of leituras) porCard.set(l.card_id, [...(porCard.get(l.card_id) ?? []), l]);
+  const out: { card_id: string; dia: string; estimado: boolean }[] = [];
+  for (const [id, ls] of porCard) { const r = diaDoCard(cfg, ls); if (r && r.dia >= de && r.dia <= ate) out.push({ card_id: id, ...r }); }
+  return out;
+}
+
 /** Coluna combinada de cards ("app" é o nome antigo, aceito para não quebrar configurações). */
 export const ehCombinadaDeCard = (c: Pick<IndicadorConfig, "tipo" | "fonte">) => (c.tipo === "combinada" || c.tipo === "app") && c.fonte === "cards";
 

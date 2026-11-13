@@ -87,6 +87,25 @@ export const calcularCartao = createServerFn({ method: "POST" })
     const { data: estados, error: erroSync } = await db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId);
     if (erroSync) throw new Error(erroSync.message);
     const fonte = c.fonte === "card" ? "cards" : c.fonte === "atendimento" ? "atendimentos" : "contatos";
+    const contadosPor = async (chaves: string[], per: { de: string; ate: string }) => {
+      const { lerConfig } = await import("@/lib/indicadores.server");
+      const { lerLeiturasCards } = await import("@/lib/matriz.server");
+      const { cardsDoIndicador } = await import("@/lib/indicadores-motor");
+      const [cfgs, leituras] = await Promise.all([lerConfig(db, data.clienteId), lerLeiturasCards(db, data.clienteId)]);
+      const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
+      const f = aplicarFiltrosCampos(cat.base, [...(data.filtrosVisao as any), ...c.filtros]);
+      const ls = f ? leituras.filter((l) => f.cards.has(l.card_id)) : leituras;
+      const m = new Map<string, { card_id: string; estimado: boolean }>();
+      for (const k of chaves) { const cfg = cfgs.find((x) => x.chave === k); if (cfg) for (const x of cardsDoIndicador(cfg, ls, per.de, per.ate)) if (!m.has(x.card_id)) m.set(x.card_id, x); }
+      return [...m.values()];
+    };
+    if (c.tipo === "dois_valores" && c.indicador) {
+      const { doisValoresDeCards } = await import("@/lib/graficos");
+      const { periodoAnterior } = await import("@/lib/painel-visual");
+      const contados = await contadosPor([c.indicador], p);
+      const ant = c.comparar ? (await contadosPor([c.indicador], periodoAnterior(p))).length : null;
+      return { oculto: false as const, r: { ...doisValoresDeCards(cat.base, c, contados, ant), cobertura: estadoCobertura(p.ate, ["cards"], estados ?? []) } };
+    }
     if (c.tipo === "dois_valores") {
       const { agregarDoisValores } = await import("@/lib/graficos");
       return { oculto: false as const, r: { ...agregarDoisValores(cat.base, c, p, data.filtrosVisao as any, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
@@ -97,7 +116,7 @@ export const calcularCartao = createServerFn({ method: "POST" })
     }
     if (c.tipo === "tabela_itens") {
       const { itensTabela } = await import("@/lib/graficos");
-      return { oculto: false as const, r: { ...itensTabela(cat.base, c, p, data.filtrosVisao as any, a.semDinheiro, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
+      return { oculto: false as const, r: { ...itensTabela(cat.base, c, p, data.filtrosVisao as any, a.semDinheiro, cat.catalogo, 2000, c.fonte === "card" && c.indicadoresItens.length ? new Set((await contadosPor(c.indicadoresItens, p)).map((x) => x.card_id)) : undefined), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
     }
     if (c.tipo === "calendario") {
       const r = agregarCalendario(cat.base, c, p, data.filtrosVisao as any);

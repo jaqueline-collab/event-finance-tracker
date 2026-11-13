@@ -22,6 +22,7 @@ export const ROTULO_MEDIDA: Record<Medida, string> = {
 };
 
 const ref = z.object({ fonte: z.enum(["contato", "atendimento", "card", "utm"]), campo: z.string().min(1).max(200) });
+const painelEnum = z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-tma", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]);
 export const cartaoSchema = z.object({
   id: z.string().min(1).max(60),
   titulo: z.string().trim().min(1).max(80),
@@ -44,7 +45,7 @@ export const cartaoSchema = z.object({
   /** Calendário: visualização inicial e campos extras na lista do dia. */
   visualCalendario: z.enum(["mes", "semana", "agenda"]).default("mes"),
   camposLista: z.array(ref).max(8).default([]),
-  painel: z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-tma", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
+  painel: painelEnum.optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
   /** Funil: "ranking" (% do total) ou "etapas" (conversão entre uma faixa e a seguinte). */
   modoFunil: z.enum(["ranking", "etapas"]).default("ranking"),
@@ -55,6 +56,8 @@ export const cartaoSchema = z.object({
     medida: z.enum(MEDIDAS).default("contagem"),
     campoMedida: ref.nullable().optional(),
     serie: ref.nullable().optional(),
+    /** Bloco padrão do painel (mesma regra), quando a alternativa é um deles. */
+    painel: painelEnum.optional(),
   })).max(3).default([]),
   /** Calendário: outros campos de data que quem vê alterna (o principal é `dimensao`). */
   camposData: z.array(ref).max(4).default([]),
@@ -62,7 +65,9 @@ export const cartaoSchema = z.object({
   agrupar: z.array(ref).max(8).default([]),
   soPatrocinados: z.boolean().default(false),
   /** Tabela de itens: colunas do catálogo (a coluna "Origem" calculada é sempre incluída). */
-  colunas: z.array(ref).max(24).default([]),
+  colunas: z.array(ref.extend({ rotulo: z.string().trim().max(60).optional() })).max(24).default([]),
+  /** Tabela de itens de cards: só os cards contados por estes indicadores da Matriz no período (mesma regra da Matriz). */
+  indicadoresItens: z.array(z.string().min(1).max(80)).max(6).default([]),
 });
 export type CartaoGrafico = z.infer<typeof cartaoSchema>;
 export type CampoRef = z.infer<typeof ref>;
@@ -239,6 +244,8 @@ export type ResultadoCartao = {
   /** Dois valores: a quantidade ao lado da soma. */
   qtd?: number;
   qtdAnterior?: number | null;
+  /** Quantos da quantidade vêm de leitura estimada (contam, sempre marcados). */
+  qtdEstimados?: number;
   /** Tabela de itens: colunas e linhas já formatadas (sem texto de mensagem). */
   colunasItens?: { chave: string; rotulo: string }[];
   itens?: { id: string; valores: Record<string, string> }[];
@@ -473,7 +480,7 @@ export function migrarKpisVisao(cartoes: CartaoGrafico[]): CartaoGrafico[] {
 export function aplicarAlternativa(cfg: CartaoGrafico, i: number): CartaoGrafico {
   const a = cfg.medidasAlternaveis[i];
   if (!a) return cfg;
-  return { ...cfg, fonte: a.fonte, medida: a.medida, campoMedida: a.campoMedida ?? null, serie: a.serie ?? null, painel: undefined };
+  return { ...cfg, fonte: a.fonte, medida: a.medida, campoMedida: a.campoMedida ?? null, serie: a.serie ?? null, painel: a.painel };
 }
 
 /** Origem calculada pela mesma regra de ADS do motor: contato com campanha = patrocinado. */
@@ -530,20 +537,22 @@ export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Period
 }
 
 /** Tabela de itens: uma linha por contato ou card criado no período, com as colunas do catálogo e a "Origem" calculada. */
-export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[], semDinheiro: boolean, cat?: GrupoCatalogo[], limite = 2000): ResultadoCartao {
+export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[], semDinheiro: boolean, cat?: GrupoCatalogo[], limite = 2000, soCards?: Set<string>): ResultadoCartao {
   const idx = indices(base);
   const fonte: FonteCampo = cfg.fonte === "card" ? "card" : "contato";
   const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
-  const rot = (f: CampoRef) => cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, "");
-  const colunas = cfg.colunas.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
-  const colunasItens = [...colunas.map((f) => ({ chave: `${f.fonte}|${f.campo}`, rotulo: rot(f) })), { chave: "origem_calc", rotulo: "Origem" }];
+  const ehOrigem = (f: CampoRef) => f.fonte === "contato" && f.campo === "origem";
+  const rot = (f: CampoRef & { rotulo?: string }) => f.rotulo || (cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, ""));
+  const colunas: (CampoRef & { rotulo?: string })[] = cfg.colunas.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
+  const temOrigem = colunas.some(ehOrigem);
+  const colunasItens = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem" } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
   const txt = (v: unknown) => textos(v).join(", ");
   const itens: { id: string; valores: Record<string, string> }[] = [];
   for (const r of registros(base, fonte)) {
-    if (!noPer(r.criado_em, p)) continue;
+    if (soCards ? !soCards.has(String(r.id)) : !noPer(r.criado_em, p)) continue;
     if (filtro && !(fonte === "card" ? filtro.cards.has(r.id) : filtro.contatos.has(r.id))) continue;
     const valores: Record<string, string> = {};
-    for (const f of colunas) valores[`${f.fonte}|${f.campo}`] = txt(valorLigado(base, fonte, f, r, idx));
+    for (const f of colunas) if (!ehOrigem(f)) valores[`${f.fonte}|${f.campo}`] = txt(valorLigado(base, fonte, f, r, idx));
     const cid = contatoDe(fonte, r)[0];
     valores.origem_calc = origemCalculada(cid ? idx.contato.get(cid) : undefined);
     itens.push({ id: String(r.id), valores });
@@ -556,4 +565,12 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
 export function percentuaisFunil(faixas: { total: number }[], modo: "ranking" | "etapas"): (number | null)[] {
   const soma = faixas.reduce((a, b) => a + b.total, 0);
   return faixas.map((f, i) => (modo === "ranking" ? (soma ? (f.total / soma) * 100 : 0) : i === 0 ? null : faixas[i - 1].total ? (f.total / faixas[i - 1].total) * 100 : 0));
+}
+
+/** Dois valores ligado a um indicador da Matriz: quantidade = cards contados; valor = soma do campo desses mesmos cards. */
+export function doisValoresDeCards(base: BaseCampos, cfg: CartaoGrafico, contados: { card_id: string; estimado: boolean }[], anteriores: number | null): ResultadoCartao {
+  const cards = new Map(base.cards.map((c) => [c.id, c]));
+  let soma = 0;
+  for (const x of contados) { const n = cfg.campoMedida ? numero(valorDe("card", cfg.campoMedida.campo, cards.get(x.card_id))) : null; if (n != null) soma += n; }
+  return { categorias: [], series: [], total: soma, anterior: null, estimados: [], linhas: contados.length, qtd: contados.length, qtdAnterior: anteriores, qtdEstimados: contados.filter((x) => x.estimado).length };
 }
