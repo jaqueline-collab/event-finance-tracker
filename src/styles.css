@@ -58,6 +58,7 @@
   --color-fin: var(--fin);
   --color-fin-foreground: var(--fin-foreground);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -129,6 +130,7 @@
   --fin: var(--navy-500);
   --fin-foreground: #FFFFFF;
   --success: oklch(0.52 0.14 150);
+  --success-foreground: #FFFFFF;
   --destructive: oklch(0.55 0.21 25);
   --destructive-foreground: #FFFFFF;
   --border: var(--graphite-100);
@@ -179,6 +181,7 @@
   --fin: var(--yellow);
   --fin-foreground: var(--navy);
   --success: oklch(0.74 0.16 150);
+  --success-foreground: var(--navy);
   --destructive: oklch(0.65 0.21 25);
   --destructive-foreground: #FFFFFF;
   --border: #2A303C;
