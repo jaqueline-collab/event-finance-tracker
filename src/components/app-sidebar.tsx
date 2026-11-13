@@ -140,7 +140,7 @@ export function AppSidebar() {
         asChild
         isActive={pathname === item.url}
         tooltip={item.title}
-        className="h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-brand-soft data-[active=true]:text-sidebar-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]"
+        className="h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground hover:data-[active=true]:bg-sidebar-primary hover:data-[active=true]:text-sidebar-primary-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]"
       >
         <Link to={item.url}>
           <item.icon />
@@ -215,7 +215,7 @@ export function AppSidebar() {
                       asChild
                       isActive={pathname === item.url}
                       tooltip={item.title}
-                      className="h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-brand-soft data-[active=true]:text-sidebar-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]"
+                      className="h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground hover:data-[active=true]:bg-sidebar-primary hover:data-[active=true]:text-sidebar-primary-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]"
                     >
                       <Link to={item.url}>
                         <item.icon />

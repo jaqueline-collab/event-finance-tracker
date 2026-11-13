@@ -782,7 +782,7 @@ const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: "America
 const segunda = (dia: string) => somarDias(dia, -((new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7));
 
 /** Cor de cada tipo de compromisso: 1º campo de data = amarelo da marca (texto marinho), 2º = verde de sucesso. */
-export const COR_TIPO_CALENDARIO = ["bg-brand text-brand-foreground", "bg-success text-success-foreground", "bg-accent text-accent-foreground", "bg-muted text-foreground"] as const;
+export const COR_TIPO_CALENDARIO = ["bg-agenda-consulta text-agenda-consulta-foreground", "bg-agenda-procedimento text-agenda-procedimento-foreground", "bg-accent text-accent-foreground", "bg-muted text-foreground"] as const;
 const corTipo = (t: number) => COR_TIPO_CALENDARIO[t] ?? COR_TIPO_CALENDARIO[3];
 
 function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; menu?: React.ReactNode; previa?: boolean }) {
