@@ -29,4 +29,4 @@
 - [ ] Conferência interna autenticada em 390/834/1440 nos dois temas, exportações/congelamento/IA e tabela pronta — bloqueada por ausência de sessão autorizada no Supabase externo. Tela pública e endpoints sem segredo verificados, não substituem essa conferência.
 - [ ] Cobertura diária persistida na sincronização: não registrada nesta fase; todos os intervalos sem prova permanecem parciais, sem confirmar zeros históricos. Cache novo não implementado conforme limite do plano.
 - [x] Ressalva autorizada: produção só tem Resultados e zero widgets antigos do Dr. Ricardo; continuar sem recriar configurações ausentes, registrando no relatório.
-- [ ] Fase 6: remover seção Listas e filtros (sem tela, dados intactos); edição bloco a bloco com grade 12 col; Calendário; assistente de configuração na Elora IA; testes; relatório
+- [x] Fase 6: remover seção Listas e filtros (sem tela, dados intactos); edição bloco a bloco com grade 12 col; Calendário; assistente de configuração na Elora IA; testes; relatório
