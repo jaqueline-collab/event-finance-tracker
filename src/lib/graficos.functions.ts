@@ -82,12 +82,32 @@ export const calcularCartao = createServerFn({ method: "POST" })
       }
       return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), primeiraLeitura: m.primeiraLeitura, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
     }
-    const { agregarCartao } = await import("@/lib/graficos");
+    const { agregarCartao, agregarCalendario, diasAguardando } = await import("@/lib/graficos");
     const { estadoCobertura } = await import("@/lib/sync-cobertura");
     const { data: estados, error: erroSync } = await db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId);
     if (erroSync) throw new Error(erroSync.message);
     const fonte = c.fonte === "card" ? "cards" : c.fonte === "atendimento" ? "atendimentos" : "contatos";
+    if (c.tipo === "calendario") {
+      const r = agregarCalendario(cat.base, c, p, data.filtrosVisao as any);
+      const aguardando = diasAguardando(p, r, (d) => estadoCobertura(d, [fonte], estados ?? []));
+      return { oculto: false as const, r: { ...r, aguardando, cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
+    }
     return { oculto: false as const, r: { ...agregarCartao(cat.base, c, p, data.filtrosVisao as any, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
+  });
+
+/** Itens de um dia do calendário (nome, telefone, atendente, valor, campos escolhidos). Nunca lê texto de mensagem. */
+export const itensDiaCalendario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), dia, cartao: cartaoSchema, filtrosVisao: z.array(filtroCampoSchema).max(20).default([]) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const a = await acesso(context.supabase, data.clienteId);
+    const c = data.cartao as CartaoGrafico;
+    if (c.tipo !== "calendario" || c.medida === "indicador") return { itens: [] };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
+    const { itensDoDia } = await import("@/lib/graficos");
+    const cat = await catalogoDoCliente(supabaseAdmin as any, data.clienteId);
+    return { itens: itensDoDia(cat.base, c, data.dia, data.filtrosVisao as any, a.semDinheiro) };
   });
 
 /** Grava a lista de cartões de uma visão (ordem incluída). Só super admin. Remover cartão não apaga dado. */
