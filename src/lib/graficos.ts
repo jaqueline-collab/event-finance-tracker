@@ -8,11 +8,11 @@ import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type
 import { NAO_DEFINIDO } from "./nao-definido";
 import { diaSP, periodoAnterior, type Periodo } from "./painel-visual";
 
-export const TIPOS_GRAFICO = ["numero", "barras", "barras_empilhadas", "linhas", "area", "pizza", "rosca", "funil", "tabela", "mapa"] as const;
+export const TIPOS_GRAFICO = ["numero", "barras", "barras_empilhadas", "linhas", "area", "pizza", "rosca", "funil", "tabela", "mapa", "calendario"] as const;
 export type TipoGrafico = (typeof TIPOS_GRAFICO)[number];
 export const ROTULO_TIPO_GRAFICO: Record<TipoGrafico, string> = {
   numero: "Número grande", barras: "Barras", barras_empilhadas: "Barras empilhadas", linhas: "Linhas", area: "Área",
-  pizza: "Pizza", rosca: "Rosca", funil: "Funil", tabela: "Tabela", mapa: "Mapa",
+  pizza: "Pizza", rosca: "Rosca", funil: "Funil", tabela: "Tabela", mapa: "Mapa", calendario: "Calendário",
 };
 export const MEDIDAS = ["contagem", "distinta", "soma", "media", "tempo_medio", "indicador"] as const;
 export type Medida = (typeof MEDIDAS)[number];
@@ -37,7 +37,13 @@ export const cartaoSchema = z.object({
   comparar: z.boolean().default(false),
   formato: z.enum(["numero", "percentual", "moeda"]).default("numero"),
   tamanho: z.enum(["metade", "inteiro"]).default("metade"),
-  painel: z.enum(["leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
+  /** Layout na grade de 12 colunas (ausente = padrão do tipo). */
+  largura: z.number().int().min(1).max(12).optional(),
+  altura: z.number().int().min(1).max(12).optional(),
+  /** Calendário: visualização inicial e campos extras na lista do dia. */
+  visualCalendario: z.enum(["mes", "semana", "agenda"]).default("mes"),
+  camposLista: z.array(ref).max(8).default([]),
+  painel: z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
 });
 export type CartaoGrafico = z.infer<typeof cartaoSchema>;
@@ -47,6 +53,15 @@ export const cartoesValidos = (v: unknown): CartaoGrafico[] =>
   (Array.isArray(v) ? v : []).flatMap((c) => { const r = cartaoSchema.safeParse(c); return r.success ? [r.data] : []; });
 
 export const novoCartao = (id: string): CartaoGrafico => cartaoSchema.parse({ id, titulo: "Novo gráfico", tipo: "barras", fonte: "contato", dimensao: { fonte: "contato", campo: "origem" } });
+
+/** Indicadores do cabeçalho como cartões (mesma agregação do painel). */
+export const CARTOES_KPI = [
+  ["kpi-leads", "Novos leads", "contagem", "contato"],
+  ["kpi-conversas", "Conversas realizadas", "contagem", "atendimento"],
+  ["kpi-tmr", "TMR · TMA", "tempo_medio", "atendimento"],
+  ["kpi-ads", "Leads de ADS", "contagem", "contato"],
+].map(([id, titulo, medida, fonte]) => cartaoSchema.parse({ id, titulo, tipo: "numero", medida, fonte, painel: id, comparar: true, largura: 3, altura: 1 }));
+export const ehCartaoKpi = (c: Pick<CartaoGrafico, "painel">) => !!c.painel && c.painel.startsWith("kpi-");
 
 /** Cartões padrão: mesma agregação autorizada do painel, sem uma segunda regra. */
 export const CARTOES_PAINEL = [
@@ -63,7 +78,14 @@ export function cartaoDoPainel(r: import("./painel-visual").ResumoPainel, c: Car
   let categorias: ResultadoCartao["categorias"] = [];
   let series = ["Valor"];
   let total: number | undefined;
+  const nf = (v: number) => v.toLocaleString("pt-BR");
+  const { atual: a, anterior: ant } = r.kpis;
+  const kpi = (total: number, anterior: number | null, rodape?: string): ResultadoCartao => ({ categorias: [], series: ["Valor"], total, anterior, estimados: [], linhas: 0, rodape });
   switch (c.painel) {
+    case "kpi-leads": return kpi(a.novosLeads, ant.novosLeads, a.importadosFora ? `${nf(a.importadosFora)} importados fora da conta` : undefined);
+    case "kpi-conversas": return kpi(a.conversas, ant.conversas);
+    case "kpi-tmr": return kpi(a.tmr.valor ?? Number.NaN, ant.tmr.valor ?? null, `TMA ${a.tma.valor == null ? "—" : Math.round(a.tma.valor) + "s"} · ${nf(a.tmr.medidas)} conversas medidas (TMR)`);
+    case "kpi-ads": return kpi(a.leadsAds, ant.leadsAds, `${(a.novosLeads ? (a.leadsAds / a.novosLeads) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% dos novos leads`);
     case "leads-dia": series = ["Sem campanha", "Vindos de ADS"]; categorias = r.porDia.map(d => categoria(d.dia, { "Sem campanha": d.organicos, "Vindos de ADS": d.ads })); break;
     case "conversas-dia": series = ["Usuário do sistema", "Bot"]; categorias = r.porDia.map(d => categoria(d.dia, { "Usuário do sistema": d.usuario, Bot: d.bot })); break;
     case "leads-por": {
@@ -91,6 +113,9 @@ export function fontesDisponiveis(cat: GrupoCatalogo[]): FonteCampo[] {
   return cat.filter((g) => g.campos.some((c) => !c.oculto && c.preenchidos > 0)).map((g) => g.fonte);
 }
 
+/** Cliente com algum campo de data preenchido e visível no catálogo. */
+export const temCampoData = (cat: GrupoCatalogo[]) => cat.some((g) => g.campos.some((c) => !c.oculto && c.preenchidos > 0 && c.tipo === "data"));
+
 /** Tipos que fazem sentido para a configuração e os dados do cliente; o resto não aparece. */
 export function tiposDisponiveis(cat: GrupoCatalogo[], cfg: Pick<CartaoGrafico, "dimensao" | "medida">): TipoGrafico[] {
   const dim = cfg.dimensao;
@@ -102,6 +127,7 @@ export function tiposDisponiveis(cat: GrupoCatalogo[], cfg: Pick<CartaoGrafico, 
   if (ehData) out.push("linhas", "area");
   if (cfg.dimensao && !ehData) out.push("pizza", "rosca", "funil");
   if (temGeo && campo && campoGeo(campo)) out.push("mapa");
+  if (temCampoData(cat)) out.push("calendario");
   return TIPOS_GRAFICO.filter((t) => out.includes(t));
 }
 
@@ -168,6 +194,9 @@ export type ResultadoCartao = {
   anterior: number | null;
   estimados: string[];
   linhas: number;
+  rodape?: string;
+  /** Calendário: dias sem sincronização confirmada e com zero (mostrar "aguardando"). */
+  aguardando?: string[];
   cobertura?: string;
   primeiraLeitura?: string | null;
 };
@@ -285,3 +314,95 @@ export function cartaoDeIndicador(
 /** Cartões com dinheiro (moeda ou soma/média de valor) não vão a parceiro sem permissão de valores. */
 export const cartaoTemDinheiro = (c: CartaoGrafico) =>
   c.formato === "moeda" || ((c.medida === "soma" || c.medida === "media") && /valor|preco|preço|monetar/i.test(c.campoMedida?.campo ?? ""));
+
+/* ---------------- calendário ---------------- */
+
+/** Dia (America/Sao_Paulo) do campo de data escolhido para o registro. */
+function diaDoCampo(base: BaseCampos, fonte: FonteCampo, f: CampoRef, r: any, idx: Indices): string | null {
+  const v = f.campo === "criado_em" && (f.fonte === fonte || (f.fonte === "utm" && fonte === "contato")) ? r.criado_em : valorLigado(base, fonte, f, r, idx);
+  const x = Array.isArray(v) ? v[0] : v;
+  if (x == null || x === "") return null;
+  const s = String(x);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : diaSP(s);
+}
+
+function registrosCalendario(base: BaseCampos, cfg: CartaoGrafico, filtrosVisao: FiltroCampo[]) {
+  const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
+  return registros(base, cfg.fonte).filter((r) => {
+    if (!filtro) return true;
+    if (cfg.fonte === "card") return filtro.cards.has(r.id);
+    return contatoDe(cfg.fonte, r).some((id) => filtro.contatos.has(id));
+  });
+}
+
+/** Calendário: agrupa pelo dia do campo de data escolhido (não pela criação). */
+export function agregarCalendario(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = []): ResultadoCartao {
+  if (!cfg.dimensao) return { categorias: [], series: ["Valor"], total: 0, anterior: null, estimados: [], linhas: 0 };
+  const idx = indices(base);
+  const por = new Map<string, Acc>();
+  const geral = acc();
+  let linhas = 0;
+  for (const r of registrosCalendario(base, cfg, filtrosVisao)) {
+    const d = diaDoCampo(base, cfg.fonte, cfg.dimensao, r, idx);
+    if (!d || d < p.de || d > p.ate) continue;
+    linhas += 1;
+    const a = por.get(d) ?? acc();
+    for (const x of [a, geral]) {
+      x.n += 1;
+      for (const id of contatoDe(cfg.fonte, r)) x.ids.add(id);
+      if (cfg.medida === "soma" || cfg.medida === "media") {
+        const n = cfg.campoMedida ? numero(valorLigado(base, cfg.fonte, cfg.campoMedida, r, idx)) : null;
+        if (n != null) { x.soma += n; x.qtd += 1; }
+      }
+    }
+    por.set(d, a);
+  }
+  const categorias = [...por.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rotulo, a]) => { const v = valorAcc(a, cfg.medida); return { rotulo, valores: { Valor: v }, total: v }; });
+  return { categorias, series: ["Valor"], total: valorAcc(geral, cfg.medida), anterior: null, estimados: [], linhas };
+}
+
+/** Dias do período com zero e sem cobertura confirmada: "aguardando", nunca zero. */
+export function diasAguardando(p: Periodo, r: Pick<ResultadoCartao, "categorias" | "estimados">, estadoDoDia: (dia: string) => string): string[] {
+  const com = new Set(r.categorias.filter((c) => c.total !== 0).map((c) => c.rotulo));
+  const est = new Set(r.estimados);
+  const out: string[] = [];
+  for (let d = new Date(`${p.de}T12:00:00Z`); d.toISOString().slice(0, 10) <= p.ate; d.setUTCDate(d.getUTCDate() + 1)) {
+    const dia = d.toISOString().slice(0, 10);
+    if (!com.has(dia) && !est.has(dia) && estadoDoDia(dia) !== "confirmado") out.push(dia);
+  }
+  return out;
+}
+
+export type ItemDia = { id: string; nome: string; telefone: string; atendente: string; valor: number | null; campos: Record<string, string> };
+const DINHEIRO = /valor|preco|preço|monetar|moeda|receita|faturamento|ticket/i;
+
+/** Itens de um dia do calendário. Sem texto de mensagem; dinheiro some para quem não vê valores. */
+export function itensDoDia(base: BaseCampos, cfg: CartaoGrafico, dia: string, filtrosVisao: FiltroCampo[], semDinheiro: boolean, limite = 200): ItemDia[] {
+  if (!cfg.dimensao) return [];
+  const idx = indices(base);
+  const out: ItemDia[] = [];
+  const txt = (v: unknown) => { const t = textos(v); return t[0] === NAO_DEFINIDO ? NAO_DEFINIDO : t.join(", "); };
+  for (const r of registrosCalendario(base, cfg, filtrosVisao)) {
+    if (diaDoCampo(base, cfg.fonte, cfg.dimensao, r, idx) !== dia) continue;
+    const cid = contatoDe(cfg.fonte, r)[0];
+    const contato = cid ? idx.contato.get(cid) : undefined;
+    const sessao = cfg.fonte === "atendimento" ? r : cid ? idx.atendimento.get(cid) : undefined;
+    const campos: Record<string, string> = {};
+    for (const f of cfg.camposLista) {
+      if (semDinheiro && DINHEIRO.test(f.campo)) continue;
+      campos[`${f.fonte}|${f.campo}`] = txt(valorLigado(base, cfg.fonte, f, r, idx));
+    }
+    const valorBruto = cfg.campoMedida ? numero(valorLigado(base, cfg.fonte, cfg.campoMedida, r, idx)) : null;
+    const dinheiroMedida = cfg.formato === "moeda" || DINHEIRO.test(cfg.campoMedida?.campo ?? "");
+    out.push({
+      id: String(r.id ?? out.length),
+      nome: txt(contato?.nome ?? r.nome ?? r.titulo),
+      telefone: txt(contato?.telefone),
+      atendente: txt(sessao ? valorDe("atendimento", "atendente", sessao) : null),
+      valor: semDinheiro && dinheiroMedida ? null : valorBruto,
+      campos,
+    });
+    if (out.length >= limite) break;
+  }
+  return out;
+}
