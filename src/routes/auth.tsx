@@ -91,7 +91,7 @@ function AuthPage() {
         }
       />
 
-      <section className="flex-1 bg-white px-6 py-14 md:py-20">
+      <section className="flex-1 bg-background px-6 py-14 md:py-20">
         <div className="max-w-md mx-auto">
           <div className="rounded-2xl border border-landing-border bg-landing-surface p-7 md:p-8 shadow-sm">
             {step === "email" ? (
@@ -112,7 +112,7 @@ function AuthPage() {
                     autoFocus
                     autoComplete="email"
                     placeholder="voce@exemplo.com"
-                    className="w-full rounded-md border border-landing-border bg-white px-4 py-3 text-landing-fg placeholder:text-landing-muted/70 outline-none focus:border-rabbit-navy transition-colors"
+                    className="w-full rounded-md border border-[1.5px] border-input bg-field px-4 py-3 text-foreground placeholder:text-landing-muted/70 outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <button
@@ -126,7 +126,7 @@ function AuthPage() {
               </form>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-start gap-3 rounded-lg border border-landing-border bg-white p-4">
+                <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
                   <CheckCircle2 className="h-5 w-5 text-rabbit-navy mt-0.5 shrink-0" />
                   <div className="text-sm text-landing-muted">
                     Não esqueça de verificar a pasta de <strong>spam</strong> ou{" "}
@@ -154,11 +154,11 @@ function AuthPage() {
             )}
           </div>
 
-          <div className="mt-6 rounded-2xl bg-landing-dark text-white p-6 text-center">
+          <div className="mt-6 rounded-2xl bg-primary text-primary-foreground p-6 text-center">
             <div className="text-xs font-semibold uppercase tracking-widest text-landing-yellow-vivo">
               Ainda não sou cliente
             </div>
-            <p className="text-sm text-white/70 mt-2">
+            <p className="text-sm text-primary-foreground/75 mt-2">
               Fale com a gente no chat e conheça o EloraCRM na prática.
             </p>
             <a

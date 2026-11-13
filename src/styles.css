@@ -27,6 +27,7 @@
   --color-ia-foreground: var(--ia-foreground);
   --color-field: var(--field);
   --color-navy: var(--navy);
+  --color-overlay: var(--overlay);
   --color-chart-6: var(--chart-6);
   --color-chart-7: var(--chart-7);
   --radius-card: var(--radius-card);
@@ -109,6 +110,7 @@
   --yellow: #FFCC1F; --yellow-600: #E5B200; --yellow-300: #FFE27A; --yellow-50: #FFF6D6;
   --graphite: #0B0D12; --graphite-600: #3B4252; --graphite-500: #5B6475; --graphite-100: #E3E6EC;
   --mist: #F5F6F8;
+  --overlay: rgb(11 13 18 / 0.72);
 
   --background: var(--mist);
   --foreground: var(--graphite);
