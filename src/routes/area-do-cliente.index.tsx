@@ -51,6 +51,7 @@ import { PainelVisual, SeletorPeriodo } from "@/components/painel-visual";
 import { MatrizCliente } from "@/components/matriz-cliente";
 import { salvarFiltrosPadraoVisao } from "@/lib/dashboard-visoes.functions";
 import { CartoesGraficos } from "@/components/cartoes-graficos";
+import { ehCartaoKpi } from "@/lib/graficos";
 import type { CartaoGrafico } from "@/lib/graficos";
 import type { FiltroCampo } from "@/lib/campos-elora";
 import { periodoDe, type Periodo, type PeriodoChave } from "@/lib/painel-visual";
@@ -562,7 +563,7 @@ function PainelComFiltros({
           </Button>
         </div>
       )}
-      <PainelVisual {...rest} filtros={filtros} onFiltros={setFiltros} />
+      <PainelVisual {...rest} filtros={filtros} onFiltros={setFiltros} kpisNaGrade={cartoes.some(ehCartaoKpi)} />
       {visaoId && (
         <CartoesGraficos
           clienteId={rest.clienteId}
