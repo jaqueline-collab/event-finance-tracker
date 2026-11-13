@@ -18,7 +18,7 @@ import { FONTES_CATALOGO } from "@/lib/campos-elora";
 import { calcularCartao, itensDiaCalendario, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
 import { desfazer, empurrar, encaixar, historico, LARGURA_GRADE_PX, layoutPadrao, LINHA_PX, redimensionar, refazer, reordenar, tamanhoDe, type Historico } from "@/lib/layout-blocos";
 import {
-  ehTituloPadrao, fontesDisponiveis, funilTop, MEDIDAS, tituloPadrao, type ItemDia, novoCartao, ROTULO_MEDIDA, ROTULO_TIPO_GRAFICO, tiposDisponiveis, type CartaoGrafico, type CampoRef, type ResultadoCartao,
+  aplicarAlternativa, ehTituloPadrao, fontesDisponiveis, funilTop, percentuaisFunil, MEDIDAS, tituloPadrao, type ItemDia, novoCartao, ROTULO_MEDIDA, ROTULO_TIPO_GRAFICO, tiposDisponiveis, type CartaoGrafico, type CampoRef, type ResultadoCartao,
 } from "@/lib/graficos";
 import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
@@ -270,7 +270,9 @@ function CartaoComum({
   clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; onFiltroGrafico?: (f: FiltroCampo) => void; menu?: React.ReactNode; previa?: boolean;
 }) {
   const [dim, setDim] = useState(cartao.dimensao);
-  const efetivo = cartao.painel === "leads-por" ? { ...cartao, dimensao: dim } : cartao;
+  const [alt, setAlt] = useState(-1);
+  const base = alt >= 0 ? aplicarAlternativa(cartao, alt) : cartao;
+  const efetivo = cartao.painel === "leads-por" ? { ...base, dimensao: dim } : base;
   const { r, erro } = useResultado(clienteId, efetivo, periodo, filtrosVisao, previa);
   if (r?.oculto) return null;
   return (
@@ -285,6 +287,13 @@ function CartaoComum({
           {menu}
         </div>
       </header>
+      {cartao.medidasAlternaveis.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1" role="group" aria-label="Medida exibida">
+          {[{ rotulo: ROTULO_MEDIDA[cartao.medida] }, ...cartao.medidasAlternaveis].map((m, i) => (
+            <button key={i} type="button" aria-pressed={alt === i - 1} onClick={() => setAlt(i - 1)} className={`rounded-full border px-2.5 py-0.5 text-xs ${alt === i - 1 ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{m.rotulo}</button>
+          ))}
+        </div>
+      )}
       {erro && !r ? (
         <p className="text-sm text-muted-foreground">Não foi possível calcular agora.</p>
       ) : !r ? (
@@ -333,6 +342,27 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
       </div>
     );
   }
+  if (c.tipo === "dois_valores") {
+    const v = (a: number, b: number | null | undefined) => (b != null && b !== 0 ? ((a - b) / b) * 100 : null);
+    const linha = (rot: string, a: number, b: number | null | undefined, cf: Pick<CartaoGrafico, "formato" | "medida">) => {
+      const x = v(a, b);
+      return (
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{rot}</p>
+          <p className="truncate text-3xl font-bold tracking-tight">{fmt(a, cf)}</p>
+          {c.comparar && <p className={`mt-0.5 flex items-center gap-1 text-xs ${corVariacao(x, (x ?? 0) >= 0)}`}>{x != null && (x >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}{x == null ? "Sem base anterior" : `${x.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% vs. anterior`}</p>}
+        </div>
+      );
+    };
+    return (
+      <div className="grid flex-1 grid-cols-2 items-center gap-4 py-2">
+        {linha("Total", r.total, r.anterior, c)}
+        {linha("Quantidade", r.qtd ?? 0, r.qtdAnterior, { formato: "numero", medida: "contagem" })}
+      </div>
+    );
+  }
+  if (c.tipo === "matriz_utm") return <TabelaCartao cartao={{ ...c, painel: "atendentes", formato: "numero" }} r={r} />;
+  if (c.tipo === "tabela_itens") return <TabelaItens cartao={c} r={r} />;
   if (c.tipo === "tabela") return <TabelaCartao cartao={c} r={r} />;
   if (c.tipo === "mapa") return <MapaCartao cartao={c} r={r} onClique={onClique} />;
   if (!dados.length) return <p className="text-sm text-muted-foreground">Nenhum registro no período.</p>;
@@ -340,6 +370,7 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
 
   return (
     <div className="h-64 w-full">
+      {(c.tipo === "pizza" || c.tipo === "rosca") && <p className="text-xs text-muted-foreground">Total: <span className="font-semibold text-foreground">{fmt(r.categorias.reduce((a, b) => a + b.total, 0), c)}</span></p>}
       <ResponsiveContainer>
         {c.tipo === "pizza" || c.tipo === "rosca" ? (
           <PieChart>
@@ -347,7 +378,8 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
             <Pie data={dados} dataKey="total" nameKey="rotulo" innerRadius={c.tipo === "rosca" ? "55%" : 0} outerRadius="85%" onClick={clique} className={onClique ? "cursor-pointer" : ""}>
               {dados.map((d, i) => <Cell key={d.rotulo} fill={d.rotulo === NAO_DEFINIDO ? "var(--muted)" : CORES[i % CORES.length]} />)}
             </Pie>
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: any, e: any) => { const t = r.categorias.reduce((a, b) => a + b.total, 0); const x = e?.payload?.total ?? 0; return `${v} · ${(t ? (x / t) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`; }} />
+            {c.tipo === "rosca" && <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-sm font-semibold">{fmt(r.categorias.reduce((a, b) => a + b.total, 0), c)}</text>}
           </PieChart>
         ) : c.tipo === "linhas" ? (
           <LineChart data={dados}>
@@ -620,6 +652,55 @@ function EditorCartao({
                   </Select>
                 </div>
               </div>
+              {c.tipo === "funil" && (
+                <div className="space-y-1">
+                  <Label>Modo do funil</Label>
+                  <Select value={c.modoFunil} onValueChange={(v) => set({ modoFunil: v as any })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="ranking">Ranking (% do total)</SelectItem><SelectItem value="etapas">Etapas (conversão entre etapas)</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              )}
+              {c.tipo === "dois_valores" && (
+                <div className="space-y-1"><Label>Campo somado</Label><SelCampo valor={c.campoMedida} onMudar={(r) => set({ campoMedida: r })} filtro={(t) => t === "numero" || t === "moeda"} /></div>
+              )}
+              {(c.tipo === "matriz_utm" || c.tipo === "tabela_itens" || c.tipo === "calendario") && (() => {
+                const k = c.tipo === "matriz_utm" ? "agrupar" : c.tipo === "tabela_itens" ? "colunas" : "camposData";
+                const lista = c[k] as CampoRef[];
+                const rot = c.tipo === "matriz_utm" ? "UTMs que agrupam as linhas" : c.tipo === "tabela_itens" ? "Colunas da tabela" : "Outros campos de data (quem vê alterna)";
+                const filtro = c.tipo === "matriz_utm" ? (_t: string, f?: FonteCampo) => f === "utm" : c.tipo === "calendario" ? (t: string) => t === "data" : undefined;
+                return (
+                  <div className="space-y-1">
+                    <Label>{rot}</Label>
+                    <SelCampo valor={null} onMudar={(r) => r && (!filtro || filtro("", r.fonte) || c.tipo === "calendario") && !lista.some((x) => x.fonte === r.fonte && x.campo === r.campo) && set({ [k]: [...lista, r].slice(0, c.tipo === "tabela_itens" ? 24 : c.tipo === "calendario" ? 4 : 8) } as any)} filtro={c.tipo === "calendario" ? (t) => t === "data" : undefined} nenhum="Adicionar campo…" />
+                    <div className="flex flex-wrap gap-1">
+                      {lista.map((f) => (
+                        <button key={`${f.fonte}|${f.campo}`} type="button" className="rounded-full border px-2 py-0.5 text-xs" onClick={() => set({ [k]: lista.filter((x) => x !== f) } as any)}>
+                          {op.catalogo.find((g) => g.fonte === f.fonte)?.campos.find((x) => x.campo === f.campo)?.rotulo ?? f.campo} ×
+                        </button>
+                      ))}
+                    </div>
+                    {c.tipo === "tabela_itens" && <p className="text-xs text-muted-foreground">A coluna "Origem" (patrocinado, orgânico ou outro) entra sempre.</p>}
+                  </div>
+                );
+              })()}
+              {c.tipo === "matriz_utm" && <label className="flex items-center gap-2 text-sm"><Switch checked={c.soPatrocinados} onCheckedChange={(v) => set({ soPatrocinados: v })} /> Só patrocinados</label>}
+              {c.tipo === "barras_empilhadas" && (
+                <div className="space-y-1">
+                  <Label>Medidas que quem vê alterna (até 3)</Label>
+                  {c.medidasAlternaveis.map((m, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      <Input className="h-8" value={m.rotulo} maxLength={40} onChange={(e) => set({ medidasAlternaveis: c.medidasAlternaveis.map((x, j) => (j === i ? { ...x, rotulo: e.target.value } : x)) })} />
+                      <Select value={`${m.fonte}|${m.medida}`} onValueChange={(v) => { const [fonte, medida] = v.split("|"); set({ medidasAlternaveis: c.medidasAlternaveis.map((x, j) => (j === i ? { ...x, fonte: fonte as FonteCampo, medida: medida as any } : x)) }); }}>
+                        <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
+                        <SelectContent>{FONTES_CATALOGO.filter((f) => fontes.includes(f.fonte)).flatMap((f) => (["contagem", "distinta"] as const).map((md) => <SelectItem key={`${f.fonte}|${md}`} value={`${f.fonte}|${md}`}>{f.nome}: {ROTULO_MEDIDA[md]}</SelectItem>))}</SelectContent>
+                      </Select>
+                      <Button size="sm" variant="ghost" onClick={() => set({ medidasAlternaveis: c.medidasAlternaveis.filter((_, j) => j !== i) })}>×</Button>
+                    </div>
+                  ))}
+                  {c.medidasAlternaveis.length < 3 && <Button size="sm" variant="outline" onClick={() => set({ medidasAlternaveis: [...c.medidasAlternaveis, { rotulo: "Outra medida", fonte: c.fonte, medida: "contagem", campoMedida: null, serie: c.serie ?? null }] })}>Adicionar medida</Button>}
+                </div>
+              )}
               <label className="flex items-center gap-2 text-sm"><Switch checked={c.comparar} onCheckedChange={(v) => set({ comparar: v })} /> Comparar com o período anterior</label>
               <div className="space-y-1">
                 <Label>Filtro do gráfico</Label>
@@ -655,9 +736,11 @@ function EditorCartao({
 function FunilCartao({ cartao, r, onClique }: { cartao: CartaoGrafico; r: ResultadoCartao; onClique?: (rotulo: string) => void }) {
   const faixas = funilTop(r.categorias, 8);
   const max = Math.max(1, ...faixas.map((f) => f.total));
-  const soma = faixas.reduce((a, b) => a + b.total, 0);
-  const pct = (v: number) => `${(soma ? (v / soma) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  const pcts = percentuaisFunil(faixas, cartao.modoFunil);
+  const pct = (i: number) => (pcts[i] == null ? "início" : `${pcts[i]!.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
   return (
+    <>
+    <p className="mb-1 text-xs text-muted-foreground">{cartao.modoFunil === "etapas" ? "Conversão de uma etapa para a seguinte" : "% sobre o total"}</p>
     <ol className="flex flex-col items-center gap-1" aria-label={cartao.titulo}>
       {faixas.map((f, i) => (
         <li key={f.rotulo} className="flex w-full flex-col items-center">
@@ -665,16 +748,17 @@ function FunilCartao({ cartao, r, onClique }: { cartao: CartaoGrafico; r: Result
             type="button"
             disabled={!onClique || f.rotulo === "Outras"}
             onClick={() => onClique?.(f.rotulo)}
-            title={`${f.rotulo}: ${fmt(f.total, cartao)} (${pct(f.total)})`}
+            title={`${f.rotulo}: ${fmt(f.total, cartao)} (${pct(i)})`}
             className="flex items-center justify-between gap-2 rounded-md border-l-4 px-3 py-1.5 text-xs text-foreground transition-opacity enabled:hover:opacity-90"
             style={{ width: `${Math.max(40, (f.total / max) * 100)}%`, borderColor: f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5], background: `color-mix(in oklch, ${f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5]} 22%, var(--card))` }}
           >
             <span className="min-w-0 truncate font-medium">{f.rotulo}</span>
-            <span className="shrink-0 tabular-nums">{fmt(f.total, cartao)} · {pct(f.total)}</span>
+            <span className="shrink-0 tabular-nums">{fmt(f.total, cartao)} · {pct(i)}</span>
           </button>
         </li>
       ))}
     </ol>
+    </>
   );
 }
 
@@ -686,7 +770,10 @@ const somarDias = (dia: string, n: number) => { const d = new Date(`${dia}T12:00
 const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const segunda = (dia: string) => somarDias(dia, -((new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7));
 
-function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; menu?: React.ReactNode; previa?: boolean }) {
+function CalendarioCartao({ clienteId, cartao: cartaoBase, filtrosVisao, menu, previa }: { clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; menu?: React.ReactNode; previa?: boolean }) {
+  const [campoIdx, setCampoIdx] = useState(0);
+  const opcoesData = [cartaoBase.dimensao, ...cartaoBase.camposData].filter((x): x is CampoRef => !!x);
+  const cartao = { ...cartaoBase, dimensao: opcoesData[campoIdx] ?? cartaoBase.dimensao };
   const [visual, setVisual] = useState(cartao.visualCalendario);
   const [ref, setRef] = useState(hojeSP());
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
@@ -736,6 +823,12 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{cartao.titulo}</h3>
         <div className="flex flex-wrap items-center gap-1">
+          {opcoesData.length > 1 && (
+            <Select value={String(campoIdx)} onValueChange={(v) => setCampoIdx(Number(v))}>
+              <SelectTrigger className="h-7 w-auto text-xs" aria-label="Campo de data"><SelectValue /></SelectTrigger>
+              <SelectContent>{opcoesData.map((f, i) => <SelectItem key={i} value={String(i)}>{f.campo === "criado_em" ? "Data de criação" : f.campo.replace(/^campo\./, "").replace(/[-_]+/g, " ")}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Anterior" onClick={() => navegar(-1)}><ChevronLeft className="h-4 w-4" /></Button>
           <span className="min-w-28 text-center text-sm capitalize">{titulo}</span>
           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Próximo" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>
@@ -811,4 +904,74 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, onFechar }: { client
 export function PreviaCartao({ clienteId, cartao }: { clienteId: string; cartao: CartaoGrafico }) {
   const periodo = useMemo(() => { const ate = hojeSP(); return { de: somarDias(ate, -29), ate }; }, []);
   return <CartaoView clienteId={clienteId} cartao={cartao} periodo={periodo} filtrosVisao={[]} previa />;
+}
+
+/* ---------------- tabela de itens ---------------- */
+
+/** Uma linha por contato/card: ordenar, agrupar, ocultar colunas, paginar e exportar (CSV, só o que está visível). */
+function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao }) {
+  const cols = r.colunasItens ?? [];
+  const [ocultas, setOcultas] = useState<string[]>([]);
+  const [ordem, setOrdem] = useState<{ col: string; desc: boolean } | null>(null);
+  const [agrupar, setAgrupar] = useState<string>("");
+  const [pagina, setPagina] = useState(0);
+  const vis = cols.filter((c) => !ocultas.includes(c.chave));
+  const linhas = useMemo(() => {
+    const l = [...(r.itens ?? [])];
+    if (ordem) l.sort((a, b) => { const s = (a.valores[ordem.col] ?? "").localeCompare(b.valores[ordem.col] ?? "", "pt-BR", { numeric: true }); return ordem.desc ? -s : s; });
+    if (agrupar) l.sort((a, b) => (a.valores[agrupar] ?? "").localeCompare(b.valores[agrupar] ?? "", "pt-BR"));
+    return l;
+  }, [r, ordem, agrupar]);
+  const POR = 25;
+  const paginas = Math.max(1, Math.ceil(linhas.length / POR));
+  const pag = linhas.slice(pagina * POR, pagina * POR + POR);
+  const exportar = () => {
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const csv = [vis.map((c) => esc(c.rotulo)).join(";"), ...linhas.map((l) => vis.map((c) => esc(l.valores[c.chave] ?? "")).join(";"))].join("\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = `${cartao.titulo}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
+  if (!linhas.length) return <p className="text-sm text-muted-foreground">Nenhum item no período.</p>;
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1">
+        {cols.map((c) => (
+          <button key={c.chave} type="button" onClick={() => setOcultas((o) => (o.includes(c.chave) ? o.filter((x) => x !== c.chave) : [...o, c.chave]))} className={`rounded-full border px-2 py-0.5 text-xs ${ocultas.includes(c.chave) ? "text-muted-foreground line-through" : ""}`}>{c.rotulo}</button>
+        ))}
+        <Select value={agrupar || "_"} onValueChange={(v) => setAgrupar(v === "_" ? "" : v)}>
+          <SelectTrigger className="h-7 w-auto text-xs" aria-label="Agrupar por"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="_">Sem agrupar</SelectItem>{vis.map((c) => <SelectItem key={c.chave} value={c.chave}>Agrupar: {c.rotulo}</SelectItem>)}</SelectContent>
+        </Select>
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportar}>Exportar</Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead><tr>{vis.map((c) => (
+            <th key={c.chave} className="whitespace-nowrap border-b px-2 py-1.5 text-left font-medium">
+              <button type="button" className="inline-flex items-center gap-1" onClick={() => setOrdem((o) => ({ col: c.chave, desc: o?.col === c.chave ? !o.desc : false }))}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}</button>
+            </th>
+          ))}</tr></thead>
+          <tbody>
+            {pag.map((l, i) => {
+              const novoGrupo = agrupar && (i === 0 ? true : pag[i - 1].valores[agrupar] !== l.valores[agrupar]);
+              return [
+                novoGrupo ? <tr key={`g${l.id}`}><td colSpan={vis.length} className="bg-muted px-2 py-1 font-semibold">{l.valores[agrupar]}</td></tr> : null,
+                <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} className="max-w-56 truncate px-2 py-1.5">{l.valores[c.chave]}</td>)}</tr>,
+              ];
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{linhas.length.toLocaleString("pt-BR")} itens</span>
+        {paginas > 1 && (
+          <span className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Página anterior" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}><ChevronLeft className="h-3.5 w-3.5" /></Button>
+            {pagina + 1}/{paginas}
+            <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Próxima página" disabled={pagina >= paginas - 1} onClick={() => setPagina((p) => p + 1)}><ChevronRight className="h-3.5 w-3.5" /></Button>
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
