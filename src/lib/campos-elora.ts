@@ -172,7 +172,14 @@ export function montarCatalogo(base: BaseCampos, ajustes: AjusteCampo[] = []): G
     contato: base.contatos.length ? [...fixos("contato", FIXOS.contato, base.contatos), ...personalizados("contato", base.contatos, base.definicoes)] : [],
     atendimento: base.atendimentos.length ? fixos("atendimento", FIXOS.atendimento, base.atendimentos) : [],
     card: base.cards.length ? [...fixos("card", FIXOS.card, base.cards), ...personalizados("card", base.cards, base.definicoes)] : [],
-    utm: fixos("utm", UTM, base.contatos),
+    utm: [
+      ...fixos("utm", UTM, base.contatos),
+      ...[...new Set(base.contatos.flatMap((c) => Object.keys(c.utm ?? {})))]
+        .filter((k) => !UTM.some((u) => u.campo === k || u.nome === `utm_${k}`))
+        .map((k) => campoDe("utm", k, k, null, base.contatos.map((c) => c.utm?.[k] ?? null)))
+        .filter((c) => c.preenchidos > 0)
+        .sort((a, b) => a.nome.localeCompare(b.nome)),
+    ],
   };
   const aj = new Map(ajustes.map((a) => [`${a.fonte}|${a.campo}`, a]));
   return FONTES_CATALOGO.map(({ fonte, nome }) => ({
