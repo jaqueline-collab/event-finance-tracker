@@ -507,7 +507,7 @@ const noPer = (iso: string | null | undefined, p: Periodo) => { const d = diaSP(
  * Novas conversas = atendimentos criados no período, pela UTM do contato; novos contatos = contatos criados no período
  * (importados fora, como em Novos leads). A soma das linhas é sempre o total.
  */
-export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = []): ResultadoCartao {
+export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = [], conversas?: { sessao: string; dia: string }[]): ResultadoCartao {
   const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
   const ok = (id: string | null) => !!id && (!filtro || filtro.contatos.has(id));
   const idx = new Map(base.contatos.map((c) => [c.id, c]));
@@ -516,11 +516,22 @@ export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Period
   const patrocinado = (c: any) => !!c?.utm_campaign;
   const g = new Map<string, { conv: number; cont: number }>();
   const add = (k: string, campo: "conv" | "cont") => { const x = g.get(k) ?? { conv: 0, cont: 0 }; x[campo] += 1; g.set(k, x); };
-  for (const a of base.atendimentos) {
-    if (!noPer(a.criado_em, p) || (filtro && !ok(a.contato_id))) continue;
-    const c = a.contato_id ? idx.get(a.contato_id) : undefined;
-    if (cfg.soPatrocinados && !patrocinado(c)) continue;
-    add(c ? chave(c) : campos.map(() => NAO_DEFINIDO).join(" · "), "conv");
+  const semUtm = campos.map(() => NAO_DEFINIDO).join(" · ");
+  const contaConversa = (contatoId: string | null) => {
+    if (filtro && !ok(contatoId)) return;
+    const c = contatoId ? idx.get(contatoId) : undefined;
+    if (cfg.soPatrocinados && !patrocinado(c)) return;
+    add(c ? chave(c) : semUtm, "conv");
+  };
+  if (conversas) {
+    // Mesma regra da Matriz: par atendimento+dia com mensagem válida; atribuído à UTM do contato do atendimento.
+    const contatoDaSessao = new Map(base.atendimentos.map((a) => [a.id, a.contato_id]));
+    for (const x of conversas) {
+      if (x.dia < p.de || x.dia > p.ate || !contatoDaSessao.has(x.sessao)) continue;
+      contaConversa(contatoDaSessao.get(x.sessao) ?? null);
+    }
+  } else {
+    for (const a of base.atendimentos) if (noPer(a.criado_em, p)) contaConversa(a.contato_id);
   }
   for (const c of base.contatos) {
     if (!noPer(c.criado_em, p) || ehImportado(c) || (filtro && !ok(c.id))) continue;
@@ -533,7 +544,7 @@ export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Period
   const categorias = [...g.entries()]
     .map(([rotulo, x]) => ({ rotulo, valores: { "Novas conversas": x.conv, "Novos contatos": x.cont, "% do total": totCont ? (x.cont / totCont) * 100 : 0 }, total: x.conv }))
     .sort((a, b) => b.total - a.total);
-  return { categorias, series, total: totConv, anterior: null, estimados: [], linhas: categorias.length, rodape: `${totCont.toLocaleString("pt-BR")} novos contatos no período` };
+  return { categorias, series, total: totConv, anterior: null, estimados: [], linhas: categorias.length, rodape: `Total${cfg.soPatrocinados ? " (só patrocinados)" : ""}: ${totConv.toLocaleString("pt-BR")} novas conversas · ${totCont.toLocaleString("pt-BR")} novos contatos` };
 }
 
 /** Tabela de itens: uma linha por contato ou card criado no período, com as colunas do catálogo e a "Origem" calculada. */

@@ -112,7 +112,11 @@ export const calcularCartao = createServerFn({ method: "POST" })
     }
     if (c.tipo === "matriz_utm") {
       const { agregarMatrizUtm } = await import("@/lib/graficos");
-      return { oculto: false as const, r: { ...agregarMatrizUtm(cat.base, c, p, data.filtrosVisao as any), cobertura: estadoCobertura(p.ate, ["contatos", "atendimentos"], estados ?? []) } };
+      const { lerMensagensSemTexto } = await import("@/lib/elora-espelho.server");
+      const { conversasPorDia, limitesUtc } = await import("@/lib/painel-visual");
+      const lim = limitesUtc(p);
+      const conversas = conversasPorDia(await lerMensagensSemTexto(db, data.clienteId, lim.inicio, lim.fim));
+      return { oculto: false as const, r: { ...agregarMatrizUtm(cat.base, c, p, data.filtrosVisao as any, conversas), cobertura: estadoCobertura(p.ate, ["contatos", "atendimentos"], estados ?? []) } };
     }
     if (c.tipo === "tabela_itens") {
       const { itensTabela } = await import("@/lib/graficos");
