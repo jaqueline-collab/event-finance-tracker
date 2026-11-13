@@ -108,7 +108,6 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
         chaveMascarada: null,
         campoProcedimentoKey: null,
         campoDataConsultaKey: null,
-        filtros: semFiltros,
         retomadaPendente: false,
         ultimaSync: null,
       ultimaSyncConversas: null,
@@ -130,16 +129,6 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       cofre,
       campoProcedimentoKey: c.campo_procedimento_key ? String(c.campo_procedimento_key) : null,
       campoDataConsultaKey: c.campo_data_consulta_key ? String(c.campo_data_consulta_key) : null,
-      filtros: {
-        usuarios: listaTexto(c.filtro_usuarios),
-        etiquetas: listaTexto(c.filtro_etiquetas),
-        campoPersonalizado:
-          campo && typeof campo === "object" && campo.chave
-            ? { chave: String(campo.chave), valor: String(campo.valor ?? "") }
-            : null,
-        etapasFunil: listaTexto(c.filtro_etapas_funil),
-        campanha: c.filtro_campanha ? String(c.filtro_campanha) : null,
-      },
       retomadaPendente: Boolean(c.sync_janela_inicio),
       ultimaSync: c.ultima_sync ? String(c.ultima_sync) : null,
       ultimaSyncConversas: c.sync_conversas_ultima ? String(c.sync_conversas_ultima) : null,
@@ -1389,42 +1378,6 @@ const duracaoParaSegundos = (v: unknown): number | null => {
   return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
 };
 
-/** Salva os filtros do cliente (valem para sincronização e painel). */
-export const salvarFiltrosCliente = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        clienteId: z.string().min(1),
-        usuarios: z.array(z.string()).max(200).default([]),
-        etiquetas: z.array(z.string()).max(200).default([]),
-        campoPersonalizado: z
-          .object({ chave: z.string().max(200), valor: z.string().max(400) })
-          .nullable()
-          .default(null),
-        etapasFunil: z.array(z.string()).max(200).default([]),
-        campanha: z.string().trim().max(200).nullable().default(null),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    await exigirSuperAdmin(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("elora_integracao_contas")
-      .update({
-        filtro_usuarios: data.usuarios as never,
-        filtro_etiquetas: data.etiquetas as never,
-        filtro_campo_personalizado: (data.campoPersonalizado?.chave
-          ? data.campoPersonalizado
-          : null) as never,
-        filtro_etapas_funil: data.etapasFunil as never,
-        filtro_campanha: data.campanha && data.campanha.length > 0 ? data.campanha : null,
-      })
-      .eq("cliente_id", data.clienteId);
-    if (error) throw new Error(`filtros: ${error.message}`);
-    return { ok: true };
-  });
 
 /**
  * Sincronização de conversas/classificações — separada e opcional.
