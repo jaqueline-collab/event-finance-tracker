@@ -567,6 +567,45 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_config_acoes: {
+        Row: {
+          alvo: string
+          antes: Json | null
+          cliente_id: string
+          created_at: string
+          depois: Json | null
+          descricao: string | null
+          desfeita_em: string | null
+          id: string
+          usuario_email: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          alvo: string
+          antes?: Json | null
+          cliente_id: string
+          created_at?: string
+          depois?: Json | null
+          descricao?: string | null
+          desfeita_em?: string | null
+          id?: string
+          usuario_email?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          alvo?: string
+          antes?: Json | null
+          cliente_id?: string
+          created_at?: string
+          depois?: Json | null
+          descricao?: string | null
+          desfeita_em?: string | null
+          id?: string
+          usuario_email?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       elora_contatos_espelho: {
         Row: {
           atualizado_em: string | null

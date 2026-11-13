@@ -153,7 +153,10 @@ export function PainelVisual({
   ocultos = [],
   onAlternarOculto,
   onDisponivel,
+  kpisNaGrade = false,
 }: {
+  /** Os 4 indicadores viraram blocos da grade da visão: o cabeçalho fixo não aparece. */
+  kpisNaGrade?: boolean;
   clienteId: string;
   periodo: Periodo;
   filtros: FiltroCampo[];
@@ -218,7 +221,7 @@ export function PainelVisual({
         <EsqueletoPainel />
       ) : dados ? (
         <div className={`space-y-5 transition-opacity duration-300 ${carregando ? "opacity-60" : "opacity-100"}`} aria-busy={carregando}>
-          <Indicadores dados={dados} reduzido={reduzido} />
+          {!kpisNaGrade && <Indicadores dados={dados} reduzido={reduzido} />}
           {dados.cobertura !== "confirmado" && <p className="text-xs text-muted-foreground">{dados.cobertura} · cobertura diária não confirmada</p>}
 
         </div>
