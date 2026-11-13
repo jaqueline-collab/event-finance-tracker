@@ -162,7 +162,7 @@ function Index() {
     });
     return Object.entries(planosContagem).map(([name, value]) => ({ name, value }));
   }, [ativos, planos]);
-  const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const PIE_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
   // Ranking unificado de clientes ativos
   const rankingClientes = useMemo<ClienteRanking[]>(() => {

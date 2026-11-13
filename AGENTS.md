@@ -28,3 +28,4 @@
 - Coverage is confirmed only by explicit source intervals; completed cursors alone remain partial to avoid presenting missing rows as confirmed zeros.
 - Block layout (width 3–12 cols, height in grid rows) lives on each card in `elora_dashboard_visoes.filtros.cartoes`, rules in `src/lib/layout-blocos.ts`; header KPIs are `kpi-*` cards via `cartaoDoPainel`, so there is one metric rule and one layout store per view.
 - Elora admin mode (assistente de configuração) is enabled only server-side after `is_admin`; its tools only propose (`assistente-config-ferramentas.ts`), writes happen only in `aplicarProposta` limited to config tables and logged in `elora_config_acoes` (service role only) for undo.
+- Branding: every screen, component and test uses only semantic tokens from `src/styles.css` (no hex, `text-white`, `bg-black` in TSX; enforced by `branding-tokens.test.ts`), so the identity changes in one place.
