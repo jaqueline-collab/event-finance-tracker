@@ -112,13 +112,13 @@ function AuthPage() {
                     autoFocus
                     autoComplete="email"
                     placeholder="voce@exemplo.com"
-                    className="w-full rounded-md border border-[1.5px] border-input bg-field px-4 py-3 text-foreground placeholder:text-landing-muted/70 outline-none focus:border-primary transition-colors"
+                    className="w-full rounded-lg border-[1.5px] border-input bg-field px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-landing-yellow-vivo hover:bg-landing-yellow disabled:opacity-60 text-landing-fg font-semibold px-6 py-3.5 rounded-md transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover disabled:opacity-60 text-brand-foreground font-semibold px-6 py-3.5 rounded-lg transition-colors"
                 >
                   <Mail className="h-4 w-4" />
                   {loading ? "Enviando..." : "Enviar link de acesso"}
@@ -139,7 +139,7 @@ function AuthPage() {
                   onClick={() =>
                     enviarCodigo(new Event("submit") as unknown as React.FormEvent)
                   }
-                  className="w-full inline-flex items-center justify-center gap-2 border border-landing-border hover:border-rabbit-navy text-landing-fg font-semibold px-6 py-3 rounded-md transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary hover:bg-secondary font-semibold px-6 py-3 rounded-lg transition-colors"
                 >
                   {loading ? "Reenviando..." : "Reenviar link"}
                 </button>
@@ -165,7 +165,7 @@ function AuthPage() {
               href={CHAT_LINK}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 mt-4 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-6 py-3 rounded-md text-sm transition-colors"
+              className="inline-flex items-center gap-2 mt-4 bg-brand hover:bg-brand-hover text-brand-foreground font-semibold px-6 py-3 rounded-lg text-sm transition-colors"
             >
               <MessageCircle className="h-4 w-4" /> Quero conhecer
               <ArrowUpRight className="h-4 w-4" />
