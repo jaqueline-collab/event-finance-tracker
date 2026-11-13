@@ -28,7 +28,6 @@ export const NATIVOS_PAINEL: Record<Dimensao, { fonte: FonteCampo; campo: string
 
 type Dados = Extract<Awaited<ReturnType<typeof getPainelVisual>>, { disponivel: true }>;
 
-const nf = new Intl.NumberFormat("pt-BR");
 const dataBr = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(2, 4)}`;
 
 /* ---------------- Cabeçalho e período ---------------- */
