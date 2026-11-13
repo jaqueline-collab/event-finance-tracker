@@ -77,7 +77,7 @@ function AuthPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-landing-bg text-landing-fg"
+      className="min-h-screen flex flex-col bg-landing-bg text-foreground"
       style={{ fontFamily: "var(--font-body)" }}
     >
       <Navbar />
@@ -101,7 +101,7 @@ function AuthPage() {
                 <div className="space-y-2">
                   <label
                     htmlFor="email"
-                    className="block text-sm font-semibold text-landing-fg"
+                    className="block text-sm font-semibold text-foreground"
                   >
                     E-mail
                   </label>
@@ -147,7 +147,7 @@ function AuthPage() {
                 </button>
                 <button
                   type="button"
-                  className="w-full text-sm text-muted-foreground hover:text-landing-fg"
+                  className="w-full text-sm text-muted-foreground hover:text-foreground"
                   onClick={() => setStep("email")}
                 >
                   Usar outro e-mail
