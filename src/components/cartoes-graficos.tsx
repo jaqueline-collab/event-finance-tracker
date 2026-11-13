@@ -31,7 +31,7 @@ type Opcoes = Awaited<ReturnType<typeof opcoesGraficos>>;
 function fmt(v: number | null | undefined, c: Pick<CartaoGrafico, "formato" | "medida">) {
   if (v == null || !Number.isFinite(v)) return "—";
   if (c.medida === "tempo_medio") return formatarDuracao(v);
-  if (c.formato === "moeda") return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  if (c.formato === "moeda") return formatarMoeda(v);
   if (c.formato === "percentual") return `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
   return v.toLocaleString("pt-BR", { maximumFractionDigits: c.medida === "media" ? 1 : 0 });
 }
@@ -779,10 +779,12 @@ const somarDias = (dia: string, n: number) => { const d = new Date(`${dia}T12:00
 const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const segunda = (dia: string) => somarDias(dia, -((new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7));
 
-function CalendarioCartao({ clienteId, cartao: cartaoBase, filtrosVisao, menu, previa }: { clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; menu?: React.ReactNode; previa?: boolean }) {
-  const [campoIdx, setCampoIdx] = useState(0);
-  const opcoesData = [cartaoBase.dimensao, ...cartaoBase.camposData].filter((x): x is CampoRef => !!x);
-  const cartao = { ...cartaoBase, dimensao: opcoesData[campoIdx] ?? cartaoBase.dimensao };
+/** Cor de cada tipo de compromisso: 1º campo de data = amarelo da marca (texto marinho), 2º = verde de sucesso. */
+export const COR_TIPO_CALENDARIO = ["bg-brand text-brand-foreground", "bg-success text-success-foreground", "bg-accent text-accent-foreground", "bg-muted text-foreground"] as const;
+const corTipo = (t: number) => COR_TIPO_CALENDARIO[t] ?? COR_TIPO_CALENDARIO[3];
+
+function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { clienteId: string; cartao: CartaoGrafico; periodo: Periodo; filtrosVisao: FiltroCampo[]; menu?: React.ReactNode; previa?: boolean }) {
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipoCalendario>("todos");
   const [visual, setVisual] = useState(cartao.visualCalendario);
   const [ref, setRef] = useState(hojeSP());
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
@@ -796,46 +798,63 @@ function CalendarioCartao({ clienteId, cartao: cartaoBase, filtrosVisao, menu, p
   const { r, erro } = useResultado(clienteId, { ...cartao, granularidade: "dia" }, per, filtrosVisao, previa);
   if (r?.oculto) return null;
   const res = r?.r;
+  const tipos = res?.tiposCalendario ?? [];
+  const comEventos = !!res?.eventos;
+  const eventos = filtrarPorTipo(res?.eventos ?? [], filtroTipo);
+  const porDia = new Map<string, EventoCalendario[]>();
+  for (const e of eventos) porDia.set(e.dia, [...(porDia.get(e.dia) ?? []), e]);
   const valores = new Map((res?.categorias ?? []).map((c) => [c.rotulo, c.total]));
   const estimados = new Set(res?.estimados ?? []);
   const aguardando = new Set(res?.aguardando ?? []);
-  const max = Math.max(1, ...valores.values());
   const navegar = (n: number) => setRef((d) => (visual === "semana" ? somarDias(d, 7 * n) : (() => { const x = new Date(`${d.slice(0, 7)}-01T12:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return iso(x); })()));
   const titulo = visual === "semana" ? `${per.de.split("-").reverse().join("/")} – ${per.ate.split("-").reverse().join("/")}` : new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
   const inicio = visual === "semana" ? per.de : segunda(per.de);
   const dias: string[] = [];
   for (let d = inicio; d <= per.ate || dias.length % 7 !== 0; d = somarDias(d, 1)) dias.push(d);
+  const semanas = dias.length / 7;
   const celula = (dia: string) => {
     const fora = dia < per.de || dia > per.ate;
+    const evs = porDia.get(dia) ?? [];
     const v = valores.get(dia);
     const est = estimados.has(dia);
     const ag = aguardando.has(dia) && dia <= hojeSP();
-    const intens = v ? Math.round((v / max) * 70) + 8 : 0;
     return (
       <button
         key={dia}
         type="button"
         disabled={fora}
         onClick={() => setDiaAberto(dia)}
-        className={`flex min-h-14 flex-col items-start rounded-md border p-1.5 text-left text-xs transition-colors ${fora ? "opacity-30" : "hover:border-primary"} ${dia === hojeSP() ? "border-primary" : ""}`}
-        style={intens ? { background: `color-mix(in oklch, var(--primary) ${intens}%, var(--card))` } : undefined}
-        aria-label={`${dia.split("-").reverse().join("/")}: ${ag ? "sem cobertura de sincronização confirmada" : v ? fmt(v, cartao) : "sem registro"}`}
+        className={`flex min-h-16 min-w-0 flex-col items-stretch gap-0.5 overflow-hidden rounded-md border p-1 text-left text-xs transition-colors ${fora ? "opacity-30" : "hover:border-primary"} ${dia === hojeSP() ? "border-primary" : ""}`}
+        aria-label={`${dia.split("-").reverse().join("/")}: ${ag ? "sem cobertura de sincronização confirmada" : comEventos ? `${evs.length} compromisso(s)` : v ? fmt(v, cartao) : "sem registro"}`}
       >
         <span className="flex w-full items-center justify-between text-muted-foreground">{Number(dia.slice(8))}{ag && <PontoCobertura texto="Dia sem cobertura de sincronização confirmada." />}</span>
-        <span className="mt-auto font-semibold tabular-nums">{v ? fmt(v, cartao) : ""}</span>
+        {comEventos ? (
+          <>
+            {evs.slice(0, 3).map((e) => (
+              <span key={e.id} className={`block truncate rounded px-1 py-0.5 text-[11px] font-medium leading-tight ${corTipo(e.tipo)}`} title={`${e.hora ? `${e.hora} · ` : ""}${e.nome} · ${tipos[e.tipo] ?? ""}`}>{e.nome}</span>
+            ))}
+            {evs.length > 3 && <span className="text-[11px] font-semibold text-muted-foreground">+{evs.length - 3}</span>}
+          </>
+        ) : (
+          <span className="mt-auto font-semibold tabular-nums">{v ? fmt(v, cartao) : ""}</span>
+        )}
         {est && <MarcaEstimativa desde={res?.primeiraLeitura} />}
       </button>
     );
   };
+  const diasAgenda = comEventos ? [...porDia.keys()] : [...valores.entries()].filter(([, v]) => v).map(([d]) => d);
   return (
-    <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
+    <section className="flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{cartao.titulo}</h3>
         <div className="flex flex-wrap items-center gap-1">
-          {opcoesData.length > 1 && (
-            <Select value={String(campoIdx)} onValueChange={(v) => setCampoIdx(Number(v))}>
-              <SelectTrigger className="h-7 w-auto text-xs" aria-label="Campo de data"><SelectValue /></SelectTrigger>
-              <SelectContent>{opcoesData.map((f, i) => <SelectItem key={i} value={String(i)}>{f.campo === "criado_em" ? "Data de criação" : f.campo.replace(/^campo\./, "").replace(/[-_]+/g, " ")}</SelectItem>)}</SelectContent>
+          {tipos.length > 1 && (
+            <Select value={String(filtroTipo)} onValueChange={(v) => setFiltroTipo(v === "todos" ? "todos" : Number(v))}>
+              <SelectTrigger className="h-7 w-auto text-xs" aria-label="Tipo de compromisso"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {tipos.map((t, i) => <SelectItem key={i} value={String(i)}>{t}</SelectItem>)}
+              </SelectContent>
             </Select>
           )}
           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Anterior" onClick={() => navegar(-1)}><ChevronLeft className="h-4 w-4" /></Button>
@@ -849,55 +868,69 @@ function CalendarioCartao({ clienteId, cartao: cartaoBase, filtrosVisao, menu, p
           {menu}
         </div>
       </header>
+      {tipos.length > 1 && (
+        <div className="mb-2 flex flex-wrap gap-2 text-xs" aria-label="Legenda">
+          {tipos.map((t, i) => (filtroTipo === "todos" || filtroTipo === i) && <span key={i} className="inline-flex items-center gap-1"><span className={`h-2.5 w-2.5 rounded-sm ${corTipo(i)}`} />{t}</span>)}
+        </div>
+      )}
       {erro && !r ? (
         <p className="text-sm text-muted-foreground">Não foi possível calcular agora.</p>
       ) : !r ? (
         <Skeleton className="h-64 w-full" />
       ) : visual === "agenda" ? (
-        <ul className="divide-y text-sm">
-          {[...valores.entries()].filter(([, v]) => v).map(([dia, v]) => (
-            <li key={dia}><button type="button" className="flex w-full justify-between py-1.5 text-left hover:text-primary" onClick={() => setDiaAberto(dia)}><span>{new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" })}{estimados.has(dia) && <MarcaEstimativa desde={res?.primeiraLeitura} />}</span><span className="tabular-nums">{fmt(v, cartao)}</span></button></li>
+        <ul className="min-h-0 flex-1 divide-y overflow-y-auto text-sm">
+          {diasAgenda.map((dia) => (
+            <li key={dia}><button type="button" className="flex w-full items-center justify-between gap-2 py-1.5 text-left hover:text-primary" onClick={() => setDiaAberto(dia)}>
+              <span>{new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" })}{estimados.has(dia) && <MarcaEstimativa desde={res?.primeiraLeitura} />}</span>
+              {comEventos ? <span className="flex min-w-0 flex-wrap justify-end gap-1">{(porDia.get(dia) ?? []).slice(0, 3).map((e) => <span key={e.id} className={`max-w-40 truncate rounded px-1 text-[11px] ${corTipo(e.tipo)}`}>{e.nome}</span>)}{(porDia.get(dia)?.length ?? 0) > 3 && <span className="text-[11px] text-muted-foreground">+{(porDia.get(dia)?.length ?? 0) - 3}</span>}</span> : <span className="tabular-nums">{fmt(valores.get(dia) ?? 0, cartao)}</span>}
+            </button></li>
           ))}
-          {![...valores.values()].some(Boolean) && <li className="py-2 text-muted-foreground">Nenhum item neste período.</li>}
+          {!diasAgenda.length && <li className="py-2 text-muted-foreground">Nenhum compromisso neste período.</li>}
         </ul>
       ) : (
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid min-h-0 flex-1 grid-cols-7 gap-1" style={{ gridTemplateRows: `auto repeat(${semanas}, minmax(4rem, 1fr))` }}>
           {SEMANA.map((d) => <span key={d} className="pb-1 text-center text-[11px] uppercase text-muted-foreground">{d}</span>)}
           {dias.map(celula)}
         </div>
       )}
-      {res && <p className="mt-2 text-xs text-muted-foreground">Total no período: {fmt(res.total, cartao)}{estimados.size ? ` · ${estimados.size} dia(s) estimado(s), fora do total` : ""}</p>}
-      {diaAberto && <ItensDoDia clienteId={clienteId} cartao={cartao} dia={diaAberto} filtrosVisao={filtrosVisao} onFechar={() => setDiaAberto(null)} />}
+      {res && <p className="mt-2 text-xs text-muted-foreground">{comEventos ? `${eventos.length.toLocaleString("pt-BR")} compromisso(s) no período` : `Total no período: ${fmt(res.total, cartao)}`}{estimados.size ? ` · ${estimados.size} dia(s) estimado(s), fora do total` : ""}</p>}
+      {diaAberto && <ItensDoDia clienteId={clienteId} cartao={cartao} dia={diaAberto} filtrosVisao={filtrosVisao} filtroTipo={filtroTipo} tipos={tipos} onFechar={() => setDiaAberto(null)} />}
     </section>
   );
 }
 
-function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, onFechar }: { clienteId: string; cartao: CartaoGrafico; dia: string; filtrosVisao: FiltroCampo[]; onFechar: () => void }) {
-  const [itens, setItens] = useState<ItemDia[] | null>(null);
+function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, filtroTipo, tipos, onFechar }: { clienteId: string; cartao: CartaoGrafico; dia: string; filtrosVisao: FiltroCampo[]; filtroTipo: FiltroTipoCalendario; tipos: string[]; onFechar: () => void }) {
+  const [todos, setTodos] = useState<ItemDia[] | null>(null);
   useEffect(() => {
     let vivo = true;
-    itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } }).then((r) => vivo && setItens(r.itens as ItemDia[])).catch((e) => { toast.error(msg(e)); vivo && setItens([]); });
+    itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } }).then((r) => vivo && setTodos(r.itens as ItemDia[])).catch((e) => { toast.error(msg(e)); vivo && setTodos([]); });
     return () => { vivo = false; };
   }, [clienteId, dia]); // eslint-disable-line react-hooks/exhaustive-deps
-  const extras = itens?.length ? Object.keys(itens[0].campos) : [];
+  const itens = todos ? filtrarPorTipo(todos, filtroTipo) : null;
+  const extras = cartao.camposLista.map((f) => `${f.fonte}|${f.campo}`).filter((k) => itens?.some((i) => k in i.campos));
   const temValor = itens?.some((i) => i.valor != null);
   return (
     <Sheet open onOpenChange={(o) => !o && onFechar()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle>{cartao.titulo} · {dia.split("-").reverse().join("/")}</SheetTitle>
-          <SheetDescription>{cartao.medida === "indicador" ? "A lista do dia existe para calendários de campo de data." : itens ? `${itens.length} item(ns)` : "Carregando…"}</SheetDescription>
+          <SheetDescription>{cartao.medida === "indicador" ? "A lista do dia existe para calendários de campo de data." : itens ? `${itens.length} compromisso(s)` : "Carregando…"}</SheetDescription>
         </SheetHeader>
-        {!itens ? <Skeleton className="mt-4 h-40 w-full" /> : (
+        {!itens ? <Skeleton className="mt-4 h-40 w-full" /> : !itens.length ? (
+          <p className="mt-6 text-sm text-muted-foreground">Nenhum compromisso neste dia.</p>
+        ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-2">Nome</th><th className="py-1 pr-2">Telefone</th><th className="py-1 pr-2">Atendente</th>{temValor && <th className="py-1 pr-2 text-right">Valor</th>}{extras.map((k) => <th key={k} className="py-1 pr-2">{k.split("|")[1]?.replace(/^campo\./, "")}</th>)}</tr></thead>
+              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-2">Hora</th><th className="py-1 pr-2">Nome</th><th className="py-1 pr-2">Tipo</th><th className="py-1 pr-2">Telefone</th>{extras.map((k) => <th key={k} className="py-1 pr-2">{rotuloCorrido(k.split("|")[1] ?? "")}</th>)}{temValor && <th className="py-1 pr-2 text-right">Valor</th>}</tr></thead>
               <tbody>
                 {itens.map((i) => (
                   <tr key={i.id} className="border-t">
-                    <td className="py-1.5 pr-2">{i.nome}</td><td className="py-1.5 pr-2 tabular-nums">{i.telefone}</td><td className="py-1.5 pr-2">{i.atendente}</td>
-                    {temValor && <td className="py-1.5 pr-2 text-right tabular-nums">{i.valor == null ? "—" : fmt(i.valor, cartao)}</td>}
+                    <td className="py-1.5 pr-2 tabular-nums">{i.hora || "—"}</td>
+                    <td className="py-1.5 pr-2">{i.nome}</td>
+                    <td className="py-1.5 pr-2"><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${corTipo(i.tipo)}`}>{tipos[i.tipo] ?? "—"}</span></td>
+                    <td className="whitespace-nowrap py-1.5 pr-2 tabular-nums">{i.telefone}</td>
                     {extras.map((k) => <td key={k} className="py-1.5 pr-2">{i.campos[k]}</td>)}
+                    {temValor && <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{i.valor == null ? "—" : formatarMoeda(i.valor)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -917,6 +950,12 @@ export function PreviaCartao({ clienteId, cartao }: { clienteId: string; cartao:
 
 /* ---------------- tabela de itens ---------------- */
 
+/** URL vira link (nova aba, texto curto, endereço completo no tooltip); o resto é texto. */
+function celulaTexto(v: string) {
+  if (!ehUrl(v)) return v;
+  return <a href={v.trim()} target="_blank" rel="noopener noreferrer" title={v.trim()} className="text-primary underline underline-offset-2 hover:text-primary/80">{textoLink(v.trim())}</a>;
+}
+
 /** Uma linha por contato/card: ordenar, agrupar, ocultar colunas, paginar e exportar (CSV, só o que está visível). */
 function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao }) {
   const cols = r.colunasItens ?? [];
@@ -927,7 +966,7 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
   const vis = cols.filter((c) => !ocultas.includes(c.chave));
   const linhas = useMemo(() => {
     const l = [...(r.itens ?? [])];
-    if (ordem) l.sort((a, b) => { const s = (a.valores[ordem.col] ?? "").localeCompare(b.valores[ordem.col] ?? "", "pt-BR", { numeric: true }); return ordem.desc ? -s : s; });
+    if (ordem) l.sort((a, b) => { const va = a.brutos?.[ordem.col] ?? a.valores[ordem.col] ?? ""; const vb = b.brutos?.[ordem.col] ?? b.valores[ordem.col] ?? ""; const na = Number(va), nb = Number(vb); const s = va !== "" && vb !== "" && Number.isFinite(na) && Number.isFinite(nb) ? na - nb : va.localeCompare(vb, "pt-BR", { numeric: true }); return ordem.desc ? -s : s; });
     if (agrupar) l.sort((a, b) => (a.valores[agrupar] ?? "").localeCompare(b.valores[agrupar] ?? "", "pt-BR"));
     return l;
   }, [r, ordem, agrupar]);
@@ -965,7 +1004,7 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
               const novoGrupo = agrupar && (i === 0 ? true : pag[i - 1].valores[agrupar] !== l.valores[agrupar]);
               return [
                 novoGrupo ? <tr key={`g${l.id}`}><td colSpan={vis.length} className="bg-muted px-2 py-1 font-semibold">{l.valores[agrupar]}</td></tr> : null,
-                <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} className="max-w-56 truncate px-2 py-1.5">{l.valores[c.chave]}</td>)}</tr>,
+                <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} className="max-w-56 truncate px-2 py-1.5">{celulaTexto(l.valores[c.chave] ?? "")}</td>)}</tr>,
               ];
             })}
           </tbody>
