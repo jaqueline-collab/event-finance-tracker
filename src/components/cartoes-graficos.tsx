@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, GripVertical, MoreHorizontal, Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Funnel, FunnelChart, LabelList, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -349,8 +349,6 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
             </Pie>
             <Legend wrapperStyle={{ fontSize: 12 }} />
           </PieChart>
-        ) : c.tipo === "funil" ? (
-          <></>
         ) : c.tipo === "linhas" ? (
           <LineChart data={dados}>
             <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
@@ -668,8 +666,8 @@ function FunilCartao({ cartao, r, onClique }: { cartao: CartaoGrafico; r: Result
             disabled={!onClique || f.rotulo === "Outras"}
             onClick={() => onClique?.(f.rotulo)}
             title={`${f.rotulo}: ${fmt(f.total, cartao)} (${pct(f.total)})`}
-            className="flex min-w-[40%] items-center justify-between gap-2 rounded-md px-3 py-1.5 text-xs text-primary-foreground transition-opacity enabled:hover:opacity-90"
-            style={{ width: `${Math.max(40, (f.total / max) * 100)}%`, background: f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5] }}
+            className="flex items-center justify-between gap-2 rounded-md border-l-4 px-3 py-1.5 text-xs text-foreground transition-opacity enabled:hover:opacity-90"
+            style={{ width: `${Math.max(40, (f.total / max) * 100)}%`, borderColor: f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5], background: `color-mix(in oklch, ${f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5]} 22%, var(--card))` }}
           >
             <span className="min-w-0 truncate font-medium">{f.rotulo}</span>
             <span className="shrink-0 tabular-nums">{fmt(f.total, cartao)} · {pct(f.total)}</span>
