@@ -358,6 +358,7 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
       <div className="grid flex-1 grid-cols-2 items-center gap-4 py-2">
         {linha("Total", r.total, r.anterior, c)}
         {linha("Quantidade", r.qtd ?? 0, r.qtdAnterior, { formato: "numero", medida: "contagem" })}
+        {!!r.qtdEstimados && <p className="col-span-2 flex items-center gap-1 text-xs text-muted-foreground"><MarcaEstimativa desde={r.primeiraLeitura} /> {r.qtdEstimados} da quantidade por leitura estimada.</p>}
       </div>
     );
   }
@@ -658,6 +659,15 @@ function EditorCartao({
                   <Select value={c.modoFunil} onValueChange={(v) => set({ modoFunil: v as any })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="ranking">Ranking (% do total)</SelectItem><SelectItem value="etapas">Etapas (conversão entre etapas)</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              )}
+              {c.tipo === "dois_valores" && op.indicadores.length > 0 && (
+                <div className="space-y-1">
+                  <Label>Quantidade pelo indicador da Matriz</Label>
+                  <Select value={c.indicador ?? "_"} onValueChange={(v) => set({ indicador: v === "_" ? null : v, fonte: v === "_" ? c.fonte : "card" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="_">Nenhum (registros criados no período)</SelectItem>{op.indicadores.map((x) => <SelectItem key={x.chave} value={x.chave}>{x.nome}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               )}

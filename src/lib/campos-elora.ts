@@ -73,6 +73,7 @@ const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
     { campo: "tempo_atendimento", nome: "Tempo de atendimento (s)", tipo: "numero", ler: (r) => r.tempo_atendimento },
   ],
   card: [
+    { campo: "id", nome: "ID do card", tipo: "texto", ler: (r) => r.id },
     { campo: "painel", nome: "Painel", tipo: "lista", ler: (r) => r.painel },
     { campo: "etapa", nome: "Etapa", tipo: "lista", ler: (r) => r.etapa },
     { campo: "fase", nome: "Fase da etapa", tipo: "lista", ler: (r) => r.fase },
