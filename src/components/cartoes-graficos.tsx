@@ -668,11 +668,10 @@ function EditorCartao({
                 const k = c.tipo === "matriz_utm" ? "agrupar" : c.tipo === "tabela_itens" ? "colunas" : "camposData";
                 const lista = c[k] as CampoRef[];
                 const rot = c.tipo === "matriz_utm" ? "UTMs que agrupam as linhas" : c.tipo === "tabela_itens" ? "Colunas da tabela" : "Outros campos de data (quem vê alterna)";
-                const filtro = c.tipo === "matriz_utm" ? (_t: string, f?: FonteCampo) => f === "utm" : c.tipo === "calendario" ? (t: string) => t === "data" : undefined;
                 return (
                   <div className="space-y-1">
                     <Label>{rot}</Label>
-                    <SelCampo valor={null} onMudar={(r) => r && (!filtro || filtro("", r.fonte) || c.tipo === "calendario") && !lista.some((x) => x.fonte === r.fonte && x.campo === r.campo) && set({ [k]: [...lista, r].slice(0, c.tipo === "tabela_itens" ? 24 : c.tipo === "calendario" ? 4 : 8) } as any)} filtro={c.tipo === "calendario" ? (t) => t === "data" : undefined} nenhum="Adicionar campo…" />
+                    <SelCampo valor={null} onMudar={(r) => r && (c.tipo !== "matriz_utm" || r.fonte === "utm") && !lista.some((x) => x.fonte === r.fonte && x.campo === r.campo) && set({ [k]: [...lista, r].slice(0, c.tipo === "tabela_itens" ? 24 : c.tipo === "calendario" ? 4 : 8) } as any)} filtro={c.tipo === "calendario" ? (t) => t === "data" : undefined} nenhum="Adicionar campo…" />
                     <div className="flex flex-wrap gap-1">
                       {lista.map((f) => (
                         <button key={`${f.fonte}|${f.campo}`} type="button" className="rounded-full border px-2 py-0.5 text-xs" onClick={() => set({ [k]: lista.filter((x) => x !== f) } as any)}>
