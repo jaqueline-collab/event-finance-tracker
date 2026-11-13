@@ -17,13 +17,6 @@ import { tipoDoCanal, type TipoCanal } from "@/lib/dados-elora";
  * - a gravação de contatos é exclusiva da sincronização (service role).
  */
 
-export type FiltrosElora = {
-  usuarios: string[];
-  etiquetas: string[];
-  campoPersonalizado: { chave: string; valor: string } | null;
-  etapasFunil: string[];
-  campanha: string | null;
-};
 
 type IntegracaoVisivel = {
   clienteId: string;
@@ -33,7 +26,6 @@ type IntegracaoVisivel = {
   chaveMascarada: string | null;
   campoProcedimentoKey: string | null;
   campoDataConsultaKey: string | null;
-  filtros: FiltrosElora;
   retomadaPendente: boolean;
   ultimaSync: string | null;
   ultimaSyncConversas: string | null;
@@ -91,13 +83,6 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       comErro: Array.isArray(l.erros) ? l.erros.length > 0 : Boolean(l.erros && Object.keys(l.erros).length),
     }));
 
-    const semFiltros: FiltrosElora = {
-      usuarios: [],
-      etiquetas: [],
-      campoPersonalizado: null,
-      etapasFunil: [],
-      campanha: null,
-    };
 
     if (!conta) {
       return {
