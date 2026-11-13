@@ -8,11 +8,12 @@ import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type
 import { NAO_DEFINIDO } from "./nao-definido";
 import { diaSP, formatarDuracao, periodoAnterior, type Periodo } from "./painel-visual";
 
-export const TIPOS_GRAFICO = ["numero", "barras", "barras_empilhadas", "linhas", "area", "pizza", "rosca", "funil", "tabela", "mapa", "calendario"] as const;
+export const TIPOS_GRAFICO = ["numero", "barras", "barras_empilhadas", "linhas", "area", "pizza", "rosca", "funil", "tabela", "mapa", "calendario", "dois_valores", "matriz_utm", "tabela_itens"] as const;
 export type TipoGrafico = (typeof TIPOS_GRAFICO)[number];
 export const ROTULO_TIPO_GRAFICO: Record<TipoGrafico, string> = {
   numero: "Número grande", barras: "Barras", barras_empilhadas: "Barras empilhadas", linhas: "Linhas", area: "Área",
   pizza: "Pizza", rosca: "Rosca", funil: "Funil", tabela: "Tabela", mapa: "Mapa", calendario: "Calendário",
+  dois_valores: "Dois valores", matriz_utm: "Matriz por UTM", tabela_itens: "Tabela de itens",
 };
 export const MEDIDAS = ["contagem", "distinta", "soma", "media", "tempo_medio", "indicador"] as const;
 export type Medida = (typeof MEDIDAS)[number];
@@ -45,6 +46,23 @@ export const cartaoSchema = z.object({
   camposLista: z.array(ref).max(8).default([]),
   painel: z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-tma", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
+  /** Funil: "ranking" (% do total) ou "etapas" (conversão entre uma faixa e a seguinte). */
+  modoFunil: z.enum(["ranking", "etapas"]).default("ranking"),
+  /** Até 3 medidas que quem vê alterna no próprio bloco (não grava nada). */
+  medidasAlternaveis: z.array(z.object({
+    rotulo: z.string().trim().min(1).max(40),
+    fonte: z.enum(["contato", "atendimento", "card", "utm"]),
+    medida: z.enum(MEDIDAS).default("contagem"),
+    campoMedida: ref.nullable().optional(),
+    serie: ref.nullable().optional(),
+  })).max(3).default([]),
+  /** Calendário: outros campos de data que quem vê alterna (o principal é `dimensao`). */
+  camposData: z.array(ref).max(4).default([]),
+  /** Matriz por UTM: campos de UTM que agrupam as linhas e "só patrocinados". */
+  agrupar: z.array(ref).max(8).default([]),
+  soPatrocinados: z.boolean().default(false),
+  /** Tabela de itens: colunas do catálogo (a coluna "Origem" calculada é sempre incluída). */
+  colunas: z.array(ref).max(24).default([]),
 });
 export type CartaoGrafico = z.infer<typeof cartaoSchema>;
 export type CampoRef = z.infer<typeof ref>;
@@ -143,6 +161,10 @@ export function tiposDisponiveis(cat: GrupoCatalogo[], cfg: Pick<CartaoGrafico, 
   if (cfg.dimensao && !ehData) out.push("pizza", "rosca", "funil");
   if (temGeo && campo && campoGeo(campo)) out.push("mapa");
   if (temCampoData(cat)) out.push("calendario");
+  const comDado = (f: (c: CampoCatalogo, fonte: FonteCampo) => boolean) => cat.some((g) => g.campos.some((c) => !c.oculto && c.preenchidos > 0 && f(c, g.fonte)));
+  if (comDado((c) => c.tipo === "numero" || c.tipo === "moeda")) out.push("dois_valores");
+  if (comDado((_c, f) => f === "utm")) out.push("matriz_utm");
+  if (comDado((_c, f) => f === "contato" || f === "card")) out.push("tabela_itens");
   return TIPOS_GRAFICO.filter((t) => out.includes(t));
 }
 
@@ -214,6 +236,12 @@ export type ResultadoCartao = {
   aguardando?: string[];
   cobertura?: string;
   primeiraLeitura?: string | null;
+  /** Dois valores: a quantidade ao lado da soma. */
+  qtd?: number;
+  qtdAnterior?: number | null;
+  /** Tabela de itens: colunas e linhas já formatadas (sem texto de mensagem). */
+  colunasItens?: { chave: string; rotulo: string }[];
+  itens?: { id: string; valores: Record<string, string> }[];
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };
@@ -328,7 +356,7 @@ export function cartaoDeIndicador(
 
 /** Cartões com dinheiro (moeda ou soma/média de valor) não vão a parceiro sem permissão de valores. */
 export const cartaoTemDinheiro = (c: CartaoGrafico) =>
-  c.formato === "moeda" || ((c.medida === "soma" || c.medida === "media") && /valor|preco|preço|monetar/i.test(c.campoMedida?.campo ?? ""));
+  c.formato === "moeda" || (c.tipo === "dois_valores" && /valor|preco|preço|monetar/i.test(c.campoMedida?.campo ?? "")) || ((c.medida === "soma" || c.medida === "media") && /valor|preco|preço|monetar/i.test(c.campoMedida?.campo ?? ""));
 
 /* ---------------- calendário ---------------- */
 
@@ -436,4 +464,96 @@ export function migrarKpisVisao(cartoes: CartaoGrafico[]): CartaoGrafico[] {
     out.splice(ultimo + 1, 0, { ...CARTOES_KPI.find((c) => c.painel === "kpi-tma")! });
   }
   return out;
+}
+
+
+/* ---------------- Fase 7: tipos novos (genéricos) ---------------- */
+
+/** Aplica uma medida alternável ao bloco só na tela de quem vê (devolve cópia; nunca grava). */
+export function aplicarAlternativa(cfg: CartaoGrafico, i: number): CartaoGrafico {
+  const a = cfg.medidasAlternaveis[i];
+  if (!a) return cfg;
+  return { ...cfg, fonte: a.fonte, medida: a.medida, campoMedida: a.campoMedida ?? null, serie: a.serie ?? null, painel: undefined };
+}
+
+/** Origem calculada pela mesma regra de ADS do motor: contato com campanha = patrocinado. */
+export function origemCalculada(c: Pick<import("./campos-elora").ContatoBase, "utm_campaign" | "origem"> | undefined | null): string {
+  if (!c) return NAO_DEFINIDO;
+  if (c.utm_campaign) return "Patrocinado";
+  if (!c.origem) return NAO_DEFINIDO;
+  return c.origem.toUpperCase() === "IMPORTED" ? "Outro" : "Orgânico";
+}
+
+/** Dois valores: soma do campo escolhido e quantidade de registros, com comparação opcional. */
+export function agregarDoisValores(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = [], cat?: GrupoCatalogo[]): ResultadoCartao {
+  const sem = { dimensao: null, serie: null };
+  const s = agregarCartao(base, { ...cfg, ...sem, medida: "soma" }, p, filtrosVisao, cat);
+  const q = agregarCartao(base, { ...cfg, ...sem, medida: "contagem" }, p, filtrosVisao, cat);
+  return { ...s, categorias: [], qtd: q.total, qtdAnterior: q.anterior };
+}
+
+const ehImportado = (c: { origem?: string | null }) => (c.origem ?? "").toUpperCase() === "IMPORTED";
+const noPer = (iso: string | null | undefined, p: Periodo) => { const d = diaSP(iso ?? null); return !!d && d >= p.de && d <= p.ate; };
+
+/**
+ * Matriz por UTM: linhas = combinação dos campos de UTM escolhidos (do contato).
+ * Novas conversas = atendimentos criados no período, pela UTM do contato; novos contatos = contatos criados no período
+ * (importados fora, como em Novos leads). A soma das linhas é sempre o total.
+ */
+export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = []): ResultadoCartao {
+  const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
+  const ok = (id: string | null) => !!id && (!filtro || filtro.contatos.has(id));
+  const idx = new Map(base.contatos.map((c) => [c.id, c]));
+  const campos = cfg.agrupar.length ? cfg.agrupar : [{ fonte: "utm" as const, campo: "campaign" }];
+  const chave = (c: any) => campos.map((f) => textos(valorDe("utm", f.campo, c)).join(", ")).join(" · ");
+  const patrocinado = (c: any) => !!c?.utm_campaign;
+  const g = new Map<string, { conv: number; cont: number }>();
+  const add = (k: string, campo: "conv" | "cont") => { const x = g.get(k) ?? { conv: 0, cont: 0 }; x[campo] += 1; g.set(k, x); };
+  for (const a of base.atendimentos) {
+    if (!noPer(a.criado_em, p) || (filtro && !ok(a.contato_id))) continue;
+    const c = a.contato_id ? idx.get(a.contato_id) : undefined;
+    if (cfg.soPatrocinados && !patrocinado(c)) continue;
+    add(c ? chave(c) : campos.map(() => NAO_DEFINIDO).join(" · "), "conv");
+  }
+  for (const c of base.contatos) {
+    if (!noPer(c.criado_em, p) || ehImportado(c) || (filtro && !ok(c.id))) continue;
+    if (cfg.soPatrocinados && !patrocinado(c)) continue;
+    add(chave(c), "cont");
+  }
+  const totConv = [...g.values()].reduce((a, b) => a + b.conv, 0);
+  const totCont = [...g.values()].reduce((a, b) => a + b.cont, 0);
+  const series = ["Novas conversas", "Novos contatos", "% do total"];
+  const categorias = [...g.entries()]
+    .map(([rotulo, x]) => ({ rotulo, valores: { "Novas conversas": x.conv, "Novos contatos": x.cont, "% do total": totCont ? (x.cont / totCont) * 100 : 0 }, total: x.conv }))
+    .sort((a, b) => b.total - a.total);
+  return { categorias, series, total: totConv, anterior: null, estimados: [], linhas: categorias.length, rodape: `${totCont.toLocaleString("pt-BR")} novos contatos no período` };
+}
+
+/** Tabela de itens: uma linha por contato ou card criado no período, com as colunas do catálogo e a "Origem" calculada. */
+export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[], semDinheiro: boolean, cat?: GrupoCatalogo[], limite = 2000): ResultadoCartao {
+  const idx = indices(base);
+  const fonte: FonteCampo = cfg.fonte === "card" ? "card" : "contato";
+  const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
+  const rot = (f: CampoRef) => cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, "");
+  const colunas = cfg.colunas.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
+  const colunasItens = [...colunas.map((f) => ({ chave: `${f.fonte}|${f.campo}`, rotulo: rot(f) })), { chave: "origem_calc", rotulo: "Origem" }];
+  const txt = (v: unknown) => textos(v).join(", ");
+  const itens: { id: string; valores: Record<string, string> }[] = [];
+  for (const r of registros(base, fonte)) {
+    if (!noPer(r.criado_em, p)) continue;
+    if (filtro && !(fonte === "card" ? filtro.cards.has(r.id) : filtro.contatos.has(r.id))) continue;
+    const valores: Record<string, string> = {};
+    for (const f of colunas) valores[`${f.fonte}|${f.campo}`] = txt(valorLigado(base, fonte, f, r, idx));
+    const cid = contatoDe(fonte, r)[0];
+    valores.origem_calc = origemCalculada(cid ? idx.contato.get(cid) : undefined);
+    itens.push({ id: String(r.id), valores });
+    if (itens.length >= limite) break;
+  }
+  return { categorias: [], series: [], total: itens.length, anterior: null, estimados: [], linhas: itens.length, colunasItens, itens };
+}
+
+/** Funil: % de cada faixa (ranking: sobre o total; etapas: sobre a faixa anterior). */
+export function percentuaisFunil(faixas: { total: number }[], modo: "ranking" | "etapas"): (number | null)[] {
+  const soma = faixas.reduce((a, b) => a + b.total, 0);
+  return faixas.map((f, i) => (modo === "ranking" ? (soma ? (f.total / soma) * 100 : 0) : i === 0 ? null : faixas[i - 1].total ? (f.total / faixas[i - 1].total) * 100 : 0));
 }

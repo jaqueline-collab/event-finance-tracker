@@ -34,6 +34,8 @@ export type DefinicaoCampo = { key: string; name?: string | null; type?: string 
 export type ContatoBase = {
   id: string; nome?: string | null; telefone?: string | null; status?: string | null; etiquetas?: string[]; origem?: string | null;
   utm_source?: string | null; utm_medium?: string | null; utm_campaign?: string | null; criado_em?: string | null; cf?: Record<string, unknown> | null;
+  /** Todas as UTMs que o Elora fornecer (além de source/medium/campaign). */
+  utm?: Record<string, unknown> | null;
 };
 export type AtendimentoBase = {
   id: string; contato_id: string | null; canal?: string | null; atendente?: string | null; equipe?: string | null; classificacao?: string | null;
@@ -94,7 +96,9 @@ export function valorDe(fonte: FonteCampo, campo: string, r: any): unknown {
   if (!r) return null;
   if (campo.startsWith("campo.")) return r.cf?.[campo.slice(6)] ?? null;
   const lista = fonte === "utm" ? UTM : FIXOS[fonte];
-  return lista.find((f) => f.campo === campo)?.ler(r) ?? null;
+  const fixo = lista.find((f) => f.campo === campo);
+  if (fixo) return fixo.ler(r) ?? null;
+  return fonte === "utm" ? (r.utm?.[campo] ?? null) : null;
 }
 
 const tipoDaDefinicao = (t?: string | null): TipoCampo | null => {

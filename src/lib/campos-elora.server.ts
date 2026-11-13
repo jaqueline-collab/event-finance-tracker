@@ -29,7 +29,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
   const [apoio, contatos, atend, cards, classif, corte] = await Promise.all([
     lerTudo(() => d.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["campo", "canal", "usuario"]).order("externo_id")),
     lerTudo(() =>
-      d.from("elora_contatos_espelho").select("externo_id, nome, telefone, status, etiquetas, origem, utm_source, utm_medium, utm_campaign, criado_em, cf:payload->customFields").eq("cliente_id", clienteId).order("externo_id"),
+      d.from("elora_contatos_espelho").select("externo_id, nome, telefone, status, etiquetas, origem, utm_source, utm_medium, utm_campaign, criado_em, cf:payload->customFields, utm:payload->utm").eq("cliente_id", clienteId).order("externo_id"),
     ),
     lerTudo(() =>
       d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
@@ -55,7 +55,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
     definicoes,
     contatos: contatos.map((x: any) => ({
       id: String(x.externo_id), nome: x.nome, telefone: x.telefone, status: x.status, etiquetas: Array.isArray(x.etiquetas) ? x.etiquetas.map(String) : [],
-      origem: x.origem, utm_source: x.utm_source, utm_medium: x.utm_medium, utm_campaign: x.utm_campaign, criado_em: x.criado_em, cf: obj(x.cf),
+      origem: x.origem, utm_source: x.utm_source, utm_medium: x.utm_medium, utm_campaign: x.utm_campaign, criado_em: x.criado_em, cf: obj(x.cf), utm: obj(x.utm),
     })),
     atendimentos: atend.map((x: any) => ({
       id: String(x.externo_id), contato_id: x.contato_id ? String(x.contato_id) : null,
