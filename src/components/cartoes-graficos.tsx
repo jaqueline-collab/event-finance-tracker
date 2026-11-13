@@ -987,7 +987,7 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1">
         {cols.map((c) => (
-          <button key={c.chave} type="button" onClick={() => setOcultas((o) => (o.includes(c.chave) ? o.filter((x) => x !== c.chave) : [...o, c.chave]))} className={`rounded-full border px-2 py-0.5 text-xs ${ocultas.includes(c.chave) ? "text-muted-foreground line-through" : ""}`}>{c.rotulo}</button>
+          <button key={c.chave} type="button" onClick={() => setOcultas((o) => (o.includes(c.chave) ? o.filter((x) => x !== c.chave) : [...o, c.chave]))} aria-pressed={!ocultas.includes(c.chave)} className={`rounded-full border px-2 py-0.5 text-xs font-medium ${ocultas.includes(c.chave) ? "border-border bg-background text-muted-foreground line-through" : "border-navy bg-secondary text-secondary-foreground dark:border-border"}`}>{c.rotulo}</button>
         ))}
         <Select value={agrupar || "_"} onValueChange={(v) => setAgrupar(v === "_" ? "" : v)}>
           <SelectTrigger className="h-7 w-auto text-xs" aria-label="Agrupar por"><SelectValue /></SelectTrigger>
