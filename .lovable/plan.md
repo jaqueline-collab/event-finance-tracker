@@ -17,9 +17,13 @@ Sem publicar. Se algum número mudar em relação ao guardado, paro e mostro, se
 - Cada visão pede seus dados uma vez. O servidor calcula o conjunto e reparte o resultado entre os blocos, em vez de cada cartão recalcular.
 
 ## 4. Cache curto
-- Chave: cliente + visão + período + filtros + "versão da sincronização".
-- A versão muda quando a sincronização termina. Assim, depois de uma sincronização, nenhum número antigo é servido.
-- Validade curta (alguns minutos), guardada no banco, só servidor, sem dinheiro para quem não tem permissão.
+- Chave: cliente + visão + período + filtros + versão da sincronização + versão de configuração.
+- A versão de configuração muda a cada alteração no mapa de equipes, nos indicadores, nos ajustes de campos, nas entradas manuais da Matriz e nas regras de ADS.
+- A versão da sincronização muda quando a sincronização termina.
+- Com isso, depois de qualquer mudança desse tipo ou de uma sincronização, nenhum número antigo é servido.
+- O cache guarda o dado completo por cliente. A permissão de ver valores é aplicada em toda requisição, na leitura, depois do cache.
+- Teste: um parceiro sem permissão nunca recebe valores, mesmo quando o cache foi gerado por um perfil com permissão.
+- A validade é curta (alguns minutos) e o cache fica no banco, acessível só pelo servidor.
 
 ## 5. Ordem de carregamento
 - Primeiro os indicadores do topo, depois os blocos pesados (Matriz por UTM, tabela de itens, calendário).
