@@ -1,3 +1,4 @@
+import { exibirCanal } from "./nome-canal";
 /** Leitura do espelho para o catálogo "Campos do Elora" e filtros (somente servidor). Nunca lê texto de mensagens. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NAO_DEFINIDO } from "./nao-definido";
@@ -40,6 +41,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
     lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id")),
     d.from("elora_relatorio_corte_config").select("equipe_por_canal").eq("cliente_id", clienteId).maybeSingle(),
   ]);
+  const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(d, clienteId);
   const canal: Record<string, string> = {};
   const usuario: Record<string, string> = {};
   const definicoes: BaseCampos["definicoes"] = [];
@@ -59,7 +61,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
     })),
     atendimentos: atend.map((x: any) => ({
       id: String(x.externo_id), contato_id: x.contato_id ? String(x.contato_id) : null,
-      canal: x.canal_nome || canal[x.canal_id] || NAO_DEFINIDO,
+      canal: exibirCanal(mapaCanais, x.canal_id, x.canal_nome || canal[x.canal_id]) || NAO_DEFINIDO,
       atendente: x.atendente_nome || usuario[x.atendente_id] || null,
       equipe: (x.canal_id && equipe[x.canal_id]) || null,
       classificacao: cls.get(String(x.externo_id)) ?? x.classificacao ?? null,
