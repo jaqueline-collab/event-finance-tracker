@@ -23,6 +23,7 @@ import { ELORA_GUIA_URL } from "./links-globais";
 const Corpo = z.object({
   area: z.enum(["cliente", "parceiro"]),
   como: z.string().max(100).optional().default(""),
+  modo: z.enum(["leitura", "admin"]).optional().default("leitura"),
   messages: z.array(z.any()).min(1).max(40),
 });
 
@@ -75,6 +76,15 @@ export async function tratarChatElora(request: Request): Promise<Response> {
     return erro(403, (e instanceof Error ? e.message : "Sem acesso.").replace(/^[a-z-]+:\s*/, ""));
   }
 
+  // Modo administrador: só super admin, só na Área do cliente com o cliente aberto ("como").
+  let adminClienteId: string | null = null;
+  if (corpo.data.modo === "admin") {
+    const { data: ehAdmin } = await (db as any).rpc("is_admin");
+    if (!ehAdmin) return erro(403, "O assistente de configuração é exclusivo da super admin.");
+    if (corpo.data.area !== "cliente" || !corpo.data.como || acesso.clientes.length !== 1) return erro(400, "Abra a Área do cliente em modo Editar para usar o assistente.");
+    adminClienteId = acesso.clientes[0].id;
+  }
+
   const mensagens = corpo.data.messages as UIMessage[];
   const pergunta = textoDe([...mensagens].reverse().find((m) => m.role === "user"));
   const invalida = validarPergunta(pergunta, cfg);
@@ -109,6 +119,7 @@ export async function tratarChatElora(request: Request): Promise<Response> {
     mensagens,
     apiKey,
     request,
+    adminClienteId,
     aoTerminar: async (fim, consultados) => {
       const nomes = (fim.steps ?? []).flatMap((s: any) => (s.toolCalls ?? []).map((t: any) => t.toolName));
       await admin.from("elora_ia_conversas").insert({
@@ -145,6 +156,8 @@ export async function executarElora(o: {
   mensagens: UIMessage[];
   apiKey: string;
   request: Request;
+  /** Só preenchido pelo servidor depois de confirmar is_admin. */
+  adminClienteId?: string | null;
   aoTerminar?: (fim: any, consultados: string[]) => Promise<void> | void;
 }) {
   const { admin, acesso, cfg, mensagens, apiKey, request } = o;
@@ -163,6 +176,12 @@ export async function executarElora(o: {
     },
     (id) => consultados.add(id),
   );
+  let ferramentasAdmin = {};
+  if (o.adminClienteId) {
+    const { criarFerramentasAdmin } = await import("./assistente-config-ferramentas");
+    const { depsAdmin } = await import("./assistente-config-deps.server");
+    ferramentasAdmin = criarFerramentasAdmin(o.adminClienteId, depsAdmin(admin));
+  }
 
   const hoje = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
@@ -175,10 +194,12 @@ export async function executarElora(o: {
 
   const result = streamText({
     model: provider.responses(cfg.modelo),
-    instructions: instrucoesElora({ acesso, hoje, guiaUrl: ELORA_GUIA_URL }),
+    instructions: o.adminClienteId
+      ? instrucoesElora({ acesso, hoje, guiaUrl: ELORA_GUIA_URL }).replace("1. Você só lê e explica. Nunca altera nada no app e nunca diz que alterou.", "1. Você só lê, explica e prepara propostas. Nunca grava nada e nunca diz que alterou.") + "\n" + (await import("./assistente-config")).INSTRUCOES_ADMIN
+      : instrucoesElora({ acesso, hoje, guiaUrl: ELORA_GUIA_URL }),
     messages: await convertToModelMessages(mensagens.slice(-12)),
-    tools: ferramentas,
-    stopWhen: stepCountIs(6),
+    tools: { ...ferramentas, ...ferramentasAdmin },
+    stopWhen: stepCountIs(o.adminClienteId ? 10 : 6),
     maxOutputTokens: cfg.max_resposta_tokens,
     abortSignal: request.signal,
     providerOptions: {
