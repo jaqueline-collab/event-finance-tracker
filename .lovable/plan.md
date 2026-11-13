@@ -88,3 +88,15 @@ Só entram as colunas encontradas. As três que não existem ficam de fora até 
 ## Conferência e prova
 
 A cada etapa, confiro em 390, 834 e 1440, nos dois temas. Só a tela sem login pode ser vista, porque o banco externo não permite uma sessão de teste. No relatório, indico arquivo e linha que provam que cada visão só mostra os blocos dela, e a tabela de antes e depois da Agenda. Não publico.
+
+## Decisões e ajustes aprovados (valem sobre o texto acima)
+
+- **Procedimento de interesse:** vem do card (`procedimento-34`).
+- **Valor do procedimento:** entra com o rótulo "Valor do card" (`monetaryAmount`) até você confirmar.
+- **Fora da tabela:** Compareceu, Data consulta fechada e Data procedimento fechado.
+- **Origem:** pela regra de ADS do motor.
+- **A. Resultados:** a visão atual não muda. Eu crio "Resultados (novo)" como cópia em rascunho, com "Visível ao cliente" desligado, e a atual fica intacta até você aprovar a troca.
+- **B. Agenda:** os 4 indicadores migrados na Etapa 1 continuam e o Calendário é acrescentado. Nenhum bloco é removido.
+- **C. Outros clientes:** a migração da Etapa 1 vale para todas as visões de qualquer cliente que hoje mostram o cabeçalho fixo. Antes de gravar, listo quais visões e quais clientes serão alterados. Só gravo depois que os números de antes e depois baterem.
+- **D. Número diferente:** se qualquer número mudar em qualquer migração, eu paro e te pergunto, sem gravar.
+- **Relatório:** um ao fim de cada etapa. Não publico.
