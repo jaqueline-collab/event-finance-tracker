@@ -1,6 +1,8 @@
 /** Nome do canal nas telas: só o apelido dado pela super admin; sem apelido, "Canal sem nome". Nunca o código da instância. */
 export const CANAL_SEM_NOME = "Canal sem nome";
-export const nomeCanalExibido = (apelido: string | null | undefined) => (apelido ?? "").trim() || CANAL_SEM_NOME;
+/** "Instância decc86" é o código da instância, não um apelido. */
+export const ehCodigoInstancia = (v: string | null | undefined) => /^inst[âa]ncia\s+\S+$/i.test((v ?? "").trim());
+export const nomeCanalExibido = (apelido: string | null | undefined) => (ehCodigoInstancia(apelido) ? "" : (apelido ?? "").trim()) || CANAL_SEM_NOME;
 
 export type MapaCanais = { porId: Record<string, string>; porNome: Record<string, string> };
 

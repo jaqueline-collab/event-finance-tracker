@@ -20,6 +20,10 @@
 
 @theme inline {
   --color-brand: var(--brand);
+  --color-agenda-consulta: var(--yellow);
+  --color-agenda-consulta-foreground: var(--navy);
+  --color-agenda-procedimento: oklch(0.48 0.13 150);
+  --color-agenda-procedimento-foreground: #FFFFFF;
   --color-brand-soft: var(--brand-soft);
   --color-brand-hover: var(--brand-hover);
   --color-brand-foreground: var(--brand-foreground);

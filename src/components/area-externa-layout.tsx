@@ -61,7 +61,7 @@ export function useDefinirMenuArea(grupos: GrupoMenuArea[]) {
 }
 
 const btnCls =
-  "h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-brand-soft data-[active=true]:text-sidebar-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]";
+  "h-10 rounded-lg px-3 text-[13.5px] font-medium text-sidebar-foreground/75 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground hover:data-[active=true]:bg-sidebar-primary hover:data-[active=true]:text-sidebar-primary-foreground data-[active=true]:font-semibold [&>svg]:size-[18px] [&>svg]:stroke-[1.6]";
 const labelCls = "px-3 text-[10.5px] font-semibold tracking-[0.12em] uppercase text-muted-foreground/80";
 
 function AreaSidebar({ subtitulo, grupos }: { subtitulo: string; grupos: GrupoMenuArea[] }) {

@@ -42,8 +42,8 @@ describe("nome do canal", () => {
 
 describe("calendário", () => {
   it("consulta amarela com texto marinho, procedimento verde", () => {
-    expect(COR_TIPO_CALENDARIO[0]).toBe("bg-brand text-brand-foreground");
-    expect(COR_TIPO_CALENDARIO[1]).toBe("bg-success text-success-foreground");
+    expect(COR_TIPO_CALENDARIO[0]).toBe("bg-agenda-consulta text-agenda-consulta-foreground");
+    expect(COR_TIPO_CALENDARIO[1]).toBe("bg-agenda-procedimento text-agenda-procedimento-foreground");
   });
   it("filtro Todos mostra os dois tipos; Consultas só o primeiro", () => {
     const xs = [{ tipo: 0 }, { tipo: 1 }, { tipo: 1 }];

@@ -65,7 +65,7 @@ export function FiltroCampos({
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-2">
         {filtros.map((f, i) => (
-          <span key={i} className="inline-flex h-8 max-w-full items-center rounded-full bg-brand-soft text-sm ring-1 ring-brand">
+          <span key={i} className="inline-flex h-8 max-w-full items-center rounded-full bg-secondary text-sm text-secondary-foreground ring-1 ring-border">
             <button
               type="button"
               className="truncate pl-3.5 pr-1.5 font-medium"
@@ -92,7 +92,7 @@ export function FiltroCampos({
           }}
         >
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 rounded-full" disabled={!catalogo}>
+            <Button variant="outline" size="sm" className="h-8 rounded-full border-input text-foreground" disabled={!catalogo}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Filtro
             </Button>
           </PopoverTrigger>

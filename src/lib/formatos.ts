@@ -1,5 +1,7 @@
 /** Formatos de exibição únicos (blocos, tabelas, lista do dia e exportar). Nunca alteram o dado gravado. */
 
+import { CANAL_SEM_NOME, ehCodigoInstancia } from "./nome-canal";
+
 const TZ = "America/Sao_Paulo";
 const ISO_DATA = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATA_HORA = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
@@ -10,7 +12,8 @@ export function formatarDataHora(v: unknown): string {
   const s = String(v).trim();
   if (ISO_DATA.test(s)) return s.split("-").reverse().join("/");
   if (!ISO_DATA_HORA.test(s)) return s;
-  const d = new Date(s);
+  // Elora manda até 7 casas decimais ("…11:00:00.0000000-03:00"); alguns navegadores só aceitam 3.
+  const d = new Date(s.replace(/(\.\d{3})\d+/, "$1").replace(/\.(?=[Z+-]|$)/, ""));
   if (Number.isNaN(d.getTime())) return s;
   const p = new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
   const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
@@ -76,7 +79,8 @@ export const TELEFONE = /telefone|celular|whats|fone|phone/i;
 /** Formata um valor de célula pela natureza da coluna (dinheiro, telefone, data). */
 export function formatarCelula(campo: string, v: string): string {
   if (!v) return v;
-  if (TELEFONE.test(campo)) return formatarTelefone(v);
+  if (ehCodigoInstancia(v)) return CANAL_SEM_NOME;
+  if (TELEFONE.test(campo) || /^\+?\d{2}\|\d{8,11}$/.test(v.trim())) return formatarTelefone(v);
   if (DINHEIRO.test(campo) && /^-?[\d.,]+$/.test(v.trim())) return formatarMoeda(Number(v));
   if (pareceDataIso(v)) return formatarDataHora(v);
   return v;
