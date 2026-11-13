@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
-  Filter,
   MessagesSquare,
   RefreshCw,
   Search,
@@ -29,11 +28,8 @@ import {
   getIntegracaoCliente,
   listarCamposPersonalizados,
   listarClassificacoesRecentes,
-  listarEtiquetasCliente,
   listarPaineisCliente,
   listarRotulosCliente,
-  listarUsuariosCliente,
-  salvarFiltrosCliente,
   salvarRotuloCliente,
   sincronizarConversasCliente,
   type CampoElora,
@@ -48,38 +44,6 @@ import { RegrasRelatorio } from "@/components/regras-relatorio";
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
-function CaixaMulti({
-  titulo,
-  itens,
-  marcados,
-  aoAlternar,
-  vazio,
-}: {
-  titulo: string;
-  itens: { id: string; nome: string }[];
-  marcados: string[];
-  aoAlternar: (id: string) => void;
-  vazio: string;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label>{titulo}</Label>
-      {itens.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{vazio}</p>
-      ) : (
-        <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-lg border border-border/60 p-3">
-          {itens.map((i) => (
-            <label key={i.id} className="flex items-center gap-2 text-sm">
-              <Checkbox checked={marcados.includes(i.id)} onCheckedChange={() => aoAlternar(i.id)} />
-              <span className="truncate">{i.nome}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** Conteúdo da tela "Configurar API" de um cliente. */
 export function ConfigurarApiCliente({
@@ -110,7 +74,6 @@ export function ConfigurarApiCliente({
 
   // 3. painéis
   const [paineis, setPaineis] = useState<PainelElora[] | null>(null);
-  const [painelFunil, setPainelFunil] = useState("");
 
   // 4. sequências
 
@@ -126,29 +89,12 @@ export function ConfigurarApiCliente({
   const [salvandoRotulo, setSalvandoRotulo] = useState(false);
 
 
-  // 6. filtros
-  const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
-  const [etiquetas, setEtiquetas] = useState<{ id: string; nome: string }[]>([]);
-  const [fUsuarios, setFUsuarios] = useState<string[]>([]);
-  const [fEtiquetas, setFEtiquetas] = useState<string[]>([]);
-  const [fEtapas, setFEtapas] = useState<string[]>([]);
-  const [fCampoChave, setFCampoChave] = useState("");
-  const [fCampoValor, setFCampoValor] = useState("");
-  const [fCampanha, setFCampanha] = useState("");
-  const [salvandoFiltros, setSalvandoFiltros] = useState(false);
-
   const recarregar = useCallback(() => {
     setCarregando(true);
     setErro(null);
     getIntegracaoCliente({ data: { clienteId } })
       .then((r) => {
         setEstado(r);
-        setFUsuarios(r.filtros.usuarios);
-        setFEtiquetas(r.filtros.etiquetas);
-        setFEtapas(r.filtros.etapasFunil);
-        setFCampoChave(r.filtros.campoPersonalizado?.chave ?? "");
-        setFCampoValor(r.filtros.campoPersonalizado?.valor ?? "");
-        setFCampanha(r.filtros.campanha ?? "");
       })
       .catch((e) => setErro(msg(e)))
       .finally(() => setCarregando(false));
@@ -159,12 +105,6 @@ export function ConfigurarApiCliente({
   // Listas de filtro carregam junto (usuários e etiquetas da conta).
   useEffect(() => {
     if (!estado?.configurada || !estado.ativo) return;
-    listarUsuariosCliente({ data: { clienteId } })
-      .then((r) => setUsuarios(r.usuarios))
-      .catch(() => setUsuarios([]));
-    listarEtiquetasCliente({ data: { clienteId } })
-      .then((r) => setEtiquetas(r.etiquetas))
-      .catch(() => setEtiquetas([]));
     listarCamposPersonalizados({ data: { clienteId } })
       .then((r) => setCampos(r.campos))
       .catch(() => setCampos([]));
@@ -173,13 +113,6 @@ export function ConfigurarApiCliente({
       .catch(() => setPaineis([]));
     recarregarRotulosEConfig().catch(() => undefined);
   }, [clienteId, estado?.configurada, estado?.ativo]);
-
-  const alternar = (lista: string[], set: (v: string[]) => void, id: string) =>
-    set(lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id]);
-
-
-
-
 
   const recarregarRotulosEConfig = async () => {
     const r = await listarRotulosCliente({ data: { clienteId } });
@@ -246,28 +179,6 @@ export function ConfigurarApiCliente({
     }
   };
 
-  const salvarFiltros = async () => {
-    setSalvandoFiltros(true);
-    try {
-      await salvarFiltrosCliente({
-        data: {
-          clienteId,
-          usuarios: fUsuarios,
-          etiquetas: fEtiquetas,
-          etapasFunil: fEtapas,
-          campoPersonalizado: fCampoChave ? { chave: fCampoChave, valor: fCampoValor } : null,
-          campanha: fCampanha.trim() ? fCampanha.trim() : null,
-        },
-      });
-      toast.success("Filtros salvos. Valem para a sincronização e para o painel do cliente.");
-      recarregar();
-    } catch (e) {
-      toast.error(msg(e));
-    } finally {
-      setSalvandoFiltros(false);
-    }
-  };
-
   if (carregando) {
     return (
       <div className="space-y-4">
@@ -286,11 +197,6 @@ export function ConfigurarApiCliente({
       </Alert>
     );
   }
-
-  const etapasDisponiveis =
-    paineis?.find((p) => p.id === painelFunil)?.etapas ??
-    (paineis ?? []).flatMap((p) => p.etapas);
-
 
   if (soGraficos) {
     return (
@@ -519,103 +425,6 @@ export function ConfigurarApiCliente({
       )}
       {/* "Meu Dash" saiu desta aba: Matriz e visões substituem. Widgets salvos continuam guardados. */}
 
-
-      {/* 7. Listas da conta (alimentam os filtros dos widgets) */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Filter className="h-4 w-4" /> Listas e filtros padrão da conta
-          </CardTitle>
-          <CardDescription>
-            A sincronização traz a base inteira; cada widget aplica o próprio filtro na exibição.
-            O que você marcar aqui vale como sugestão inicial para novos widgets.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <CaixaMulti
-              titulo="Usuários"
-              itens={usuarios}
-              marcados={fUsuarios}
-              aoAlternar={(id) => alternar(fUsuarios, setFUsuarios, id)}
-              vazio="A conta não liberou a lista de usuários para esta chave."
-            />
-            <CaixaMulti
-              titulo="Etiquetas"
-              itens={etiquetas}
-              marcados={fEtiquetas}
-              aoAlternar={(id) => alternar(fEtiquetas, setFEtiquetas, id)}
-              vazio="Nenhuma etiqueta disponível."
-            />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Campo personalizado</Label>
-              <Select value={fCampoChave || undefined} onValueChange={setFCampoChave}>
-                <SelectTrigger>
-                  <SelectValue placeholder={campos === null ? "Carregando…" : campos.length ? "Escolha o campo" : "Nenhum campo encontrado"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(campos ?? []).map((c) => (
-                    <SelectItem key={c.chave} value={c.chave}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="f-campo-valor">Valor do campo</Label>
-              <Input
-                id="f-campo-valor"
-                value={fCampoValor}
-                onChange={(e) => setFCampoValor(e.target.value)}
-                placeholder="Deixe em branco para aceitar qualquer valor preenchido"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Painel de Vendas (para escolher etapas)</Label>
-              <Select value={painelFunil || undefined} onValueChange={setPainelFunil}>
-                <SelectTrigger>
-                  <SelectValue placeholder={paineis === null ? "Carregando…" : paineis.length ? "Escolha o painel" : "Nenhum painel encontrado"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(paineis ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.titulo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="f-campanha">Campanha patrocinada</Label>
-              <Input
-                id="f-campanha"
-                value={fCampanha}
-                onChange={(e) => setFCampanha(e.target.value)}
-                placeholder="Parte do nome da campanha"
-              />
-            </div>
-          </div>
-
-          <CaixaMulti
-            titulo="Etapas do funil"
-            itens={etapasDisponiveis.map((e) => ({ id: e.id, nome: e.nome }))}
-            marcados={fEtapas}
-            aoAlternar={(id) => alternar(fEtapas, setFEtapas, id)}
-            vazio="Busque os painéis para listar as etapas."
-          />
-
-          <Button size="sm" onClick={salvarFiltros} disabled={salvandoFiltros}>
-            {salvandoFiltros ? "Salvando…" : "Salvar filtros"}
-          </Button>
-        </CardContent>
-      </Card>
 
       <DadosIntegracaoCliente clienteId={clienteId} nomeCliente={clienteId} />
 
