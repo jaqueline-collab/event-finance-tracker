@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Mail, Globe, ArrowUpRight, LogIn, Rabbit, Menu } from "lucide-react";
-import { EloraMark } from "@/components/landing/EloraMark";
+import { EloraLogo, EloraIcone } from "@/components/elora-logo";
 import { EMAIL_CONTATO } from "@/lib/landing/contato";
 import { usePerfil } from "@/hooks/use-perfil";
 import { UserMenu } from "@/components/user-menu";
@@ -23,13 +23,7 @@ export function Navbar() {
     <header className="fixed top-0 inset-x-0 z-50 bg-landing-dark/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-6">
         <Link to="/" className="flex items-center gap-2 leading-none">
-          <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0 -mt-0.5" />
-          <span
-            className="hidden sm:inline text-white font-bold tracking-tight text-lg"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            EloraCRM
-          </span>
+          <EloraLogo cor="branco" />
         </Link>
         <nav className="hidden md:flex min-w-0 items-center justify-self-center gap-5 lg:gap-7 text-sm text-white/80">
           <Link to="/parceiros" className="hover:text-landing-yellow-vivo transition">
@@ -81,7 +75,7 @@ export function Navbar() {
             <SheetContent className="border-white/10 bg-landing-dark text-white">
               <SheetHeader className="text-left">
                 <SheetTitle className="flex items-center gap-2 text-white">
-                  <EloraMark className="h-6 w-6 text-landing-yellow-vivo" /> EloraCRM
+                  <EloraLogo cor="branco" className="h-6" />
                 </SheetTitle>
               </SheetHeader>
               <nav className="mt-8 flex flex-col gap-2">
@@ -165,13 +159,7 @@ export function Footer() {
       <div className="max-w-6xl mx-auto grid gap-9 md:grid-cols-2 md:gap-10 lg:grid-cols-3 lg:gap-12 items-start">
         <div>
           <div className="flex items-center gap-2 leading-none">
-            <EloraMark className="h-7 w-7 text-landing-yellow-vivo shrink-0" />
-            <span
-              className="text-white font-bold tracking-tight text-2xl"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              EloraCRM
-            </span>
+            <EloraLogo cor="branco" />
           </div>
           <p className="text-sm text-white/60 mt-3 max-w-xs">
             Para as conversas e o negócio andarem juntos.

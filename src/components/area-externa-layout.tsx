@@ -13,7 +13,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { EloraMark } from "@/components/landing/EloraMark";
+import { EloraLogo, EloraIcone } from "@/components/elora-logo";
 import { AppHeader } from "@/components/app-header";
 import { cn } from "@/lib/utils";
 import { EloraChat } from "@/components/elora-chat";
@@ -71,13 +71,11 @@ function AreaSidebar({ subtitulo, grupos }: { subtitulo: string; grupos: GrupoMe
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
       <SidebarHeader className="px-4 py-5">
         <div className="flex items-center gap-2.5">
-          <EloraMark className="h-8 w-8 flex-shrink-0 text-brand" />
+          {recolhido ? <EloraIcone className="h-8 w-8" /> : null}
           {!recolhido && (
-            <div className="flex min-w-0 flex-col">
-              <span className="text-[15px] font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-                EloraCRM
-              </span>
-              <span className="text-[10.5px] text-muted-foreground">{subtitulo}</span>
+            <div className="flex min-w-0 flex-col gap-1">
+              <EloraLogo cor="branco" className="h-6 p-0" />
+              <span className="text-[10.5px] text-sidebar-foreground/70">{subtitulo}</span>
             </div>
           )}
         </div>

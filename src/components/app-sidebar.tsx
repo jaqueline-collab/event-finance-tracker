@@ -42,7 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCurrentUserAccess, type ModuleKey } from "@/lib/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EloraMark } from "@/components/landing/EloraMark";
+import { EloraLogo, EloraIcone } from "@/components/elora-logo";
 
 const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
@@ -159,13 +159,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
       <SidebarHeader className="px-4 py-5">
         <div className="flex items-center gap-2.5">
-          <EloraMark className="h-8 w-8 flex-shrink-0 text-brand" />
+          {isCollapsed ? <EloraIcone className="h-8 w-8" /> : null}
           {!isCollapsed && (
-            <div className="flex min-w-0 flex-col">
-              <span className="text-[15px] font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-                EloraCRM
-              </span>
-              <span className="text-[10.5px] text-muted-foreground">Painel administrativo</span>
+            <div className="flex min-w-0 flex-col gap-1">
+              <EloraLogo cor="branco" className="h-6 p-0" />
+              <span className="text-[10.5px] text-sidebar-foreground/70">Painel administrativo</span>
             </div>
           )}
         </div>
