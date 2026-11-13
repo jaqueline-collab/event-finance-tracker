@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { RotateCcw, X } from "lucide-react";
+import { RotateCcw, Wand2, X } from "lucide-react";
+import { useModoEditar } from "@/lib/modo-editar";
+import { PropostaConfig } from "@/components/proposta-config";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
@@ -31,17 +33,21 @@ export function EloraChat({ area }: { area: "cliente" | "parceiro" }) {
   const [entrada, setEntrada] = useState("");
   const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
   const como = typeof search?.como === "string" ? search.como.trim() : "";
+  const editar = useModoEditar();
+  const podeAdmin = area === "cliente" && !!como && editar?.clienteId === como;
+  const [adminLigado, setAdminLigado] = useState(false);
+  const modo = podeAdmin && adminLigado ? "admin" : "leitura";
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/elora-ia",
         headers: async () => ({ Authorization: `Bearer ${await token()}` }),
-        body: () => ({ area, como }),
+        body: () => ({ area, como, modo }),
       }),
-    [area, como],
+    [area, como, modo],
   );
-  const { messages, sendMessage, status, stop, error, setMessages, clearError } = useChat({ id: `elora-${area}-${como}`, transport });
+  const { messages, sendMessage, status, stop, error, setMessages, clearError } = useChat({ id: `elora-${area}-${como}-${modo}`, transport });
   const ocupado = status === "submitted" || status === "streaming";
 
   const enviar = (texto: string) => {
@@ -84,8 +90,13 @@ export function EloraChat({ area }: { area: "cliente" | "parceiro" }) {
             </span>
             <div className="flex-1 leading-tight">
               <p className="text-sm font-semibold">Elora</p>
-              <p className="text-xs text-muted-foreground">Só lê e explica. Não altera nada.</p>
+              <p className="text-xs text-muted-foreground">{modo === "admin" ? "Assistente de configuração: propõe, você aplica." : "Só lê e explica. Não altera nada."}</p>
             </div>
+            {podeAdmin && (
+              <Button variant={adminLigado ? "default" : "ghost"} size="icon" aria-pressed={adminLigado} aria-label="Assistente de configuração" title="Assistente de configuração" onClick={() => setAdminLigado((v) => !v)}>
+                <Wand2 className="size-4" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" aria-label="Nova conversa" onClick={() => { stop(); setMessages([]); clearError(); }}>
               <RotateCcw className="size-4" />
             </Button>
@@ -108,11 +119,15 @@ export function EloraChat({ area }: { area: "cliente" | "parceiro" }) {
               ) : (
                 messages.map((m) => {
                   const texto = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
-                  if (m.role === "assistant" && !texto) return null;
+                  const propostas = modo === "admin" && m.role === "assistant"
+                    ? m.parts.flatMap((p: any) => (typeof p.type === "string" && p.type.startsWith("tool-propor_") && p.state === "output-available" && p.output?.proposta ? [{ id: p.toolCallId as string, ...(p.output as any) }] : []))
+                    : [];
+                  if (m.role === "assistant" && !texto && !propostas.length) return null;
                   return (
                     <Message key={m.id} from={m.role}>
                       <MessageContent className={cn(m.role === "user" && "bg-foreground text-background")}>
                         {m.role === "assistant" ? <MessageResponse>{texto}</MessageResponse> : texto}
+                        {propostas.map((x) => <PropostaConfig key={x.id} proposta={x.proposta} descricao={x.descricao} />)}
                       </MessageContent>
                     </Message>
                   );

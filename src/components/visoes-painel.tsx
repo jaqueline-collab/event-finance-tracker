@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { definirModoEditar } from "@/lib/modo-editar";
 import { Copy, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
@@ -104,6 +105,17 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   useEffect(() => {
     void carregar(false);
   }, [carregar]);
+
+  // Assistente de configuração: só aparece com super admin em modo Editar (o servidor revalida).
+  useEffect(() => {
+    definirModoEditar(editando && podeEditar ? { clienteId, visaoId: ativa && ativa !== VISAO_MATRIZ ? ativa : null } : null);
+  }, [editando, podeEditar, clienteId, ativa]);
+  useEffect(() => () => definirModoEditar(null), []);
+  useEffect(() => {
+    const f = () => { void carregar(editando).then(() => setChave((c) => c + 1)); };
+    window.addEventListener("elora-config-aplicada", f);
+    return () => window.removeEventListener("elora-config-aplicada", f);
+  }, [carregar, editando]);
 
   const sensores = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
