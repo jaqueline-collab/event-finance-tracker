@@ -87,6 +87,18 @@ export const calcularCartao = createServerFn({ method: "POST" })
     const { data: estados, error: erroSync } = await db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId);
     if (erroSync) throw new Error(erroSync.message);
     const fonte = c.fonte === "card" ? "cards" : c.fonte === "atendimento" ? "atendimentos" : "contatos";
+    if (c.tipo === "dois_valores") {
+      const { agregarDoisValores } = await import("@/lib/graficos");
+      return { oculto: false as const, r: { ...agregarDoisValores(cat.base, c, p, data.filtrosVisao as any, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
+    }
+    if (c.tipo === "matriz_utm") {
+      const { agregarMatrizUtm } = await import("@/lib/graficos");
+      return { oculto: false as const, r: { ...agregarMatrizUtm(cat.base, c, p, data.filtrosVisao as any), cobertura: estadoCobertura(p.ate, ["contatos", "atendimentos"], estados ?? []) } };
+    }
+    if (c.tipo === "tabela_itens") {
+      const { itensTabela } = await import("@/lib/graficos");
+      return { oculto: false as const, r: { ...itensTabela(cat.base, c, p, data.filtrosVisao as any, a.semDinheiro, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
+    }
     if (c.tipo === "calendario") {
       const r = agregarCalendario(cat.base, c, p, data.filtrosVisao as any);
       const aguardando = diasAguardando(p, r, (d) => estadoCobertura(d, [fonte], estados ?? []));

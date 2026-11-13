@@ -34,6 +34,8 @@ export type DefinicaoCampo = { key: string; name?: string | null; type?: string 
 export type ContatoBase = {
   id: string; nome?: string | null; telefone?: string | null; status?: string | null; etiquetas?: string[]; origem?: string | null;
   utm_source?: string | null; utm_medium?: string | null; utm_campaign?: string | null; criado_em?: string | null; cf?: Record<string, unknown> | null;
+  /** Todas as UTMs que o Elora fornecer (além de source/medium/campaign). */
+  utm?: Record<string, unknown> | null;
 };
 export type AtendimentoBase = {
   id: string; contato_id: string | null; canal?: string | null; atendente?: string | null; equipe?: string | null; classificacao?: string | null;
@@ -94,7 +96,9 @@ export function valorDe(fonte: FonteCampo, campo: string, r: any): unknown {
   if (!r) return null;
   if (campo.startsWith("campo.")) return r.cf?.[campo.slice(6)] ?? null;
   const lista = fonte === "utm" ? UTM : FIXOS[fonte];
-  return lista.find((f) => f.campo === campo)?.ler(r) ?? null;
+  const fixo = lista.find((f) => f.campo === campo);
+  if (fixo) return fixo.ler(r) ?? null;
+  return fonte === "utm" ? (r.utm?.[campo] ?? null) : null;
 }
 
 const tipoDaDefinicao = (t?: string | null): TipoCampo | null => {
@@ -168,7 +172,14 @@ export function montarCatalogo(base: BaseCampos, ajustes: AjusteCampo[] = []): G
     contato: base.contatos.length ? [...fixos("contato", FIXOS.contato, base.contatos), ...personalizados("contato", base.contatos, base.definicoes)] : [],
     atendimento: base.atendimentos.length ? fixos("atendimento", FIXOS.atendimento, base.atendimentos) : [],
     card: base.cards.length ? [...fixos("card", FIXOS.card, base.cards), ...personalizados("card", base.cards, base.definicoes)] : [],
-    utm: fixos("utm", UTM, base.contatos),
+    utm: [
+      ...fixos("utm", UTM, base.contatos),
+      ...[...new Set(base.contatos.flatMap((c) => Object.keys(c.utm ?? {})))]
+        .filter((k) => !UTM.some((u) => u.campo === k || u.nome === `utm_${k}`))
+        .map((k) => campoDe("utm", k, k, null, base.contatos.map((c) => c.utm?.[k] ?? null)))
+        .filter((c) => c.preenchidos > 0)
+        .sort((a, b) => a.nome.localeCompare(b.nome)),
+    ],
   };
   const aj = new Map(ajustes.map((a) => [`${a.fonte}|${a.campo}`, a]));
   return FONTES_CATALOGO.map(({ fonte, nome }) => ({
