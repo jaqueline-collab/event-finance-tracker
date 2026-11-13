@@ -30,3 +30,8 @@
 - [ ] Cobertura diária persistida na sincronização: não registrada nesta fase; todos os intervalos sem prova permanecem parciais, sem confirmar zeros históricos. Cache novo não implementado conforme limite do plano.
 - [x] Ressalva autorizada: produção só tem Resultados e zero widgets antigos do Dr. Ricardo; continuar sem recriar configurações ausentes, registrando no relatório.
 - [x] Fase 6: remover seção Listas e filtros (sem tela, dados intactos); edição bloco a bloco com grade 12 col; Calendário; assistente de configuração na Elora IA; testes; relatório
+
+## Fase 7 + correções das visões
+- [x] Etapa 1: blocos e correções (topo fixo, TMR/TMA, migração com números idênticos para todos os clientes, contraste, cobertura, calendário, funil)
+- [ ] Etapa 2: novos tipos de bloco
+- [ ] Etapa 3: Resultados (novo) em rascunho, Agenda + Calendário, Agendamentos nova

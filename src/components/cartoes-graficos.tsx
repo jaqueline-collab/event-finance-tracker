@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, GripVertical, MoreHorizontal, Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Funnel, FunnelChart, LabelList, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +18,11 @@ import { FONTES_CATALOGO } from "@/lib/campos-elora";
 import { calcularCartao, itensDiaCalendario, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
 import { desfazer, empurrar, encaixar, historico, LARGURA_GRADE_PX, layoutPadrao, LINHA_PX, redimensionar, refazer, reordenar, tamanhoDe, type Historico } from "@/lib/layout-blocos";
 import {
-  fontesDisponiveis, MEDIDAS, type ItemDia, novoCartao, ROTULO_MEDIDA, ROTULO_TIPO_GRAFICO, tiposDisponiveis, type CartaoGrafico, type CampoRef, type ResultadoCartao,
+  ehTituloPadrao, fontesDisponiveis, funilTop, MEDIDAS, tituloPadrao, type ItemDia, novoCartao, ROTULO_MEDIDA, ROTULO_TIPO_GRAFICO, tiposDisponiveis, type CartaoGrafico, type CampoRef, type ResultadoCartao,
 } from "@/lib/graficos";
 import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
-import { MarcaEstimativa } from "@/components/marca-estimativa";
+import { MarcaEstimativa, PontoCobertura } from "@/components/marca-estimativa";
 
 const CORES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--primary)", "var(--muted-foreground)"];
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -276,7 +276,7 @@ function CartaoComum({
   return (
     <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold">{cartao.titulo}</h3>
+        <h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}</h3>
         <div className="flex items-center gap-1">
           {cartao.painel === "leads-por" && <Select value={dim?.campo ?? "origem"} onValueChange={(campo) => setDim({ fonte: campo === "canal" ? "atendimento" : campo === "campaign" ? "utm" : "contato", campo })}>
             <SelectTrigger className="h-8 w-auto" aria-label="Dimensão da rosca"><SelectValue /></SelectTrigger>
@@ -301,10 +301,12 @@ function CartaoComum({
           {r.r.estimados.length} dia(s) estimado(s), fora do total.
         </p>
       )}
-      {r?.r?.cobertura && r.r.cobertura !== "confirmado" && <p className="mt-2 text-xs text-muted-foreground">{r.r.cobertura} · cobertura diária não confirmada</p>}
     </section>
   );
 }
+
+/** Variação: sucesso, alerta (destrutivo) ou neutro — tokens com contraste AA nos dois temas. */
+export const corVariacao = (varia: number | null, bom: boolean) => (varia == null || Math.abs(varia) < 0.05 ? "text-muted-foreground" : bom ? "text-success" : "text-destructive");
 
 function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: ResultadoCartao; onClique?: (rotulo: string) => void }) {
   const [ocultas, setOcultas] = useState<string[]>([]);
@@ -323,7 +325,7 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
       <div className="flex flex-1 flex-col justify-center py-2">
         <p className="text-4xl font-bold tracking-tight">{r.total === 0 && r.cobertura && r.cobertura !== "confirmado" ? "—" : fmt(r.total, c)}</p>
         {c.comparar && (
-          <p className={`mt-1 flex items-center gap-1 text-sm ${varia == null ? "text-muted-foreground" : bom ? "text-primary" : "text-destructive"}`}>
+          <p className={`mt-1 flex items-center gap-1 text-sm ${corVariacao(varia, bom)}`}>
             {varia != null && (varia >= 0 ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />)}
             {varia == null ? "Sem base no período anterior" : `${varia.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% vs. período anterior (${fmt(r.anterior, c)})`}
           </p>
@@ -334,6 +336,7 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
   if (c.tipo === "tabela") return <TabelaCartao cartao={c} r={r} />;
   if (c.tipo === "mapa") return <MapaCartao cartao={c} r={r} onClique={onClique} />;
   if (!dados.length) return <p className="text-sm text-muted-foreground">Nenhum registro no período.</p>;
+  if (c.tipo === "funil") return <FunilCartao cartao={c} r={r} onClique={onClique} />;
 
   return (
     <div className="h-64 w-full">
@@ -346,13 +349,6 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
             </Pie>
             <Legend wrapperStyle={{ fontSize: 12 }} />
           </PieChart>
-        ) : c.tipo === "funil" ? (
-          <FunnelChart>
-            {tip}
-            <Funnel dataKey="total" nameKey="rotulo" data={dados.map((d, i) => ({ ...d, fill: CORES[i % CORES.length] }))} isAnimationActive={false} onClick={clique}>
-              <LabelList position="right" dataKey="rotulo" fill="var(--foreground)" fontSize={11} />
-            </Funnel>
-          </FunnelChart>
         ) : c.tipo === "linhas" ? (
           <LineChart data={dados}>
             <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
@@ -515,7 +511,7 @@ function EditorCartao({
     <Sheet open onOpenChange={(o) => !o && onFechar()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
         <SheetHeader>
-          <SheetTitle>{inicial.titulo === "Novo gráfico" ? "Novo gráfico" : "Editar gráfico"}</SheetTitle>
+          <SheetTitle>{ehTituloPadrao(inicial.titulo) ? "Novo bloco" : "Editar bloco"}</SheetTitle>
           <SheetDescription>A prévia usa o período e os filtros atuais da visão.</SheetDescription>
         </SheetHeader>
         {!op ? (
@@ -586,7 +582,7 @@ function EditorCartao({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Tipo</Label>
-                  <Select value={c.tipo} onValueChange={(v) => set(v === "calendario" ? { tipo: "calendario", serie: null, granularidade: "dia", dimensao: c.dimensao && ehData(c.dimensao) ? c.dimensao : primeiraData() } : { tipo: v as any })}>
+                  <Select value={c.tipo} onValueChange={(v) => { const titulo = ehTituloPadrao(c.titulo) ? tituloPadrao(v) : c.titulo; set(v === "calendario" ? { tipo: "calendario", titulo, serie: null, granularidade: "dia", dimensao: c.dimensao && ehData(c.dimensao) ? c.dimensao : primeiraData() } : { tipo: v as any, titulo }); }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{tipos.map((t) => <SelectItem key={t} value={t}>{ROTULO_TIPO_GRAFICO[t]}</SelectItem>)}</SelectContent>
                   </Select>
@@ -653,6 +649,35 @@ function EditorCartao({
   );
 }
 
+/* ---------------- funil ---------------- */
+
+/** Funil no estilo do Elora App: faixas centradas e decrescentes, texto dentro da faixa (nunca por cima do desenho). */
+function FunilCartao({ cartao, r, onClique }: { cartao: CartaoGrafico; r: ResultadoCartao; onClique?: (rotulo: string) => void }) {
+  const faixas = funilTop(r.categorias, 8);
+  const max = Math.max(1, ...faixas.map((f) => f.total));
+  const soma = faixas.reduce((a, b) => a + b.total, 0);
+  const pct = (v: number) => `${(soma ? (v / soma) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  return (
+    <ol className="flex flex-col items-center gap-1" aria-label={cartao.titulo}>
+      {faixas.map((f, i) => (
+        <li key={f.rotulo} className="flex w-full flex-col items-center">
+          <button
+            type="button"
+            disabled={!onClique || f.rotulo === "Outras"}
+            onClick={() => onClique?.(f.rotulo)}
+            title={`${f.rotulo}: ${fmt(f.total, cartao)} (${pct(f.total)})`}
+            className="flex items-center justify-between gap-2 rounded-md border-l-4 px-3 py-1.5 text-xs text-foreground transition-opacity enabled:hover:opacity-90"
+            style={{ width: `${Math.max(40, (f.total / max) * 100)}%`, borderColor: f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5], background: `color-mix(in oklch, ${f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5]} 22%, var(--card))` }}
+          >
+            <span className="min-w-0 truncate font-medium">{f.rotulo}</span>
+            <span className="shrink-0 tabular-nums">{fmt(f.total, cartao)} · {pct(f.total)}</span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 /* ---------------- calendário ---------------- */
 
 const SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
@@ -688,7 +713,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
     const fora = dia < per.de || dia > per.ate;
     const v = valores.get(dia);
     const est = estimados.has(dia);
-    const ag = aguardando.has(dia);
+    const ag = aguardando.has(dia) && dia <= hojeSP();
     const intens = v ? Math.round((v / max) * 70) + 8 : 0;
     return (
       <button
@@ -698,10 +723,10 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
         onClick={() => setDiaAberto(dia)}
         className={`flex min-h-14 flex-col items-start rounded-md border p-1.5 text-left text-xs transition-colors ${fora ? "opacity-30" : "hover:border-primary"} ${dia === hojeSP() ? "border-primary" : ""}`}
         style={intens ? { background: `color-mix(in oklch, var(--primary) ${intens}%, var(--card))` } : undefined}
-        aria-label={`${dia.split("-").reverse().join("/")}: ${ag ? "aguardando sincronização" : fmt(v ?? 0, cartao)}`}
+        aria-label={`${dia.split("-").reverse().join("/")}: ${ag ? "sem cobertura de sincronização confirmada" : v ? fmt(v, cartao) : "sem registro"}`}
       >
-        <span className="text-muted-foreground">{Number(dia.slice(8))}</span>
-        <span className="mt-auto font-semibold tabular-nums">{ag ? <span className="font-normal text-muted-foreground">aguardando</span> : v ? fmt(v, cartao) : ""}</span>
+        <span className="flex w-full items-center justify-between text-muted-foreground">{Number(dia.slice(8))}{ag && <PontoCobertura texto="Dia sem cobertura de sincronização confirmada." />}</span>
+        <span className="mt-auto font-semibold tabular-nums">{v ? fmt(v, cartao) : ""}</span>
         {est && <MarcaEstimativa desde={res?.primeiraLeitura} />}
       </button>
     );

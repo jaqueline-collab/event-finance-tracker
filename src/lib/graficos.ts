@@ -43,7 +43,7 @@ export const cartaoSchema = z.object({
   /** Calendário: visualização inicial e campos extras na lista do dia. */
   visualCalendario: z.enum(["mes", "semana", "agenda"]).default("mes"),
   camposLista: z.array(ref).max(8).default([]),
-  painel: z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
+  painel: z.enum(["kpi-leads", "kpi-conversas", "kpi-tmr", "kpi-tma", "kpi-ads", "leads-dia", "leads-por", "conversas-dia", "campanhas", "canais", "atendentes"]).optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
 });
 export type CartaoGrafico = z.infer<typeof cartaoSchema>;
@@ -52,14 +52,28 @@ export type CampoRef = z.infer<typeof ref>;
 export const cartoesValidos = (v: unknown): CartaoGrafico[] =>
   (Array.isArray(v) ? v : []).flatMap((c) => { const r = cartaoSchema.safeParse(c); return r.success ? [r.data] : []; });
 
-export const novoCartao = (id: string): CartaoGrafico => cartaoSchema.parse({ id, titulo: "Novo gráfico", tipo: "barras", fonte: "contato", dimensao: { fonte: "contato", campo: "origem" } });
+/** Título padrão por tipo; só troca enquanto o título ainda for um padrão (nunca apaga o que foi digitado). */
+export const TITULO_PADRAO = { calendario: "Agendamentos", outro: "Novo gráfico" } as const;
+export const tituloPadrao = (tipo: string) => (tipo === "calendario" ? TITULO_PADRAO.calendario : TITULO_PADRAO.outro);
+export const ehTituloPadrao = (t: string) => Object.values(TITULO_PADRAO).includes(t as any);
+
+/** Funil: as N maiores etapas e o resto somado em "Outras" (a soma total não muda). */
+export function funilTop<T extends { rotulo: string; total: number }>(lista: T[], n = 8): { rotulo: string; total: number }[] {
+  const ord = [...lista].sort((a, b) => b.total - a.total);
+  if (ord.length <= n) return ord.map(({ rotulo, total }) => ({ rotulo, total }));
+  const resto = ord.slice(n).reduce((a, b) => a + b.total, 0);
+  return [...ord.slice(0, n).map(({ rotulo, total }) => ({ rotulo, total })), { rotulo: "Outras", total: resto }];
+}
+
+export const novoCartao = (id: string): CartaoGrafico => cartaoSchema.parse({ id, titulo: TITULO_PADRAO.outro, tipo: "barras", fonte: "contato", dimensao: { fonte: "contato", campo: "origem" } });
 
 /** Indicadores do cabeçalho como cartões (mesma agregação do painel). */
 export const CARTOES_KPI = [
   ["kpi-leads", "Novos leads", "contagem", "contato"],
   ["kpi-conversas", "Conversas realizadas", "contagem", "atendimento"],
-  ["kpi-tmr", "TMR · TMA", "tempo_medio", "atendimento"],
+  ["kpi-tmr", "TMR", "tempo_medio", "atendimento"],
   ["kpi-ads", "Leads de ADS", "contagem", "contato"],
+  ["kpi-tma", "TMA", "tempo_medio", "atendimento"],
 ].map(([id, titulo, medida, fonte]) => cartaoSchema.parse({ id, titulo, tipo: "numero", medida, fonte, painel: id, comparar: true, largura: 3, altura: 1 }));
 export const ehCartaoKpi = (c: Pick<CartaoGrafico, "painel">) => !!c.painel && c.painel.startsWith("kpi-");
 
@@ -84,7 +98,8 @@ export function cartaoDoPainel(r: import("./painel-visual").ResumoPainel, c: Car
   switch (c.painel) {
     case "kpi-leads": return kpi(a.novosLeads, ant.novosLeads, a.importadosFora ? `${nf(a.importadosFora)} importados fora da conta` : undefined);
     case "kpi-conversas": return kpi(a.conversas, ant.conversas);
-    case "kpi-tmr": return kpi(a.tmr.valor ?? Number.NaN, ant.tmr.valor ?? null, `TMA ${formatarDuracao(a.tma.valor)} · ${nf(a.tmr.medidas)} conversas medidas (TMR)`);
+    case "kpi-tmr": return kpi(a.tmr.valor ?? Number.NaN, ant.tmr.valor ?? null, `${nf(a.tmr.medidas)} conversas medidas`);
+    case "kpi-tma": return kpi(a.tma.valor ?? Number.NaN, ant.tma.valor ?? null, `${nf(a.tma.medidas)} conversas medidas`);
     case "kpi-ads": return kpi(a.leadsAds, ant.leadsAds, `${(a.novosLeads ? (a.leadsAds / a.novosLeads) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% dos novos leads`);
     case "leads-dia": series = ["Sem campanha", "Vindos de ADS"]; categorias = r.porDia.map(d => categoria(d.dia, { "Sem campanha": d.organicos, "Vindos de ADS": d.ads })); break;
     case "conversas-dia": series = ["Usuário do sistema", "Bot"]; categorias = r.porDia.map(d => categoria(d.dia, { "Usuário do sistema": d.usuario, Bot: d.bot })); break;
@@ -362,12 +377,13 @@ export function agregarCalendario(base: BaseCampos, cfg: CartaoGrafico, p: Perio
 }
 
 /** Dias do período com zero e sem cobertura confirmada: "aguardando", nunca zero. */
-export function diasAguardando(p: Periodo, r: Pick<ResultadoCartao, "categorias" | "estimados">, estadoDoDia: (dia: string) => string): string[] {
+export function diasAguardando(p: Periodo, r: Pick<ResultadoCartao, "categorias" | "estimados">, estadoDoDia: (dia: string) => string, hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })): string[] {
   const com = new Set(r.categorias.filter((c) => c.total !== 0).map((c) => c.rotulo));
   const est = new Set(r.estimados);
   const out: string[] = [];
   for (let d = new Date(`${p.de}T12:00:00Z`); d.toISOString().slice(0, 10) <= p.ate; d.setUTCDate(d.getUTCDate() + 1)) {
     const dia = d.toISOString().slice(0, 10);
+    if (dia > hoje) break; // dia futuro fica vazio, nunca "aguardando"
     if (!com.has(dia) && !est.has(dia) && estadoDoDia(dia) !== "confirmado") out.push(dia);
   }
   return out;
@@ -403,6 +419,21 @@ export function itensDoDia(base: BaseCampos, cfg: CartaoGrafico, dia: string, fi
       campos,
     });
     if (out.length >= limite) break;
+  }
+  return out;
+}
+
+/**
+ * Migração dos indicadores: visão sem nenhum `kpi-*` recebe os 5 blocos no topo (3 colunas cada; o 5º desce de linha);
+ * visão com o antigo "TMR · TMA" passa a ter "TMR" e um bloco "TMA" logo depois dos indicadores. Nenhum bloco é removido.
+ */
+export function migrarKpisVisao(cartoes: CartaoGrafico[]): CartaoGrafico[] {
+  const temKpi = cartoes.some(ehCartaoKpi);
+  if (!temKpi) return [...CARTOES_KPI.map((c) => ({ ...c })), ...cartoes];
+  const out = cartoes.map((c) => (c.painel === "kpi-tmr" && c.titulo === "TMR · TMA" ? { ...c, titulo: "TMR" } : c));
+  if (!out.some((c) => c.painel === "kpi-tma")) {
+    const ultimo = out.reduce((i, c, k) => (ehCartaoKpi(c) ? k : i), -1);
+    out.splice(ultimo + 1, 0, { ...CARTOES_KPI.find((c) => c.painel === "kpi-tma")! });
   }
   return out;
 }
