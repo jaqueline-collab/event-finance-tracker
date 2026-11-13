@@ -17,7 +17,7 @@ A seção grava 6 colunas na conta de integração do cliente. Quem lê cada uma
 
 Conferido também: indicadores (`elora_indicadores_config`), regra de ADS, Matriz, gráficos, sincronização, Elora IA e as rotas do n8n (`registrar`, `listar-clientes`, `sync-cards`) não leem nenhuma dessas colunas. O construtor antigo de widgets lê filtros do próprio widget, não da conta (e o Dr. Ricardo tem zero widgets antigos em produção).
 
-Resultado: nada alimenta cálculo, então nada migra para a regra de indicadores. Sai a seção da tela e a função `salvarFiltrosCliente`; a leitura passa a não devolver esses campos. **As colunas e os valores salvos ficam intactos no banco** (nenhum dado apagado), visíveis só para super admin num resumo de leitura "Valores antigos guardados" dentro do painel Configurar, aba Conexão, para consulta. Se você preferir nem esse resumo, ele sai também.
+Resultado: nada alimenta cálculo, então nada migra para a regra de indicadores. Sai a seção da tela e a função `salvarFiltrosCliente`; a leitura passa a não devolver esses campos. **As colunas e os valores salvos ficam intactos no banco** (nenhum dado apagado), sem nenhuma tela para eles.
 
 Teste: Matriz e gráficos dão os mesmos números antes e depois da remoção.
 
