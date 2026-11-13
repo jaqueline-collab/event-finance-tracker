@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
 import { NAO_DEFINIDO } from "./nao-definido";
+import { DINHEIRO as DINHEIRO_RE, formatarCelula, formatarMoeda, formatarTelefone, horaDe, rotuloCorrido } from "./formatos";
 import { diaSP, formatarDuracao, periodoAnterior, type Periodo } from "./painel-visual";
 
 export const TIPOS_GRAFICO = ["numero", "barras", "barras_empilhadas", "linhas", "area", "pizza", "rosca", "funil", "tabela", "mapa", "calendario", "dois_valores", "matriz_utm", "tabela_itens"] as const;
@@ -248,7 +249,10 @@ export type ResultadoCartao = {
   qtdEstimados?: number;
   /** Tabela de itens: colunas e linhas já formatadas (sem texto de mensagem). */
   colunasItens?: { chave: string; rotulo: string }[];
-  itens?: { id: string; valores: Record<string, string> }[];
+  itens?: { id: string; valores: Record<string, string>; brutos?: Record<string, string> }[];
+  /** Calendário: compromissos de todos os campos de data (nome, hora, tipo). */
+  eventos?: EventoCalendario[];
+  tiposCalendario?: string[];
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };
