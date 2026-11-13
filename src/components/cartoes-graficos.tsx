@@ -22,6 +22,8 @@ import {
 } from "@/lib/graficos";
 import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
+import { ehUrl, formatarMoeda, rotuloCorrido, textoLink } from "@/lib/formatos";
+import { filtrarPorTipo, type EventoCalendario, type FiltroTipoCalendario } from "@/lib/graficos";
 import { MarcaEstimativa, PontoCobertura } from "@/components/marca-estimativa";
 
 const CORES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--primary)", "var(--muted-foreground)"];
