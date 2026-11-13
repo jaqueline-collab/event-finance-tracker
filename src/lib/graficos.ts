@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
 import { NAO_DEFINIDO } from "./nao-definido";
-import { DINHEIRO as DINHEIRO_RE, formatarCelula, formatarMoeda, formatarTelefone, horaDe, rotuloCorrido } from "./formatos";
+import { DINHEIRO as DINHEIRO_RE, formatarCelula, formatarDataHora, formatarMoeda, formatarTelefone, horaDe, rotuloCorrido } from "./formatos";
 import { diaSP, formatarDuracao, periodoAnterior, type Periodo } from "./painel-visual";
 
 export const TIPOS_GRAFICO = ["numero", "barras", "barras_empilhadas", "linhas", "area", "pizza", "rosca", "funil", "tabela", "mapa", "calendario", "dois_valores", "matriz_utm", "tabela_itens"] as const;
