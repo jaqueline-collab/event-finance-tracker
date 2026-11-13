@@ -45,7 +45,7 @@ export const cartaoSchema = z.object({
   altura: z.number().int().min(1).max(12).optional(),
   /** Calendário: visualização inicial e campos extras na lista do dia. */
   visualCalendario: z.enum(["mes", "semana", "agenda"]).default("mes"),
-  camposLista: z.array(ref).max(8).default([]),
+  camposLista: z.array(ref.extend({ rotulo: z.string().trim().max(60).optional() })).max(8).default([]),
   painel: painelEnum.optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
   /** Funil: "ranking" (% do total) ou "etapas" (conversão entre uma faixa e a seguinte). */
@@ -428,7 +428,7 @@ export function diasAguardando(p: Periodo, r: Pick<ResultadoCartao, "categorias"
   return out;
 }
 
-export type ItemDia = { id: string; nome: string; telefone: string; atendente: string; valor: number | null; campos: Record<string, string>; tipo: number; hora: string };
+export type ItemDia = { id: string; nome: string; telefone: string; atendente: string; valor: number | null; campos: Record<string, string>; tipo: number; hora: string; data: string };
 const DINHEIRO = DINHEIRO_RE;
 
 /** Campos de data do calendário, na ordem: o principal (`dimensao`) e os extras. Índice = "tipo" do compromisso. */
@@ -492,6 +492,8 @@ export function itensDoDia(base: BaseCampos, cfg: CartaoGrafico, dia: string, fi
       const extras: Record<string, string> = {};
       for (const e of cfg.camposLista) {
         if (semDinheiro && DINHEIRO.test(e.campo)) continue;
+        // a data do compromisso já aparece na coluna "Data e hora"; outra data na lista só repetiria ou viria vazia
+        if (/data/i.test(e.campo) || campos.some((c) => c.campo === e.campo && c.fonte === e.fonte)) continue;
         extras[`${e.fonte}|${e.campo}`] = formatarCelula(e.campo, txt(valorLigado(base, cfg.fonte, e, r, idx)));
       }
       const valorBruto = cfg.campoMedida ? numero(valorLigado(base, cfg.fonte, cfg.campoMedida, r, idx)) : null;
@@ -505,6 +507,7 @@ export function itensDoDia(base: BaseCampos, cfg: CartaoGrafico, dia: string, fi
         campos: extras,
         tipo,
         hora: horaDe(valorBrutoData(base, cfg.fonte, f, r, idx)),
+        data: formatarDataHora(valorBrutoData(base, cfg.fonte, f, r, idx)) || dia.split("-").reverse().join("/"),
       });
     }
     if (out.length >= limite) break;

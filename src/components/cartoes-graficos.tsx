@@ -909,7 +909,8 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, filtroTipo, tipos, o
     return () => { vivo = false; };
   }, [clienteId, dia]); // eslint-disable-line react-hooks/exhaustive-deps
   const itens = todos ? filtrarPorTipo(todos, filtroTipo) : null;
-  const extras = cartao.camposLista.map((f) => `${f.fonte}|${f.campo}`).filter((k) => itens?.some((i) => k in i.campos));
+  const rotulos = Object.fromEntries(cartao.camposLista.map((f) => [`${f.fonte}|${f.campo}`, f.rotulo || rotuloCorrido(f.campo)]));
+  const extras = Object.keys(rotulos).filter((k) => itens?.some((i) => k in i.campos));
   const temValor = itens?.some((i) => i.valor != null);
   return (
     <Sheet open onOpenChange={(o) => !o && onFechar()}>
@@ -921,13 +922,13 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, filtroTipo, tipos, o
         {!itens ? <Skeleton className="mt-4 h-40 w-full" /> : !itens.length ? (
           <p className="mt-6 text-sm text-muted-foreground">Nenhum compromisso neste dia.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-2">Hora</th><th className="py-1 pr-2">Nome</th><th className="py-1 pr-2">Tipo</th><th className="py-1 pr-2">Telefone</th>{extras.map((k) => <th key={k} className="py-1 pr-2">{rotuloCorrido(k.split("|")[1] ?? "")}</th>)}{temValor && <th className="py-1 pr-2 text-right">Valor</th>}</tr></thead>
+          <div className="mt-4">
+            <table className="w-full table-auto text-sm [&_td]:align-top [&_td]:break-words">
+              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-2">Data e hora</th><th className="py-1 pr-2">Nome</th><th className="py-1 pr-2">Tipo</th><th className="py-1 pr-2">Telefone</th>{extras.map((k) => <th key={k} className="py-1 pr-2">{rotulos[k]}</th>)}{temValor && <th className="py-1 pr-2 text-right">Valor</th>}</tr></thead>
               <tbody>
                 {itens.map((i) => (
                   <tr key={i.id} className="border-t">
-                    <td className="py-1.5 pr-2 tabular-nums">{i.hora || "—"}</td>
+                    <td className="py-1.5 pr-2 tabular-nums">{i.data || "—"}</td>
                     <td className="py-1.5 pr-2">{i.nome}</td>
                     <td className="py-1.5 pr-2"><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${corTipo(i.tipo)}`}>{tipos[i.tipo] ?? "—"}</span></td>
                     <td className="whitespace-nowrap py-1.5 pr-2 tabular-nums">{i.telefone}</td>
