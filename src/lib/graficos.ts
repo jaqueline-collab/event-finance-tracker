@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
 import { NAO_DEFINIDO } from "./nao-definido";
-import { diaSP, periodoAnterior, type Periodo } from "./painel-visual";
+import { diaSP, formatarDuracao, periodoAnterior, type Periodo } from "./painel-visual";
 
 export const TIPOS_GRAFICO = ["numero", "barras", "barras_empilhadas", "linhas", "area", "pizza", "rosca", "funil", "tabela", "mapa", "calendario"] as const;
 export type TipoGrafico = (typeof TIPOS_GRAFICO)[number];
@@ -84,7 +84,7 @@ export function cartaoDoPainel(r: import("./painel-visual").ResumoPainel, c: Car
   switch (c.painel) {
     case "kpi-leads": return kpi(a.novosLeads, ant.novosLeads, a.importadosFora ? `${nf(a.importadosFora)} importados fora da conta` : undefined);
     case "kpi-conversas": return kpi(a.conversas, ant.conversas);
-    case "kpi-tmr": return kpi(a.tmr.valor ?? Number.NaN, ant.tmr.valor ?? null, `TMA ${a.tma.valor == null ? "—" : Math.round(a.tma.valor) + "s"} · ${nf(a.tmr.medidas)} conversas medidas (TMR)`);
+    case "kpi-tmr": return kpi(a.tmr.valor ?? Number.NaN, ant.tmr.valor ?? null, `TMA ${formatarDuracao(a.tma.valor)} · ${nf(a.tmr.medidas)} conversas medidas (TMR)`);
     case "kpi-ads": return kpi(a.leadsAds, ant.leadsAds, `${(a.novosLeads ? (a.leadsAds / a.novosLeads) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% dos novos leads`);
     case "leads-dia": series = ["Sem campanha", "Vindos de ADS"]; categorias = r.porDia.map(d => categoria(d.dia, { "Sem campanha": d.organicos, "Vindos de ADS": d.ads })); break;
     case "conversas-dia": series = ["Usuário do sistema", "Bot"]; categorias = r.porDia.map(d => categoria(d.dia, { "Usuário do sistema": d.usuario, Bot: d.bot })); break;
