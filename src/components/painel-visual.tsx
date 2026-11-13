@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowDownRight, ArrowUpRight, CalendarDays, Clock, Megaphone, MessagesSquare, Minus, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,9 +11,7 @@ import { separarFiltros, type FiltroCampo, type FonteCampo } from "@/lib/campos-
 import {
   DIMENSOES,
   ROTULO_PERIODO,
-  formatarDuracao,
   periodoDe,
-  variacao,
   type Dimensao,
   type Periodo,
   type PeriodoChave,
@@ -32,39 +30,6 @@ type Dados = Extract<Awaited<ReturnType<typeof getPainelVisual>>, { disponivel: 
 
 const nf = new Intl.NumberFormat("pt-BR");
 const dataBr = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(2, 4)}`;
-
-function useMovimentoReduzido() {
-  const [r, setR] = useState(false);
-  useEffect(() => {
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setR(m.matches);
-    const f = () => setR(m.matches);
-    m.addEventListener("change", f);
-    return () => m.removeEventListener("change", f);
-  }, []);
-  return r;
-}
-
-function useContagem(alvo: number, reduzido: boolean) {
-  const [v, setV] = useState(reduzido ? alvo : 0);
-  const de = useRef(0);
-  useEffect(() => {
-    if (reduzido) return setV(alvo);
-    const ini = de.current;
-    const t0 = performance.now();
-    let raf = 0;
-    const passo = (t: number) => {
-      const k = Math.min(1, (t - t0) / 700);
-      const e = 1 - Math.pow(1 - k, 3);
-      setV(ini + (alvo - ini) * e);
-      if (k < 1) raf = requestAnimationFrame(passo);
-      else de.current = alvo;
-    };
-    raf = requestAnimationFrame(passo);
-    return () => cancelAnimationFrame(raf);
-  }, [alvo, reduzido]);
-  return v;
-}
 
 /* ---------------- Cabeçalho e período ---------------- */
 
@@ -168,7 +133,6 @@ export function PainelVisual({
   const [indisponivel, setIndisponivel] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const reduzido = useMovimentoReduzido();
   const chaveFiltros = JSON.stringify(filtros);
 
   useEffect(() => {
