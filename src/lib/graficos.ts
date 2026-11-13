@@ -422,3 +422,18 @@ export function itensDoDia(base: BaseCampos, cfg: CartaoGrafico, dia: string, fi
   }
   return out;
 }
+
+/**
+ * Migração dos indicadores: visão sem nenhum `kpi-*` recebe os 5 blocos no topo (3 colunas cada; o 5º desce de linha);
+ * visão com o antigo "TMR · TMA" passa a ter "TMR" e um bloco "TMA" logo depois dos indicadores. Nenhum bloco é removido.
+ */
+export function migrarKpisVisao(cartoes: CartaoGrafico[]): CartaoGrafico[] {
+  const temKpi = cartoes.some(ehCartaoKpi);
+  if (!temKpi) return [...CARTOES_KPI.map((c) => ({ ...c })), ...cartoes];
+  const out = cartoes.map((c) => (c.painel === "kpi-tmr" && c.titulo === "TMR · TMA" ? { ...c, titulo: "TMR" } : c));
+  if (!out.some((c) => c.painel === "kpi-tma")) {
+    const ultimo = out.reduce((i, c, k) => (ehCartaoKpi(c) ? k : i), -1);
+    out.splice(ultimo + 1, 0, { ...CARTOES_KPI.find((c) => c.painel === "kpi-tma")! });
+  }
+  return out;
+}
