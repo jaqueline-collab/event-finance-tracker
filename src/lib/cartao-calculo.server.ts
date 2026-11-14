@@ -3,7 +3,7 @@ import type { CartaoGrafico } from "@/lib/graficos";
 
 type Dados = { clienteId: string; de: string; ate: string; filtrosVisao: any[] };
 
-export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGrafico, a: { semDinheiro: boolean }) {
+export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGrafico, a: { semDinheiro: boolean }, ctx?: import("./calculo-contexto.server").Ctx) {
     const p = { de: data.de, ate: data.ate };
     if (c.painel) {
       const { calcularPainelVisual } = await import("@/lib/painel-visual.server");
@@ -11,36 +11,36 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
       const { cartaoDoPainel } = await import("@/lib/graficos");
       const nativos = { canal: { fonte: "atendimento" as const, campo: "canal" }, atendente: { fonte: "atendimento" as const, campo: "atendente" }, origem: { fonte: "contato" as const, campo: "origem" }, etiqueta: { fonte: "contato" as const, campo: "etiquetas" }, campanha: { fonte: "utm" as const, campo: "campaign" } };
       const { diretos, outros } = separarFiltros([...data.filtrosVisao, ...c.filtros], nativos);
-      const painel = await calcularPainelVisual(db, data.clienteId, p, diretos, outros);
+      const painel = await (ctx ? ctx.memo(`painel|${p.de}|${p.ate}|${JSON.stringify(diretos)}|${JSON.stringify(outros)}`, () => calcularPainelVisual(db, data.clienteId, p, diretos, outros, ctx)) : calcularPainelVisual(db, data.clienteId, p, diretos, outros));
       return { oculto: false as const, r: { ...cartaoDoPainel(painel, c), cobertura: painel.cobertura } };
     }
     const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
-    const cat = await catalogoDoCliente(db, data.clienteId);
+    const cat = await catalogoDoCliente(db, data.clienteId, ctx);
     if (c.medida === "indicador") {
       if (!c.indicador) return { oculto: false as const, r: null };
       const { montarMatrizCliente } = await import("@/lib/matriz.server");
       const { cartaoDeIndicador } = await import("@/lib/graficos");
       const { periodoAnterior } = await import("@/lib/painel-visual");
       const campos = [...data.filtrosVisao, ...c.filtros] as any;
-      const m = await montarMatrizCliente(db, data.clienteId, p, {}, { campos });
+      const m = await (ctx ? ctx.memo(`matriz|${p.de}|${p.ate}|${JSON.stringify(campos)}`, () => montarMatrizCliente(db, data.clienteId, p, {}, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, p, {}, { campos }));
       if (!m.todasColunas.some((x) => x.chave === c.indicador)) return { oculto: false as const, r: null };
       let ant: number | null = null;
       if (c.comparar) {
-        const ma = await montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos });
+        const ma = await (ctx ? ctx.memo(`matriz|${periodoAnterior(p).de}|${periodoAnterior(p).ate}|${JSON.stringify(campos)}`, () => montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos }));
         ant = cartaoDeIndicador(ma.linhas as any, c.indicador, c, null).total;
       }
       return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), primeiraLeitura: m.primeiraLeitura, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
     }
     const { agregarCartao, agregarCalendario, diasAguardando } = await import("@/lib/graficos");
     const { estadoCobertura } = await import("@/lib/sync-cobertura");
-    const { data: estados, error: erroSync } = await db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId);
+    const { data: estados, error: erroSync } = await (ctx ? ctx.memo("estados", async () => db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId)) : db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId)) as any;
     if (erroSync) throw new Error(erroSync.message);
     const fonte = c.fonte === "card" ? "cards" : c.fonte === "atendimento" ? "atendimentos" : "contatos";
     const contadosPor = async (chaves: string[], per: { de: string; ate: string }) => {
       const { lerConfig } = await import("@/lib/indicadores.server");
       const { lerLeiturasCards } = await import("@/lib/matriz.server");
       const { cardsDoIndicador } = await import("@/lib/indicadores-motor");
-      const [cfgs, leituras] = await Promise.all([lerConfig(db, data.clienteId), lerLeiturasCards(db, data.clienteId)]);
+      const [cfgs, leituras] = await Promise.all([lerConfig(db, data.clienteId, ctx), lerLeiturasCards(db, data.clienteId, ctx)]);
       const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
       const f = aplicarFiltrosCampos(cat.base, [...(data.filtrosVisao as any), ...c.filtros]);
       const ls = f ? leituras.filter((l) => f.cards.has(l.card_id)) : leituras;
@@ -64,7 +64,7 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
       const { lerMensagensSemTexto } = await import("@/lib/elora-espelho.server");
       const { conversasPorDia, limitesUtc } = await import("@/lib/painel-visual");
       const lim = limitesUtc(p);
-      const conversas = conversasPorDia(await lerMensagensSemTexto(db, data.clienteId, lim.inicio, lim.fim));
+      const conversas = conversasPorDia(await lerMensagensSemTexto(db, data.clienteId, lim.inicio, lim.fim, ctx));
       return { oculto: false as const, r: { ...agregarMatrizUtm(cat.base, c, p, data.filtrosVisao as any, conversas), cobertura: estadoCobertura(p.ate, ["contatos", "atendimentos"], estados ?? []) } };
     }
     if (c.tipo === "tabela_itens") {

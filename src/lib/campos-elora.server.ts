@@ -83,7 +83,8 @@ export async function lerAjustesCampos(db: SupabaseClient, clienteId: string): P
   return (data ?? []) as AjusteCampo[];
 }
 
-export async function catalogoDoCliente(db: SupabaseClient, clienteId: string) {
+export async function catalogoDoCliente(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<{ base: BaseCampos; catalogo: ReturnType<typeof import("./campos-elora").montarCatalogo> }> {
+  if (ctx) return ctx.memo(`cat|${clienteId}`, () => catalogoDoCliente(db, clienteId));
   const { montarCatalogo } = await import("./campos-elora");
   const [base, ajustes] = await Promise.all([lerBaseCampos(db, clienteId), lerAjustesCampos(db, clienteId)]);
   return { base, catalogo: montarCatalogo(base, ajustes) };
