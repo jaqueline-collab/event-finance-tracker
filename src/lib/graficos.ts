@@ -635,6 +635,33 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   return { categorias: [], series: [], total: itens.length, anterior: null, estimados: [], linhas: itens.length, colunasItens, itens };
 }
 
+/** Coluna de dinheiro na tabela de itens (mesma regra de `itensTabela`). */
+export const colunaEhDinheiro = (f: CampoRef) => DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor");
+
+/**
+ * Permissão aplicada depois do cálculo (e do cache): quem não vê valores nunca recebe
+ * cartão de dinheiro nem coluna de dinheiro da tabela, mesmo que o resultado guardado tenha.
+ */
+export function aplicarPermissaoValores(cfg: CartaoGrafico, x: { oculto: boolean; r: any }, semDinheiro: boolean): { oculto: boolean; r: any } {
+  if (!semDinheiro) return x;
+  if (cartaoTemDinheiro(cfg)) return { oculto: true, r: null };
+  if (cfg.tipo !== "tabela_itens" || !x.r?.colunasItens) return x;
+  const fora = new Set(cfg.colunas.filter(colunaEhDinheiro).map((f) => `${f.fonte}|${f.campo}`));
+  if (!fora.size) return x;
+  const tira = (o: Record<string, string> | undefined) => (o ? Object.fromEntries(Object.entries(o).filter(([k]) => !fora.has(k))) : o);
+  return {
+    oculto: false,
+    r: {
+      ...x.r,
+      colunasItens: x.r.colunasItens.filter((c: { chave: string }) => !fora.has(c.chave)),
+      itens: (x.r.itens ?? []).map((i: any) => ({ ...i, valores: tira(i.valores), brutos: tira(i.brutos) })),
+    },
+  };
+}
+
+/** Blocos leves (indicadores e dois valores) abrem antes dos pesados (Matriz por UTM, tabela, calendário). */
+export const cartaoPesado = (c: CartaoGrafico) => c.tipo === "matriz_utm" || c.tipo === "tabela_itens" || c.tipo === "calendario";
+
 /** Funil: % de cada faixa (ranking: sobre o total; etapas: sobre a faixa anterior). */
 export function percentuaisFunil(faixas: { total: number }[], modo: "ranking" | "etapas"): (number | null)[] {
   const soma = faixas.reduce((a, b) => a + b.total, 0);
