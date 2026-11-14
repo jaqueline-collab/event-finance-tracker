@@ -412,22 +412,21 @@ export async function lerEspelhoNoFormatoAntigo(
 }
 
 /** Mensagens TO_HUB do período, só colunas sem texto (para o painel). */
+/**
+ * Conversas (sessão + dia de Brasília) já resumidas no banco por `elora_conversas_pares`,
+ * devolvidas no formato de mensagens: uma marca por conversa (com "usuário" quando houve
+ * mensagem DEFAULT) e, se houver, a última mensagem humana do dia. Nunca traz texto.
+ * Dá exatamente o mesmo resultado que ler todas as mensagens TO_HUB válidas.
+ */
 export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string) {
-  const l = await lerTudo(() =>
-    (db as any)
-      .from("elora_mensagens_espelho")
-      .select("sessao_id, enviada_em, tipo, user_id_elora, origem:payload->>origin")
-      .eq("cliente_id", clienteId)
-      .eq("direcao", "TO_HUB")
-      .gte("enviada_em", inicio)
-      .lte("enviada_em", fim)
-      .order("externo_id"),
+  const pares = await lerTudo(() =>
+    (db as any).rpc("elora_conversas_pares", { _cliente_id: clienteId, _inicio: inicio, _fim: fim }).order("sessao_id").order("primeira_em"),
   );
-  return l.map((m: any) => ({
-    sessao_id: String(m.sessao_id),
-    enviada_em: m.enviada_em as string | null,
-    tipo: m.tipo as string | null,
-    origem: m.origem as string | null,
-    user_id: (m.user_id_elora ?? null) as string | null,
-  }));
+  const out: { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null; user_id: string | null }[] = [];
+  for (const r of pares as any[]) {
+    const s = String(r.sessao_id);
+    out.push({ sessao_id: s, enviada_em: r.primeira_em, tipo: null, origem: r.usuario ? "DEFAULT" : null, user_id: null });
+    if (r.humano_em && r.humano_user) out.push({ sessao_id: s, enviada_em: r.humano_em, tipo: null, origem: null, user_id: String(r.humano_user) });
+  }
+  return out;
 }
