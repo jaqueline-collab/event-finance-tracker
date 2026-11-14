@@ -23,7 +23,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
     lerTudo(() => d.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["campo", "canal", "usuario"]).order("externo_id")),
     lerTudo(() =>
       d.from("elora_contatos_espelho").select("externo_id, nome, telefone, status, etiquetas, origem, utm_source, utm_medium, utm_campaign, criado_em, cf:payload->customFields, utm:payload->utm").eq("cliente_id", clienteId).order("externo_id"),
-    ),
+    12),
     lerTudo(() =>
       d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
     ),
