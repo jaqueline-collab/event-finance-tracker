@@ -28,7 +28,7 @@ async function lerTudo(q: () => any): Promise<any[]> {
 const cache = new Map<string, { em: number; chave: string; contatos: ContatoP[]; atendimentos: AtendimentoP[] }>();
 
 
-export async function calcularPainelVisual(adm: any, clienteId: string, p: Periodo, filtros: Filtros = {}, campos: FiltroCampo[] = []) {
+export async function calcularPainelVisual(adm: any, clienteId: string, p: Periodo, filtros: Filtros = {}, campos: FiltroCampo[] = [], ctx?: import("./calculo-contexto.server").Ctx) {
     const { data: estado } = await adm
       .from("elora_sync_estado")
       .select("fonte, concluido_em, atualizado_em")
@@ -91,13 +91,13 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
     const ini = limitesUtc(ant).inicio;
     const fim = limitesUtc({ de: p.de, ate: p.ate }).fim;
     const { lerMensagensSemTexto } = await import("@/lib/elora-espelho.server");
-    const mensagens: MensagemP[] = await lerMensagensSemTexto(adm, id, ini, fim);
+    const mensagens: MensagemP[] = await lerMensagensSemTexto(adm, id, ini, fim, ctx);
 
     let soContatos: Set<string> | null = null;
     if (campos.length) {
       const { lerBaseCampos } = await import("@/lib/campos-elora.server");
       const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
-      soContatos = aplicarFiltrosCampos(await lerBaseCampos(adm, id), campos as any)?.contatos ?? null;
+      soContatos = aplicarFiltrosCampos(ctx ? (await (await import("@/lib/campos-elora.server")).catalogoDoCliente(adm, id, ctx)).base : await lerBaseCampos(adm, id), campos as any)?.contatos ?? null;
     }
     const resumo = agregarPainel({ contatos: base.contatos, atendimentos: base.atendimentos, mensagens }, { de: p.de, ate: p.ate }, filtros, soContatos);
      const cobertura = estadoCobertura(p.ate, ["contatos", "atendimentos", "mensagens"], estado ?? []);

@@ -418,7 +418,13 @@ export async function lerEspelhoNoFormatoAntigo(
  * mensagem DEFAULT) e, se houver, a última mensagem humana do dia. Nunca traz texto.
  * Dá exatamente o mesmo resultado que ler todas as mensagens TO_HUB válidas.
  */
-export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string) {
+export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string, ctx?: import("./calculo-contexto.server").Ctx) {
+  // Faixa já lida nesta requisição: recorta em memória (os limites são sempre começo/fim de dia).
+  if (ctx?.msgs && ctx.msgs.inicio <= inicio && ctx.msgs.fim >= fim) {
+    const ini = Date.parse(inicio), f = Date.parse(fim);
+    return (await ctx.msgs.lista).filter((m) => { const t = Date.parse(m.enviada_em); return t >= ini && t <= f; });
+  }
+  if (ctx) return ctx.memo(`msgs|${clienteId}|${inicio}|${fim}`, () => lerMensagensSemTexto(db, clienteId, inicio, fim));
   const pares = await lerTudo(() =>
     (db as any).rpc("elora_conversas_pares", { _cliente_id: clienteId, _inicio: inicio, _fim: fim }).order("sessao_id").order("primeira_em"),
   );

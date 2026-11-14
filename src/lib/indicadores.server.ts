@@ -25,7 +25,8 @@ async function lerTudo(q: () => any): Promise<any[]> {
   }
 }
 
-export async function lerConfig(db: SupabaseClient, clienteId: string): Promise<IndicadorConfig[]> {
+export async function lerConfig(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<IndicadorConfig[]> {
+  if (ctx) return ctx.memo(`cfg|${clienteId}`, () => lerConfig(db, clienteId));
   const { data, error } = await db.from("elora_indicadores_config").select("*").eq("cliente_id", clienteId).order("ordem");
   if (error) throw new Error(`elora_indicadores_config: ${error.message}`);
   return (data ?? []) as any;
@@ -91,14 +92,14 @@ export async function lerRelatorioExistente(db: SupabaseClient, clienteId: strin
  * Colunas padrão por dia + canal + atendente + equipe. Tudo vem de configuração:
  * suporte interno (global), mapa de equipe e lista extra (por cliente), agentes e canais da conta.
  */
-export async function calcularCorteCliente(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>) {
+export async function calcularCorteCliente(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>, ctx?: import("./calculo-contexto.server").Ctx) {
   const { calcularPadraoPorCorteDetalhado } = await import("./indicadores-motor");
   const { inicio, fim } = limitesUtc(p);
   const [suporte, corte, apoio, msgsRaw, contatosRaw] = await Promise.all([
     db.from("elora_suporte_interno" as any).select("nome, email"),
     db.from("elora_relatorio_corte_config" as any).select("equipe_por_canal, atendentes_ignorados").eq("cliente_id", clienteId).maybeSingle(),
     lerTudo(() => db.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["canal", "usuario"]).order("externo_id")),
-    lerMensagensSemTexto(db, clienteId, inicio, fim),
+    lerMensagensSemTexto(db, clienteId, inicio, fim, ctx),
     lerTudo(() =>
       db.from("elora_contatos_espelho").select("externo_id, criado_em, origem, utm_campaign").eq("cliente_id", clienteId).gte("criado_em", inicio).lte("criado_em", fim).order("externo_id"),
     ),
