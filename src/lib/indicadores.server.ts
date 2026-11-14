@@ -100,12 +100,11 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
   if (corte.error) throw new Error(`elora_relatorio_corte_config: ${corte.error.message}`);
   const sids = [...new Set(msgsRaw.map((m: any) => String(m.sessao_id)))];
   const sessoes: any[] = [];
-  for (let i = 0; i < sids.length; i += 200) {
-    const { data, error } = await db
-      .from("elora_atendimentos_espelho")
-      .select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome")
-      .eq("cliente_id", clienteId)
-      .in("externo_id", sids.slice(i, i + 200));
+  const blocos = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, k) => xs.slice(k * n, k * n + n));
+  const lotesSes = await Promise.all(
+    blocos(sids, 200).map((ids) => db.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome").eq("cliente_id", clienteId).in("externo_id", ids)),
+  );
+  for (const { data, error } of lotesSes) {
     if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
     for (const s of data ?? [])
       sessoes.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome });
@@ -113,12 +112,10 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
   // sessões de todos os contatos novos (qualquer data), para achar a primeira de cada um
   const novosIds = [...new Set((contatosRaw as any[]).map((x) => String(x.externo_id)))];
   const primeiras: any[] = [];
-  for (let i = 0; i < novosIds.length; i += 200) {
-    const { data, error } = await db
-      .from("elora_atendimentos_espelho")
-      .select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, criado_em")
-      .eq("cliente_id", clienteId)
-      .in("contato_id", novosIds.slice(i, i + 200));
+  const lotesPrim = await Promise.all(
+    blocos(novosIds, 200).map((ids) => db.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, criado_em").eq("cliente_id", clienteId).in("contato_id", ids)),
+  );
+  for (const { data, error } of lotesPrim) {
     if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
     for (const s of data ?? [])
       primeiras.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome, criado_em: s.criado_em });
