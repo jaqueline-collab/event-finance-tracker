@@ -81,3 +81,69 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
     }
     return { oculto: false as const, r: { ...agregarCartao(cat.base, c, p, data.filtrosVisao as any, cat.catalogo), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
 }
+
+/** Validade do cache curto (além das versões de sincronização e configuração). */
+export const CACHE_MS = 5 * 60_000;
+
+async function sha(t: string) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Calcula vários cartões de uma visão numa requisição: leituras feitas uma vez e repartidas.
+ * Cache por cliente + cartão + período + filtros + versão da sincronização + versão da configuração;
+ * guarda o dado completo e aplica a permissão de valores depois, a cada requisição.
+ */
+export async function calcularCartoesServidor(
+  db: any,
+  data: Dados,
+  cartoes: CartaoGrafico[],
+  a: { semDinheiro: boolean },
+  opcoes: { usarCache?: boolean } = {},
+) {
+  const { criarContexto } = await import("./calculo-contexto.server");
+  const { aplicarPermissaoValores } = await import("./graficos");
+  const { periodoAnterior, limitesUtc } = await import("./painel-visual");
+  const usarCache = opcoes.usarCache !== false;
+  const out: Record<string, { oculto: boolean; r: any }> = {};
+  let chaves: Record<string, string> = {};
+  let faltam = cartoes;
+  if (usarCache) {
+    const { data: v, error } = await db.rpc("elora_versoes_cache", { _cliente_id: data.clienteId });
+    if (error) throw new Error(`versoes: ${error.message}`);
+    const base = JSON.stringify([data.clienteId, data.de, data.ate, data.filtrosVisao, v]);
+    for (const c of cartoes) chaves[c.id] = await sha(base + JSON.stringify(c));
+    const { data: achados, error: e2 } = await db
+      .from("elora_calculo_cache")
+      .select("chave, valor")
+      .in("chave", Object.values(chaves))
+      .gte("criado_em", new Date(Date.now() - CACHE_MS).toISOString());
+    if (e2) throw new Error(`cache: ${e2.message}`);
+    const m = new Map((achados ?? []).map((x: any) => [x.chave, x.valor]));
+    for (const c of cartoes) if (m.has(chaves[c.id])) out[c.id] = m.get(chaves[c.id]) as any;
+    faltam = cartoes.filter((c) => !out[c.id]);
+  }
+  if (faltam.length) {
+    const ctx = criarContexto();
+    // Mensagens lidas uma vez: do início do período anterior até o fim do período.
+    const ini = limitesUtc(periodoAnterior({ de: data.de, ate: data.ate })).inicio;
+    const fim = limitesUtc({ de: data.de, ate: data.ate }).fim;
+    const { lerMensagensSemTexto } = await import("./elora-espelho.server");
+    ctx.msgs = { inicio: ini, fim, lista: lerMensagensSemTexto(db, data.clienteId, ini, fim) };
+    const novos = await Promise.all(faltam.map((c) => calcularCartaoServidor(db, data, c, { semDinheiro: false }, ctx)));
+    const linhas: any[] = [];
+    faltam.forEach((c, i) => {
+      const r = JSON.parse(JSON.stringify(novos[i]));
+      out[c.id] = r;
+      if (usarCache) linhas.push({ chave: chaves[c.id], cliente_id: data.clienteId, valor: r, criado_em: new Date().toISOString() });
+    });
+    if (linhas.length) {
+      const { error } = await db.from("elora_calculo_cache").upsert(linhas, { onConflict: "chave" });
+      if (error) console.error("cache: gravação falhou", error.message);
+      // limpeza do que já venceu deste cliente
+      await db.from("elora_calculo_cache").delete().eq("cliente_id", data.clienteId).lt("criado_em", new Date(Date.now() - CACHE_MS).toISOString());
+    }
+  }
+  return Object.fromEntries(cartoes.map((c) => [c.id, aplicarPermissaoValores(c, out[c.id], a.semDinheiro)]));
+}

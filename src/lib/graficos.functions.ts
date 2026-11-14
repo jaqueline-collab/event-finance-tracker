@@ -58,6 +58,20 @@ export const calcularCartao = createServerFn({ method: "POST" })
     return calcularCartaoServidor(supabaseAdmin as any, data, c, a);
   });
 
+/** Calcula vários cartões de uma visão numa só requisição (leitura única, cache curto, permissão aplicada depois). */
+export const calcularCartoes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z.object({ clienteId: z.string().min(1), de: dia, ate: dia, cartoes: z.array(cartaoSchema).min(1).max(40), filtrosVisao: z.array(filtroCampoSchema).max(20).default([]), previa: z.boolean().default(false) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const a = await acesso(context.supabase, data.clienteId);
+    if (data.previa && !a.superAdmin) throw new Error("acesso-negado: só a super admin.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { calcularCartoesServidor } = await import("@/lib/cartao-calculo.server");
+    return calcularCartoesServidor(supabaseAdmin as any, data, data.cartoes as CartaoGrafico[], a, { usarCache: !data.previa });
+  });
+
 /** Itens de um dia do calendário (nome, telefone, atendente, valor, campos escolhidos). Nunca lê texto de mensagem. */
 export const itensDiaCalendario = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
