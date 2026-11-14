@@ -404,23 +404,25 @@ export async function lerEspelhoNoFormatoAntigo(
 }
 
 /** Mensagens TO_HUB do período, só colunas sem texto (para o painel). */
+type MsgSemTexto = { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null; user_id: string | null };
+
 /**
  * Conversas (sessão + dia de Brasília) já resumidas no banco por `elora_conversas_pares`,
  * devolvidas no formato de mensagens: uma marca por conversa (com "usuário" quando houve
  * mensagem DEFAULT) e, se houver, a última mensagem humana do dia. Nunca traz texto.
  * Dá exatamente o mesmo resultado que ler todas as mensagens TO_HUB válidas.
  */
-export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string, ctx?: import("./calculo-contexto.server").Ctx) {
+export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<MsgSemTexto[]> {
   // Faixa já lida nesta requisição: recorta em memória (os limites são sempre começo/fim de dia).
   if (ctx?.msgs && ctx.msgs.inicio <= inicio && ctx.msgs.fim >= fim) {
     const ini = Date.parse(inicio), f = Date.parse(fim);
-    return (await ctx.msgs.lista).filter((m) => { const t = Date.parse(m.enviada_em); return t >= ini && t <= f; });
+    return ((await ctx.msgs.lista) as MsgSemTexto[]).filter((m) => { const t = Date.parse(m.enviada_em ?? ""); return t >= ini && t <= f; });
   }
   if (ctx) return ctx.memo(`msgs|${clienteId}|${inicio}|${fim}`, () => lerMensagensSemTexto(db, clienteId, inicio, fim));
   const pares = await lerTudo(() =>
     (db as any).rpc("elora_conversas_pares", { _cliente_id: clienteId, _inicio: inicio, _fim: fim }).order("sessao_id").order("primeira_em"),
   );
-  const out: { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null; user_id: string | null }[] = [];
+  const out: MsgSemTexto[] = [];
   for (const r of pares as any[]) {
     const s = String(r.sessao_id);
     out.push({ sessao_id: s, enviada_em: r.primeira_em, tipo: null, origem: r.usuario ? "DEFAULT" : null, user_id: null });
