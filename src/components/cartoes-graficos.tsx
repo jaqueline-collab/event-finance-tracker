@@ -15,7 +15,7 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { FiltroCampos } from "@/components/filtro-campos";
 import type { FiltroCampo, FonteCampo } from "@/lib/campos-elora";
 import { FONTES_CATALOGO } from "@/lib/campos-elora";
-import { calcularCartao, itensDiaCalendario, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
+import { calcularCartoes, itensDiaCalendario, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
 import { desfazer, empurrar, encaixar, historico, LARGURA_GRADE_PX, layoutPadrao, LINHA_PX, redimensionar, refazer, reordenar, tamanhoDe, type Historico } from "@/lib/layout-blocos";
 import {
   aplicarAlternativa, ehTituloPadrao, fontesDisponiveis, funilTop, percentuaisFunil, MEDIDAS, tituloPadrao, type ItemDia, novoCartao, ROTULO_MEDIDA, ROTULO_TIPO_GRAFICO, tiposDisponiveis, type CartaoGrafico, type CampoRef, type ResultadoCartao,
@@ -238,6 +238,45 @@ function useLarga() {
   return larga;
 }
 
+/**
+ * Pedidos dos cartões juntados por visão: a cada rodada, um pedido para os blocos leves
+ * (indicadores, dois valores, gráficos) e outro, logo depois, para os pesados
+ * (Matriz por UTM, tabela, calendário). Cada bloco mostra o próprio esqueleto.
+ */
+type Pedido = { cartao: CartaoGrafico; ok: (x: any) => void; erro: (e: unknown) => void };
+const filas = new Map<string, { args: { clienteId: string; de: string; ate: string; filtrosVisao: FiltroCampo[]; previa: boolean }; pedidos: Pedido[] }>();
+let agendado = false;
+function despachar() {
+  agendado = false;
+  const lotes = [...filas.values()];
+  filas.clear();
+  for (const l of lotes) {
+    const leves = l.pedidos.filter((p) => !cartaoPesado(p.cartao));
+    const pesados = l.pedidos.filter((p) => cartaoPesado(p.cartao));
+    const enviar = (ps: Pedido[]) => {
+      if (!ps.length) return Promise.resolve();
+      return calcularCartoes({ data: { ...l.args, cartoes: ps.map((p) => p.cartao) } })
+        .then((res: any) => ps.forEach((p) => p.ok(res[p.cartao.id])))
+        .catch((e) => ps.forEach((p) => p.erro(e)));
+    };
+    enviar(leves);
+    // os pesados saem logo em seguida, sem esperar os leves terminarem
+    setTimeout(() => enviar(pesados), leves.length ? 50 : 0);
+  }
+}
+function pedirCartao(args: { clienteId: string; de: string; ate: string; filtrosVisao: FiltroCampo[]; previa: boolean }, cartao: CartaoGrafico) {
+  return new Promise<any>((ok, erro) => {
+    const k = JSON.stringify(args);
+    const f = filas.get(k) ?? { args, pedidos: [] };
+    f.pedidos.push({ cartao, ok, erro });
+    filas.set(k, f);
+    if (!agendado) {
+      agendado = true;
+      setTimeout(despachar, 0);
+    }
+  });
+}
+
 function useResultado(clienteId: string, cartao: CartaoGrafico, periodo: Periodo, filtrosVisao: FiltroCampo[], previa = false) {
   const [r, setR] = useState<{ oculto: boolean; r: ResultadoCartao | null } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -245,8 +284,8 @@ function useResultado(clienteId: string, cartao: CartaoGrafico, periodo: Periodo
   useEffect(() => {
     let vivo = true;
     const t = setTimeout(() => {
-      calcularCartao({ data: { clienteId, de: periodo.de, ate: periodo.ate, cartao, filtrosVisao, previa } })
-        .then((x: any) => vivo && (setR({ oculto: Boolean(x.oculto), r: x.r ?? null }), setErro(null)))
+      pedirCartao({ clienteId, de: periodo.de, ate: periodo.ate, filtrosVisao, previa }, cartao)
+        .then((x: any) => vivo && (setR({ oculto: Boolean(x?.oculto), r: x?.r ?? null }), setErro(null)))
         .catch((e) => vivo && setErro(msg(e)));
     }, previa ? 350 : 0);
     return () => {
