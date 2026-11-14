@@ -7,15 +7,7 @@ import { calcularCorteCliente, lerConfig } from "./indicadores.server";
 import { colunasMatriz, montarMatriz, opcoesDimensoes, somarPadraoPorDia, type ConfigMatriz, type FiltrosMatriz, type LinhaCorteMatriz } from "./matriz";
 import { estadoCobertura } from "./sync-cobertura";
 
-async function lerTudo(q: () => any): Promise<any[]> {
-  const out: any[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await q().range(i, i + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data ?? []));
-    if (!data || data.length < 1000) return out;
-  }
-}
+import { lerTudo } from "./ler-paginas.server";
 
 export async function lerLeiturasCards(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<Leitura[]> {
   if (ctx) return ctx.memo(`leituras|${clienteId}`, () => lerLeiturasCards(db, clienteId));
