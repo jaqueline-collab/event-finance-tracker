@@ -27,7 +27,9 @@ if (modo === "numeros") {
 } else {
   const p = PER[0]; const alvo = process.argv[3];
   const t0 = performance.now();
-  if (alvo === "Matriz") await montarMatrizCliente(db, CL, p, {});
+  if (alvo === "Matriz") { const { comCacheCalculo } = await import("@/lib/cartao-calculo.server"); const { criarContexto } = await import("@/lib/calculo-contexto.server");
+    if (process.env.FRIO) await db.from("elora_calculo_cache").delete().eq("cliente_id", CL);
+    await comCacheCalculo(db, CL, ["matriz", false, p.de, p.ate, {}, []], () => montarMatrizCliente(db, CL, p, {}, { ctx: criarContexto() })); }
   else { const v = vs.find((x: any) => x.nome === alvo); const cs = cartoesValidos(v.filtros?.cartoes);
     if (process.env.FRIO) await db.from("elora_calculo_cache").delete().eq("cliente_id", CL);
     await calcularCartoesServidor(db, { clienteId: CL, ...p, filtrosVisao: [] }, cs, { semDinheiro: false }); }

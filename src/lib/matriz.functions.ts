@@ -38,11 +38,10 @@ export const lerMatriz = createServerFn({ method: "POST" })
     const { montarMatrizCliente } = await import("@/lib/matriz.server");
     const { comCacheCalculo } = await import("@/lib/cartao-calculo.server");
     const { criarContexto } = await import("@/lib/calculo-contexto.server");
-    // Cache com o dado completo (com catálogo); o que é só de quem edita sai depois, a cada requisição.
-    const completo = await comCacheCalculo(supabaseAdmin as any, data.clienteId, ["matriz", data.de, data.ate, data.filtros, data.campos], () =>
-      montarMatrizCliente(supabaseAdmin as any, data.clienteId, { de: data.de, ate: data.ate }, data.filtros, { comCatalogo: true, campos: data.campos as any, ctx: criarContexto() }),
+    // Com catálogo (só quem edita) a Matriz também lê os cards, por isso a chave separa os dois casos.
+    const r = await comCacheCalculo(supabaseAdmin as any, data.clienteId, ["matriz", podeEditar, data.de, data.ate, data.filtros, data.campos], () =>
+      montarMatrizCliente(supabaseAdmin as any, data.clienteId, { de: data.de, ate: data.ate }, data.filtros, { comCatalogo: podeEditar, campos: data.campos as any, ctx: criarContexto() }),
     );
-    const r = podeEditar ? completo : { ...completo, etapas: [] as string[], catalogo: [] as typeof completo.catalogo };
     const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_filtros_padrao").eq("cliente_id", data.clienteId).maybeSingle();
     const filtrosPadrao = filtrosPadraoValidos(cfg?.matriz_filtros_padrao);
     return {
