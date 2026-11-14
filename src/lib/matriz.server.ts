@@ -11,11 +11,11 @@ import { lerTudo } from "./ler-paginas.server";
 
 export async function lerLeiturasCards(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<Leitura[]> {
   if (ctx) return ctx.memo(`leituras|${clienteId}`, () => lerLeiturasCards(db, clienteId));
-  const leituras = await lerTudo(() =>
-    db.from("elora_cards_historico").select("card_id, visto_em, estimado, etapa_id, etapa_titulo, status, campos").eq("cliente_id", clienteId).order("id"),
-  );
+  const [leituras, cards] = await Promise.all([
+    lerTudo(() => db.from("elora_cards_historico").select("card_id, visto_em, estimado, etapa_id, etapa_titulo, status, campos").eq("cliente_id", clienteId).order("id"), 8),
+    lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).order("externo_id")),
+  ]);
   if (!leituras.length) return [];
-  const cards = await lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).order("externo_id"));
   const criados = new Map(cards.map((c: any) => [String(c.externo_id), c.criado_em as string | null]));
   return leituras.map((l: any) => ({ ...l, card_id: String(l.card_id), criado_em: criados.get(String(l.card_id)) ?? null }));
 }

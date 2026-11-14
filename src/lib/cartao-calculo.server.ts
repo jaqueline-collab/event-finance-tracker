@@ -131,6 +131,19 @@ export async function calcularCartoesServidor(
     const fim = limitesUtc({ de: data.de, ate: data.ate }).fim;
     const { lerMensagensSemTexto } = await import("./elora-espelho.server");
     ctx.msgs = { inicio: ini, fim, lista: lerMensagensSemTexto(db, data.clienteId, ini, fim) };
+    // Leituras comuns começam juntas, antes dos cartões pedirem.
+    const precisaCat = faltam.some((c) => !c.painel);
+    const precisaCards = faltam.some((c) => !c.painel && (c.medida === "indicador" || c.fonte === "card" || Boolean(c.indicador)));
+    if (precisaCat) {
+      const { catalogoDoCliente } = await import("./campos-elora.server");
+      void catalogoDoCliente(db, data.clienteId, ctx).catch(() => {});
+    }
+    if (precisaCards) {
+      const { lerLeiturasCards } = await import("./matriz.server");
+      const { lerConfig } = await import("./indicadores.server");
+      void lerLeiturasCards(db, data.clienteId, ctx).catch(() => {});
+      void lerConfig(db, data.clienteId, ctx).catch(() => {});
+    }
     const novos = await Promise.all(faltam.map((c) => calcularCartaoServidor(db, data, c, { semDinheiro: false }, ctx)));
     const linhas: any[] = [];
     faltam.forEach((c, i) => {
