@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { calcularCartaoServidor } from "@/lib/cartao-calculo.server";
+import { calcularCartaoServidor, calcularCartoesServidor } from "@/lib/cartao-calculo.server";
 import { cartoesValidos } from "@/lib/graficos";
 import { montarMatrizCliente } from "@/lib/matriz.server";
 import { writeFileSync } from "fs";
@@ -15,7 +15,8 @@ if (modo === "numeros") {
     const k = `${p.de}_${p.ate}`; out[k] = {};
     for (const v of vs) {
       const cs = cartoesValidos(v.filtros?.cartoes); const r: any = {};
-      for (const c of cs) r[c.id] = limpa(await calcularCartaoServidor(db, { clienteId: CL, ...p, filtrosVisao: [] }, c, { semDinheiro: false }));
+      if (process.env.ANTIGO) { for (const c of cs) r[c.id] = limpa(await calcularCartaoServidor(db, { clienteId: CL, ...p, filtrosVisao: [] }, c, { semDinheiro: false })); }
+      else Object.assign(r, limpa(await calcularCartoesServidor(db, { clienteId: CL, ...p, filtrosVisao: [] }, cs, { semDinheiro: false }, { usarCache: false })));
       out[k][v.nome] = r;
     }
     const m = await montarMatrizCliente(db, CL, p, {});
@@ -28,7 +29,8 @@ if (modo === "numeros") {
   const t0 = performance.now();
   if (alvo === "Matriz") await montarMatrizCliente(db, CL, p, {});
   else { const v = vs.find((x: any) => x.nome === alvo); const cs = cartoesValidos(v.filtros?.cartoes);
-    await Promise.all(cs.map((c) => calcularCartaoServidor(db, { clienteId: CL, ...p, filtrosVisao: [] }, c, { semDinheiro: false }))); }
+    if (process.env.FRIO) await db.from("elora_calculo_cache").delete().eq("cliente_id", CL);
+    await calcularCartoesServidor(db, { clienteId: CL, ...p, filtrosVisao: [] }, cs, { semDinheiro: false }); }
   console.log(alvo, ((performance.now() - t0) / 1000).toFixed(1) + "s");
 }
 process.exit(0);
