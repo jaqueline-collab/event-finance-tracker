@@ -15,17 +15,10 @@ import {
   type Leitura,
 } from "./indicadores-motor";
 
-async function lerTudo(q: () => any): Promise<any[]> {
-  const out: any[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await q().range(i, i + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data ?? []));
-    if (!data || data.length < 1000) return out;
-  }
-}
+import { lerTudo } from "./ler-paginas.server";
 
-export async function lerConfig(db: SupabaseClient, clienteId: string): Promise<IndicadorConfig[]> {
+export async function lerConfig(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<IndicadorConfig[]> {
+  if (ctx) return ctx.memo(`cfg|${clienteId}`, () => lerConfig(db, clienteId));
   const { data, error } = await db.from("elora_indicadores_config").select("*").eq("cliente_id", clienteId).order("ordem");
   if (error) throw new Error(`elora_indicadores_config: ${error.message}`);
   return (data ?? []) as any;
@@ -91,14 +84,14 @@ export async function lerRelatorioExistente(db: SupabaseClient, clienteId: strin
  * Colunas padrão por dia + canal + atendente + equipe. Tudo vem de configuração:
  * suporte interno (global), mapa de equipe e lista extra (por cliente), agentes e canais da conta.
  */
-export async function calcularCorteCliente(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>) {
+export async function calcularCorteCliente(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>, ctx?: import("./calculo-contexto.server").Ctx) {
   const { calcularPadraoPorCorteDetalhado } = await import("./indicadores-motor");
   const { inicio, fim } = limitesUtc(p);
   const [suporte, corte, apoio, msgsRaw, contatosRaw] = await Promise.all([
     db.from("elora_suporte_interno" as any).select("nome, email"),
     db.from("elora_relatorio_corte_config" as any).select("equipe_por_canal, atendentes_ignorados").eq("cliente_id", clienteId).maybeSingle(),
     lerTudo(() => db.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["canal", "usuario"]).order("externo_id")),
-    lerMensagensSemTexto(db, clienteId, inicio, fim),
+    lerMensagensSemTexto(db, clienteId, inicio, fim, ctx),
     lerTudo(() =>
       db.from("elora_contatos_espelho").select("externo_id, criado_em, origem, utm_campaign").eq("cliente_id", clienteId).gte("criado_em", inicio).lte("criado_em", fim).order("externo_id"),
     ),
@@ -107,12 +100,11 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
   if (corte.error) throw new Error(`elora_relatorio_corte_config: ${corte.error.message}`);
   const sids = [...new Set(msgsRaw.map((m: any) => String(m.sessao_id)))];
   const sessoes: any[] = [];
-  for (let i = 0; i < sids.length; i += 200) {
-    const { data, error } = await db
-      .from("elora_atendimentos_espelho")
-      .select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome")
-      .eq("cliente_id", clienteId)
-      .in("externo_id", sids.slice(i, i + 200));
+  const blocos = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, k) => xs.slice(k * n, k * n + n));
+  const lotesSes = await Promise.all(
+    blocos(sids, 200).map((ids) => db.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome").eq("cliente_id", clienteId).in("externo_id", ids)),
+  );
+  for (const { data, error } of lotesSes) {
     if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
     for (const s of data ?? [])
       sessoes.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome });
@@ -120,12 +112,10 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
   // sessões de todos os contatos novos (qualquer data), para achar a primeira de cada um
   const novosIds = [...new Set((contatosRaw as any[]).map((x) => String(x.externo_id)))];
   const primeiras: any[] = [];
-  for (let i = 0; i < novosIds.length; i += 200) {
-    const { data, error } = await db
-      .from("elora_atendimentos_espelho")
-      .select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, criado_em")
-      .eq("cliente_id", clienteId)
-      .in("contato_id", novosIds.slice(i, i + 200));
+  const lotesPrim = await Promise.all(
+    blocos(novosIds, 200).map((ids) => db.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, criado_em").eq("cliente_id", clienteId).in("contato_id", ids)),
+  );
+  for (const { data, error } of lotesPrim) {
     if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
     for (const s of data ?? [])
       primeiras.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome, criado_em: s.criado_em });

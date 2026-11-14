@@ -14,21 +14,13 @@ import {
   type MensagemP,
 } from "@/lib/painel-visual";
 
-async function lerTudo(q: () => any): Promise<any[]> {
-  const out: any[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await q().range(i, i + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data ?? []));
-    if (!data || data.length < 1000) return out;
-  }
-}
+import { lerTudo } from "./ler-paginas.server";
 
 /** Cache curto por cliente (contatos e atendimentos mudam só na sincronização). */
 const cache = new Map<string, { em: number; chave: string; contatos: ContatoP[]; atendimentos: AtendimentoP[] }>();
 
 
-export async function calcularPainelVisual(adm: any, clienteId: string, p: Periodo, filtros: Filtros = {}, campos: FiltroCampo[] = []) {
+export async function calcularPainelVisual(adm: any, clienteId: string, p: Periodo, filtros: Filtros = {}, campos: FiltroCampo[] = [], ctx?: import("./calculo-contexto.server").Ctx) {
     const { data: estado } = await adm
       .from("elora_sync_estado")
       .select("fonte, concluido_em, atualizado_em")
@@ -41,6 +33,13 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
         .pop() ?? null;
 
     const id = clienteId;
+    // Mensagens: só colunas sem texto, TO_HUB, do período anterior até o fim (começa já, em paralelo).
+    const ant = periodoAnterior({ de: p.de, ate: p.ate });
+    const ini = limitesUtc(ant).inicio;
+    const fim = limitesUtc({ de: p.de, ate: p.ate }).fim;
+    const { lerMensagensSemTexto } = await import("@/lib/elora-espelho.server");
+    const mensagensP: Promise<MensagemP[]> = lerMensagensSemTexto(adm, id, ini, fim, ctx);
+    mensagensP.catch(() => {});
     let base = cache.get(id);
     if (!base || base.chave !== ultimaSync || Date.now() - base.em > 120_000) {
       const [ct, at, apoio] = await Promise.all([
@@ -50,7 +49,7 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
             .select("externo_id, criado_em, origem, utm_source, utm_campaign, etiquetas")
             .eq("cliente_id", id)
             .order("externo_id"),
-        ),
+        12),
         lerTudo(() =>
           adm
             .from("elora_atendimentos_espelho")
@@ -86,18 +85,13 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
       cache.set(id, base);
     }
 
-    // Mensagens: só colunas sem texto, TO_HUB, do período anterior até o fim.
-    const ant = periodoAnterior({ de: p.de, ate: p.ate });
-    const ini = limitesUtc(ant).inicio;
-    const fim = limitesUtc({ de: p.de, ate: p.ate }).fim;
-    const { lerMensagensSemTexto } = await import("@/lib/elora-espelho.server");
-    const mensagens: MensagemP[] = await lerMensagensSemTexto(adm, id, ini, fim);
+    const mensagens: MensagemP[] = await mensagensP;
 
     let soContatos: Set<string> | null = null;
     if (campos.length) {
       const { lerBaseCampos } = await import("@/lib/campos-elora.server");
       const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
-      soContatos = aplicarFiltrosCampos(await lerBaseCampos(adm, id), campos as any)?.contatos ?? null;
+      soContatos = aplicarFiltrosCampos(ctx ? (await (await import("@/lib/campos-elora.server")).catalogoDoCliente(adm, id, ctx)).base : await lerBaseCampos(adm, id), campos as any)?.contatos ?? null;
     }
     const resumo = agregarPainel({ contatos: base.contatos, atendimentos: base.atendimentos, mensagens }, { de: p.de, ate: p.ate }, filtros, soContatos);
      const cobertura = estadoCobertura(p.ate, ["contatos", "atendimentos", "mensagens"], estado ?? []);

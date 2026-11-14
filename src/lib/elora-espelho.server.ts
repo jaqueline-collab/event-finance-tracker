@@ -350,15 +350,7 @@ export async function usaEspelho(db: SupabaseClient, clienteId: string): Promise
   return decidirEspelho(fonte, (data ?? []) as any);
 }
 
-async function lerTudo(q: () => any): Promise<any[]> {
-  const out: any[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await q().range(i, i + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data ?? []));
-    if (!data || data.length < 1000) return out;
-  }
-}
+import { lerTudo } from "./ler-paginas.server";
 
 /**
  * Lê o espelho no mesmo formato das tabelas antigas, para nenhum widget
@@ -412,22 +404,29 @@ export async function lerEspelhoNoFormatoAntigo(
 }
 
 /** Mensagens TO_HUB do período, só colunas sem texto (para o painel). */
-export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string) {
-  const l = await lerTudo(() =>
-    (db as any)
-      .from("elora_mensagens_espelho")
-      .select("sessao_id, enviada_em, tipo, user_id_elora, origem:payload->>origin")
-      .eq("cliente_id", clienteId)
-      .eq("direcao", "TO_HUB")
-      .gte("enviada_em", inicio)
-      .lte("enviada_em", fim)
-      .order("externo_id"),
+type MsgSemTexto = { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null; user_id: string | null };
+
+/**
+ * Conversas (sessão + dia de Brasília) já resumidas no banco por `elora_conversas_pares`,
+ * devolvidas no formato de mensagens: uma marca por conversa (com "usuário" quando houve
+ * mensagem DEFAULT) e, se houver, a última mensagem humana do dia. Nunca traz texto.
+ * Dá exatamente o mesmo resultado que ler todas as mensagens TO_HUB válidas.
+ */
+export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string, inicio: string, fim: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<MsgSemTexto[]> {
+  // Faixa já lida nesta requisição: recorta em memória (os limites são sempre começo/fim de dia).
+  if (ctx?.msgs && ctx.msgs.inicio <= inicio && ctx.msgs.fim >= fim) {
+    const ini = Date.parse(inicio), f = Date.parse(fim);
+    return ((await ctx.msgs.lista) as MsgSemTexto[]).filter((m) => { const t = Date.parse(m.enviada_em ?? ""); return t >= ini && t <= f; });
+  }
+  if (ctx) return ctx.memo(`msgs|${clienteId}|${inicio}|${fim}`, () => lerMensagensSemTexto(db, clienteId, inicio, fim));
+  const pares = await lerTudo(() =>
+    (db as any).rpc("elora_conversas_pares", { _cliente_id: clienteId, _inicio: inicio, _fim: fim }).order("sessao_id").order("primeira_em"),
   );
-  return l.map((m: any) => ({
-    sessao_id: String(m.sessao_id),
-    enviada_em: m.enviada_em as string | null,
-    tipo: m.tipo as string | null,
-    origem: m.origem as string | null,
-    user_id: (m.user_id_elora ?? null) as string | null,
-  }));
+  const out: MsgSemTexto[] = [];
+  for (const r of pares as any[]) {
+    const s = String(r.sessao_id);
+    out.push({ sessao_id: s, enviada_em: r.primeira_em, tipo: null, origem: r.usuario ? "DEFAULT" : null, user_id: null });
+    if (r.humano_em && r.humano_user) out.push({ sessao_id: s, enviada_em: r.humano_em, tipo: null, origem: null, user_id: String(r.humano_user) });
+  }
+  return out;
 }

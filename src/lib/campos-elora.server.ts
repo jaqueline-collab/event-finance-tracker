@@ -4,15 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NAO_DEFINIDO } from "./nao-definido";
 import type { AjusteCampo, BaseCampos } from "./campos-elora";
 
-async function lerTudo(q: () => any): Promise<any[]> {
-  const out: any[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await q().range(i, i + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data ?? []));
-    if (!data || data.length < 1000) return out;
-  }
-}
+import { lerTudo } from "./ler-paginas.server";
 
 const cache = new Map<string, { em: number; chave: string | null; base: BaseCampos }>();
 
@@ -31,7 +23,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
     lerTudo(() => d.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["campo", "canal", "usuario"]).order("externo_id")),
     lerTudo(() =>
       d.from("elora_contatos_espelho").select("externo_id, nome, telefone, status, etiquetas, origem, utm_source, utm_medium, utm_campaign, criado_em, cf:payload->customFields, utm:payload->utm").eq("cliente_id", clienteId).order("externo_id"),
-    ),
+    12),
     lerTudo(() =>
       d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
     ),
@@ -83,7 +75,8 @@ export async function lerAjustesCampos(db: SupabaseClient, clienteId: string): P
   return (data ?? []) as AjusteCampo[];
 }
 
-export async function catalogoDoCliente(db: SupabaseClient, clienteId: string) {
+export async function catalogoDoCliente(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<{ base: BaseCampos; catalogo: ReturnType<typeof import("./campos-elora").montarCatalogo> }> {
+  if (ctx) return ctx.memo(`cat|${clienteId}`, () => catalogoDoCliente(db, clienteId));
   const { montarCatalogo } = await import("./campos-elora");
   const [base, ajustes] = await Promise.all([lerBaseCampos(db, clienteId), lerAjustesCampos(db, clienteId)]);
   return { base, catalogo: montarCatalogo(base, ajustes) };

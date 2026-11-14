@@ -35,4 +35,4 @@
 - [x] Etapa 1: blocos e correções (topo fixo, TMR/TMA, migração com números idênticos para todos os clientes, contraste, cobertura, calendário, funil)
 - [ ] Etapa 2: novos tipos de bloco
 - [ ] Etapa 3: Resultados (novo) em rascunho, Agenda + Calendário, Agendamentos nova
-- [ ] Desempenho: retrato, SQL por dia, um cálculo por visão, cache (versão sync+config, permissão após cache), carregamento em ordem, índices, meta <3s/<1s
+- [x] Desempenho: retrato, SQL por dia, um cálculo por visão, cache (versão sync+config, permissão após cache), carregamento em ordem, índices, meta <3s/<1s

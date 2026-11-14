@@ -7,22 +7,15 @@ import { calcularCorteCliente, lerConfig } from "./indicadores.server";
 import { colunasMatriz, montarMatriz, opcoesDimensoes, somarPadraoPorDia, type ConfigMatriz, type FiltrosMatriz, type LinhaCorteMatriz } from "./matriz";
 import { estadoCobertura } from "./sync-cobertura";
 
-async function lerTudo(q: () => any): Promise<any[]> {
-  const out: any[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await q().range(i, i + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data ?? []));
-    if (!data || data.length < 1000) return out;
-  }
-}
+import { lerTudo } from "./ler-paginas.server";
 
-export async function lerLeiturasCards(db: SupabaseClient, clienteId: string): Promise<Leitura[]> {
-  const leituras = await lerTudo(() =>
-    db.from("elora_cards_historico").select("card_id, visto_em, estimado, etapa_id, etapa_titulo, status, campos").eq("cliente_id", clienteId).order("id"),
-  );
+export async function lerLeiturasCards(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<Leitura[]> {
+  if (ctx) return ctx.memo(`leituras|${clienteId}`, () => lerLeiturasCards(db, clienteId));
+  const [leituras, cards] = await Promise.all([
+    lerTudo(() => db.from("elora_cards_historico").select("card_id, visto_em, estimado, etapa_id, etapa_titulo, status, campos").eq("cliente_id", clienteId).order("id"), 8),
+    lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).order("externo_id")),
+  ]);
   if (!leituras.length) return [];
-  const cards = await lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).order("externo_id"));
   const criados = new Map(cards.map((c: any) => [String(c.externo_id), c.criado_em as string | null]));
   return leituras.map((l: any) => ({ ...l, card_id: String(l.card_id), criado_em: criados.get(String(l.card_id)) ?? null }));
 }
@@ -33,10 +26,10 @@ export async function lerLeiturasCards(db: SupabaseClient, clienteId: string): P
  * "sem filtro" e "filtro que não exclui ninguém" darem o mesmo número.
  * Cliente sem espelho (fonte antiga) lê o que está gravado.
  */
-export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>): Promise<LinhaCorteMatriz[]> {
+export async function linhasPadrao(db: SupabaseClient, clienteId: string, p: Periodo, soContatos?: Set<string>, ctx?: import("./calculo-contexto.server").Ctx): Promise<LinhaCorteMatriz[]> {
   const { usaEspelho } = await import("./elora-espelho.server");
   if (soContatos || (await usaEspelho(db, clienteId))) {
-    const calc = await calcularCorteCliente(db, clienteId, p, soContatos);
+    const calc = await calcularCorteCliente(db, clienteId, p, soContatos, ctx);
     // Só exibição: nome do canal = apelido da super admin (ou "Canal sem nome"), nunca o código da instância.
     const { lerMapaCanais } = await import("./nome-canal.server");
     const { exibirCanal } = await import("./nome-canal");
@@ -55,25 +48,25 @@ export async function montarMatrizCliente(
   clienteId: string,
   p: Periodo,
   filtros: FiltrosMatriz,
-  opcoes: { rascunho?: ConfigMatriz; comCatalogo?: boolean; campos?: FiltroCampo[] } = {},
+  opcoes: { rascunho?: ConfigMatriz; comCatalogo?: boolean; campos?: FiltroCampo[]; ctx?: import("./calculo-contexto.server").Ctx } = {},
 ) {
   let filtro: { contatos: Set<string>; cards: Set<string> } | null = null;
   let catalogo: any[] = [];
   if (opcoes.campos?.length || opcoes.comCatalogo) {
     const { catalogoDoCliente } = await import("./campos-elora.server");
     const { aplicarFiltrosCampos, catalogoVisivel } = await import("./campos-elora");
-    const cat = await catalogoDoCliente(db, clienteId);
+    const cat = await catalogoDoCliente(db, clienteId, opcoes.ctx);
     if (opcoes.campos?.length) filtro = aplicarFiltrosCampos(cat.base, opcoes.campos);
     if (opcoes.comCatalogo)
       catalogo = catalogoVisivel(cat.catalogo, "coluna").map((g) => ({ fonte: g.fonte, nome: g.nome, campos: g.campos.map((c) => ({ campo: c.campo, rotulo: c.rotulo, preenchidos: c.preenchidos })) }));
   }
-  const salvas = (await lerConfig(db, clienteId)) as ConfigMatriz[];
+  const salvas = (await lerConfig(db, clienteId, opcoes.ctx)) as ConfigMatriz[];
   const rascunho = opcoes.rascunho;
   const configs = rascunho ? [...salvas.filter((c) => c.chave !== rascunho.chave), rascunho] : salvas;
   const precisaCards = configs.some((c) => c.ativo && ehCombinadaDeCard(c)) || opcoes.comCatalogo;
   const [linhas, leituras, manuaisRaw] = await Promise.all([
-    linhasPadrao(db, clienteId, p, filtro?.contatos),
-    precisaCards ? lerLeiturasCards(db, clienteId) : Promise.resolve([] as Leitura[]),
+    linhasPadrao(db, clienteId, p, filtro?.contatos, opcoes.ctx),
+    precisaCards ? lerLeiturasCards(db, clienteId, opcoes.ctx) : Promise.resolve([] as Leitura[]),
     lerTudo(() => db.from("elora_matriz_manual" as any).select("coluna_chave, data, valor").eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id")),
   ]);
   const m: PorDia = somarPadraoPorDia(linhas, filtros);

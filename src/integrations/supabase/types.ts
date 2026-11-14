@@ -195,6 +195,27 @@ export type Database = {
           },
         ]
       }
+      elora_calculo_cache: {
+        Row: {
+          chave: string
+          cliente_id: string
+          criado_em: string
+          valor: Json
+        }
+        Insert: {
+          chave: string
+          cliente_id: string
+          criado_em?: string
+          valor: Json
+        }
+        Update: {
+          chave?: string
+          cliente_id?: string
+          criado_em?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
       elora_campos_ajustes: {
         Row: {
           atualizado_em: string
@@ -3164,6 +3185,17 @@ export type Database = {
     Functions: {
       bootstrap_admin_if_empty: { Args: never; Returns: undefined }
       cliente_do_usuario: { Args: never; Returns: string }
+      elora_conversas_pares: {
+        Args: { _cliente_id: string; _fim: string; _inicio: string }
+        Returns: {
+          humano_em: string
+          humano_user: string
+          primeira_em: string
+          sessao_id: string
+          usuario: boolean
+        }[]
+      }
+      elora_versoes_cache: { Args: { _cliente_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_equipe_interna: { Args: never; Returns: boolean }
       link_app_user: { Args: never; Returns: undefined }
