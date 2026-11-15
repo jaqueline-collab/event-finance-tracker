@@ -36,3 +36,8 @@
 - [ ] Etapa 2: novos tipos de bloco
 - [ ] Etapa 3: Resultados (novo) em rascunho, Agenda + Calendário, Agendamentos nova
 - [x] Desempenho: retrato, SQL por dia, um cálculo por visão, cache (versão sync+config, permissão após cache), carregamento em ordem, índices, meta <3s/<1s
+- [ ] Sem leitura estimada (Matriz "—" antes de 05/11 aguarda aprovação da tabela; preenchimento via API aguarda aprovação)
+- [ ] Otimização final: novos contatos e ADS em SQL, catálogo de campos em cache, < 3 s sem cache
+- [ ] Agenda por hora (Dia/Semana)
+- [ ] Funil estilo Elora App
+- [ ] Depois: plano separado para espelho completo de cada cliente (tempo de sincronização e carga do banco)
