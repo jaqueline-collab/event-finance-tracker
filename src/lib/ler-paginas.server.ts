@@ -1,6 +1,6 @@
 /**
  * Lê todas as linhas de uma consulta ordenada, em páginas de 1000, várias páginas
- * ao mesmo tempo desde o início (resultado na mesma ordem da leitura página a página).
+ * ao mesmo tempo (resultado na mesma ordem da leitura página a página).
  */
 export async function lerTudo(q: () => any, paralelo = 6): Promise<any[]> {
   const pagina = async (i: number) => {
@@ -9,8 +9,9 @@ export async function lerTudo(q: () => any, paralelo = 6): Promise<any[]> {
     return (data ?? []) as any[];
   };
   const out: any[] = [];
-  for (let n = 0; ; n += paralelo) {
-    const lote = await Promise.all(Array.from({ length: paralelo }, (_, k) => pagina(n + k)));
+  // Tabelas grandes (paralelo >= 8) já começam com várias páginas; as pequenas leem uma primeiro.
+  for (let n = 0, tam = paralelo >= 8 ? paralelo : 1; ; n += tam, tam = paralelo) {
+    const lote = await Promise.all(Array.from({ length: tam }, (_, k) => pagina(n + k)));
     for (const l of lote) {
       out.push(...l);
       if (l.length < 1000) return out;
