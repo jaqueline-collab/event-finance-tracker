@@ -2524,6 +2524,7 @@ export type Database = {
           atualizado_em: string
           cliente_id: string
           coluna_status: Json | null
+          cores_status: Json
           equipe_por_canal: Json
           matriz_filtros_padrao: Json
           matriz_nome: string | null
@@ -2534,6 +2535,7 @@ export type Database = {
           atualizado_em?: string
           cliente_id: string
           coluna_status?: Json | null
+          cores_status?: Json
           equipe_por_canal?: Json
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
@@ -2544,6 +2546,7 @@ export type Database = {
           atualizado_em?: string
           cliente_id?: string
           coluna_status?: Json | null
+          cores_status?: Json
           equipe_por_canal?: Json
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
@@ -2895,6 +2898,8 @@ export type Database = {
           iniciado_em: string | null
           registros: number
           retentativas: number
+          ultimo_erro: string | null
+          ultimo_erro_em: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -2907,6 +2912,8 @@ export type Database = {
           iniciado_em?: string | null
           registros?: number
           retentativas?: number
+          ultimo_erro?: string | null
+          ultimo_erro_em?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -2919,6 +2926,8 @@ export type Database = {
           iniciado_em?: string | null
           registros?: number
           retentativas?: number
+          ultimo_erro?: string | null
+          ultimo_erro_em?: string | null
         }
         Relationships: [
           {
@@ -2929,6 +2938,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      elora_sync_trava: {
+        Row: {
+          ate: string
+          cliente_id: string
+          dono: string
+          iniciado_em: string
+        }
+        Insert: {
+          ate: string
+          cliente_id: string
+          dono: string
+          iniciado_em?: string
+        }
+        Update: {
+          ate?: string
+          cliente_id?: string
+          dono?: string
+          iniciado_em?: string
+        }
+        Relationships: []
       }
       elora_trilha_videos: {
         Row: {
@@ -3218,6 +3248,14 @@ export type Database = {
           sessao_id: string
           utm_campaign: string
         }[]
+      }
+      elora_pegar_trava: {
+        Args: { _cliente_id: string; _dono: string; _segundos: number }
+        Returns: boolean
+      }
+      elora_soltar_trava: {
+        Args: { _cliente_id: string; _dono: string }
+        Returns: undefined
       }
       elora_versoes_cache: { Args: { _cliente_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }

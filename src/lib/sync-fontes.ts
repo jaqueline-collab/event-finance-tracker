@@ -6,6 +6,8 @@ export type FonteSync = {
   registros: number;
   atualizadoEm: string | null;
   comErro: boolean;
+  ultimoErro?: string | null;
+  ultimoErroEm?: string | null;
 };
 
 export const ORDEM_FONTES = ["contatos", "atendimentos", "mensagens", "cards", "apoio"] as const;
@@ -42,3 +44,9 @@ export function ultimaRodada(fontes: FonteSync[]): string | null {
   for (const f of fontes) if (f.atualizadoEm && (!max || f.atualizadoEm > max)) max = f.atualizadoEm;
   return max ? dataHora(max) : null;
 }
+
+/** Fonte sem atualização há mais de `horas` (ou nunca atualizada): alerta para a super admin. */
+export function fonteParada(f: FonteSync | undefined, agora = Date.now(), horas = 6): boolean {
+  return !f?.atualizadoEm || agora - new Date(f.atualizadoEm).getTime() > horas * 3_600_000;
+}
+export const dataHoraSync = dataHora;

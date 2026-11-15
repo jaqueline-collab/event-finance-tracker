@@ -72,7 +72,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: linhasSync } = await supabaseAdmin
       .from("elora_sync_estado")
-      .select("fonte, iniciado_em, concluido_em, registros, atualizado_em, erros")
+      .select("fonte, iniciado_em, concluido_em, registros, atualizado_em, erros, ultimo_erro, ultimo_erro_em")
       .eq("cliente_id", data.clienteId);
     const fontes = (linhasSync ?? []).map((l: any) => ({
       fonte: String(l.fonte),
@@ -80,7 +80,9 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       concluidoEm: l.concluido_em ?? null,
       registros: Number(l.registros ?? 0),
       atualizadoEm: l.atualizado_em ?? null,
-      comErro: Array.isArray(l.erros) ? l.erros.length > 0 : Boolean(l.erros && Object.keys(l.erros).length),
+      comErro: Boolean(l.ultimo_erro),
+      ultimoErro: l.ultimo_erro ?? null,
+      ultimoErroEm: l.ultimo_erro_em ?? null,
     }));
 
 

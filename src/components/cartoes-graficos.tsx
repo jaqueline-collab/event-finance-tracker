@@ -8,6 +8,9 @@ import { colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type Estado
 import { corEtiqueta } from "@/lib/status-lead";
 import { ConfigStatusLead } from "@/components/config-status-lead";
 import { toast } from "sonner";
+import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -65,7 +68,6 @@ export function CartoesGraficos({
   const [cartoes, setCartoes] = useState(iniciais);
   const [hist, setHist] = useState<Historico<CartaoGrafico[]>>(() => historico(iniciais));
   const [editor, setEditor] = useState<CartaoGrafico | null>(null);
-  const [arrastando, setArrastando] = useState<string | null>(null);
   const [previa, setPrevia] = useState<{ id: string; largura: number; altura: number } | null>(null);
   const grade = useRef<HTMLDivElement>(null);
   const larga = useLarga();
@@ -95,11 +97,14 @@ export function CartoesGraficos({
   const voltar = async (h: Historico<CartaoGrafico[]>) => {
     if (await persistir(h.presente, cartoes)) setHist(h);
   };
-  const soltar = (alvo: string) => {
-    if (!arrastando || arrastando === alvo) return;
-    const l = reordenar(cartoes, arrastando, alvo);
-    setArrastando(null);
-    void gravar(l);
+  // Mover blocos pela alça (funciona com qualquer conteúdo: tabela, calendário, gráficos).
+  const sensores = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
+  const aoSoltarBloco = (e: DragEndEvent) => {
+    if (!e.over || e.active.id === e.over.id) return;
+    void gravar(reordenar(cartoes, String(e.active.id), String(e.over.id)));
   };
   const iniciarResize = (e: React.PointerEvent, c: CartaoGrafico, eixo: "x" | "y" | "xy") => {
     e.preventDefault();
@@ -137,20 +142,19 @@ export function CartoesGraficos({
         </div>
       )}
       {cartoes.length > 0 && (
+        <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoSoltarBloco}>
+          <SortableContext items={cartoes.map((c) => c.id)} strategy={rectSortingStrategy}>
         <div ref={grade} className="grid grid-cols-1 gap-4" style={larga ? { gridTemplateColumns: "repeat(12, minmax(0, 1fr))", gridAutoRows: `minmax(${LINHA_PX - 16}px, auto)` } : undefined}>
           {cartoes.map((c) => {
             const t = previa?.id === c.id ? previa : tamanhoDe(c);
             return (
-            <div
+            <BlocoOrdenavel
               key={c.id}
-              className={`group relative min-w-0 ${arrastando === c.id ? "opacity-50" : ""} ${editavel ? "rounded-xl ring-primary/40 hover:ring-2" : ""}`}
+              id={c.id}
+              ativo={editavel}
+              className={`group relative min-w-0 ${editavel ? "rounded-xl ring-primary/40 hover:ring-2" : ""}`}
               style={larga ? { gridColumn: `span ${t.largura} / span ${t.largura}`, gridRow: `span ${t.altura} / span ${t.altura}`, minHeight: t.altura * LINHA_PX - 16 } : undefined}
-              draggable={editavel}
-              onDragStart={() => setArrastando(c.id)}
-              onDragOver={(e) => editavel && e.preventDefault()}
-              onDrop={() => soltar(c.id)}
-              onDragEnd={() => setArrastando(null)}
-            >
+            >{(alca) => (<>
               <CartaoView
                 clienteId={clienteId}
                 cartao={c}
@@ -160,7 +164,7 @@ export function CartoesGraficos({
                 menu={
                   editavel ? (
                     <div className="flex items-center gap-1 rounded-md bg-card/90 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                      <GripVertical className="h-4 w-4 cursor-grab text-muted-foreground" aria-label="Arrastar para reordenar" />
+                      <button type="button" {...alca} className="cursor-grab touch-none rounded p-0.5 text-muted-foreground active:cursor-grabbing" aria-label="Arrastar para reordenar"><GripVertical className="h-4 w-4" /></button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Opções do gráfico">
@@ -211,10 +215,12 @@ export function CartoesGraficos({
                   {previa?.id === c.id && <span className="absolute right-2 top-2 rounded bg-primary px-1.5 text-xs text-primary-foreground">{t.largura}/12 · {t.altura}</span>}
                 </>
               )}
-            </div>
+            </>)}</BlocoOrdenavel>
             );
           })}
         </div>
+          </SortableContext>
+        </DndContext>
       )}
       {editor && (
         <EditorCartao
@@ -231,6 +237,16 @@ export function CartoesGraficos({
         />
       )}
     </>
+  );
+}
+
+/** Bloco que pode ser movido pela alça (dnd-kit), igual às abas. */
+function BlocoOrdenavel({ id, ativo, className, style, children }: { id: string; ativo: boolean; className: string; style?: React.CSSProperties; children: (alca: Record<string, unknown>) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !ativo });
+  return (
+    <div ref={setNodeRef} className={`${className} ${isDragging ? "z-10 opacity-60" : ""}`} style={{ ...style, transform: CSS.Translate.toString(transform), transition }}>
+      {children({ ...attributes, ...listeners })}
+    </div>
   );
 }
 

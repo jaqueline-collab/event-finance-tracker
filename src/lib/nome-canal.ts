@@ -26,3 +26,20 @@ export function exibirCanal(m: MapaCanais, id: string | null | undefined, nomeBr
   if (!id && !nomeBruto) return "";
   return CANAL_SEM_NOME;
 }
+
+/**
+ * Filtros de canal gravados com o nome antigo (nome bruto ou código da instância)
+ * passam a valer pelo nome exibido, para um filtro antigo nunca esvaziar o bloco.
+ */
+export function traduzirFiltrosCanal<F extends { campo?: string; valores?: unknown }>(filtros: F[], m: MapaCanais): F[] {
+  return filtros.map((f) => {
+    if (f.campo !== "canal" || !Array.isArray(f.valores)) return f;
+    const vs = (f.valores as unknown[]).map((v) => {
+      const x = String(v ?? "");
+      if (m.porNome[x]) return m.porNome[x];
+      if (m.porId[x]) return m.porId[x];
+      return ehCodigoInstancia(x) ? CANAL_SEM_NOME : x;
+    });
+    return { ...f, valores: [...new Set(vs)] };
+  });
+}
