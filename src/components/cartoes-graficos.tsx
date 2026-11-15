@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, GripVertical, MoreHorizontal, Pin, Redo2, RotateCcw, Undo2, X } from "lucide-react";
 import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
 import { exportarMatriz } from "@/lib/matriz-exportar";
@@ -870,7 +870,6 @@ const SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const somarDias = (dia: string, n: number) => { const d = new Date(`${dia}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
 const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-const segunda = (dia: string) => somarDias(dia, -((new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7));
 
 /** Cor de cada tipo de compromisso: 1º campo de data = amarelo da marca (texto marinho), 2º = verde de sucesso. */
 export const COR_TIPO_CALENDARIO = ["bg-agenda-consulta text-agenda-consulta-foreground", "bg-agenda-procedimento text-agenda-procedimento-foreground", "bg-accent text-accent-foreground", "bg-muted text-foreground"] as const;
@@ -937,7 +936,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
         {ag && !fora && <span className="mx-auto"><PontoCobertura texto="Dia sem cobertura de sincronização confirmada." /></span>}
         {comEventos ? (
           <>
-            {mostrar.map((e) => <EventoFlutuante key={e.id} e={e} tipos={tipos} itensDia={itensDia} compacto />)}
+            {mostrar.map((e) => <EventoFlutuante key={e.id} e={e} tipos={tipos} itensDia={itensDia} />)}
             {mais > 0 && <button type="button" className="rounded px-1 text-left text-[11px] font-semibold text-muted-foreground hover:bg-muted" onClick={() => abrirDia(dia)}>+{mais} mais</button>}
           </>
         ) : (
@@ -1019,7 +1018,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
 }
 
 /** Compromisso clicável: abre um cartão flutuante com hora, nome, tipo, telefone, procedimento e valor. */
-function EventoFlutuante({ e, tipos, itensDia, compacto, lista, className, style, children }: { e: EventoCalendario; tipos: string[]; itensDia: (dia: string) => Promise<ItemDia[]>; compacto?: boolean; lista?: boolean; className?: string; style?: React.CSSProperties; children?: React.ReactNode }) {
+function EventoFlutuante({ e, tipos, itensDia, lista, className, style, children }: { e: EventoCalendario; tipos: string[]; itensDia: (dia: string) => Promise<ItemDia[]>; compacto?: boolean; lista?: boolean; className?: string; style?: React.CSSProperties; children?: React.ReactNode }) {
   const [item, setItem] = useState<ItemDia | null | undefined>(undefined);
   const abrir = (o: boolean) => {
     if (!o || item !== undefined) return;
@@ -1032,7 +1031,6 @@ function EventoFlutuante({ e, tipos, itensDia, compacto, lista, className, style
         <button type="button" aria-label={rotulo} title={rotulo} style={style}
           className={className ?? `block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium leading-tight ${corTipo(e.tipo)} ${lista ? "py-1 text-xs" : ""}`}>
           {children ?? <>{e.hora && <span className="tabular-nums">{e.hora} </span>}{e.nome}{lista && tipos[e.tipo] ? <span className="opacity-80"> · {tipos[e.tipo]}</span> : null}</>}
-          {compacto ? null : null}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 space-y-2 p-3 text-sm">
