@@ -95,6 +95,15 @@ export function funilTop<T extends { rotulo: string; total: number }>(lista: T[]
   return [...ord.slice(0, n).map(({ rotulo, total }) => ({ rotulo, total })), { rotulo: "Outras", total: resto }];
 }
 
+/** Relatório diário (visão fixa): id da visão e do bloco que mostra a tabela (nunca é calculado como gráfico). */
+export const VISAO_MATRIZ_ID = "__matriz";
+export const BLOCO_TABELA_MATRIZ = "__tabela_matriz";
+/** Blocos do Relatório diário: garante a tabela (larga, no topo por padrão) sem mudar a ordem gravada. */
+export function cartoesDaMatriz(v: unknown): CartaoGrafico[] {
+  const l = cartoesValidos(v);
+  if (l.some((c) => c.id === BLOCO_TABELA_MATRIZ)) return l;
+  return [{ ...cartaoSchema.parse({ id: BLOCO_TABELA_MATRIZ, titulo: "Relatório diário", tipo: "numero", fonte: "contato" }), largura: 12 } as CartaoGrafico, ...l];
+}
 export const novoCartao = (id: string): CartaoGrafico => cartaoSchema.parse({ id, titulo: TITULO_PADRAO.outro, tipo: "barras", fonte: "contato", dimensao: { fonte: "contato", campo: "origem" } });
 
 /** Indicadores do cabeçalho como cartões (mesma agregação do painel). */

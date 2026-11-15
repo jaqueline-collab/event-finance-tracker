@@ -13,6 +13,8 @@ async function comFixos(clienteId: string, cartoes: CartaoGrafico[], quemVe: any
   const { data: vs, error } = await (supabaseAdmin as any).from("elora_dashboard_visoes").select("id, filtros").eq("cliente_id", clienteId);
   if (error) throw new Error(`visoes: ${error.message}`);
   const visoes = (vs ?? []).map((v: any) => ({ id: String(v.id), cartoes: cartoesValidos(v.filtros?.cartoes), filtrosFixos: filtrosFixosValidos(v.filtros?.filtrosFixos) }));
+  const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_cartoes").eq("cliente_id", clienteId).maybeSingle();
+  visoes.push({ id: VISAO_MATRIZ_ID, cartoes: cartoesValidos(cfg?.matriz_cartoes), filtrosFixos: [] });
   return aplicarFixosGravados(cartoes, visoes, quemVe);
 }
 
@@ -103,7 +105,7 @@ export const itensDiaCalendario = createServerFn({ method: "POST" })
 /** Grava a lista de cartões de uma visão (ordem incluída). Só super admin. Remover cartão não apaga dado. */
 export const salvarCartoesVisao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => z.object({ clienteId: z.string().min(1), visaoId: z.string().uuid(), cartoes: z.array(cartaoSchema).max(40) }).parse(i))
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), visaoId: z.string().uuid().or(z.literal("__matriz")), cartoes: z.array(cartaoSchema).max(40) }).parse(i))
   .handler(async ({ data, context }) => {
     const a = await acesso(context.supabase, data.clienteId);
     if (!a.superAdmin) throw new Error("acesso-negado: só a super admin.");
@@ -115,7 +117,7 @@ export const salvarCartoesVisao = createServerFn({ method: "POST" })
 /** Move um cartão para outra visão do mesmo cliente. Só super admin. */
 export const moverCartaoVisao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => z.object({ clienteId: z.string().min(1), de: z.string().uuid(), para: z.string().uuid(), cartaoId: z.string().min(1) }).parse(i))
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), de: z.string().uuid().or(z.literal("__matriz")), para: z.string().uuid().or(z.literal("__matriz")), cartaoId: z.string().min(1) }).parse(i))
   .handler(async ({ data, context }) => {
     const a = await acesso(context.supabase, data.clienteId);
     if (!a.superAdmin) throw new Error("acesso-negado: só a super admin.");
@@ -131,12 +133,25 @@ export const moverCartaoVisao = createServerFn({ method: "POST" })
   });
 
 async function ler(db: any, clienteId: string, visaoId: string): Promise<CartaoGrafico[]> {
+  if (visaoId === VISAO_MATRIZ_ID) {
+    const { data: cfg, error } = await db.from("elora_relatorio_corte_config").select("matriz_cartoes").eq("cliente_id", clienteId).maybeSingle();
+    if (error) throw new Error(`matriz: ${error.message}`);
+    return cartoesValidos(cfg?.matriz_cartoes);
+  }
   const { data: v, error } = await db.from("elora_dashboard_visoes").select("filtros").eq("id", visaoId).eq("cliente_id", clienteId).maybeSingle();
   if (error) throw new Error(`visoes: ${error.message}`);
   if (!v) throw new Error("visão não encontrada.");
   return cartoesValidos(v.filtros?.cartoes);
 }
 async function gravar(db: any, clienteId: string, visaoId: string, cartoes: CartaoGrafico[]) {
+  if (visaoId === VISAO_MATRIZ_ID) {
+    // A tabela do Relatório diário nunca sai da visão nem é removida.
+    const lista = cartoesDaMatriz(cartoes);
+    const { error } = await db.from("elora_relatorio_corte_config").upsert({ cliente_id: clienteId, matriz_cartoes: lista }, { onConflict: "cliente_id" });
+    if (error) throw new Error(`matriz: ${error.message}`);
+    return;
+  }
+  if (cartoes.some((c) => c.id === BLOCO_TABELA_MATRIZ)) throw new Error("a tabela do Relatório diário não sai da sua aba.");
   const { data: v, error } = await db.from("elora_dashboard_visoes").select("filtros").eq("id", visaoId).eq("cliente_id", clienteId).maybeSingle();
   if (error) throw new Error(`visoes: ${error.message}`);
   if (!v) throw new Error("visão não encontrada.");
@@ -167,4 +182,14 @@ export const salvarInicioSemana = createServerFn({ method: "POST" })
       .upsert({ cliente_id: data.clienteId, semana_inicia_segunda: data.iniciaSegunda, atualizado_em: new Date().toISOString() }, { onConflict: "cliente_id" });
     if (error) throw new Error(`início da semana: ${error.message}`);
     return { ok: true };
+  });
+
+/** Blocos do Relatório diário (a tabela + outros). Quem vê o painel lê. */
+export const lerCartoesMatriz = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await acesso(context.supabase, data.clienteId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return { cartoes: cartoesDaMatriz(await ler(supabaseAdmin as any, data.clienteId, VISAO_MATRIZ_ID)) };
   });
