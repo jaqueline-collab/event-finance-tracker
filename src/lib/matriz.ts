@@ -162,7 +162,7 @@ export function montarMatriz(
   return { colunas: ativas, linhas, total, erros };
 }
 
-/** Linhas por canal/atendente/equipe → soma por dia, com filtros opcionais ("Não definido" = vazio). */
+/** Linhas por canal/atendente/equipe → soma por dia, com filtros opcionais ("Sem informação" = vazio). */
 export type LinhaCorteMatriz = { dia: string; canal: string; atendente: string; equipe: string } & Record<string, unknown>;
 export type FiltrosMatriz = Partial<Record<"canal" | "atendente" | "equipe", string | string[]>>;
 

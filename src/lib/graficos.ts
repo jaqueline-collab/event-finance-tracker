@@ -1,7 +1,7 @@
 /**
  * Construtor de gráficos (Fase 4): configuração de cartão e agregação pura.
  * Lê só o catálogo Campos do Elora (rótulos/ocultos) e a base de campos;
- * nada específico de cliente. Valor ausente = "Não definido".
+ * nada específico de cliente. Valor ausente = "Sem informação" no agrupamento, em branco no item.
  */
 import { z } from "zod";
 import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";

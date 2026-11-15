@@ -1,7 +1,7 @@
 /**
  * Catálogo "Campos do Elora" e filtros genéricos (puros, testáveis).
  * Montado só com o que o cliente tem: grupo sem dado não aparece.
- * Valor ausente = "Não definido". Nada específico de cliente aqui.
+ * Valor ausente = "Sem informação" no agrupamento, em branco no item. Nada específico de cliente aqui.
  */
 import { z } from "zod";
 import { NAO_DEFINIDO, normalizarValoresFiltro } from "./nao-definido";

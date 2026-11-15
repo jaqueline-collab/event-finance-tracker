@@ -1,3 +1,4 @@
+import { formatarCelula, formatarTelefone } from "@/lib/formatos";
 import { NAO_DEFINIDO, rotuloDimensao as rotuloND } from "@/lib/nao-definido";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -317,8 +318,8 @@ function WidgetRanking({ w }: { w: WidgetRenderizado }) {
                 <TableRow key={r.campanha}>
                   <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="font-medium">{r.campanha}</TableCell>
-                  <TableCell>{r.source ?? "—"}</TableCell>
-                  <TableCell>{r.medium ?? "—"}</TableCell>
+                  <TableCell>{r.source ?? ""}</TableCell>
+                  <TableCell>{r.medium ?? ""}</TableCell>
                   <TableCell className="text-right">{r.leads}</TableCell>
                 </TableRow>
               ))}
@@ -366,8 +367,8 @@ function WidgetTabela({
             <TableBody>
               {linhas.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.nome ?? "—"}</TableCell>
-                  <TableCell>{c.telefone ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{c.nome ?? ""}</TableCell>
+                  <TableCell>{formatarTelefone(c.telefone)}</TableCell>
                   <TableCell>{dataHoraBr(c.criadoEm)}</TableCell>
                   <TableCell>
                     {c.utmSource ? (
@@ -382,7 +383,7 @@ function WidgetTabela({
                     )}
                   </TableCell>
                   {colunas.map((col) => (
-                    <TableCell key={col}>{c.campos?.[col] ?? "—"}</TableCell>
+                    <TableCell key={col}>{formatarCelula(col, c.campos?.[col] ?? "")}</TableCell>
                   ))}
                 </TableRow>
               ))}

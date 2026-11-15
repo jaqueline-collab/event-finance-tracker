@@ -19,7 +19,7 @@ export function montarMapaCanais(canais: { id: string; nomes: (string | null | u
   return { porId, porNome };
 }
 
-/** Nome exibido de um canal; vazio continua vazio (vira "Não definido" adiante). */
+/** Nome exibido de um canal; vazio continua vazio (vira "Sem informação" no agrupamento). */
 export function exibirCanal(m: MapaCanais, id: string | null | undefined, nomeBruto?: string | null): string {
   if (id && m.porId[id]) return m.porId[id];
   if (nomeBruto && m.porNome[nomeBruto]) return m.porNome[nomeBruto];
