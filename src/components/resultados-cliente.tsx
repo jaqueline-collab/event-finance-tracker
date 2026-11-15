@@ -1,3 +1,6 @@
+import { BarraTabela } from "@/components/barra-tabela";
+import { TabelaItens } from "@/components/cartoes-graficos";
+import type { ResultadoCartao } from "@/lib/graficos";
 import { formatarCelula, formatarTelefone } from "@/lib/formatos";
 import { NAO_DEFINIDO, rotuloDimensao as rotuloND } from "@/lib/nao-definido";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -294,41 +297,12 @@ function WidgetCalendario({ w }: { w: WidgetRenderizado }) {
 function WidgetRanking({ w }: { w: WidgetRenderizado }) {
   const linhas: { campanha: string; source: string | null; medium: string | null; leads: number }[] =
     w.dados?.linhas ?? [];
-  return (
-    <div className="min-w-0 max-w-full space-y-2">
-      <p className="text-sm font-semibold">{w.titulo}</p>
-      {linhas.length === 0 ? (
-        <p className="rounded-lg border border-border/60 py-6 text-center text-sm text-muted-foreground">
-          Nenhuma campanha no período.
-        </p>
-      ) : (
-        <div className="w-0 min-w-full overflow-x-auto rounded-lg border border-border/60">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Campanha</TableHead>
-                <TableHead>Origem</TableHead>
-                <TableHead>Mídia</TableHead>
-                <TableHead className="text-right">Leads</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {linhas.map((r, i) => (
-                <TableRow key={r.campanha}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell className="font-medium">{r.campanha}</TableCell>
-                  <TableCell>{r.source ?? ""}</TableCell>
-                  <TableCell>{r.medium ?? ""}</TableCell>
-                  <TableCell className="text-right">{r.leads}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
-  );
+  const r: ResultadoCartao = {
+    categorias: [], series: [], total: linhas.length, anterior: null, linhas: linhas.length,
+    colunasItens: [{ chave: "posicao", rotulo: "#" }, { chave: "campanha", rotulo: "Campanha" }, { chave: "source", rotulo: "Origem" }, { chave: "medium", rotulo: "Mídia" }, { chave: "leads", rotulo: "Leads" }],
+    itens: linhas.map((l, i) => ({ id: String(i), valores: { posicao: String(i + 1), campanha: l.campanha, source: l.source ?? "", medium: l.medium ?? "", leads: String(l.leads) } })),
+  };
+  return <div className="space-y-2"><p className="text-sm font-semibold">{w.titulo}</p><TabelaItens cartao={{ titulo: w.titulo }} r={r} /></div>;
 }
 
 function WidgetTabela({
@@ -343,79 +317,18 @@ function WidgetTabela({
   const d = w.dados ?? {};
   const colunas: string[] = d.colunas ?? [];
   const linhas: any[] = d.linhas ?? [];
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-semibold">{w.titulo}</p>
-      {linhas.length === 0 ? (
-        <p className="rounded-lg border border-border/60 py-6 text-center text-sm text-muted-foreground">
-          Nenhum contato sincronizado neste período ainda.
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-border/60">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Contato</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead>Origem</TableHead>
-                {colunas.map((c) => (
-                  <TableHead key={c}>{c}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {linhas.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.nome ?? ""}</TableCell>
-                  <TableCell>{formatarTelefone(c.telefone)}</TableCell>
-                  <TableCell>{dataHoraBr(c.criadoEm)}</TableCell>
-                  <TableCell>
-                    {c.utmSource ? (
-                      <Badge
-                        variant="secondary"
-                        title={`Origem: ${c.utmSource}${c.utmMedium ? ` · Mídia: ${c.utmMedium}` : ""}${c.utmCampaign ? ` · Campanha: ${c.utmCampaign}` : ""}`}
-                      >
-                        <Megaphone className="mr-1 h-3 w-3" /> Anúncio
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">Orgânico</Badge>
-                    )}
-                  </TableCell>
-                  {colunas.map((col) => (
-                    <TableCell key={col}>{formatarCelula(col, c.campos?.[col] ?? "")}</TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-      {Number(d.totalPaginas ?? 1) > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pagina <= 1}
-            onClick={() => setPagina(Math.max(1, pagina - 1))}
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Página {d.pagina} de {d.totalPaginas}
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pagina >= Number(d.totalPaginas ?? 1)}
-            onClick={() => setPagina(pagina + 1)}
-          >
-            Próxima <ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+  const r: ResultadoCartao = {
+    categorias: [], series: [], total: linhas.length, anterior: null, linhas: linhas.length,
+    colunasItens: [{ chave: "nome", rotulo: "Contato" }, { chave: "telefone", rotulo: "Telefone" }, { chave: "criadoEm", rotulo: "Criado em" }, { chave: "origem", rotulo: "Origem" }, ...colunas.map((chave) => ({ chave, rotulo: chave }))],
+    itens: linhas.map((c) => ({ id: String(c.id), valores: { nome: c.nome ?? "", telefone: formatarTelefone(c.telefone), criadoEm: dataHoraBr(c.criadoEm), origem: c.utmSource ? "Anúncio" : "Orgânico", ...Object.fromEntries(colunas.map((col) => [col, formatarCelula(col, c.campos?.[col] ?? "")])) } })),
+  };
+  return <div className="space-y-2"><p className="text-sm font-semibold">{w.titulo}</p><TabelaItens cartao={{ titulo: w.titulo }} r={r} />
+    {Number(d.totalPaginas ?? 1) > 1 && <div className="flex items-center justify-end gap-2">
+      {pagina > 1 && <Button size="sm" variant="outline" onClick={() => setPagina(pagina - 1)}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Button>}
+      <span className="text-sm text-muted-foreground">Página {d.pagina} de {d.totalPaginas}</span>
+      {pagina < Number(d.totalPaginas ?? 1) && <Button size="sm" variant="outline" onClick={() => setPagina(pagina + 1)}>Próxima<ChevronRight className="ml-1 h-4 w-4" /></Button>}
+    </div>}
+  </div>;
 }
 
 /** Linha exibida (já agrupada), com o Social Seller anexado. */
@@ -928,51 +841,15 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
           <UiTooltipProvider delayDuration={300}>
             <div className="flex items-center gap-1">
               <label className="mr-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Switch checked={adsVisiveis} onCheckedChange={alternarAds} disabled={travado} aria-label="Mostrar colunas de ADS" />
+                <Switch checked={adsVisiveis} onCheckedChange={alternarAds} aria-label="Mostrar colunas de ADS" />
                 ADS
               </label>
-              <Popover>
-                <UiTooltip>
-                  <UiTooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <Button size="icon" variant="outline" className="h-9 w-9" disabled={travado} aria-label="Colunas">
-                        <Columns3 className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                  </UiTooltipTrigger>
-                  <UiTooltipContent>Colunas</UiTooltipContent>
-                </UiTooltip>
-                <PopoverContent align="end" className="w-64 space-y-2">
-                  {COLUNAS_RELATORIO.map((c) => (
-                    <label key={c.chave} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={colunasVisiveis[c.chave] !== false}
-                        onCheckedChange={(v) => setColunasVisiveis((s) => ({ ...s, [c.chave]: v !== false }))}
-                      />
-                      {c.titulo}
-                    </label>
-                  ))}
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <UiTooltip>
-                  <UiTooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <Button size="icon" variant="outline" className="h-9 w-9" disabled={linhasAgrupadas.length === 0} aria-label="Exportar">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                  </UiTooltipTrigger>
-                  <UiTooltipContent>Exportar</UiTooltipContent>
-                </UiTooltip>
-                <PopoverContent align="end" className="w-40 p-1">
-                  {(["csv", "xlsx", "pdf"] as const).map((f) => (
-                    <Button key={f} variant="ghost" size="sm" className="w-full justify-start" onClick={() => exportar(f)}>
-                      {f.toUpperCase()}
-                    </Button>
-                  ))}
-                </PopoverContent>
-              </Popover>
+              <BarraTabela
+                colunas={COLUNAS_RELATORIO.map((c) => ({ chave: c.chave, rotulo: c.titulo }))}
+                estado={{ ordem, ocultas: COLUNAS_RELATORIO.filter((c) => colunasVisiveis[c.chave] === false).map((c) => c.chave), fixas: [] }}
+                padrao={{ ordem: ORDEM_PADRAO, ocultas: [], fixas: [] }} semFixar
+                onEstado={(e) => { if (travado) return; setOrdem(e.ordem); setColunasVisiveis(Object.fromEntries(COLUNAS_RELATORIO.map((c) => [c.chave, !e.ocultas.includes(c.chave)]))); }}
+                onExportar={(f) => void exportar(f)} />
               {podeCongelar && (
                 <UiTooltip>
                   <UiTooltipTrigger asChild>
