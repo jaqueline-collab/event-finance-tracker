@@ -51,7 +51,7 @@ export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
         <CardDescription>Valem para o relatório diário e a Matriz. Tudo é opcional: o que não for definido aparece como "{NAO_DEFINIDO}".</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <p className="text-xs text-muted-foreground">Suporte interno é definido na administração geral, em Configurar API.</p>
+        <p className="text-xs text-muted-foreground">Usuários de suporte são definidos na administração geral, em Configurar API.</p>
 
         {r.canais.length > 0 && (
           <section className="space-y-2">
@@ -131,7 +131,7 @@ export function SuporteInternoGlobal() {
   useEffect(() => { lerSuporteInterno().then(r => { setSuporte(r); setLiberado(true); }).catch(() => setLiberado(false)); }, []);
   if (!liberado) return null;
   return <div className="space-y-3 border-t pt-5">        <section className="space-y-2">
-          <Label>Suporte interno (todos os clientes)</Label>
+          <Label>Usuários de suporte (todos os clientes)</Label>
           <p className="text-xs text-muted-foreground">Conversas dessas pessoas não entram nas colunas de conversas de nenhum cliente. Por nome ou e-mail.</p>
           {suporte.map((p) => (
             <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
