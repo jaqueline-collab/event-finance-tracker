@@ -96,6 +96,30 @@ Hoje há 7 canais nos atendimentos do Dr. Ricardo e a tela mostra 5. Falta o Ins
 - Rodar os testes e mostrar o retrato antes e depois, com zero diferenças.
 - Manter o registro de ações com desfazer e tudo o que a auditoria precise.
 
+## 6. Colunas da tabela (editor do bloco e botão "Colunas")
+
+- **Status do lead como coluna normal:** vira uma linha comum da lista, que se marca, desmarca, fixa, remove e posiciona em qualquer lugar. Sai a seção separada "Coluna Status do lead".
+- **Engrenagem na linha:** a configuração do status (contato ou card, funil, campo, cores das etapas) abre por uma engrenagem na própria linha.
+- **Arrastar para reordenar:** cada linha ganha uma alça (⋮⋮). As setas de subir e descer continuam como alternativa pelo teclado. Vale para todas as colunas.
+- **Onde a ordem vale:** na tabela, no Exportar e no Agrupar por. O Status do lead exporta o nome do status, nunca o código.
+- **Teste:** mover o Status do lead para a 2ª posição e para o fim, fixar à esquerda, recarregar e conferir que a ordem ficou gravada.
+
+## 7. Tamanho dos blocos
+
+**Causa confirmada:** a tabela do Relatório diário foi gravada como um bloco do tipo "número". Esse tipo tem largura máxima de 6 colunas (metade) e altura máxima de 2, então ela não estica. Além disso, as alças de redimensionar só aparecem ao passar o mouse e quase não se veem.
+
+**Correção:**
+- **Tipo próprio para a tabela:** a tabela do Relatório diário ganha um tipo de bloco só dela, de largura 1 a 12 e altura livre, que abre em largura inteira. A largura mínima de cada tipo de bloco continua igual.
+- **Alças visíveis** em modo Editar nas bordas direita e inferior e no canto, com o cursor mudando ao passar por cima. Vale para todos os blocos, em todas as visões.
+- **Largura pelo menu do bloco:** Metade, Dois terços ou Largura inteira.
+- **Gravação:** o tamanho fica gravado e volta igual depois de recarregar.
+- **No celular (390):** o bloco ocupa a largura inteira e o redimensionar fica oculto, sem botão desativado.
+- **Teste:** esticar a tabela do Relatório diário até a largura inteira, salvar, recarregar e conferir.
+
+## 8. "Comparar com gravado"
+
+O botão ainda aparece na barra do Relatório diário e entra no levantamento da limpeza (item 5).
+
 ## Conferência
 
 - **Testes, um por regra:**
@@ -118,4 +142,6 @@ Hoje há 7 canais nos atendimentos do Dr. Ricardo e a tela mostra 5. Falta o Ins
 - **Célula editável:** componente próprio com `inputMode="decimal"` ou `"numeric"` e atualização imediata da tela, revertida se der erro. O "Salvo" fica visível por cerca de 2 s.
 - **Exclusão de visões:** `salvarVisoesCliente` passa a registrar cada exclusão em `elora_config_acoes`, com o conteúdo, e só exclui ids vindos de uma lista explícita `excluir`.
 - **Canais:** `lerMapaCanais` completa a lista com os pares `canal_id`/`canal_nome` distintos dos atendimentos, por função SQL, sem trazer linhas. Tipo e nome real saem do payload do canal (`identity`/`type`). O apelido continua em `elora_dados_canais_permitidos`. `nome-canal.ts` segue como regra única.
+- **Tamanho:** novo tipo `tabela_matriz` em `layout-blocos.ts` (largura de 1 a 12 e altura livre), que nunca é enviado ao cálculo. Os blocos já gravados são convertidos na leitura (`cartoesDaMatriz`). O menu de largura usa o mesmo `redimensionar`.
+- **Colunas:** o editor de colunas e a `BarraTabela` usam uma lista só, ordenável por arrastar com dnd-kit, onde o Status do lead é mais uma entrada com engrenagem que abre o `ConfigStatusLead`.
 - **Limpeza:** o levantamento usa busca no código (quem importa o quê), tamanho das tabelas e leituras registradas. Cada exclusão de tabela passa por uma migração separada, depois do backup.
