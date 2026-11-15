@@ -65,11 +65,12 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
       d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
     8),
     lerTudo(() =>
-      d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).order("externo_id"),
+      d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_id:payload->>panelId, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).order("externo_id"),
     8),
     lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id"), 8),
-    d.from("elora_relatorio_corte_config").select("equipe_por_canal").eq("cliente_id", clienteId).maybeSingle(),
+    d.from("elora_relatorio_corte_config").select("equipe_por_canal, coluna_status").eq("cliente_id", clienteId).maybeSingle(),
   ]);
+  const { data: paineis } = await d.from("elora_paineis_sincronizados").select("painel_id, etapas").eq("cliente_id", clienteId);
   const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(d, clienteId);
   const canal: Record<string, string> = {};
   const usuario: Record<string, string> = {};
@@ -98,10 +99,25 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
     })),
     cards: cards.map((x: any) => ({
       id: String(x.externo_id), contato_ids: Array.isArray(x.contato_ids) ? x.contato_ids.map(String) : [],
-      painel: x.painel_titulo, etapa: x.etapa_titulo, fase: x.etapa_fase, status: x.status,
+      painel: x.painel_titulo, painel_id: x.painel_id ?? null, etapa: x.etapa_titulo, fase: x.etapa_fase, status: x.status,
       valor: x.valor == null ? null : Number(x.valor), criado_em: x.criado_em, atualizado_em: x.atualizado_em, cf: obj(x.cf),
     })),
   };
+  // Coluna "Status do lead": origem escolhida por cliente; sem origem, a coluna não existe (fica oculta).
+  const { colunaStatusValida, resolverStatusLead, rotuloStatus } = await import("./status-lead");
+  const cfgStatus = colunaStatusValida(corte?.data?.coluna_status);
+  const etapasDe = (id: string) => ((paineis ?? []).find((p: any) => p.painel_id === id)?.etapas ?? []).map((e: any) => String(e.nome));
+  const todasEtapas = [...new Set((paineis ?? []).flatMap((p: any) => (p.etapas ?? []).map((e: any) => String(e.nome))))] as string[];
+  base.ordens = { "card|etapa": todasEtapas };
+  if (cfgStatus) {
+    resolverStatusLead(base.contatos, base.cards, cfgStatus);
+    base.rotuloStatus = rotuloStatus(cfgStatus);
+    if (cfgStatus.fonte === "card" && cfgStatus.campo === "etapa" && cfgStatus.funilId) {
+      const o = etapasDe(cfgStatus.funilId);
+      base.ordens["contato|status_lead"] = o;
+      base.ordens["card|status_lead"] = o;
+    }
+  }
   return base;
 }
 
