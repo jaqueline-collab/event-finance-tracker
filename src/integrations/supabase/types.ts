@@ -3052,41 +3052,6 @@ export type Database = {
         }
         Relationships: []
       }
-      elora_uso_snapshots: {
-        Row: {
-          cliente_id: string
-          created_at: string
-          data: string
-          id: string
-          indicadores: Json
-          uso: Json
-        }
-        Insert: {
-          cliente_id: string
-          created_at?: string
-          data: string
-          id?: string
-          indicadores?: Json
-          uso?: Json
-        }
-        Update: {
-          cliente_id?: string
-          created_at?: string
-          data?: string
-          id?: string
-          indicadores?: Json
-          uso?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "elora_uso_snapshots_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "elora_clientes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       newsletter_inscricoes: {
         Row: {
           criado_em: string
@@ -3134,41 +3099,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      relatorio_diario_filtro_congelado: {
-        Row: {
-          cliente_id: string
-          congelado_em: string
-          congelado_por: string | null
-          filtros: Json
-          id: string
-          usuario_alvo_id: string
-        }
-        Insert: {
-          cliente_id: string
-          congelado_em?: string
-          congelado_por?: string | null
-          filtros?: Json
-          id?: string
-          usuario_alvo_id: string
-        }
-        Update: {
-          cliente_id?: string
-          congelado_em?: string
-          congelado_por?: string | null
-          filtros?: Json
-          id?: string
-          usuario_alvo_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "relatorio_diario_filtro_congelado_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "elora_clientes"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
