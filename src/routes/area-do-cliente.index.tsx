@@ -346,6 +346,7 @@ function AreaCliente() {
                         key={visaoId ?? "padrao"}
                         visaoId={visaoId}
                         padrao={ctx.filtrosPadrao}
+                        fixosVisao={ctx.filtrosFixos}
                         podeSalvarPadrao={ctx.podeEditar && ctx.editando}
                         clienteId={cliente.id}
                         periodo={periodo}
@@ -524,8 +525,10 @@ function PainelComFiltros({
   cartoes,
   outrasVisoes,
   novoGraficoChave,
+  fixosVisao,
   ...rest
 }: Omit<ComponentProps<typeof PainelVisual>, "filtros" | "onFiltros"> & {
+  fixosVisao: FiltroCampo[];
   visaoId: string | null;
   padrao: FiltroCampo[];
   podeSalvarPadrao: boolean;
@@ -536,8 +539,27 @@ function PainelComFiltros({
   const [filtros, setFiltros] = useState<FiltroCampo[]>(padrao);
   const [salvando, setSalvando] = useState(false);
   const iguais = JSON.stringify(filtros) === JSON.stringify(padrao);
+  const [fixos, setFixos] = useState<FiltroCampo[]>(fixosVisao);
+  const salvarFixos = async (f: FiltroCampo[]) => {
+    if (!visaoId) return;
+    const antes = fixos;
+    setFixos(f);
+    try {
+      await salvarFiltrosFixosVisao({ data: { clienteId: rest.clienteId, visaoId, filtros: f } });
+      toast.success("Filtro fixo da visão salvo.");
+    } catch (e) {
+      setFixos(antes);
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
   return (
     <div className="space-y-2">
+      {visaoId && podeSalvarPadrao ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Filtro fixo da visão (vale para todos os blocos; quem vê não remove):</span>
+          <FiltroCampos clienteId={rest.clienteId} filtros={fixos} onFiltros={(f) => void salvarFixos(f)} fonteDaVisao="varias" rotuloBotao="Filtro fixo da visão" />
+        </div>
+      ) : fixos.length > 0 && <SelosFixos clienteId={rest.clienteId} filtros={fixos} prefixo="Filtro fixo da visão" />}
       {podeSalvarPadrao && visaoId && !iguais && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm">
           <span className="text-muted-foreground">Os filtros desta visão mudaram.</span>
@@ -572,6 +594,7 @@ function PainelComFiltros({
           podeEditar={podeSalvarPadrao}
           periodo={rest.periodo}
           filtrosVisao={filtros}
+          chaveFixos={JSON.stringify(fixos)}
           onFiltroGrafico={(f) => setFiltros((l) => [...l.filter((x) => !(x.fonte === f.fonte && x.campo === f.campo)), f])}
           outrasVisoes={outrasVisoes}
           novoChave={novoGraficoChave}

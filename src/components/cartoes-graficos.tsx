@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { FiltroCampos } from "@/components/filtro-campos";
+import { FiltroCampos, SelosFixos } from "@/components/filtro-campos";
 import type { FiltroCampo, FonteCampo } from "@/lib/campos-elora";
 import { FONTES_CATALOGO } from "@/lib/campos-elora";
 import { calcularCartoes, itensDiaCalendario, lerInicioSemana, salvarInicioSemana, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
