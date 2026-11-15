@@ -77,6 +77,15 @@ export async function desfazerAcaoServidor(db: any, clienteId: string, acaoId: s
       ? await db.from("elora_campos_ajustes").upsert(a.antes, { onConflict: "cliente_id,fonte,campo" })
       : await db.from("elora_campos_ajustes").update({ rotulo: null, oculto: false }).eq("cliente_id", clienteId).eq("fonte", fonte).eq("campo", c.join("|"));
     if (r.error) throw new Error(r.error.message);
+  } else if (tipo === "visao_excluida") {
+    // Restaura a visão apagada com o mesmo id e conteúdo.
+    const { error: e } = await db.from("elora_dashboard_visoes").upsert(a.antes, { onConflict: "id" });
+    if (e) throw new Error(e.message);
+  } else if (tipo === "manual") {
+    // manual:<chave>|<dia>: volta o valor anterior da célula (vazio = sem valor).
+    const [chave, dia] = id.split("|");
+    const { error: e } = await db.from("elora_matriz_manual").upsert({ cliente_id: clienteId, coluna_chave: chave, data: dia, valor: a.antes?.valor ?? null, alterado_por: "desfazer", alterado_em: new Date().toISOString() }, { onConflict: "cliente_id,coluna_chave,data" });
+    if (e) throw new Error(e.message);
   } else throw new Error("alvo desconhecido.");
   await db.from("elora_config_acoes").update({ desfeita_em: new Date().toISOString() }).eq("id", acaoId);
   return { ok: true };
