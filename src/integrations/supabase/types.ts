@@ -1509,6 +1509,7 @@ export type Database = {
       }
       elora_indicadores_config: {
         Row: {
+          aceita_futuro: boolean
           ativo: boolean
           atualizado_em: string
           chave: string
@@ -1523,9 +1524,11 @@ export type Database = {
           medida: string
           nome: string
           ordem: number
+          preenche: string
           tipo: string
         }
         Insert: {
+          aceita_futuro?: boolean
           ativo?: boolean
           atualizado_em?: string
           chave: string
@@ -1540,9 +1543,11 @@ export type Database = {
           medida?: string
           nome: string
           ordem?: number
+          preenche?: string
           tipo?: string
         }
         Update: {
+          aceita_futuro?: boolean
           ativo?: boolean
           atualizado_em?: string
           chave?: string
@@ -1557,6 +1562,7 @@ export type Database = {
           medida?: string
           nome?: string
           ordem?: number
+          preenche?: string
           tipo?: string
         }
         Relationships: [
