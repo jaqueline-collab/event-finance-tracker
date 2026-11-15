@@ -13,7 +13,7 @@ const NAT = { canal: { fonte: "atendimento", campo: "canal" }, atendente: { font
 const { diretos, outros } = separarFiltros([f], NAT);
 const m: any = await montarMatrizCliente(db, CL, p, diretos, { campos: outros });
 const cols = m.colunas.slice(0, 6);
-const cartoes = cols.map((c: any) => cartaoSchema.parse({ id: "x" + c.chave, titulo: c.nome, tipo: "numero", medida: "indicador", indicador: c.chave, filtros: [f] }));
+const cartoes = cols.map((c: any) => cartaoSchema.parse({ id: "x" + c.chave, titulo: c.nome, tipo: "numero", fonte: "atendimento", medida: "indicador", indicador: c.chave, filtros: [f] }));
 const r: any = await calcularCartoesServidor(db, { clienteId: CL, ...p, filtrosVisao: [] }, cartoes, { semDinheiro: false }, { usarCache: false });
 for (const c of cols) console.log(c.nome, "| Matriz filtrada:", m.total[c.chave]?.valor, "| bloco com filtro fixo:", r["x" + c.chave]?.r?.total);
 process.exit(0);
