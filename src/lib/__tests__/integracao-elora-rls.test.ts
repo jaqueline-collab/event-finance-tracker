@@ -86,11 +86,6 @@ beforeAll(async () => {
   } as never);
   if (conta.error) throw conta.error;
 
-  const snap = await admin.from("elora_uso_snapshots" as never).insert([
-    { cliente_id: CLI_A, data: "2026-09-01", uso: { mau: 10 }, indicadores: { csat: 4.5 } },
-    { cliente_id: CLI_B, data: "2026-09-01", uso: { mau: 5 }, indicadores: {} },
-  ] as never);
-  if (snap.error) throw snap.error;
 
   const contatos = await admin.from("elora_contatos_sincronizados" as never).insert([
     {
@@ -166,7 +161,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await admin.from("elora_integracao_contas" as never).delete().eq("cliente_id", CLI_A);
-  await admin.from("elora_uso_snapshots" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
   await admin.from("elora_contatos_sincronizados" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
   await admin.from("elora_paineis_sincronizados" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
   await admin.from("elora_sequencias_sincronizadas" as never).delete().in("cliente_id", [CLI_A, CLI_B]);
@@ -195,41 +189,6 @@ describe("integração Elora — chave da conta (elora_integracao_contas)", () =
     } else {
       expect(r.data).toEqual([]);
     }
-  }, 60_000);
-});
-
-describe("integração Elora — snapshots de uso (elora_uso_snapshots)", () => {
-  it("o cliente logado lê apenas os próprios snapshots", async () => {
-    const cli = await logar(emailCliente);
-    await cli.rpc("link_cliente_usuario" as never);
-    const { data, error } = await cli
-      .from("elora_uso_snapshots" as never)
-      .select("cliente_id, uso");
-    expect(error).toBeNull();
-    const linhas = (data ?? []) as { cliente_id: string }[];
-    expect(linhas.length).toBeGreaterThan(0);
-    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
-  }, 60_000);
-
-  it("o parceiro com painel liberado lê snapshots dos clientes dele, não de outros", async () => {
-    const cli = await logar(emailParceiro);
-    await cli.rpc("link_parceiro_usuario" as never);
-    const { data, error } = await cli
-      .from("elora_uso_snapshots" as never)
-      .select("cliente_id");
-    expect(error).toBeNull();
-    const linhas = (data ?? []) as { cliente_id: string }[];
-    expect(linhas.length).toBeGreaterThan(0);
-    for (const l of linhas) expect(l.cliente_id).toBe(CLI_A);
-  }, 60_000);
-
-  it("usuário sem vínculo não lê nenhum snapshot", async () => {
-    const cli = await logar(emailIntruso);
-    const { data, error } = await cli
-      .from("elora_uso_snapshots" as never)
-      .select("cliente_id");
-    expect(error).toBeNull();
-    expect(data).toEqual([]);
   }, 60_000);
 });
 

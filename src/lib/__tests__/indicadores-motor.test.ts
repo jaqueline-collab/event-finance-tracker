@@ -212,3 +212,19 @@ describe("novos contatos pela primeira sessão", () => {
     expect(L[0]).toMatchObject({ canal: "", equipe: "", atendente: "", novos_contatos: 1 });
   });
 });
+
+describe("usuários de suporte: esconde a pessoa, mantém a conversa", () => {
+  const cfg = { nomeCanal: { c1: "X" }, equipePorCanal: {}, agentes: { j: { nome: "Jaqueline Ditós" }, v: { nome: "Vinicio" } }, ignorar: [], ocultar: [{ nome: "Jaqueline Ditós" }] };
+  const s = [{ id: "s1", contato_id: "k1", canal_id: "c1", canal_nome: null, responsavel_id: "j", responsavel_nome: "Jaqueline Ditós" }];
+  it("conversa atribuída a ela conta, com atendente vazio", () => {
+    const m = [{ sessao_id: "s1", enviada_em: "2026-11-10T13:00:00Z", tipo: "TEXT", origem: "BOT", user_id: null }];
+    const L = calcularPadraoPorCorte([], m as any, s, cfg as any);
+    expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
+    expect(L.some((l) => l.atendente === "Jaqueline Ditós")).toBe(false);
+  });
+  it("mensagem dela não vira resposta da equipe do cliente", () => {
+    const m = [{ sessao_id: "s1", enviada_em: "2026-11-10T13:00:00Z", tipo: "TEXT", origem: "AGENT", user_id: "j" }];
+    const L = calcularPadraoPorCorte([], m as any, [{ ...s[0], responsavel_id: null, responsavel_nome: null }], cfg as any);
+    expect(L[0].atendente).toBe("");
+  });
+});
