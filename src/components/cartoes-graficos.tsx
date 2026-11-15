@@ -559,6 +559,11 @@ function EditorCartao({
     opcoesGraficos({ data: { clienteId } }).then(setOp).catch((e) => toast.error(msg(e)));
   }, [clienteId]);
   const set = (p: Partial<CartaoGrafico>) => setC((x) => ({ ...x, ...p }));
+  const [configStatus, setConfigStatus] = useState(false);
+  // Status do lead é uma coluna como as outras: aparece na lista mesmo quando ainda não foi posicionada (antes ia ao fim).
+  const colunasEditor: CartaoGrafico["colunas"] = c.colunas.some((f) => f.campo === CAMPO_STATUS_LEAD)
+    ? c.colunas
+    : [...c.colunas, { fonte: c.fonte === "card" ? "card" : "contato", campo: CAMPO_STATUS_LEAD } as CartaoGrafico["colunas"][number]];
   const fontes = op ? fontesDisponiveis(op.catalogo as any) : [];
   const tipos = op ? tiposDisponiveis(op.catalogo as any, c) : [];
   useEffect(() => {
