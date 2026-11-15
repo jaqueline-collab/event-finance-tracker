@@ -1,7 +1,8 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { definirModoEditar } from "@/lib/modo-editar";
-import { Copy, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { dataHoraSync } from "@/lib/sync-fontes";
+import { ArrowLeft, ArrowRight, Copy, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -27,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { listarVisoesCliente, salvarVisoesCliente } from "@/lib/dashboard-visoes.functions";
-import { lerNomeMatriz, salvarNomeMatriz } from "@/lib/matriz.functions";
+import { lerAtualizadoAte, lerNomeMatriz, salvarNomeMatriz } from "@/lib/matriz.functions";
 import { mostrarBarraDeAbas, moverVisao, proximoNomeVisao, type Visao } from "@/lib/dashboard-visoes";
 
 type VisaoEdit = Visao & { novaDe?: string | null };
@@ -87,9 +88,14 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const [chave, setChave] = useState(0);
   const [nomeMatriz, setNomeMatriz] = useState("Relatório diário");
   const [renomeandoMatriz, setRenomeandoMatriz] = useState(false);
+  /** Posição da aba Relatório diário entre as abas (null = no fim). */
+  const [ordemMatriz, setOrdemMatriz] = useState<number | null>(null);
+  const [ordemMatrizSalva, setOrdemMatrizSalva] = useState<number | null>(null);
+  const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
+  useEffect(() => { lerAtualizadoAte({ data: { clienteId } }).then((r) => setAtualizadoEm(r.ate)).catch(() => {}); }, [clienteId]);
   useEffect(() => {
     if (!matriz) return;
-    lerNomeMatriz({ data: { clienteId } }).then((r) => setNomeMatriz(r.nome)).catch(() => {});
+    lerNomeMatriz({ data: { clienteId } }).then((r) => { setNomeMatriz(r.nome); setOrdemMatriz(r.ordem); setOrdemMatrizSalva(r.ordem); }).catch(() => {});
   }, [clienteId, matriz]);
   const fimRenomearMatriz = async () => {
     setRenomeandoMatriz(false);
@@ -142,6 +148,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   };
 
   const cancelar = async () => {
+    setOrdemMatriz(ordemMatrizSalva);
     setEditando(false);
     setRenomeando(null);
     await carregar(false);
@@ -163,6 +170,10 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
           })),
         },
       });
+      if (matriz && ordemMatriz !== ordemMatrizSalva && ordemMatriz !== null) {
+        await salvarNomeMatriz({ data: { clienteId, ordem: ordemMatriz } });
+        setOrdemMatrizSalva(ordemMatriz);
+      }
       setRascunho(r.visoes.map((v) => ({ ...v })));
       setSalvas(r.visoes);
       setAtiva((a) => (a === VISAO_MATRIZ || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
@@ -206,18 +217,38 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
 
   const aoArrastar = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
-    const de = rascunho.findIndex((v) => v.id === e.active.id);
-    const alvo = e.over.id;
-    const para = rascunho.findIndex((v) => v.id === alvo);
-    setRascunho((l) => moverVisao(l, de, para));
+    const ids = idsAbas;
+    const de = ids.indexOf(String(e.active.id));
+    const para = ids.indexOf(String(e.over.id));
+    if (de < 0 || para < 0) return;
+    const nova = [...ids];
+    const [x] = nova.splice(de, 1);
+    nova.splice(para, 0, x);
+    if (matriz) setOrdemMatriz(nova.indexOf(VISAO_MATRIZ));
+    const semMatriz = nova.filter((id) => id !== VISAO_MATRIZ);
+    setRascunho((l) => semMatriz.map((id, i) => ({ ...(l.find((v) => v.id === id) as VisaoEdit), ordem: i })));
+  };
+  /** Move a aba uma posição (menu "..."), mesma regra do arrastar. */
+  const moverAba = (id: string, passo: -1 | 1) => {
+    const de = idsAbas.indexOf(id);
+    const para = de + passo;
+    if (de < 0 || para < 0 || para >= idsAbas.length) return;
+    aoArrastar({ active: { id }, over: { id: idsAbas[para] } } as unknown as DragEndEvent);
   };
 
   const lista: VisaoEdit[] = editando ? rascunho : (salvas ?? []);
+  const idsAbas: string[] = (() => {
+    const ids = lista.map((v) => v.id);
+    if (!matriz) return ids;
+    const pos = ordemMatriz === null ? ids.length : Math.min(Math.max(ordemMatriz, 0), ids.length);
+    return [...ids.slice(0, pos), VISAO_MATRIZ, ...ids.slice(pos)];
+  })();
   const alteradoNaoSalvo =
     editando &&
     salvas !== null &&
+    (ordemMatriz !== ordemMatrizSalva ||
     JSON.stringify(rascunho.map((v) => [v.id, v.nome, v.publicada, [...(v.ocultos ?? [])].sort()])) !==
-      JSON.stringify(salvas.slice().sort((a, b) => a.ordem - b.ordem).map((v) => [v.id, v.nome, v.publicada, [...(v.ocultos ?? [])].sort()]));
+      JSON.stringify(salvas.slice().sort((a, b) => a.ordem - b.ordem).map((v) => [v.id, v.nome, v.publicada, [...(v.ocultos ?? [])].sort()])));
   const naMatriz = ativa === VISAO_MATRIZ && Boolean(matriz);
   const ativaEdit = naMatriz ? null : (lista.find((v) => v.id === ativa) ?? null);
   const visaoParaConteudo = ativaEdit && !ehNova(ativaEdit.id) ? ativaEdit.id : salvas?.[0]?.id ?? null;
@@ -249,43 +280,35 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
 
   return (
     <div className="space-y-4">
+      {atualizadoEm && <p className="text-xs text-muted-foreground">Dados atualizados até {dataHoraSync(atualizadoEm)}</p>}
       {mostrarAbas && (
         <div className="flex flex-wrap items-center gap-2 border-b">
           <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoArrastar}>
-            <SortableContext items={lista.map((v) => v.id)} strategy={horizontalListSortingStrategy}>
+            <SortableContext items={idsAbas} strategy={horizontalListSortingStrategy}>
               <div className="-mb-px flex flex-wrap items-center gap-1" role="tablist" aria-label="Visões">
-                {lista.map((v) => (
-                  <AbaVisao
-                    key={v.id}
-                    visao={v}
-                    ativa={v.id === ativa}
-                    editando={editando}
-                    renomeando={renomeando === v.id}
-                    onSelecionar={() => setAtiva(v.id)}
-                    onRenomear={() => editando && setRenomeando(v.id)}
-                    onNome={(nome) => alterar(v.id, { nome })}
-                    onFimRenomear={() => setRenomeando(null)}
-                    onDuplicar={() => nova(v)}
-                    onExcluir={() => setExcluindo(v)}
-                  />
-                ))}
-                {matriz && renomeandoMatriz && (
-                  <Input autoFocus maxLength={60} value={nomeMatriz} aria-label="Nome da aba" className="h-7 w-40 text-foreground"
-                    onChange={(e) => setNomeMatriz(e.target.value)} onBlur={fimRenomearMatriz} onKeyDown={(e) => e.key === "Enter" && fimRenomearMatriz()} />
-                )}
-                {matriz && !renomeandoMatriz && (
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={naMatriz}
-                    onClick={() => setAtiva(VISAO_MATRIZ)}
-                    onDoubleClick={() => editando && podeEditar && setRenomeandoMatriz(true)}
-                    className={`border-b-2 px-4 py-2.5 text-sm transition-colors ${naMatriz ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {nomeMatriz}
-                  </button>
-                )}
-
+                {idsAbas.map((id, i) => {
+                  const ehMatriz = id === VISAO_MATRIZ;
+                  const v: VisaoEdit = ehMatriz ? { id, nome: nomeMatriz, ordem: i, publicada: true, totalGraficos: 0 } as VisaoEdit : (lista.find((x) => x.id === id) as VisaoEdit);
+                  return (
+                    <AbaVisao
+                      key={id}
+                      visao={v}
+                      fixa={ehMatriz}
+                      ativa={ehMatriz ? naMatriz : v.id === ativa}
+                      editando={editando && podeEditar}
+                      renomeando={ehMatriz ? renomeandoMatriz : renomeando === v.id}
+                      podeEsquerda={i > 0}
+                      podeDireita={i < idsAbas.length - 1}
+                      onMover={(passo) => moverAba(id, passo)}
+                      onSelecionar={() => setAtiva(id)}
+                      onRenomear={() => editando && (ehMatriz ? setRenomeandoMatriz(true) : setRenomeando(v.id))}
+                      onNome={(nome) => (ehMatriz ? setNomeMatriz(nome) : alterar(v.id, { nome }))}
+                      onFimRenomear={() => (ehMatriz ? void fimRenomearMatriz() : setRenomeando(null))}
+                      onDuplicar={() => nova(v)}
+                      onExcluir={() => setExcluindo(v)}
+                    />
+                  );
+                })}
               </div>
             </SortableContext>
           </DndContext>
@@ -365,7 +388,15 @@ function AbaVisao({
   onFimRenomear,
   onDuplicar,
   onExcluir,
+  fixa = false,
+  podeEsquerda = false,
+  podeDireita = false,
+  onMover,
 }: {
+  fixa?: boolean;
+  podeEsquerda?: boolean;
+  podeDireita?: boolean;
+  onMover?: (passo: -1 | 1) => void;
   visao: VisaoEdit;
   ativa: boolean;
   editando: boolean;
@@ -417,8 +448,10 @@ function AbaVisao({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onRenomear}><Pencil className="mr-2 h-4 w-4" /> Renomear</DropdownMenuItem>
-            <DropdownMenuItem onClick={onDuplicar}><Copy className="mr-2 h-4 w-4" /> Duplicar</DropdownMenuItem>
-            <DropdownMenuItem onClick={onExcluir} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Excluir</DropdownMenuItem>
+            {podeEsquerda && <DropdownMenuItem onClick={() => onMover?.(-1)}><ArrowLeft className="mr-2 h-4 w-4" /> Mover para a esquerda</DropdownMenuItem>}
+            {podeDireita && <DropdownMenuItem onClick={() => onMover?.(1)}><ArrowRight className="mr-2 h-4 w-4" /> Mover para a direita</DropdownMenuItem>}
+            {!fixa && <DropdownMenuItem onClick={onDuplicar}><Copy className="mr-2 h-4 w-4" /> Duplicar</DropdownMenuItem>}
+            {!fixa && <DropdownMenuItem onClick={onExcluir} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Excluir</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
       )}

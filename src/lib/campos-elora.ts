@@ -54,6 +54,8 @@ export type BaseCampos = {
   ordens?: Record<string, string[]>;
   /** Nome exibido da coluna "Status do lead" (ausente = coluna sem origem, fica oculta). */
   rotuloStatus?: string | null;
+  /** Cor por valor (`fonte|campo` → valor → cor do Elora App ou escolhida), usada nas etiquetas. */
+  cores?: Record<string, Record<string, string>>;
 };
 export type AjusteCampo = { fonte: FonteCampo; campo: string; rotulo?: string | null; oculto?: boolean };
 

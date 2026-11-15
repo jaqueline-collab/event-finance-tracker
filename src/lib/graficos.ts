@@ -285,6 +285,8 @@ export type ResultadoCartao = {
   /** Tabela de itens: ordem conhecida por coluna (agrupar segue o funil) e colunas de etiqueta colorida. */
   ordensColunas?: Record<string, string[]>;
   etiquetas?: string[];
+  /** Cor por valor nas colunas de etiqueta (do Elora App ou escolhida); ausente = cor padrão. */
+  coresColunas?: Record<string, Record<string, string>>;
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };
@@ -704,10 +706,13 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const colunasItens: { chave: string; rotulo: string; oculta?: boolean; fixa?: boolean }[] = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem", ...meta(f) } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f), ...meta(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
   const ordensColunas: Record<string, string[]> = {};
   const etiquetas: string[] = [];
+  const coresColunas: Record<string, Record<string, string>> = {};
   for (const f of colunas) {
     const o = base.ordens?.[`${f.fonte}|${f.campo}`];
     if (o?.length) ordensColunas[`${f.fonte}|${f.campo}`] = o;
     if (ehStatus(f)) etiquetas.push(`${f.fonte}|${f.campo}`);
+    const cores = base.cores?.[`${f.fonte}|${f.campo}`];
+    if (cores && Object.keys(cores).length) coresColunas[`${f.fonte}|${f.campo}`] = cores;
   }
   const txt = textoItem;
   const itens: { id: string; valores: Record<string, string>; brutos: Record<string, string> }[] = [];
@@ -727,7 +732,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
     itens.push({ id: String(r.id), valores, brutos });
     if (itens.length >= limite) break;
   }
-  return { categorias: [], series: [], total: itens.length, anterior: null, linhas: itens.length, colunasItens, itens, ...(Object.keys(ordensColunas).length ? { ordensColunas } : {}), ...(etiquetas.length ? { etiquetas } : {}) };
+  return { categorias: [], series: [], total: itens.length, anterior: null, linhas: itens.length, colunasItens, itens, ...(Object.keys(ordensColunas).length ? { ordensColunas } : {}), ...(etiquetas.length ? { etiquetas } : {}), ...(Object.keys(coresColunas).length ? { coresColunas } : {}) };
 }
 
 /** Coluna de dinheiro na tabela de itens (mesma regra de `itensTabela`). */
