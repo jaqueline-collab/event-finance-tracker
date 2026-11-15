@@ -3236,6 +3236,14 @@ export type Database = {
     Functions: {
       bootstrap_admin_if_empty: { Args: never; Returns: undefined }
       cliente_do_usuario: { Args: never; Returns: string }
+      elora_canais_atendimentos: {
+        Args: { _cliente_id: string }
+        Returns: {
+          atendimentos: number
+          canal_id: string
+          canal_nome: string
+        }[]
+      }
       elora_conversas_pares: {
         Args: { _cliente_id: string; _fim: string; _inicio: string }
         Returns: {
