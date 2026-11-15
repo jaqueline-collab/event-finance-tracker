@@ -187,9 +187,15 @@ async function releituraPorContatos(db: SupabaseClient, clienteId: string, ctx: 
     if (!j?.hasMorePages || !itens.length) break;
   }
   if (!alterados.length) return 0;
-  const { data, error } = await db.from("elora_cards_espelho").select("payload").eq("cliente_id", clienteId).overlaps("contato_ids", alterados);
-  if (error) throw new Error(`elora_cards_espelho: ${error.message}`);
-  return registrarLeituras(db, clienteId, (data ?? []).map((r: any) => r.payload));
+  // Em lotes: milhares de ids num só filtro estouram o tamanho do pedido ("Bad Request").
+  const unicos = [...new Set(alterados)];
+  let total = 0;
+  for (let i = 0; i < unicos.length; i += 150) {
+    const { data, error } = await db.from("elora_cards_espelho").select("payload").eq("cliente_id", clienteId).overlaps("contato_ids", unicos.slice(i, i + 150));
+    if (error) throw new Error(`elora_cards_espelho: ${error.message}`);
+    total += await registrarLeituras(db, clienteId, (data ?? []).map((r: any) => r.payload));
+  }
+  return total;
 }
 
 /** Monta o contexto de chamada do Elora com a chave do cofre. */
