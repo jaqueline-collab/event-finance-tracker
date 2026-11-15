@@ -153,11 +153,12 @@ export const salvarCelulaManual = createServerFn({ method: "POST" })
       .upsert({ cliente_id: data.clienteId, coluna_chave: data.chave, data: data.data, valor: data.valor, alterado_por: quem, alterado_em: new Date().toISOString() }, { onConflict: "cliente_id,coluna_chave,data" });
     if (error) throw new Error(error.message);
     const txt = (v: number | null) => (v == null ? "vazio" : String(v));
-    await db.from("elora_config_acoes").insert({
+    const { error: eLog } = await db.from("elora_config_acoes").insert({
       cliente_id: data.clienteId, usuario_id: (context as any).userId ?? null, usuario_email: (context as any).claims?.email ?? null,
       alvo: `manual:${data.chave}|${data.data}`, descricao: `${col.nome ?? data.chave} em ${data.data.split("-").reverse().join("/")}: ${txt(anterior)} → ${txt(data.valor)}`,
       antes: { valor: anterior }, depois: { valor: data.valor },
     });
+    if (eLog) console.error("log da coluna manual:", eLog.message);
     return { ok: true };
   });
 

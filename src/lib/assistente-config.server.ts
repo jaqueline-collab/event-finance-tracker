@@ -84,7 +84,10 @@ export async function desfazerAcaoServidor(db: any, clienteId: string, acaoId: s
   } else if (tipo === "manual") {
     // manual:<chave>|<dia>: volta o valor anterior da célula (vazio = sem valor).
     const [chave, dia] = id.split("|");
-    const { error: e } = await db.from("elora_matriz_manual").upsert({ cliente_id: clienteId, coluna_chave: chave, data: dia, valor: a.antes?.valor ?? null, alterado_por: "desfazer", alterado_em: new Date().toISOString() }, { onConflict: "cliente_id,coluna_chave,data" });
+    const anterior = a.antes?.valor ?? null;
+    const { error: e } = anterior == null
+      ? await db.from("elora_matriz_manual").delete().eq("cliente_id", clienteId).eq("coluna_chave", chave).eq("data", dia)
+      : await db.from("elora_matriz_manual").upsert({ cliente_id: clienteId, coluna_chave: chave, data: dia, valor: anterior, alterado_por: "desfazer", alterado_em: new Date().toISOString() }, { onConflict: "cliente_id,coluna_chave,data" });
     if (e) throw new Error(e.message);
   } else throw new Error("alvo desconhecido.");
   await db.from("elora_config_acoes").update({ desfeita_em: new Date().toISOString() }).eq("id", acaoId);
