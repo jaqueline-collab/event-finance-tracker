@@ -17,6 +17,12 @@ import {
 
 import { lerTudo } from "./ler-paginas.server";
 
+/** Contatos novos do período + primeira sessão de cada um, montados no banco (uma chamada). */
+export async function lerNovosContatos(db: SupabaseClient, clienteId: string, inicio: string, fim: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<any[]> {
+  if (ctx) return ctx.memo(`novos|${clienteId}|${inicio}|${fim}`, () => lerNovosContatos(db, clienteId, inicio, fim));
+  return lerTudo(() => (db as any).rpc("elora_novos_contatos", { _cliente_id: clienteId, _inicio: inicio, _fim: fim }).order("externo_id"), 6);
+}
+
 export async function lerConfig(db: SupabaseClient, clienteId: string, ctx?: import("./calculo-contexto.server").Ctx): Promise<IndicadorConfig[]> {
   if (ctx) return ctx.memo(`cfg|${clienteId}`, () => lerConfig(db, clienteId));
   const { data, error } = await db.from("elora_indicadores_config").select("*").eq("cliente_id", clienteId).order("ordem");
@@ -92,9 +98,7 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     db.from("elora_relatorio_corte_config" as any).select("equipe_por_canal, atendentes_ignorados").eq("cliente_id", clienteId).maybeSingle(),
     lerTudo(() => db.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["canal", "usuario"]).order("externo_id")),
     lerMensagensSemTexto(db, clienteId, inicio, fim, ctx),
-    lerTudo(() =>
-      db.from("elora_contatos_espelho").select("externo_id, criado_em, origem, utm_campaign").eq("cliente_id", clienteId).gte("criado_em", inicio).lte("criado_em", fim).order("externo_id"),
-    ),
+    lerNovosContatos(db, clienteId, inicio, fim, ctx),
   ]);
   if (suporte.error) throw new Error(`elora_suporte_interno: ${suporte.error.message}`);
   if (corte.error) throw new Error(`elora_relatorio_corte_config: ${corte.error.message}`);
@@ -109,17 +113,8 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     for (const s of data ?? [])
       sessoes.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome });
   }
-  // sessões de todos os contatos novos (qualquer data), para achar a primeira de cada um
-  const novosIds = [...new Set((contatosRaw as any[]).map((x) => String(x.externo_id)))];
-  const primeiras: any[] = [];
-  const lotesPrim = await Promise.all(
-    blocos(novosIds, 200).map((ids) => db.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, criado_em").eq("cliente_id", clienteId).in("contato_id", ids)),
-  );
-  for (const { data, error } of lotesPrim) {
-    if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
-    for (const s of data ?? [])
-      primeiras.push({ id: String(s.externo_id), contato_id: s.contato_id, canal_id: s.canal_id, canal_nome: s.canal_nome, responsavel_id: s.atendente_id, responsavel_nome: s.atendente_nome, criado_em: s.criado_em });
-  }
+  // primeira sessão de cada contato novo já vem da função SQL (mesma ordem: criado_em, depois id)
+  const primeiras: any[] = (contatosRaw as any[]).filter((x) => x.sessao_id).map((x) => ({ id: String(x.sessao_id), contato_id: x.externo_id, canal_id: x.canal_id, canal_nome: x.canal_nome, responsavel_id: x.atendente_id, responsavel_nome: x.atendente_nome, criado_em: x.sessao_criado_em }));
   const nomeCanal: Record<string, string> = {};
   const agentes: Record<string, { nome: string; email?: string | null }> = {};
   for (const a of apoio as any[]) {
