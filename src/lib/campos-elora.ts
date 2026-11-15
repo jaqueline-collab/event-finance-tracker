@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { NAO_DEFINIDO, normalizarValoresFiltro } from "./nao-definido";
+import { ordenarPor } from "./status-lead";
 
 export type FonteCampo = "contato" | "atendimento" | "card" | "utm";
 export type TipoCampo = "texto" | "numero" | "data" | "lista" | "simnao" | "moeda";
@@ -36,21 +37,29 @@ export type ContatoBase = {
   utm_source?: string | null; utm_medium?: string | null; utm_campaign?: string | null; criado_em?: string | null; cf?: Record<string, unknown> | null;
   /** Todas as UTMs que o Elora fornecer (além de source/medium/campaign). */
   utm?: Record<string, unknown> | null;
+  /** Coluna "Status do lead" já resolvida pela origem configurada do cliente. */
+  status_lead?: string | null;
 };
 export type AtendimentoBase = {
   id: string; contato_id: string | null; canal?: string | null; atendente?: string | null; equipe?: string | null; classificacao?: string | null;
   status?: string | null; criado_em?: string | null; tempo_espera?: number | null; tempo_atendimento?: number | null;
 };
 export type CardBase = {
-  id: string; contato_ids: string[]; painel?: string | null; etapa?: string | null; fase?: string | null; status?: string | null;
+  id: string; contato_ids: string[]; painel?: string | null; painel_id?: string | null; status_lead?: string | null; etapa?: string | null; fase?: string | null; status?: string | null;
   valor?: number | null; criado_em?: string | null; atualizado_em?: string | null; cf?: Record<string, unknown> | null;
 };
-export type BaseCampos = { definicoes: DefinicaoCampo[]; contatos: ContatoBase[]; atendimentos: AtendimentoBase[]; cards: CardBase[] };
+export type BaseCampos = {
+  definicoes: DefinicaoCampo[]; contatos: ContatoBase[]; atendimentos: AtendimentoBase[]; cards: CardBase[];
+  /** Ordem conhecida dos valores (etapas do funil) por `fonte|campo`; o resto segue alfabético. */
+  ordens?: Record<string, string[]>;
+  /** Nome exibido da coluna "Status do lead" (ausente = coluna sem origem, fica oculta). */
+  rotuloStatus?: string | null;
+};
 export type AjusteCampo = { fonte: FonteCampo; campo: string; rotulo?: string | null; oculto?: boolean };
 
 /** Campos que o motor de colunas (Matriz) sabe ler; só estes viram "coluna". */
 const COLUNA_OK = (f: FonteCampo, c: string) =>
-  f === "utm" || (f === "contato" && (c === "origem" || c.startsWith("campo."))) || (f === "card" && (c === "valor" || c.startsWith("campo.")));
+  f === "utm" || (f === "contato" && (c === "origem" || c === "status_lead" || c.startsWith("campo."))) || (f === "card" && (c === "valor" || c === "status_lead" || c.startsWith("campo.")));
 
 type Fixo = { campo: string; nome: string; tipo: TipoCampo; ler: (r: any) => unknown };
 const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
@@ -61,6 +70,7 @@ const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
     { campo: "etiquetas", nome: "Etiquetas", tipo: "lista", ler: (r) => r.etiquetas ?? [] },
     { campo: "origem", nome: "Origem", tipo: "lista", ler: (r) => r.origem },
     { campo: "criado_em", nome: "Data de criação", tipo: "data", ler: (r) => r.criado_em },
+    { campo: "status_lead", nome: "Status do lead", tipo: "lista", ler: (r) => r.status_lead },
   ],
   atendimento: [
     { campo: "criado_em", nome: "Data", tipo: "data", ler: (r) => r.criado_em },
@@ -77,10 +87,11 @@ const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
     { campo: "painel", nome: "Painel", tipo: "lista", ler: (r) => r.painel },
     { campo: "etapa", nome: "Etapa", tipo: "lista", ler: (r) => r.etapa },
     { campo: "fase", nome: "Fase da etapa", tipo: "lista", ler: (r) => r.fase },
-    { campo: "status", nome: "Status", tipo: "lista", ler: (r) => r.status },
+    { campo: "status", nome: "Situação do card", tipo: "lista", ler: (r) => r.status },
     { campo: "valor", nome: "Valor", tipo: "moeda", ler: (r) => r.valor },
     { campo: "criado_em", nome: "Data de criação", tipo: "data", ler: (r) => r.criado_em },
     { campo: "atualizado_em", nome: "Última atualização", tipo: "data", ler: (r) => r.atualizado_em },
+    { campo: "status_lead", nome: "Status do lead", tipo: "lista", ler: (r) => r.status_lead },
   ],
 };
 const UTM: Fixo[] = [
@@ -186,7 +197,11 @@ export function montarCatalogo(base: BaseCampos, ajustes: AjusteCampo[] = []): G
   return FONTES_CATALOGO.map(({ fonte, nome }) => ({
     fonte,
     nome,
-    campos: g[fonte].map((c) => {
+    campos: g[fonte].map((c0) => {
+      let c = c0;
+      if (c.campo === "status_lead" && base.rotuloStatus) c = { ...c, nome: base.rotuloStatus, rotulo: base.rotuloStatus };
+      const ordem = base.ordens?.[`${fonte}|${c.campo}`];
+      if (ordem && c.opcoes) c = { ...c, opcoes: ordenarPor(c.opcoes, [...ordem, NAO_DEFINIDO], (x) => x) };
       const a = aj.get(`${fonte}|${c.campo}`);
       return a ? { ...c, rotulo: a.rotulo?.trim() || c.nome, oculto: Boolean(a.oculto) } : c;
     }),
