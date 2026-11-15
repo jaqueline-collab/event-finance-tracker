@@ -4,7 +4,7 @@
  * Valor ausente = "Não definido". Nada específico de cliente aqui.
  */
 import { z } from "zod";
-import { NAO_DEFINIDO } from "./nao-definido";
+import { NAO_DEFINIDO, normalizarValoresFiltro } from "./nao-definido";
 
 export type FonteCampo = "contato" | "atendimento" | "card" | "utm";
 export type TipoCampo = "texto" | "numero" | "data" | "lista" | "simnao" | "moeda";
@@ -225,7 +225,7 @@ export function avaliarFiltro(f: FiltroCampo, v: unknown): boolean {
   if (f.op === "vazio") return !cheio;
   if (f.op === "preenchido") return cheio;
   if (f.op === "em") {
-    const vs = f.valores ?? [];
+    const vs = normalizarValoresFiltro(f.valores ?? []);
     if (!vs.length) return true;
     const t = textos(v);
     return t.length ? t.some((x) => vs.includes(x)) : vs.includes(NAO_DEFINIDO);

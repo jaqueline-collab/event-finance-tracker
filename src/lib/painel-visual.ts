@@ -2,7 +2,7 @@
  * Regras do Painel visual do cliente (puras, testáveis).
  * Fuso: America/Sao_Paulo (UTC-3 fixo, sem horário de verão desde 2019).
  */
-import { NAO_DEFINIDO } from "./nao-definido";
+import { NAO_DEFINIDO, normalizarRotuloVazio, normalizarValoresFiltro } from "./nao-definido";
 
 export type PeriodoChave = "7d" | "30d" | "mes" | "mes_passado" | "personalizado";
 export type Periodo = { de: string; ate: string }; // YYYY-MM-DD, inclusivo
@@ -119,7 +119,7 @@ export type MensagemP = { sessao_id: string; enviada_em: string | null; tipo: st
 export type Dimensao = "origem" | "canal" | "etiqueta" | "campanha" | "atendente";
 export type Filtros = Partial<Record<Dimensao, string | string[]>>;
 /** Filtro de dimensão: vazio = todos; lista = qualquer uma. */
-export const bateDim = (v: string, f?: string | string[]) => !f || f.length === 0 || (Array.isArray(f) ? f.includes(v) : v === f);
+export const bateDim = (v: string, f?: string | string[]) => { const g = normalizarValoresFiltro(f); return !g || g.length === 0 || (Array.isArray(g) ? g.includes(v) : v === g); };
 const temDim = (f?: string | string[]) => Boolean(f && f.length);
 export const DIMENSOES: { chave: Dimensao; rotulo: string; todos: string }[] = [
   { chave: "canal", rotulo: "Canal", todos: "todos" },
@@ -189,7 +189,7 @@ export function agregarPainel(
   const contatoOk = (c: ContatoP | undefined) =>
     !!c &&
     bateDim(c.origem, filtros.origem) &&
-    (!etq.length || etq.some((e) => (e === NAO_DEFINIDO ? c.etiquetas.length === 0 : c.etiquetas.includes(e)))) &&
+    (!etq.length || etq.map(normalizarRotuloVazio).some((e) => (e === NAO_DEFINIDO ? c.etiquetas.length === 0 : c.etiquetas.includes(e)))) &&
     bateDim(c.campanha ?? NAO_DEFINIDO, filtros.campanha);
   const sessaoAtributosOk = (a: AtendimentoP) => bateDim(a.canal, filtros.canal) && bateDim(a.atendente, filtros.atendente);
   const sessaoOk = (a: AtendimentoP) =>

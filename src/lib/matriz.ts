@@ -3,7 +3,7 @@
  * Colunas vêm da configuração do cliente; nada de cliente fixo aqui.
  */
 import { COLUNAS_PADRAO, type Celula, type IndicadorConfig, type PorDia } from "./indicadores-motor";
-import { NAO_DEFINIDO } from "./nao-definido";
+import { NAO_DEFINIDO, normalizarValoresFiltro } from "./nao-definido";
 
 export type TipoColuna = "app" | "manual" | "combinada" | "formula";
 export type Formato = "numero" | "percentual" | "moeda";
@@ -167,7 +167,7 @@ export type LinhaCorteMatriz = { dia: string; canal: string; atendente: string; 
 export type FiltrosMatriz = Partial<Record<"canal" | "atendente" | "equipe", string | string[]>>;
 
 export function somarPadraoPorDia(linhas: LinhaCorteMatriz[], filtros: FiltrosMatriz, m: PorDia = new Map()): PorDia {
-  const ok = (v: string, f?: string | string[]) => !f || f.length === 0 || (Array.isArray(f) ? f.includes(v || NAO_DEFINIDO) : (v || NAO_DEFINIDO) === f);
+  const ok = (v: string, f0?: string | string[]) => { const f = normalizarValoresFiltro(f0); return !f || f.length === 0 || (Array.isArray(f) ? f.includes(v || NAO_DEFINIDO) : (v || NAO_DEFINIDO) === f); };
   for (const l of linhas) {
     if (!ok(l.canal, filtros.canal) || !ok(l.atendente, filtros.atendente) || !ok(l.equipe, filtros.equipe)) continue;
     const linha = m.get(l.dia) ?? {};
