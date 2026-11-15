@@ -328,6 +328,8 @@ export type CorteConfig = {
   agentes: Record<string, { nome: string; email?: string | null }>;
   /** Pessoas cujas conversas não entram: suporte interno (global) + lista extra do cliente. Por e-mail ou nome. */
   ignorar: { nome?: string | null; email?: string | null }[];
+  /** Usuários de suporte (global): a pessoa some, a conversa fica (atendente vazio); mensagens dela não contam como resposta humana. */
+  ocultar?: { nome?: string | null; email?: string | null }[];
 };
 export const ORIGENS_NAO_HUMANAS = new Set(["BOT", "CAMPAIGN", "OFFICE_HOURS", "API", "PAYMENT"]);
 export type LinhaCorte = { dia: string; canal: string; atendente: string; equipe: string } & Record<(typeof COLUNAS_PADRAO)[number]["chave"], number>;
@@ -355,6 +357,10 @@ export function calcularPadraoPorCorteDetalhado(
   const nomes = new Set(cfg.ignorar.map((i) => norm(i.nome)).filter(Boolean));
   const ehIgnorado = (agente: { nome: string; email?: string | null } | null, nome: string) =>
     (!!agente && (emails.has(norm(agente.email)) || nomes.has(norm(agente.nome)))) || nomes.has(norm(nome));
+  const oEmails = new Set((cfg.ocultar ?? []).map((i) => norm(i.email)).filter(Boolean));
+  const oNomes = new Set((cfg.ocultar ?? []).map((i) => norm(i.nome)).filter(Boolean));
+  const ehOculto = (agente: { nome: string; email?: string | null } | null, nome: string) =>
+    (!!agente && (oEmails.has(norm(agente.email)) || oNomes.has(norm(agente.nome)))) || oNomes.has(norm(nome));
   const removidas = new Map<string, { conversas: number; usuario: number; bot: number }>();
   // conversa = sessão + dia com mensagem recebida válida
   type Conv = { s: string; dia: string; usuario: boolean; ultimoHumano: { em: string; user: string } | null };
@@ -366,7 +372,8 @@ export function calcularPadraoPorCorteDetalhado(
     const k = `${m.sessao_id}|${dia}`;
     const c = conv.get(k) ?? { s: m.sessao_id, dia, usuario: false, ultimoHumano: null };
     if (m.origem === "DEFAULT") c.usuario = true;
-    if (m.user_id && !ORIGENS_NAO_HUMANAS.has(String(m.origem ?? "")) && m.enviada_em && (!c.ultimoHumano || m.enviada_em > c.ultimoHumano.em))
+    const doSuporte = !!m.user_id && ehOculto(cfg.agentes[m.user_id] ?? null, "");
+    if (m.user_id && !doSuporte && !ORIGENS_NAO_HUMANAS.has(String(m.origem ?? "")) && m.enviada_em && (!c.ultimoHumano || m.enviada_em > c.ultimoHumano.em))
       c.ultimoHumano = { em: m.enviada_em, user: m.user_id };
     conv.set(k, c);
   }
@@ -393,6 +400,7 @@ export function calcularPadraoPorCorteDetalhado(
     let agente = humano ? (cfg.agentes[humano.user] ?? null) : null;
     if (!agente && s?.responsavel_id) agente = cfg.agentes[s.responsavel_id] ?? null;
     const nome = agente?.nome || s?.responsavel_nome || "";
+    if (ehOculto(agente, nome)) return { nome: "", ignorado: false };
     return { nome, ignorado: ehIgnorado(agente, nome) };
   };
   const ordenadas = [...conv.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.s.localeCompare(b.s));
