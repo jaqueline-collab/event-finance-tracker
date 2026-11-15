@@ -69,6 +69,8 @@ export const cartaoSchema = z.object({
   colunas: z.array(ref.extend({ rotulo: z.string().trim().max(60).optional() })).max(24).default([]),
   /** Tabela de itens de cards: só os cards contados por estes indicadores da Matriz no período (mesma regra da Matriz). */
   indicadoresItens: z.array(z.string().min(1).max(80)).max(6).default([]),
+  /** Dois valores de indicador: conta pela data gravada neste campo do card (no período), em vez do dia da leitura. */
+  campoDataCard: ref.nullable().optional(),
 });
 export type CartaoGrafico = z.infer<typeof cartaoSchema>;
 export type CampoRef = z.infer<typeof ref>;
@@ -118,7 +120,7 @@ export function cartaoDoPainel(r: import("./painel-visual").ResumoPainel, c: Car
   let total: number | undefined;
   const nf = (v: number) => v.toLocaleString("pt-BR");
   const { atual: a, anterior: ant } = r.kpis;
-  const kpi = (total: number, anterior: number | null, rodape?: string): ResultadoCartao => ({ categorias: [], series: ["Valor"], total, anterior, estimados: [], linhas: 0, rodape });
+  const kpi = (total: number, anterior: number | null, rodape?: string): ResultadoCartao => ({ categorias: [], series: ["Valor"], total, anterior, linhas: 0, rodape });
   switch (c.painel) {
     case "kpi-leads": return kpi(a.novosLeads, ant.novosLeads, a.importadosFora ? `${nf(a.importadosFora)} importados fora da conta` : undefined);
     case "kpi-conversas": return kpi(a.conversas, ant.conversas);
@@ -141,7 +143,7 @@ export function cartaoDoPainel(r: import("./painel-visual").ResumoPainel, c: Car
       total = r.atendentes.reduce((a,b)=>a+b.conversas,0);
       categorias = r.atendentes.map(d => ({ rotulo: d.nome, valores: { Atendimentos: d.atendimentos, Conversas: d.conversas, "Proporção (%)": total ? d.conversas / total * 100 : 0 }, total: d.conversas })); break;
   }
-  return { categorias, series, total: total ?? categorias.reduce((a,b)=>a+b.total,0), anterior: null, estimados: [], linhas: categorias.length };
+  return { categorias, series, total: total ?? categorias.reduce((a,b)=>a+b.total,0), anterior: null, linhas: categorias.length };
 }
 
 const GEO = /(^|\.|\b)(estado|uf|cidade|municipio|município|regiao|região|pais|país)\b/i;
@@ -235,7 +237,6 @@ export type ResultadoCartao = {
   series: string[];
   total: number;
   anterior: number | null;
-  estimados: string[];
   linhas: number;
   rodape?: string;
   /** Calendário: dias sem sincronização confirmada e com zero (mostrar "aguardando"). */
@@ -245,8 +246,6 @@ export type ResultadoCartao = {
   /** Dois valores: a quantidade ao lado da soma. */
   qtd?: number;
   qtdAnterior?: number | null;
-  /** Quantos da quantidade vêm de leitura estimada (contam, sempre marcados). */
-  qtdEstimados?: number;
   /** Tabela de itens: colunas e linhas já formatadas (sem texto de mensagem). */
   colunasItens?: { chave: string; rotulo: string }[];
   itens?: { id: string; valores: Record<string, string>; brutos?: Record<string, string> }[];
@@ -321,7 +320,7 @@ export function agregarCartao(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, 
     for (const s of series) { const a = g.get(s); valores[s] = a ? valorAcc(a, cfg.medida) : 0; }
     return { rotulo, valores, total: Object.values(valores).reduce((x, y) => x + y, 0) };
   });
-  return { ...finalizar(categorias, series, cfg, ehCampoData(cfg.dimensao, cat)), total: valorAcc(geral, cfg.medida), anterior, estimados: [], linhas: atuais.length };
+  return { ...finalizar(categorias, series, cfg, ehCampoData(cfg.dimensao, cat)), total: valorAcc(geral, cfg.medida), anterior, linhas: atuais.length };
 }
 
 /** Ordena, aplica Top N com "Outros" (somente medidas somáveis). Datas ficam em ordem cronológica. */
@@ -343,26 +342,25 @@ export function finalizar(categorias: ResultadoCartao["categorias"], series: str
   return { categorias: c, series };
 }
 
-/** Indicador da Matriz por dia → cartão (mesmo número da Matriz; estimados marcados e fora do total sem marca). */
+/** Indicador da Matriz por dia → cartão (mesmo número da Matriz; dia sem dado exato fica de fora, nunca vira zero). */
 export function cartaoDeIndicador(
-  linhas: { dia: string; celulas: Record<string, { valor: number | null; estimado?: boolean } | undefined> }[],
+  linhas: { dia: string; celulas: Record<string, { valor: number | null } | undefined> }[],
   chave: string,
   cfg: CartaoGrafico,
   anteriorTotal: number | null,
 ): ResultadoCartao {
   const por = new Map<string, number>();
-  const estimados: string[] = [];
   let total = 0;
   for (const l of linhas) {
     const c = l.celulas[chave];
+    if (c && c.valor == null) continue;
     const v = Number(c?.valor ?? 0);
-    if (c?.estimado) { estimados.push(l.dia); continue; }
     total += v;
     const k = balde(l.dia, cfg.granularidade);
     por.set(k, (por.get(k) ?? 0) + v);
   }
   const categorias = [...por.entries()].map(([rotulo, v]) => ({ rotulo, valores: { Valor: v }, total: v }));
-  return { ...finalizar(categorias, ["Valor"], cfg, true), total, anterior: anteriorTotal, estimados, linhas: linhas.length };
+  return { ...finalizar(categorias, ["Valor"], cfg, true), total, anterior: anteriorTotal, linhas: linhas.length };
 }
 
 /** Cartões com dinheiro (moeda ou soma/média de valor) não vão a parceiro sem permissão de valores. */
@@ -391,7 +389,7 @@ function registrosCalendario(base: BaseCampos, cfg: CartaoGrafico, filtrosVisao:
 
 /** Calendário: agrupa pelo dia do campo de data escolhido (não pela criação). */
 export function agregarCalendario(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = []): ResultadoCartao {
-  if (!cfg.dimensao) return { categorias: [], series: ["Valor"], total: 0, anterior: null, estimados: [], linhas: 0 };
+  if (!cfg.dimensao) return { categorias: [], series: ["Valor"], total: 0, anterior: null, linhas: 0 };
   const idx = indices(base);
   const por = new Map<string, Acc>();
   const geral = acc();
@@ -412,18 +410,17 @@ export function agregarCalendario(base: BaseCampos, cfg: CartaoGrafico, p: Perio
     por.set(d, a);
   }
   const categorias = [...por.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rotulo, a]) => { const v = valorAcc(a, cfg.medida); return { rotulo, valores: { Valor: v }, total: v }; });
-  return { categorias, series: ["Valor"], total: valorAcc(geral, cfg.medida), anterior: null, estimados: [], linhas };
+  return { categorias, series: ["Valor"], total: valorAcc(geral, cfg.medida), anterior: null, linhas };
 }
 
 /** Dias do período com zero e sem cobertura confirmada: "aguardando", nunca zero. */
-export function diasAguardando(p: Periodo, r: Pick<ResultadoCartao, "categorias" | "estimados">, estadoDoDia: (dia: string) => string, hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })): string[] {
+export function diasAguardando(p: Periodo, r: Pick<ResultadoCartao, "categorias">, estadoDoDia: (dia: string) => string, hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })): string[] {
   const com = new Set(r.categorias.filter((c) => c.total !== 0).map((c) => c.rotulo));
-  const est = new Set(r.estimados);
   const out: string[] = [];
   for (let d = new Date(`${p.de}T12:00:00Z`); d.toISOString().slice(0, 10) <= p.ate; d.setUTCDate(d.getUTCDate() + 1)) {
     const dia = d.toISOString().slice(0, 10);
     if (dia > hoje) break; // dia futuro fica vazio, nunca "aguardando"
-    if (!com.has(dia) && !est.has(dia) && estadoDoDia(dia) !== "confirmado") out.push(dia);
+    if (!com.has(dia) && estadoDoDia(dia) !== "confirmado") out.push(dia);
   }
   return out;
 }
@@ -627,7 +624,7 @@ export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Period
   const categorias = [...g.entries()]
     .map(([rotulo, x]) => ({ rotulo, valores: { "Novas conversas": x.conv, "Novos contatos": x.cont, "% do total": totCont ? (x.cont / totCont) * 100 : 0 }, total: x.conv }))
     .sort((a, b) => b.total - a.total);
-  return { categorias, series, total: totConv, anterior: null, estimados: [], linhas: categorias.length, rodape: `Total${cfg.soPatrocinados ? " (só patrocinados)" : ""}: ${totConv.toLocaleString("pt-BR")} novas conversas · ${totCont.toLocaleString("pt-BR")} novos contatos` };
+  return { categorias, series, total: totConv, anterior: null, linhas: categorias.length, rodape: `Total${cfg.soPatrocinados ? " (só patrocinados)" : ""}: ${totConv.toLocaleString("pt-BR")} novas conversas · ${totCont.toLocaleString("pt-BR")} novos contatos` };
 }
 
 /** Tabela de itens: uma linha por contato ou card criado no período, com as colunas do catálogo e a "Origem" calculada. */
@@ -658,7 +655,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
     itens.push({ id: String(r.id), valores, brutos });
     if (itens.length >= limite) break;
   }
-  return { categorias: [], series: [], total: itens.length, anterior: null, estimados: [], linhas: itens.length, colunasItens, itens };
+  return { categorias: [], series: [], total: itens.length, anterior: null, linhas: itens.length, colunasItens, itens };
 }
 
 /** Coluna de dinheiro na tabela de itens (mesma regra de `itensTabela`). */
@@ -695,9 +692,9 @@ export function percentuaisFunil(faixas: { total: number }[], modo: "ranking" | 
 }
 
 /** Dois valores ligado a um indicador da Matriz: quantidade = cards contados; valor = soma do campo desses mesmos cards. */
-export function doisValoresDeCards(base: BaseCampos, cfg: CartaoGrafico, contados: { card_id: string; estimado: boolean }[], anteriores: number | null): ResultadoCartao {
+export function doisValoresDeCards(base: BaseCampos, cfg: CartaoGrafico, contados: { card_id: string }[], anteriores: number | null): ResultadoCartao {
   const cards = new Map(base.cards.map((c) => [c.id, c]));
   let soma = 0;
   for (const x of contados) { const n = cfg.campoMedida ? numero(valorDe("card", cfg.campoMedida.campo, cards.get(x.card_id))) : null; if (n != null) soma += n; }
-  return { categorias: [], series: [], total: soma, anterior: null, estimados: [], linhas: contados.length, qtd: contados.length, qtdAnterior: anteriores, qtdEstimados: contados.filter((x) => x.estimado).length };
+  return { categorias: [], series: [], total: soma, anterior: null, linhas: contados.length, qtd: contados.length, qtdAnterior: anteriores };
 }
