@@ -3,14 +3,14 @@ import { abaConfigurarDoEndereco, abaDadosEloraValida, estadoIntegracao, formata
 
 describe("dados do elora", () => {
   it("formata celular com DDI", () => {
-    expect(formatarTelefoneBr("5531990861102")).toBe("(31) 99086-1102");
+    expect(formatarTelefoneBr("5531990861102")).toBe("(55) 31 99086-1102");
   });
   it("formata celular sem DDI e fixo", () => {
-    expect(formatarTelefoneBr("31990861102")).toBe("(31) 99086-1102");
-    expect(formatarTelefoneBr("3132221111")).toBe("(31) 3222-1111");
+    expect(formatarTelefoneBr("31990861102")).toBe("(55) 31 99086-1102");
+    expect(formatarTelefoneBr("3132221111")).toBe("(55) 31 3222-1111");
   });
   it("sem número", () => {
-    expect(formatarTelefoneBr(null)).toBe("sem número");
+    expect(formatarTelefoneBr(null)).toBe("");
   });
   it("estado do chip", () => {
     expect(estadoIntegracao({ temChave: false, ultimoErro: "x" })).toBe("sem_chave");
@@ -34,4 +34,11 @@ describe("dados do elora", () => {
     expect(podeConfigurarArea({ isAdmin: false, como: "cliente-teste" })).toBe(false);
     expect(podeConfigurarArea({ isAdmin: true, como: "  " })).toBe(false);
   });
+});
+
+import { tipoPeloNome } from "../dados-elora";
+describe("canais", () => {
+  it("telefone do pedido", () => expect(formatarTelefoneBr("+55|31998646532")).toBe("(55) 31 99864-6532"));
+  it("@ é Instagram", () => expect(tipoPeloNome("@dr.ricardoassumpcao")).toBe("instagram"));
+  it("Instância é WhatsApp", () => expect(tipoPeloNome("Instância decc86")).toBe("whatsapp"));
 });

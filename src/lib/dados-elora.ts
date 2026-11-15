@@ -47,8 +47,8 @@ export function estadoIntegracao(i: { temChave: boolean; ultimoErro: string | nu
 export function formatarTelefoneBr(numero: string | null | undefined): string {
   if (!numero) return "";
   let d = numero.replace(/\D/g, "");
-  const pais = d.length >= 12 ? d.slice(0, d.length - (d.length - 2 >= 11 ? 11 : 10)) : "55";
-  if (d.length >= 12) d = d.slice(pais.length);
+  const pais = "55";
+  if (d.length >= 12 && d.startsWith("55")) d = d.slice(2);
   if (d.length === 11) return `(${pais}) ${d.slice(0, 2)} ${d.slice(2, 7)}-${d.slice(7)}`;
   if (d.length === 10) return `(${pais}) ${d.slice(0, 2)} ${d.slice(2, 6)}-${d.slice(6)}`;
   return numero;
