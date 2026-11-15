@@ -173,6 +173,30 @@ export async function executarElora(o: {
       linhasDimensao: (clienteId, p) => linhasPadrao(admin, clienteId, p) as any,
       guia: () => lerGuia(admin),
       guiaUrl: ELORA_GUIA_URL,
+      blocos: async (clienteId, p) => {
+        const { cartoesValidos, cartaoTemDinheiro } = await import("./graficos");
+        const { filtrosFixosValidos, textoSelo } = await import("./filtros-fixos");
+        const { calcularCartoesServidor } = await import("./cartao-calculo.server");
+        const { data: vs } = await admin.from("elora_dashboard_visoes").select("nome, publicada, filtros").eq("cliente_id", clienteId).eq("publicada", true).order("ordem");
+        const out: import("./elora-ia-ferramentas").BlocoIa[] = [];
+        for (const v of (vs ?? []) as any[]) {
+          const fixosVisao = filtrosFixosValidos(v.filtros?.filtrosFixos);
+          const cartoes = cartoesValidos(v.filtros?.cartoes).filter((c) => acesso.veValores || !cartaoTemDinheiro(c)).slice(0, 20);
+          if (!cartoes.length) continue;
+          const r: Record<string, any> = await calcularCartoesServidor(admin, { clienteId, ...p, filtrosVisao: fixosVisao }, cartoes, { semDinheiro: !acesso.veValores });
+          for (const c of cartoes) {
+            const x = r[c.id];
+            if (!x || x.oculto || !x.r) continue;
+            out.push({
+              visao: String(v.nome), bloco: c.titulo,
+              filtros_fixos: [...fixosVisao, ...c.filtros].map((f) => textoSelo(f)),
+              total: typeof x.r.total === "number" ? x.r.total : null,
+              principais: (x.r.categorias ?? []).slice(0, 5).map((k: any) => ({ rotulo: String(k.rotulo), total: Number(k.total) })),
+            });
+          }
+        }
+        return out;
+      },
     },
     (id) => consultados.add(id),
   );

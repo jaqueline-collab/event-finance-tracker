@@ -29,7 +29,11 @@ export type DepsFerramentas = {
   linhasDimensao: (clienteId: string, p: { de: string; ate: string }) => Promise<LinhaDimensaoIa[]>;
   guia: () => Promise<PaginaGuia[]>;
   guiaUrl: string;
+  /** Blocos do painel já calculados com os filtros fixos gravados (bloco + visão). */
+  blocos?: (clienteId: string, p: { de: string; ate: string }) => Promise<BlocoIa[]>;
 };
+
+export type BlocoIa = { visao: string; bloco: string; filtros_fixos: string[]; total: number | null; principais: { rotulo: string; total: number }[] };
 
 export const COLUNAS_DIMENSAO = [
   { chave: "novos_contatos", nome: "Novos contatos" },
@@ -145,6 +149,17 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
           );
           return { cliente: c.nome, fonte: `Matriz por dimensão, ${br(p.de)} a ${br(p.ate)}`, por: i.dimensao, linhas: tot, criterio_atribuicao: "Conversas totais incluem conversas só bot atribuídas ao atendente. Usuário do sistema comprova alguma participação humana na conversa, não necessariamente desse atendente. Para ranking, separe Usuário do sistema e Bot; não chame responsabilidade de atendimento humano comprovado." };
         }),
+    }),
+    blocos_do_painel: tool({
+      description: "Blocos do painel do cliente em um período, com o total de cada um. Cada bloco já vem com seus filtros fixos aplicados (filtros_fixos); ao responder sobre um bloco, diga que o número vale só para esse filtro.",
+      inputSchema: z.object({ cliente, de: dia, ate: dia }),
+      execute: async (i) =>
+        seguro("Blocos do painel", async () => {
+          const c = alvo(i.cliente);
+          const p = periodoValido(i.de, i.ate);
+          if (!deps.blocos) return { cliente: c.nome, blocos: [] };
+          return { cliente: c.nome, fonte: `Painel, ${br(p.de)} a ${br(p.ate)}`, blocos: await deps.blocos(c.id, p) };
+        }, 4000),
     }),
     matriz_por_dia: tool({
       description: "Valores da Matriz dia a dia (até 62 dias). null = sem histórico exato naquele dia (não é zero).",
