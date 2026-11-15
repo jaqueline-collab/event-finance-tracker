@@ -43,13 +43,23 @@ export function estadoIntegracao(i: { temChave: boolean; ultimoErro: string | nu
 }
 
 /** Formata número brasileiro: 5531990861102 → (31) 99086-1102. Outros formatos voltam como vieram. */
+/** Telefone do canal no formato (55) 31 99864-6532; sem número fica em branco. */
 export function formatarTelefoneBr(numero: string | null | undefined): string {
-  if (!numero) return "sem número";
+  if (!numero) return "";
   let d = numero.replace(/\D/g, "");
+  const pais = "55";
   if (d.length >= 12 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 11) return `(${pais}) ${d.slice(0, 2)} ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${pais}) ${d.slice(0, 2)} ${d.slice(2, 6)}-${d.slice(6)}`;
   return numero;
+}
+
+/** Tipo pelo nome do canal visto nos atendimentos ("@conta" = Instagram, "Instância ..." = WhatsApp). */
+export function tipoPeloNome(nome: string): TipoCanal {
+  const n = nome.trim();
+  if (n.startsWith("@")) return "instagram";
+  if (/^inst[âa]ncia\s/i.test(n)) return "whatsapp";
+  return "outro";
 }
 
 export type TipoCanal = "whatsapp" | "instagram" | "messenger" | "outro";

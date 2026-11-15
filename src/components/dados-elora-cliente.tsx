@@ -379,7 +379,7 @@ function CanaisCliente({
                       )}
                       {ap.trim() && <span className="block truncate text-xs text-muted-foreground">No Elora: {c.nome}</span>}
                       <span className="block text-sm">
-                        {c.tipo === "whatsapp" ? formatarTelefoneBr(c.numero) : (c.numero ?? "—")}
+                        {c.tipo === "whatsapp" ? formatarTelefoneBr(c.numero) : (c.numero ?? "")}
                       </span>
                       <span className="block truncate text-[10px] text-muted-foreground">{c.id}</span>
                     </div>

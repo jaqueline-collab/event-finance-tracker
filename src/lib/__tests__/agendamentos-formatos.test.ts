@@ -33,10 +33,11 @@ describe("formatos brasileiros", () => {
 describe("nome do canal", () => {
   const m = montarMapaCanais([{ id: "c1", nomes: ["inst-8x9"] }, { id: "c2", nomes: ["inst-zz"] }], { c1: "Clínica Centro", c2: null });
   it("usa o apelido da super admin", () => expect(exibirCanal(m, "c1")).toBe("Clínica Centro"));
-  it("sem apelido mostra Canal sem nome, nunca o código", () => {
+  it("sem apelido nem nome real mostra Canal sem nome", () => {
     expect(exibirCanal(m, "c2")).toBe(CANAL_SEM_NOME);
-    expect(exibirCanal(m, null, "inst-zz")).toBe(CANAL_SEM_NOME);
-    expect(exibirCanal(m, null, "codigo-desconhecido")).toBe(CANAL_SEM_NOME);
+  });
+  it("canal fora da conta usa o nome visto no atendimento (ex.: @ do Instagram)", () => {
+    expect(exibirCanal(m, null, "@dr.ricardoassumpcao")).toBe("@dr.ricardoassumpcao");
   });
 });
 
