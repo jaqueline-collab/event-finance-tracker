@@ -60,6 +60,8 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
         lerTudo(() => adm.from("elora_apoio_espelho").select("tipo, externo_id, nome").eq("cliente_id", id).in("tipo", ["canal", "usuario"]).order("externo_id")),
       ]);
       const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(adm, id);
+      const ehSuporte = await (await import("./suporte.server")).lerEhSuporte(adm);
+      const { nomeVisivel } = await import("./suporte");
       const nomes = new Map(apoio.map((a: any) => [`${a.tipo}:${a.externo_id}`, a.nome as string | null]));
       base = {
         em: Date.now(),
@@ -76,7 +78,7 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
           id: String(a.externo_id),
           contato_id: a.contato_id ? String(a.contato_id) : null,
           canal: exibirCanal(mapaCanais, a.canal_id, a.canal_nome || nomes.get(`canal:${a.canal_id}`)) || NAO_DEFINIDO,
-          atendente: a.atendente_nome || (a.atendente_id ? nomes.get(`usuario:${a.atendente_id}`) : null) || SEM_ATENDENTE,
+          atendente: nomeVisivel(ehSuporte, a.atendente_nome || (a.atendente_id ? nomes.get(`usuario:${a.atendente_id}`) : null)) || SEM_ATENDENTE,
           criado_em: a.criado_em,
           tmr: a.time_wait_segundos,
           tma: a.time_service_segundos,
