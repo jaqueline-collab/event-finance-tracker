@@ -203,7 +203,7 @@ type ServicoElora = "core" | "crm" | "chat";
 const normalizarRaiz = (baseUrl: string) =>
   baseUrl.replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, "");
 
-async function lerApiElora(
+export async function lerApiElora(
   baseUrl: string,
   apiKey: string,
   servico: ServicoElora,
