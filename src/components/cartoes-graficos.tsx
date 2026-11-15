@@ -139,8 +139,8 @@ export function CartoesGraficos({
     <>
       {editavel && cartoes.length > 0 && (
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
-          <Button size="sm" variant="outline" className="h-8" disabled={!hist.passado.length} onClick={() => void voltar(desfazer(hist))}><Undo2 className="mr-1 h-4 w-4" />Desfazer</Button>
-          <Button size="sm" variant="outline" className="h-8" disabled={!hist.futuro.length} onClick={() => void voltar(refazer(hist))}><Redo2 className="mr-1 h-4 w-4" />Refazer</Button>
+          {hist.passado.length > 0 && <Button size="sm" variant="outline" className="h-8" onClick={() => void voltar(desfazer(hist))}><Undo2 className="mr-1 h-4 w-4" />Desfazer</Button>}
+          {hist.futuro.length > 0 && <Button size="sm" variant="outline" className="h-8" onClick={() => void voltar(refazer(hist))}><Redo2 className="mr-1 h-4 w-4" />Refazer</Button>}
           <Button size="sm" variant="ghost" className="h-8" onClick={() => void gravar(layoutPadrao(cartoes), "Layout padrão restaurado.")}><RotateCcw className="mr-1 h-4 w-4" />Restaurar layout padrão da visão</Button>
           {!larga && <span className="text-xs text-muted-foreground">Em telas estreitas cada bloco ocupa a linha toda; redimensione numa tela larga.</span>}
         </div>
