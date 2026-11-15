@@ -632,7 +632,7 @@ function EditorCartao({
                         <Label>Visualização inicial</Label>
                         <Select value={c.visualCalendario} onValueChange={(v) => set({ visualCalendario: v as any })}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent><SelectItem value="mes">Mês</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="agenda">Lista de agenda</SelectItem></SelectContent>
+                          <SelectContent><SelectItem value="mes">Mês</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="dia">Dia</SelectItem><SelectItem value="agenda">Lista de agenda</SelectItem></SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
