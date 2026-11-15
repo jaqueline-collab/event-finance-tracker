@@ -8,16 +8,18 @@ import { lerTudo } from "./ler-paginas.server";
 
 const cache = new Map<string, { em: number; chave: string | null; base: BaseCampos }>();
 
-async function ultimaSync(db: SupabaseClient, clienteId: string): Promise<string | null> {
-  const { data } = await (db as any).from("elora_sync_estado").select("concluido_em, atualizado_em").eq("cliente_id", clienteId);
-  return ((data ?? []) as any[]).map((r) => r.concluido_em ?? r.atualizado_em).filter(Boolean).sort().pop() ?? null;
+/** Versão da sincronização + versão de configuração (mesma chave do cache de cálculo). */
+async function versaoCampos(db: SupabaseClient, clienteId: string): Promise<string> {
+  const { data, error } = await (db as any).rpc("elora_versoes_cache", { _cliente_id: clienteId });
+  if (error) throw new Error(`versoes: ${error.message}`);
+  return JSON.stringify(data);
 }
 
-/** Tudo que o catálogo e os filtros precisam, por cliente. Cache curto, renovado a cada sincronização. */
+/** Tudo que o catálogo e os filtros precisam, por cliente. Cache por cliente, renovado a cada sincronização ou mudança de configuração. */
 export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Promise<BaseCampos> {
-  const chave = await ultimaSync(db, clienteId);
+  const chave = await versaoCampos(db, clienteId);
   const c = cache.get(clienteId);
-  if (c && c.chave === chave && Date.now() - c.em < 120_000) return c.base;
+  if (c && c.chave === chave && Date.now() - c.em < 300_000) return c.base;
   const d = db as any;
   const [apoio, contatos, atend, cards, classif, corte] = await Promise.all([
     lerTudo(() => d.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["campo", "canal", "usuario"]).order("externo_id")),
