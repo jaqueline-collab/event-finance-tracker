@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { definirModoEditar } from "@/lib/modo-editar";
+import { dataHoraSync } from "@/lib/sync-fontes";
 import { ArrowLeft, ArrowRight, Copy, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
@@ -90,6 +91,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   /** Posição da aba Relatório diário entre as abas (null = no fim). */
   const [ordemMatriz, setOrdemMatriz] = useState<number | null>(null);
   const [ordemMatrizSalva, setOrdemMatrizSalva] = useState<number | null>(null);
+  const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
+  useEffect(() => { lerAtualizadoAte({ data: { clienteId } }).then((r) => setAtualizadoEm(r.ate)).catch(() => {}); }, [clienteId]);
   useEffect(() => {
     if (!matriz) return;
     lerNomeMatriz({ data: { clienteId } }).then((r) => { setNomeMatriz(r.nome); setOrdemMatriz(r.ordem); setOrdemMatrizSalva(r.ordem); }).catch(() => {});
@@ -277,6 +280,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
 
   return (
     <div className="space-y-4">
+      {atualizadoEm && <p className="text-xs text-muted-foreground">Dados atualizados até {dataHoraSync(atualizadoEm)}</p>}
       {mostrarAbas && (
         <div className="flex flex-wrap items-center gap-2 border-b">
           <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoArrastar}>

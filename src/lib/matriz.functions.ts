@@ -177,3 +177,15 @@ export const salvarNomeMatriz = createServerFn({ method: "POST" })
     if (error) throw new Error(`matriz: ${error.message}`);
     return { ok: true };
   });
+
+/** "Dados atualizados até": conclusão mais antiga das fontes do painel (quem vê o painel pode ler). */
+export const lerAtualizadoAte = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await podeVer(context.supabase, data.clienteId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: est } = await (supabaseAdmin as any).from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId);
+    const { atualizadoAte } = await import("./sync-orquestrador.server");
+    return { ate: atualizadoAte(est ?? []) };
+  });
