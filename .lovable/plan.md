@@ -25,3 +25,24 @@ Observação: com os dados novos, os números de 09/11 em diante vão subir, o q
 ## Detalhes técnicos
 - Arquivos: `src/routes/api/public/sync-cards.ts` (rodar todas as fontes, gravar o erro), `elora-espelho.server.ts` / `elora-cards.server.ts` (gravar `erros` no catch), a tela de sincronização em `configuracao-cliente-sheet.tsx`, e a dimensão de canal para a fonte atendimento em `graficos.ts` / `cartao-calculo.server.ts`.
 - Testes novos: erro de etapa gravado sem interromper as demais; total por canal igual ao total de atendimentos.
+
+## Acréscimos aprovados para A
+1. **Trava por cliente:** uma sincronização (agendada ou manual) só começa se não houver outra do mesmo cliente rodando. A trava fica gravada com data e hora e expira sozinha se a execução morrer, para nunca ficar presa. Quando houver outra rodando, o manual mostra "Sincronização já em andamento".
+2. **Alerta de dado parado:** na configuração do cliente, a super admin vê um aviso para cada fonte sem atualização há mais de 6 horas, com a última atualização e o último erro.
+3. **"Dados atualizados até …":** no topo das visões, com a data mais antiga entre as fontes que alimentam o painel (contatos, atendimentos, mensagens e cards), no horário de Brasília. Assim o rótulo nunca promete mais do que existe.
+
+## C) Mover quadros (Agendamentos e Relatório diário)
+1. Reproduzir no preview em modo Editar: verificar por que os quadros de Agendamentos não se movem e por que a aba Relatório diário, que é fixa, não tem a alça de arrastar nem o menu "...".
+2. Corrigir usando o mesmo componente das outras abas. Todas as visões passam a permitir mover e redimensionar os blocos. A aba Relatório diário ganha a alça e o menu "..." (renomear, mover), com a posição gravada por cliente. Itens que não se aplicam a essa aba (por exemplo, excluir) não aparecem, em vez de aparecerem desativados.
+3. Teste: a ordem das abas e o layout gravados voltam iguais depois de recarregar.
+
+## D) Cores do Status do lead
+Já conferido nos dados sincronizados:
+- **Etiquetas trazem cor** (`color`, junto com id, name, createdAt e updatedAt). Vou mostrar os valores de cada etiqueta e usar exatamente essa cor.
+- **Etapas do funil**, como gravadas hoje, só têm id e nome, sem cor. Antes de decidir, confiro na resposta bruta da API do painel se a etapa traz cor e mostro o resultado.
+  - Se trouxer: passo a guardá-la e uso exatamente essa cor.
+  - Se não trouxer: na configuração do status entra a lista de etapas do funil escolhido, cada uma com um seletor de cor, gravada por cliente. Etapa sem cor definida usa a cor padrão atual.
+- Vale na tabela, no calendário, nos filtros e em todo bloco que mostre o status, por uma única regra de cor. Se a cor do Elora não tiver contraste AA, o texto da etiqueta escolhe claro ou escuro automaticamente, sem mudar a cor.
+
+## Retrato
+Antes e depois de cada parte. A única diferença esperada é o efeito da sincronização (dados de 08/11 em diante). C e D não alteram números.
