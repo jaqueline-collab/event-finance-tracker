@@ -82,3 +82,15 @@ describe("Lista Colunas", () => {
     expect(["", "Z", "B", "A"].sort((x, y) => compararGrupo(x, y, ["B", "A"]))).toEqual(["B", "A", "Z", ""]);
   });
 });
+
+describe("Status do lead como coluna normal", () => {
+  it("fica na posição escolhida (tabela e exportar usam a mesma ordem)", () => {
+    const base: BaseCampos = { definicoes: [], atendimentos: [], cards: [], rotuloStatus: "Etapa",
+      contatos: [{ id: "c1", nome: "A", telefone: "1", criado_em: "2026-11-01T12:00:00Z", status_lead: "Pendente" }] };
+    const cfg = cartaoSchema.parse({ id: "t", titulo: "T", tipo: "tabela_itens", fonte: "contato",
+      colunas: [{ fonte: "contato", campo: "nome" }, { fonte: "contato", campo: "status_lead" }, { fonte: "contato", campo: "telefone" }] });
+    const r = itensTabela(base, cfg, { de: "2026-11-01", ate: "2026-11-02" }, [], false);
+    expect(r.colunasItens!.map((c) => c.chave).slice(0, 3)).toEqual(["contato|nome", "contato|status_lead", "contato|telefone"]);
+    expect(r.colunasItens![1].rotulo).toBe("Etapa");
+  });
+});
