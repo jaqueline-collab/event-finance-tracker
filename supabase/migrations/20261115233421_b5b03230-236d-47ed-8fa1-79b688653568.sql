@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.elora_relatorio_social_seller;
