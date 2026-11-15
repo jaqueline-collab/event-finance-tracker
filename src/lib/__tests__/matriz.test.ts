@@ -62,12 +62,17 @@ describe("Matriz", () => {
     expect(r.total.f.valor).toBe(25);
   });
 
-  it("dia estimado leva a marca, e o total que o soma também", () => {
-    const m: PorDia = new Map([["2026-10-01", { x: { valor: 2, estimado: 2 } }], ["2026-10-02", { x: { valor: 1, estimado: 0 } }]]);
-    const r = montarMatriz(colunasMatriz([cfg({})]), dias, m, new Map());
-    expect(r.linhas[0].celulas.x.estimado).toBe(true);
-    expect(r.linhas[1].celulas.x.estimado).toBe(false);
-    expect(r.total.x).toEqual({ valor: 3, estimado: true });
+  it("coluna de card antes da primeira leitura exata mostra — (null, nunca zero) e o total soma só dias exatos", () => {
+    const m: PorDia = new Map([["2026-10-01", { x: { valor: 2 } }], ["2026-10-02", { x: { valor: 1 } }]]);
+    const r = montarMatriz(colunasMatriz([cfg({})]), dias, m, new Map(), { antes: "2026-10-02", chaves: new Set(["x"]) });
+    expect(r.linhas[0].celulas.x.valor).toBeNull();
+    expect(r.linhas[1].celulas.x.valor).toBe(1);
+    expect(r.total.x.valor).toBe(1);
+  });
+  it("período inteiro sem histórico exato: total também é —", () => {
+    const m: PorDia = new Map([["2026-10-01", { x: { valor: 2 } }]]);
+    const r = montarMatriz(colunasMatriz([cfg({})]), dias, m, new Map(), { antes: "2026-11-05", chaves: new Set(["x"]) });
+    expect(r.total.x.valor).toBeNull();
   });
 
   it("coluna manual soma só os dias digitados; vazia fica sem valor", () => {

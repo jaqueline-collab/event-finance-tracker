@@ -88,9 +88,9 @@ describe("Fase 6: Calendário", () => {
     const r = agregarCalendario(base, cal, { de: "2026-10-01", ate: "2026-10-31" });
     expect(r.categorias).toEqual([{ rotulo: "2026-10-02", valores: { Valor: 800 }, total: 800 }]);
   });
-  it("dia sem sincronização é 'aguardando', estimado não vira aguardando, dia com valor também não", () => {
-    const r = { categorias: [{ rotulo: "2026-10-02", valores: {}, total: 5 }], estimados: ["2026-10-03"] };
-    expect(diasAguardando({ de: "2026-10-01", ate: "2026-10-04" }, r, () => "aguardando sincronização")).toEqual(["2026-10-01", "2026-10-04"]);
+  it("dia sem sincronização é 'aguardando', dia com valor não", () => {
+    const r = { categorias: [{ rotulo: "2026-10-02", valores: {}, total: 5 }] };
+    expect(diasAguardando({ de: "2026-10-01", ate: "2026-10-04" }, r, () => "aguardando sincronização")).toEqual(["2026-10-01", "2026-10-03", "2026-10-04"]);
     expect(diasAguardando({ de: "2026-10-01", ate: "2026-10-04" }, r, () => "confirmado")).toEqual([]);
   });
   it("lista do dia traz nome, telefone, atendente e valor; parceiro sem valores não vê dinheiro", () => {

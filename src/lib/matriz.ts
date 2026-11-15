@@ -51,7 +51,8 @@ export function colunasMatriz(configs: ConfigMatriz[]): ColunaMatriz[] {
   return [...padrao, ...doCliente].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
 }
 
-export type CelulaMatriz = { valor: number | null; estimado: boolean; erro?: string };
+/** `valor: null` = sem dado exato (mostrado como "—", nunca zero). */
+export type CelulaMatriz = { valor: number | null; erro?: string };
 export type LinhaMatriz = { dia: string; celulas: Record<string, CelulaMatriz> };
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -102,11 +103,11 @@ function resolver(colunas: ColunaMatriz[], base: (chave: string) => CelulaMatriz
   const calc = (c: ColunaMatriz, prof = 0): CelulaMatriz => {
     if (out[c.chave]) return out[c.chave];
     const erro = erroFormula(c, colunas);
-    if (erro || prof > 20) return (out[c.chave] = { valor: null, estimado: false, erro: erro ?? "fórmula profunda demais" });
+    if (erro || prof > 20) return (out[c.chave] = { valor: null, erro: erro ?? "fórmula profunda demais" });
     const a = calc(porNome.get(norm(c.formula!.a))!, prof + 1);
     const b = calc(porNome.get(norm(c.formula!.b))!, prof + 1);
-    if (a.erro || b.erro) return (out[c.chave] = { valor: null, estimado: false, erro: "depende de coluna com erro" });
-    return (out[c.chave] = { valor: aplicar(c.formula!.op, a.valor, b.valor), estimado: a.estimado || b.estimado });
+    if (a.erro || b.erro) return (out[c.chave] = { valor: null, erro: "depende de coluna com erro" });
+    return (out[c.chave] = { valor: a.valor == null && b.valor == null ? null : aplicar(c.formula!.op, a.valor, b.valor) });
   };
   for (const c of colunas) if (c.tipo === "formula") calc(c);
   return out;
@@ -114,41 +115,43 @@ function resolver(colunas: ColunaMatriz[], base: (chave: string) => CelulaMatriz
 
 /**
  * Monta a Matriz. `calculado` = padrão + combinadas por dia; `manuais` = dia → chave → valor.
- * O total soma só dias do período; se algum dia somado é estimado, o total leva a marca.
+ * O total soma só dias do período. `semHistorico`: colunas de evento do card ficam sem valor ("—")
+ * nos dias antes da primeira leitura exata, e o total soma só os dias exatos.
  */
 export function montarMatriz(
   colunas: ColunaMatriz[],
   dias: string[],
   calculado: PorDia,
   manuais: Map<string, Record<string, number>>,
+  semHistorico?: { antes: string; chaves: Set<string> },
 ) {
+  const semDado = (dia: string, chave: string) => !!semHistorico && semHistorico.chaves.has(chave) && dia < semHistorico.antes;
   const ativas = colunas.filter((c) => c.ativo);
   const celulaBase = (dia: string | null) => (chave: string): CelulaMatriz => {
     const col = ativas.find((c) => c.chave === chave)!;
     if (col.tipo === "manual") {
       if (dia) {
         const v = manuais.get(dia)?.[chave];
-        return { valor: v ?? null, estimado: false };
+        return { valor: v ?? null };
       }
       let soma: number | null = null;
       for (const d of dias) {
         const v = manuais.get(d)?.[chave];
         if (v != null) soma = (soma ?? 0) + v;
       }
-      return { valor: soma, estimado: false };
+      return { valor: soma };
     }
     if (dia) {
+      if (semDado(dia, chave)) return { valor: null };
       const c: Celula | undefined = calculado.get(dia)?.[chave];
-      return { valor: c?.valor ?? 0, estimado: (c?.estimado ?? 0) > 0 };
+      return { valor: c?.valor ?? 0 };
     }
-    let valor = 0;
-    let est = false;
+    let valor: number | null = null;
     for (const d of dias) {
-      const c = calculado.get(d)?.[chave];
-      valor += c?.valor ?? 0;
-      if ((c?.estimado ?? 0) > 0) est = true;
+      if (semDado(d, chave)) continue;
+      valor = (valor ?? 0) + (calculado.get(d)?.[chave]?.valor ?? 0);
     }
-    return { valor, estimado: est };
+    return { valor };
   };
   const linhas: LinhaMatriz[] = dias.map((dia) => ({ dia, celulas: resolver(ativas, celulaBase(dia)) }));
   const total = resolver(ativas, celulaBase(null));
@@ -169,7 +172,7 @@ export function somarPadraoPorDia(linhas: LinhaCorteMatriz[], filtros: FiltrosMa
     if (!ok(l.canal, filtros.canal) || !ok(l.atendente, filtros.atendente) || !ok(l.equipe, filtros.equipe)) continue;
     const linha = m.get(l.dia) ?? {};
     for (const c of COLUNAS_PADRAO) {
-      const cel = linha[c.chave] ?? { valor: 0, estimado: 0 };
+      const cel = linha[c.chave] ?? { valor: 0 };
       cel.valor += Number(l[c.chave] ?? 0);
       linha[c.chave] = cel;
     }

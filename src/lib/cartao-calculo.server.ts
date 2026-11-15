@@ -29,7 +29,7 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
         const ma = await (ctx ? ctx.memo(`matriz|${periodoAnterior(p).de}|${periodoAnterior(p).ate}|${JSON.stringify(campos)}`, () => montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos }));
         ant = cartaoDeIndicador(ma.linhas as any, c.indicador, c, null).total;
       }
-      return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), primeiraLeitura: m.primeiraLeitura, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
+      return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), semHistoricoAntes: m.semHistoricoAntes, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
     }
     const { agregarCartao, agregarCalendario, diasAguardando } = await import("@/lib/graficos");
     const { estadoCobertura } = await import("@/lib/sync-cobertura");
@@ -44,8 +44,9 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
       const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
       const f = aplicarFiltrosCampos(cat.base, [...(data.filtrosVisao as any), ...c.filtros]);
       const ls = f ? leituras.filter((l) => f.cards.has(l.card_id)) : leituras;
-      const m = new Map<string, { card_id: string; estimado: boolean }>();
-      for (const k of chaves) { const cfg = cfgs.find((x) => x.chave === k); if (cfg) for (const x of cardsDoIndicador(cfg, ls, per.de, per.ate)) if (!m.has(x.card_id)) m.set(x.card_id, x); }
+      const { cardsPorDataGravada } = await import("@/lib/indicadores-motor");
+      const m = new Map<string, { card_id: string }>();
+      for (const k of chaves) { const cfg = cfgs.find((x) => x.chave === k); if (cfg) for (const x of (c.campoDataCard ? cardsPorDataGravada(cfg, ls, c.campoDataCard, per.de, per.ate) : cardsDoIndicador(cfg, ls, per.de, per.ate))) if (!m.has(x.card_id)) m.set(x.card_id, x); }
       return [...m.values()];
     };
     if (c.tipo === "dois_valores" && c.indicador) {

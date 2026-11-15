@@ -80,21 +80,26 @@ export async function montarMatrizCliente(
     manuais.set(String(r.data), o);
   }
   const todas = colunasMatriz(configs);
-  const r = montarMatriz(todas, listaDias(p), m, manuais);
+  // Sem histórico exato antes da primeira leitura não estimada: colunas de evento do card ficam "—".
+  const { diaSP } = await import("./painel-visual");
+  const exatas = leituras.filter((l) => !l.estimado).map((l) => l.visto_em).filter(Boolean).sort();
+  const semHistoricoAntes = leituras.length ? (exatas[0] ? diaSP(exatas[0]) : "9999-12-31") : null;
+  const chavesCard = new Set(configs.filter((c) => ehCombinadaDeCard(c) && (c.evento as any)?.tipo !== "foi_criado").map((c) => c.chave));
+  const r = montarMatriz(todas, listaDias(p), m, manuais, semHistoricoAntes ? { antes: semHistoricoAntes, chaves: chavesCard } : undefined);
   const etapas = [...new Set(leituras.map((l) => l.etapa_titulo).filter(Boolean) as string[])].sort();
   const { data: sync, error: syncError } = await db.from("elora_sync_estado").select("fonte, concluido_em, cursor").eq("cliente_id", clienteId);
   if (syncError) throw new Error(syncError.message);
   const estados = sync ?? [];
   const fontes = ["contatos", "atendimentos", "mensagens", ...(precisaCards ? ["cards"] : [])];
   const cobertura = Object.fromEntries(listaDias(p).map(d => [d, estadoCobertura(d, fontes, estados)]));
-  const primeiraLeitura = leituras.map(l => l.visto_em).filter(Boolean).sort()[0] ?? null;
   return {
     ...r,
     todasColunas: todas,
     opcoes: opcoesDimensoes(linhas),
     temCards: leituras.length > 0,
     cobertura,
-    primeiraLeitura,
+    semHistoricoAntes,
+    colunasSemHistorico: [...chavesCard],
     etapas: opcoes.comCatalogo ? etapas : [],
     catalogo: catalogo as { fonte: "card" | "contato" | "atendimento" | "utm"; nome: string; campos: { campo: string; rotulo: string; preenchidos: number }[] }[],
   };

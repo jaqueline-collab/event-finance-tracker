@@ -24,7 +24,8 @@ import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
 import { ehUrl, formatarMoeda, rotuloCorrido, textoLink } from "@/lib/formatos";
 import { cartaoPesado, filtrarPorTipo, reguaHoras, type EventoCalendario, type FiltroTipoCalendario } from "@/lib/graficos";
-import { MarcaEstimativa, PontoCobertura } from "@/components/marca-estimativa";
+import { PontoCobertura } from "@/components/ponto-cobertura";
+import { avisoSemHistorico } from "@/lib/formatos";
 
 const CORES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--primary)", "var(--muted-foreground)"];
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -345,12 +346,7 @@ function CartaoComum({
         <Grafico cartao={efetivo} r={r.r} onClique={onFiltroGrafico && efetivo.dimensao && cartao.medida !== "indicador" ? (rot) => rot !== "Outros" && onFiltroGrafico({ fonte: efetivo.dimensao?.fonte ?? cartao.fonte, campo: efetivo.dimensao?.campo ?? "origem", op: "em", valores: [rot] }) : undefined} />
       )}
       {r?.r?.rodape && <p className="mt-1 text-xs text-muted-foreground">{r.r.rodape}</p>}
-      {r?.r && r.r.estimados.length > 0 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          <MarcaEstimativa desde={r.r.primeiraLeitura} />
-          {r.r.estimados.length} dia(s) estimado(s), fora do total.
-        </p>
-      )}
+      {r?.r?.semHistoricoAntes && <p className="mt-2 text-xs text-muted-foreground">{avisoSemHistorico(r.r.semHistoricoAntes)}</p>}
     </section>
   );
 }
@@ -399,7 +395,6 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
       <div className="grid flex-1 grid-cols-2 items-center gap-4 py-2">
         {linha("Total", r.total, r.anterior, c)}
         {linha("Quantidade", r.qtd ?? 0, r.qtdAnterior, { formato: "numero", medida: "contagem" })}
-        {!!r.qtdEstimados && <p className="col-span-2 flex items-center gap-1 text-xs text-muted-foreground"><MarcaEstimativa desde={r.primeiraLeitura} /> {r.qtdEstimados} da quantidade por leitura estimada.</p>}
       </div>
     );
   }
@@ -876,7 +871,6 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
   const porDia = new Map<string, EventoCalendario[]>();
   for (const e of eventos) porDia.set(e.dia, [...(porDia.get(e.dia) ?? []), e]);
   const valores = new Map((res?.categorias ?? []).map((c) => [c.rotulo, c.total]));
-  const estimados = new Set(res?.estimados ?? []);
   const aguardando = new Set(res?.aguardando ?? []);
   const navegar = (n: number) => setRef((d) => (visual === "semana" ? somarDias(d, 7 * n) : visual === "dia" ? somarDias(d, n) : (() => { const x = new Date(`${d.slice(0, 7)}-01T12:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return iso(x); })()));
   const titulo = visual === "dia" ? new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "UTC" }) : visual === "semana" ? `${per.de.split("-").reverse().join("/")} – ${per.ate.split("-").reverse().join("/")}` : new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -888,7 +882,6 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
     const fora = dia < per.de || dia > per.ate;
     const evs = porDia.get(dia) ?? [];
     const v = valores.get(dia);
-    const est = estimados.has(dia);
     const ag = aguardando.has(dia) && dia <= hojeSP();
     return (
       <button
@@ -910,7 +903,6 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
         ) : (
           <span className="mt-auto font-semibold tabular-nums">{v ? fmt(v, cartao) : ""}</span>
         )}
-        {est && <MarcaEstimativa desde={res?.primeiraLeitura} />}
       </button>
     );
   };
@@ -955,7 +947,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
         <ul className="min-h-0 flex-1 divide-y overflow-y-auto text-sm">
           {diasAgenda.map((dia) => (
             <li key={dia}><button type="button" className="flex w-full items-center justify-between gap-2 py-1.5 text-left hover:text-primary" onClick={() => setDiaAberto(dia)}>
-              <span>{new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" })}{estimados.has(dia) && <MarcaEstimativa desde={res?.primeiraLeitura} />}</span>
+              <span>{new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" })}</span>
               {comEventos ? <span className="flex min-w-0 flex-wrap justify-end gap-1">{(porDia.get(dia) ?? []).slice(0, 3).map((e) => <span key={e.id} className={`max-w-40 truncate rounded px-1 text-[11px] ${corTipo(e.tipo)}`}>{e.nome}</span>)}{(porDia.get(dia)?.length ?? 0) > 3 && <span className="text-[11px] text-muted-foreground">+{(porDia.get(dia)?.length ?? 0) - 3}</span>}</span> : <span className="tabular-nums">{fmt(valores.get(dia) ?? 0, cartao)}</span>}
             </button></li>
           ))}
@@ -967,7 +959,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
           {dias.map(celula)}
         </div>
       )}
-      {res && <p className="mt-2 text-xs text-muted-foreground">{comEventos ? `${eventos.length.toLocaleString("pt-BR")} compromisso(s) no período` : `Total no período: ${fmt(res.total, cartao)}`}{estimados.size ? ` · ${estimados.size} dia(s) estimado(s), fora do total` : ""}</p>}
+      {res && <p className="mt-2 text-xs text-muted-foreground">{comEventos ? `${eventos.length.toLocaleString("pt-BR")} compromisso(s) no período` : `Total no período: ${fmt(res.total, cartao)}`}</p>}
       {diaAberto && <ItensDoDia clienteId={clienteId} cartao={cartao} dia={diaAberto} filtrosVisao={filtrosVisao} filtroTipo={filtroTipo} tipos={tipos} onFechar={() => setDiaAberto(null)} />}
     </section>
   );

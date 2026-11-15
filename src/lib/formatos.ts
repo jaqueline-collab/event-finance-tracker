@@ -85,3 +85,8 @@ export function formatarCelula(campo: string, v: string): string {
   if (pareceDataIso(v)) return formatarDataHora(v);
   return v;
 }
+
+/** Aviso único das colunas de evento do card sem histórico exato antes de um dia ("—" nesses dias). */
+export function avisoSemHistorico(dia: string): string {
+  return `Sem histórico exato antes de ${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
+}

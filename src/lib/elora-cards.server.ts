@@ -2,7 +2,7 @@
  * Cards do Elora (somente servidor): espelho + histórico de leituras.
  * A API não guarda histórico de etapas, então cada leitura que muda etapa,
  * status ou campos vira uma linha em elora_cards_historico. A primeira
- * leitura de um card é "estimado" (dia = última atualização do card).
+ * leitura de um card é marcada `estimado` (dia real desconhecido) e nunca conta em indicador.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assinatura, camposDaLeitura } from "./indicadores-motor";
