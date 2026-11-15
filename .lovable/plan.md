@@ -30,6 +30,9 @@ Regras gerais: retrato antes e depois (Resultados, Resultados novo, Agenda, Agen
 - Tabela de itens ganha a fonte Atendimentos (além de contato e card), para o exemplo do Vinicius.
 - Elora IA recebe e respeita os filtros fixos do bloco/visão nas respostas.
 - Teste: bloco com filtro fixo dá o mesmo número que a Matriz filtrada pelo mesmo filtro.
+- Criar, editar ou remover um filtro fixo invalida na hora o cache daquele bloco/visão.
+- Filtro fixo vale também no Exportar e na Elora IA; teste exporta um bloco filtrado e confere que só saem as linhas do filtro.
+- Conferir no banco que o campo Atendente está preenchido nos atendimentos do Dr. Ricardo (relatório com quantos têm e não têm); sem atendente, a célula fica em branco e o agrupamento mostra "Sem informação".
 
 ## Verificação
 - Testes por item (barra única, regras do calendário: posição/altura/sobreposição/início da semana; filtro fixo não removível, combinado com o de quem vê, igual à Matriz filtrada; aba sem seletor).
