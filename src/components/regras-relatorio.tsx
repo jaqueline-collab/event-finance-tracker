@@ -80,7 +80,7 @@ export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
           <Label>Atendentes ignorados (este cliente)</Label>
           {r.atendentesIgnorados.map((p, i) => (
             <div key={i} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
-              <span>{[p.nome, p.email, p.telefone].filter(Boolean).join(" · ")}</span>
+              <span>{p.nome || p.email}</span>
               <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Remover" disabled={salvando}
                 onClick={() => void salvarCorte(r.equipePorCanal, r.atendentesIgnorados.filter((_, j) => j !== i))}>
                 <Trash2 className="h-3.5 w-3.5" />
@@ -88,7 +88,7 @@ export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
             </div>
           ))}
           <div className="flex gap-2">
-            <Input value={novoIgnorado} placeholder="Nome, e-mail ou telefone" onChange={(e) => setNovoIgnorado(e.target.value)} />
+            <Input value={novoIgnorado} placeholder="Nome ou e-mail" onChange={(e) => setNovoIgnorado(e.target.value)} />
             <Button variant="outline" disabled={!novoIgnorado.trim() || salvando} onClick={async () => {
               await salvarCorte(r.equipePorCanal, [...r.atendentesIgnorados, pessoaDe(novoIgnorado)]);
               setNovoIgnorado("");
