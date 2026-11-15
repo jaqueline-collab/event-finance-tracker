@@ -27,7 +27,7 @@ import { FiltroCampos, SelosFixos } from "@/components/filtro-campos";
 import type { FiltroCampo, FonteCampo } from "@/lib/campos-elora";
 import { FONTES_CATALOGO } from "@/lib/campos-elora";
 import { calcularCartoes, itensDiaCalendario, lerInicioSemana, salvarInicioSemana, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
-import { desfazer, empurrar, encaixar, historico, LARGURA_GRADE_PX, layoutPadrao, LINHA_PX, redimensionar, refazer, reordenar, tamanhoDe, type Historico } from "@/lib/layout-blocos";
+import { desfazer, empurrar, encaixar, historico, LARGURA_GRADE_PX, LARGURAS_RAPIDAS, layoutPadrao, LINHA_PX, redimensionar, refazer, reordenar, tamanhoDe, type Historico } from "@/lib/layout-blocos";
 import {
   aplicarAlternativa, ehTituloPadrao, fontesDisponiveis, funilTop, percentuaisFunil, MEDIDAS, tituloPadrao, type ItemDia, novoCartao, ROTULO_MEDIDA, ROTULO_TIPO_GRAFICO, tiposDisponiveis, type CartaoGrafico, type CampoRef, type ResultadoCartao,
 } from "@/lib/graficos";
@@ -163,6 +163,18 @@ export function CartoesGraficos({
                   {editavel && (
                     <div className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded-md bg-card/90 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
                       <button type="button" {...alca} className="cursor-grab touch-none rounded p-0.5 text-muted-foreground active:cursor-grabbing" aria-label="Arrastar para reordenar"><GripVertical className="h-4 w-4" /></button>
+                      {larga && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Opções do bloco"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {LARGURAS_RAPIDAS.map((o) => (
+                              <DropdownMenuItem key={o.largura} onClick={() => void gravar(cartoes.map((x) => (x.id === c.id ? redimensionar(x, o.largura, tamanhoDe(x).altura) : x)))}>{o.rotulo}</DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   )}
                   {blocosFixos[c.id]}
@@ -186,6 +198,16 @@ export function CartoesGraficos({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setEditor(c)}>Editar</DropdownMenuItem>
+                          {larga && (
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>Largura</DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                {LARGURAS_RAPIDAS.map((o) => (
+                                  <DropdownMenuItem key={o.largura} onClick={() => void gravar(cartoes.map((x) => (x.id === c.id ? redimensionar(x, o.largura, tamanhoDe(x).altura) : x)))}>{o.rotulo}</DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          )}
                           <DropdownMenuItem onClick={() => void gravar([...cartoes, { ...c, id: crypto.randomUUID().slice(0, 12), titulo: `${c.titulo} (cópia)` }], "Gráfico duplicado.")}>Duplicar</DropdownMenuItem>
                           {outrasVisoes.length > 0 && (
                             <DropdownMenuSub>
@@ -223,9 +245,9 @@ export function CartoesGraficos({
               )}
               {editavel && larga && (
                 <>
-                  <span role="separator" aria-label="Redimensionar largura" className="absolute inset-y-3 -right-1.5 w-3 cursor-ew-resize rounded opacity-0 hover:bg-primary/30 group-hover:opacity-100" onPointerDown={(e) => iniciarResize(e, c, "x")} />
-                  <span role="separator" aria-label="Redimensionar altura" className="absolute inset-x-3 -bottom-1.5 h-3 cursor-ns-resize rounded opacity-0 hover:bg-primary/30 group-hover:opacity-100" onPointerDown={(e) => iniciarResize(e, c, "y")} />
-                  <span role="separator" aria-label="Redimensionar" className="absolute -bottom-1.5 -right-1.5 h-4 w-4 cursor-nwse-resize rounded-sm border-2 border-primary bg-card opacity-0 group-hover:opacity-100" onPointerDown={(e) => iniciarResize(e, c, "xy")} />
+                  <span role="separator" aria-label="Redimensionar largura" className="absolute inset-y-6 -right-1.5 z-20 flex w-3 cursor-ew-resize items-center justify-center rounded hover:bg-primary/30" onPointerDown={(e) => iniciarResize(e, c, "x")}><span className="h-8 w-1 rounded-full bg-primary/50" /></span>
+                  <span role="separator" aria-label="Redimensionar altura" className="absolute inset-x-6 -bottom-1.5 z-20 h-3 cursor-ns-resize rounded hover:bg-primary/30" onPointerDown={(e) => iniciarResize(e, c, "y")}><span className="mx-auto mt-1 block h-1 w-8 rounded-full bg-primary/50" /></span>
+                  <span role="separator" aria-label="Redimensionar" className="absolute -bottom-1.5 -right-1.5 z-20 h-4 w-4 cursor-nwse-resize rounded-sm border-2 border-primary bg-card" onPointerDown={(e) => iniciarResize(e, c, "xy")} />
                   {previa?.id === c.id && <span className="absolute right-2 top-2 rounded bg-primary px-1.5 text-xs text-primary-foreground">{t.largura}/12 · {t.altura}</span>}
                 </>
               )}

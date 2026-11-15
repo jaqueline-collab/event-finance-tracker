@@ -28,19 +28,24 @@ const LIMITES: Record<TipoGrafico, Limite> = {
   tabela_itens: { minL: 6, maxL: 12, minA: 3, maxA: 10, l: 12, a: 5 },
 };
 export const limiteDe = (t: TipoGrafico) => LIMITES[t];
+/** Tabela do Relatório diário: largura de 1 a 12, altura livre, abre em largura inteira. */
+const TABELA_MATRIZ: Limite = { minL: 1, maxL: 12, minA: 1, maxA: 40, l: 12, a: 6 };
+const limDoBloco = (c: { id?: string; tipo: TipoGrafico }) => (c.id === "__tabela_matriz" ? TABELA_MATRIZ : LIMITES[c.tipo]);
+/** Larguras rápidas do menu do bloco. */
+export const LARGURAS_RAPIDAS = [{ rotulo: "Metade", largura: 6 }, { rotulo: "Dois terços", largura: 8 }, { rotulo: "Largura inteira", largura: 12 }] as const;
 
 const prender = (v: number, a: number, b: number) => Math.max(a, Math.min(b, Math.round(v)));
 
 /** Largura/altura efetivas (padrão do tipo ou o valor gravado, sempre dentro dos limites). */
-export function tamanhoDe(c: Pick<CartaoGrafico, "tipo" | "largura" | "altura" | "tamanho">): { largura: number; altura: number } {
-  const L = LIMITES[c.tipo];
+export function tamanhoDe(c: Pick<CartaoGrafico, "tipo" | "largura" | "altura" | "tamanho"> & { id?: string }): { largura: number; altura: number } {
+  const L = limDoBloco(c);
   const l = c.largura ?? (c.tamanho === "inteiro" ? 12 : L.l);
   return { largura: prender(l, L.minL, L.maxL), altura: prender(c.altura ?? L.a, L.minA, L.maxA) };
 }
 
 /** Redimensiona com encaixe na grade e limites por tipo. */
 export function redimensionar<C extends CartaoGrafico>(c: C, largura: number, altura: number): C {
-  const L = LIMITES[c.tipo];
+  const L = limDoBloco(c);
   return { ...c, largura: prender(largura, L.minL, L.maxL), altura: prender(altura, L.minA, L.maxA) };
 }
 
