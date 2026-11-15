@@ -93,9 +93,9 @@ describe("Elora: dado nunca é instrução", () => {
     expect(r.match(/<<\/DADOS>>/g)?.length).toBe(1);
     expect(r.trim().endsWith("<</DADOS>>")).toBe(true);
   });
-  it("dimensão vazia vira Não definido e o texto injetado segue como dado", async () => {
+  it("dimensão vazia vira Sem informação e o texto injetado segue como dado", async () => {
     const r = await exec(criarFerramentasElora(cliente, deps).totais_por_dimensao, { cliente: null, de: "2026-11-01", ate: "2026-11-01", dimensao: "canal" });
-    expect(r).toContain("Não definido");
+    expect(r).toContain("Sem informação");
     expect(r.startsWith("<<DADOS>>")).toBe(true);
   });
 });
