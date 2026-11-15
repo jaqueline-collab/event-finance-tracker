@@ -4,7 +4,7 @@
  * nada específico de cliente. Valor ausente = "Sem informação" no agrupamento, em branco no item.
  */
 import { z } from "zod";
-import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
+import { aplicarFiltrosCampos, avaliarFiltro, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
 import { NAO_DEFINIDO } from "./nao-definido";
 import { CAMPO_STATUS_LEAD, ordenarPor } from "./status-lead";
 import { DINHEIRO as DINHEIRO_RE, formatarCelula, formatarDataHora, formatarMoeda, formatarTelefone, horaDe, rotuloCorrido } from "./formatos";
@@ -678,8 +678,11 @@ export function agregarMatrizUtm(base: BaseCampos, cfg: CartaoGrafico, p: Period
 /** Tabela de itens: uma linha por contato ou card criado no período, com as colunas do catálogo e a "Origem" calculada. */
 export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[], semDinheiro: boolean, cat?: GrupoCatalogo[], limite = 2000, soCards?: Set<string>): ResultadoCartao {
   const idx = indices(base);
-  const fonte: FonteCampo = cfg.fonte === "card" ? "card" : "contato";
-  const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
+  const fonte: FonteCampo = cfg.fonte === "card" ? "card" : cfg.fonte === "atendimento" ? "atendimento" : "contato";
+  // Atendimentos: filtro de atendimento vale na própria linha (como na Matriz); os demais ligam pelo contato.
+  const todosFiltros = [...filtrosVisao, ...cfg.filtros];
+  const filtrosLinha = fonte === "atendimento" ? todosFiltros.filter((f) => f.fonte === "atendimento") : [];
+  const filtro = aplicarFiltrosCampos(base, fonte === "atendimento" ? todosFiltros.filter((f) => f.fonte !== "atendimento") : todosFiltros);
   const ehOrigem = (f: CampoRef) => f.fonte === "contato" && f.campo === "origem";
   const rot = (f: CampoRef & { rotulo?: string }) => rotuloCorrido(f.rotulo || (cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, "")));
   const ehStatus = (f: CampoRef) => f.campo === CAMPO_STATUS_LEAD && (f.fonte === "contato" || f.fonte === "card");
@@ -703,7 +706,8 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const itens: { id: string; valores: Record<string, string>; brutos: Record<string, string> }[] = [];
   for (const r of registros(base, fonte)) {
     if (soCards ? !soCards.has(String(r.id)) : !noPer(r.criado_em, p)) continue;
-    if (filtro && !(fonte === "card" ? filtro.cards.has(r.id) : filtro.contatos.has(r.id))) continue;
+    if (filtrosLinha.length && !filtrosLinha.every((f) => avaliarFiltro(f, valorDe("atendimento", f.campo, r)))) continue;
+    if (filtro && !(fonte === "card" ? filtro.cards.has(r.id) : fonte === "atendimento" ? !!r.contato_id && filtro.contatos.has(r.contato_id) : filtro.contatos.has(r.id))) continue;
     const valores: Record<string, string> = {};
     const brutos: Record<string, string> = {};
     for (const f of colunas) if (!ehOrigem(f)) {

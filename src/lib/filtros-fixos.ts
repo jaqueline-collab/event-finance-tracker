@@ -30,11 +30,14 @@ export function aplicarFixosGravados(cartoes: CartaoGrafico[], visoes: VisaoGrav
 /** Texto do selo com cadeado: "Atendente: Vinicius". */
 export function textoSelo(f: FiltroCampo, rotulo?: string): string {
   const nome = rotulo || f.campo.replace(/^campo\./, "").replace(/[_-]+/g, " ").replace(/^./, (x) => x.toUpperCase());
-  const vals = (f as any).valores as string[] | undefined;
-  const op = (f as any).operador as string | undefined;
-  const v = vals?.length ? vals.join(", ") : (f as any).valor != null ? String((f as any).valor) : "";
-  if (op === "vazio") return `${nome}: sem informação`;
-  if (op === "preenchido") return `${nome}: preenchido`;
-  if (op && /^(nao|não|diferente)/.test(op)) return `${nome}: exceto ${v}`;
-  return v ? `${nome}: ${v}` : nome;
+  switch (f.op) {
+    case "vazio": return `${nome}: sem informação`;
+    case "preenchido": return `${nome}: preenchido`;
+    case "contem": return `${nome}: contém "${f.texto ?? ""}"`;
+    case "maior": return `${nome} > ${f.min ?? ""}`;
+    case "menor": return `${nome} < ${f.max ?? ""}`;
+    case "entre": return `${nome}: ${f.min ?? ""} a ${f.max ?? ""}`;
+    case "periodo": return `${nome}: ${(f.de ?? "").split("-").reverse().join("/")} a ${(f.ate ?? "").split("-").reverse().join("/")}`;
+    default: return `${nome}: ${(f.valores ?? []).join(", ")}`;
+  }
 }
