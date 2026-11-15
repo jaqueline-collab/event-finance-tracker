@@ -13,7 +13,7 @@ import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual
 import { avisoSemHistorico } from "@/lib/formatos";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { BarraTabela } from "@/components/barra-tabela";
-import type { EstadoColunas } from "@/lib/colunas-tabela";
+import { alternarColunasAds, ehColunaAds, type EstadoColunas } from "@/lib/colunas-tabela";
 
 function ordenarPorEstado<T extends { chave: string }>(cols: T[], e: EstadoColunas): T[] {
   const pos = new Map(e.ordem.map((k, i) => [k, i]));
@@ -120,8 +120,10 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   const colsBarra = d.todasColunas.map((c) => ({ chave: c.chave, rotulo: c.nome }));
   const padraoCols: EstadoColunas = { ordem: d.todasColunas.map((c) => c.chave), ocultas: d.todasColunas.filter((c) => !c.ativo).map((c) => c.chave), fixas: [] };
   const estadoValido = estadoCols.ordem.length ? estadoCols : padraoCols;
+  const chavesAds = colsBarra.map((c) => c.chave).filter(ehColunaAds);
+  const adsVisiveis = chavesAds.every((k) => !estadoValido.ocultas.includes(k));
   // quem vê reordena/oculta só na tela; a super admin em Editar vê todas e salva o padrão
-  const colunasTela = editavel ? ordenarPorEstado(d.todasColunas, { ...estadoValido, ocultas: [] }) : ordenarPorEstado(d.colunas, estadoValido).filter((c) => !estadoValido.ocultas.includes(c.chave));
+  const colunasTela = ordenarPorEstado(editavel ? d.todasColunas : d.colunas, estadoValido).filter((c) => !estadoValido.ocultas.includes(c.chave));
   const ativasPorChave = new Set(d.colunas.map((c) => c.chave));
 
   const salvarOrdem = async (lista: ColunaMatriz[]) => {
@@ -162,8 +164,9 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {editavel && modo === "diaria" && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} disabled={filtros.length > 0} />Comparar com gravado</label>}
+        {editavel && modo === "diaria" && filtros.length === 0 && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} />Comparar com gravado</label>}
         <BarraTabela colunas={colsBarra} estado={estadoValido} onEstado={setEstadoCols} padrao={padraoCols} semFixar
+          extras={chavesAds.length > 0 ? <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label> : undefined}
           onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
           onExportar={(f) => {
           const cols = colunasTela.filter(c => ativasPorChave.has(c.chave));

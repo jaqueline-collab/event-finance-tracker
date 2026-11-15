@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { podeCongelarRelatorio } from "@/lib/permissao-congelar";
 
 export type FiltrosCongelados = {
   canais: string[];
@@ -25,10 +26,7 @@ const filtrosSchema = z.object({
 type Ctx = { supabase: any };
 
 async function podeCongelar(ctx: Ctx, clienteId: string): Promise<boolean> {
-  const { data: interno } = await ctx.supabase.rpc("is_equipe_interna");
-  if (interno) return true;
-  const { data: parceiro } = await ctx.supabase.rpc("parceiro_pode_ver_painel", { _cliente_id: clienteId });
-  return Boolean(parceiro);
+  return podeCongelarRelatorio(ctx.supabase);
 }
 
 /** Filtro congelado do usuário logado para o cliente, e se ele pode congelar. */

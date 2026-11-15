@@ -2,6 +2,13 @@
 export type ColunaTabela = { chave: string; rotulo: string; oculta?: boolean; fixa?: boolean };
 export type EstadoColunas = { ordem: string[]; ocultas: string[]; fixas: string[] };
 
+/** ADS é só visibilidade local: nunca altera linhas, valores ou filtros. */
+export const ehColunaAds = (chave: string) => /(?:_ads|Ads)$/.test(chave);
+export function alternarColunasAds(e: EstadoColunas, chaves: string[], mostrar: boolean): EstadoColunas {
+  const ads = chaves.filter(ehColunaAds);
+  return { ...e, ocultas: mostrar ? e.ocultas.filter((k) => !ads.includes(k)) : [...new Set([...e.ocultas, ...ads])] };
+}
+
 export const estadoInicial = (cols: ColunaTabela[]): EstadoColunas => ({
   ordem: cols.map((c) => c.chave),
   ocultas: cols.filter((c) => c.oculta).map((c) => c.chave),

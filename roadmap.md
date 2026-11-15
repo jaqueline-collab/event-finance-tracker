@@ -1,5 +1,12 @@
 # Roadmap — Dash do cliente
 
+## Ajustes de barras — 15/11
+- [x] Retrato atual antes/depois, zero diferenças nos dois períodos.
+- [x] BarraTabela também nas tabelas agregadas de Resultados/Resultados (novo), legadas e lista do dia.
+- [x] Ocultar Agrupar quando inaplicável; ADS disponível ao leitor no Relatório diário, sem mudar cálculos; Congelar só super admin.
+- [x] Relatório com arquivos dos retratos e atendimentos por mês do Dr. Ricardo.
+- [ ] Verificação das telas reais autenticadas — bloqueada pela ausência de sessão autorizada no Supabase externo; barra isolada verificada no navegador.
+
 - [x] Etapa A: layout e visual (menu, visões em pílulas, barra super admin, cartões)
 - [x] Adendo: limite de Contatos corrigido; Setup +500 e filtros salvos consultados sem alteração; planos D/F detalhados para conferência. Verificação logada indisponível (Supabase externo).
 - [~] Etapa B: carga completa do 8c0ojhr2 feita; painel lê o espelho (Dr. Gean nas antigas). Aguardando aprovação para mensagens e para apagar tabelas antigas.

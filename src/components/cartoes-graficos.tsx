@@ -461,63 +461,14 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
 }
 
 function TabelaCartao({ cartao: c, r }: { cartao: CartaoGrafico; r: ResultadoCartao }) {
-  const [pagina, setPagina] = useState(0);
-  const [ordem, setOrdem] = useState<{ col: string; desc: boolean }>({ col: "total", desc: true });
-  const [ocultas, setOcultas] = useState<string[]>([]);
-  const cols = (c.painel === "atendentes" ? r.series : r.series.length > 1 ? [...r.series, "total"] : ["total"]).filter((x) => !ocultas.includes(x));
-  const linhas = [...r.categorias].sort((a, b) => {
-    const x = ordem.col === "rotulo" ? a.rotulo : ordem.col === "total" ? a.total : (a.valores[ordem.col] ?? 0);
-    const y = ordem.col === "rotulo" ? b.rotulo : ordem.col === "total" ? b.total : (b.valores[ordem.col] ?? 0);
-    const s = x < y ? -1 : x > y ? 1 : 0;
-    return ordem.desc ? -s : s;
-  });
-  const paginas = Math.max(1, Math.ceil(linhas.length / 20));
-  const vis = linhas.slice(pagina * 20, pagina * 20 + 20);
-  const th = (col: string, rot: string) => (
-    <th className="whitespace-nowrap border-b px-2 py-1.5 text-right font-medium first:text-left">
-      <button type="button" className="inline-flex items-center gap-1" onClick={() => setOrdem((o) => ({ col, desc: o.col === col ? !o.desc : true }))}>
-        {rot} {ordem.col === col && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
-      </button>
-    </th>
-  );
-  return (
-    <div className="space-y-2">
-      {r.series.length > 1 && (
-        <div className="flex flex-wrap gap-1">
-          {[...r.series, "total"].map((s) => (
-            <button key={s} type="button" onClick={() => setOcultas((o) => (o.includes(s) ? o.filter((x) => x !== s) : [...o, s]))} className={`rounded-full border px-2 py-0.5 text-xs ${ocultas.includes(s) ? "text-muted-foreground line-through" : ""}`}>
-              {s === "total" ? "Total" : s}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              {th("rotulo", c.dimensao ? "Item" : "")}
-              {cols.map((x) => th(x, x === "total" ? "Total" : x))}
-            </tr>
-          </thead>
-          <tbody>
-            {vis.map((l) => (
-              <tr key={l.rotulo} className="border-b last:border-0">
-                <td className="px-2 py-1.5">{l.rotulo}</td>
-                {cols.map((x) => <td key={x} className="px-2 py-1.5 text-right tabular-nums">{x === "Proporção (%)" ? `${(l.valores[x] ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : fmt(x === "total" ? l.total : l.valores[x], c)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {paginas > 1 && (
-        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-          <Button size="sm" variant="ghost" className="h-7" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}>Anterior</Button>
-          {pagina + 1} de {paginas}
-          <Button size="sm" variant="ghost" className="h-7" disabled={pagina + 1 >= paginas} onClick={() => setPagina((p) => p + 1)}>Próxima</Button>
-        </div>
-      )}
-    </div>
-  );
+  const series = c.painel === "atendentes" ? r.series : r.series.length > 1 ? [...r.series, "total"] : ["total"];
+  const colunas = [{ chave: "rotulo", rotulo: c.dimensao ? "Item" : "Categoria" }, ...series.map((chave) => ({ chave, rotulo: chave === "total" ? "Total" : chave }))];
+  const itens = r.categorias.map((l, i) => ({
+    id: `${i}:${l.rotulo}`,
+    valores: Object.fromEntries([["rotulo", l.rotulo], ...series.map((k) => [k, k === "Proporção (%)" ? `${(l.valores[k] ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : fmt(k === "total" ? l.total : l.valores[k], c)])]),
+    brutos: Object.fromEntries([["rotulo", l.rotulo], ...series.map((k) => [k, String(k === "total" ? l.total : l.valores[k] ?? "")])]),
+  }));
+  return <TabelaItens cartao={c} r={{ ...r, colunasItens: colunas, itens }} ordemInicial={{ col: "total", desc: true }} />;
 }
 
 /** Mapa em grade de quadros por região (sem mapa externo). Só aparece quando o cliente tem campo geográfico. */
@@ -1127,6 +1078,12 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, filtroTipo, tipos, o
   const rotulos = Object.fromEntries(cartao.camposLista.map((f) => [`${f.fonte}|${f.campo}`, f.rotulo || rotuloCorrido(f.campo)]));
   const extras = Object.keys(rotulos).filter((k) => itens?.some((i) => k in i.campos));
   const temValor = itens?.some((i) => i.valor != null);
+  const resultado: ResultadoCartao = {
+    categorias: [], series: [], total: itens?.length ?? 0, anterior: null, linhas: itens?.length ?? 0,
+    colunasItens: [{ chave: "data", rotulo: "Data e hora" }, { chave: "nome", rotulo: "Nome" }, { chave: "tipo", rotulo: "Tipo" }, { chave: "telefone", rotulo: "Telefone" }, ...extras.map((chave) => ({ chave, rotulo: rotulos[chave] })), ...(temValor ? [{ chave: "valor", rotulo: "Valor" }] : [])],
+    itens: (itens ?? []).map((i) => ({ id: i.id, valores: { ...i.campos, data: i.data, nome: i.nome, tipo: tipos[i.tipo] ?? "", telefone: i.telefone, valor: formatarMoeda(i.valor) } })),
+    etiquetas: ["tipo"],
+  };
   return (
     <Sheet open onOpenChange={(o) => !o && onFechar()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
@@ -1137,23 +1094,7 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, filtroTipo, tipos, o
         {!itens ? <Skeleton className="mt-4 h-40 w-full" /> : !itens.length ? (
           <p className="mt-6 text-sm text-muted-foreground">Nenhum compromisso neste dia.</p>
         ) : (
-          <div className="mt-4">
-            <table className="w-full table-auto text-sm [&_td]:align-top [&_td]:break-words">
-              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-2">Data e hora</th><th className="py-1 pr-2">Nome</th><th className="py-1 pr-2">Tipo</th><th className="py-1 pr-2">Telefone</th>{extras.map((k) => <th key={k} className="py-1 pr-2">{rotulos[k]}</th>)}{temValor && <th className="py-1 pr-2 text-right">Valor</th>}</tr></thead>
-              <tbody>
-                {itens.map((i) => (
-                  <tr key={i.id} className="border-t">
-                    <td className="py-1.5 pr-2 tabular-nums">{i.data}</td>
-                    <td className="py-1.5 pr-2">{i.nome}</td>
-                    <td className="py-1.5 pr-2"><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${corTipo(i.tipo)}`}>{tipos[i.tipo] ?? ""}</span></td>
-                    <td className="whitespace-nowrap py-1.5 pr-2 tabular-nums">{i.telefone}</td>
-                    {extras.map((k) => <td key={k} className="py-1.5 pr-2">{i.campos[k]}</td>)}
-                    {temValor && <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{formatarMoeda(i.valor)}</td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <div className="mt-4"><TabelaItens cartao={cartao} r={resultado} /></div>
         )}
       </SheetContent>
     </Sheet>
@@ -1175,13 +1116,13 @@ function celulaTexto(v: string) {
 }
 
 /** Uma linha por contato/card: ordenar, agrupar, ocultar colunas, paginar e exportar (CSV, só o que está visível). */
-function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao }) {
+export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<CartaoGrafico, "titulo">; r: ResultadoCartao; ordemInicial?: { col: string; desc: boolean } | null }) {
   const cols = r.colunasItens ?? [];
   const chaveCols = cols.map((c) => `${c.chave}:${c.oculta ? 1 : 0}${c.fixa ? 1 : 0}`).join("|");
   // Quem vê ajusta as colunas aqui sem gravar; a configuração salva do bloco é o ponto de partida.
   const [estado, setEstado] = useState<EstadoColunas>(() => estadoInicial(cols));
   useEffect(() => setEstado(estadoInicial(cols)), [chaveCols]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [ordem, setOrdem] = useState<{ col: string; desc: boolean } | null>(null);
+  const [ordem, setOrdem] = useState<{ col: string; desc: boolean } | null>(ordemInicial);
   const [agrupar, setAgrupar] = useState<string>("");
   const [pagina, setPagina] = useState(0);
   const vis = colunasVisiveis(cols, estado);
@@ -1235,9 +1176,9 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
         </span>
         {paginas > 1 && (
           <span className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Página anterior" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}><ChevronLeft className="h-3.5 w-3.5" /></Button>
+            {pagina > 0 && <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Página anterior" onClick={() => setPagina((p) => p - 1)}><ChevronLeft className="h-3.5 w-3.5" /></Button>}
             {pagina + 1}/{paginas}
-            <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Próxima página" disabled={pagina >= paginas - 1} onClick={() => setPagina((p) => p + 1)}><ChevronRight className="h-3.5 w-3.5" /></Button>
+            {pagina < paginas - 1 && <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Próxima página" onClick={() => setPagina((p) => p + 1)}><ChevronRight className="h-3.5 w-3.5" /></Button>}
           </span>
         )}
       </div>
