@@ -1,22 +1,27 @@
-# Plano: espelho completo de cada cliente (todos os campos)
+# Plano: totais por dia prontos ao fim de cada sincronização
 
-## Situação hoje (Dr. Ricardo)
-- O espelho novo já guarda o registro inteiro do Elora (com todos os campos personalizados) para contatos, atendimentos e cards. O que ainda é seletivo é a sincronização antiga ("só os campos usados por widgets"), que grava em `elora_contatos_sincronizados` (419 linhas).
-- Tamanho atual: mensagens 71 MB (42 mil), contatos 20 MB (12 mil), atendimentos 15 MB (3,2 mil), cards 9,5 MB (5,5 mil), histórico de cards 8 MB (7,3 mil).
-- Carga completa medida: contatos 719 chamadas, mensagens 4.338, cards 1.360, atendimentos 47.
+## Objetivo
+As visões leem totais já calculados em vez de recalcular a cada abertura. Meta: toda visão abre em menos de 3 s sem depender do cache. Os números continuam idênticos ao retrato.
 
-## O que fazer
-1. Desligar a extração seletiva: a sincronização antiga passa a gravar todos os campos personalizados de cada contato (sem olhar widgets).
-2. Garantir que contatos, atendimentos e cards sempre guardem todos os campos, também na leitura incremental.
-3. Os blocos antigos (widgets) passam a ler os campos do espelho completo; nada muda nos números (retrato antes e depois, parar se mudar).
-4. Limpeza: `elora_contatos_sincronizados` fica só leitura até confirmar 0 diferenças; depois deixa de ser gravada (sem apagar).
+## Como funciona
+1. Ao fim de cada sincronização (e quando mudar uma configuração que afeta números), o servidor recalcula os totais por dia do cliente e grava numa tabela de totais.
+2. Os totais são guardados por dia e por dimensão: canal, atendente, equipe, origem, campanha/UTM, etapa e indicador da Matriz.
+3. As visões e a Matriz leem essas linhas prontas (algumas centenas, em vez de milhares de contatos e mensagens) e só somam o período pedido.
+4. Blocos que precisam de registro a registro (Agenda, tabelas de itens, filtros por campo livre) continuam lendo o espelho, mas só o recorte do período.
+5. Se os totais ainda estiverem sendo gravados, a visão usa o cálculo atual (nunca mostra número velho), e a tela informa "atualizando".
+
+## Garantias
+- Retrato antes e depois em todas as visões e na Matriz, nos dois períodos de referência; parar se algum número mudar.
+- Versão da sincronização e de configuração gravada junto dos totais: total de versão antiga nunca é servido.
+- Permissão de ver valores continua aplicada na leitura, depois dos totais.
 
 ## Impacto estimado
-- Tempo de sincronização: a carga completa não muda de número de chamadas (a API já devolve todos os campos na mesma página). A incremental de hora em hora continua em segundos. Só a primeira regravação da sincronização antiga leva uma rodada extra (~12 mil contatos, ~120 páginas, ~2–4 min).
-- Carga do banco: + ~5–10 MB por cliente do porte do Dr. Ricardo (campos que hoje ficam fora da tabela antiga). Sem novas tabelas; índices atuais bastam.
-- Abertura das visões: sem mudança no painel novo (já lê o espelho completo). Os blocos antigos ganham os campos sem nova leitura.
+- Abertura: de 2,4–3,7 s para cerca de 0,5–1,5 s sem cache nas visões de totais (Resultados, Resultados (novo), Matriz); Agenda e Agendamentos dependem do recorte do período, cerca de 1–2 s.
+- Sincronização: mais ~3–8 s por cliente no fim de cada rodada.
+- Banco: algumas dezenas de milhares de linhas pequenas por cliente (poucos MB).
 
 ## Detalhes técnicos
-- `sincronizarIntegracaoCliente` (`integracao-elora.functions.ts`): remover o filtro `chavesUsadas`; gravar `customFields` inteiro.
-- Medir antes/depois: tempo da carga, chamadas, tamanho das tabelas (`pg_total_relation_size`) e tempo de abertura das 5 visões.
-- Regra de memória "remover sincronização seletiva" passa a ser cumprida.
+- Tabela `elora_totais_dia` (cliente, dia, dimensões, chave do indicador, valor, versões), só servidor (RLS sem política, service_role).
+- Gravação: função após `sincronizar*` e após `aplicarProposta`/escritas de config, reaproveitando `calcularCorteCliente` e o motor de indicadores (uma regra só).
+- Leitura: `linhasPadrao` e `cartaoDoPainel` leem totais quando a versão bate; senão, caem no caminho atual.
+- Testes: mesma saída do motor com e sem totais prontos.

@@ -41,5 +41,5 @@
 - [x] Agenda por hora (Dia/Semana)
 - [x] Funil estilo Elora App
 - [ ] Depois: plano separado para espelho completo de cada cliente (tempo de sincronização e carga do banco)
-- [ ] Espelho completo (todos os campos): regravação fora das rodadas de 3 em 3 h, tempo real e tamanho antes/depois
+- [ ] Espelho completo: código pronto; regravação do cliente jvu3dzqk bloqueada (chave sem permissão em /v1/contact/filter)
 - [ ] Depois: plano separado de pré-agregação de totais por dia ao fim da sincronização (< 3 s sem cache)
