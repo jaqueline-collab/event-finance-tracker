@@ -15,6 +15,7 @@ export async function lerMapaCanais(db: SupabaseClient, clienteId: string): Prom
   for (const r of ap.data ?? []) { apelidos[String(r.canal_id)] = r.apelido; extras[String(r.canal_id)] = [r.nome, r.numero]; }
   const canais = (apoio.data ?? []).map((a: any) => ({
     id: String(a.externo_id),
+    real: a.payload?.identity?.displayName ?? a.payload?.identity?.name ?? a.nome ?? null,
     nomes: [a.payload?.identity?.humanId, a.payload?.identity?.name, a.nome, a.payload?.numberFormatted, a.payload?.number, ...(extras[String(a.externo_id)] ?? [])],
   }));
   return montarMapaCanais(canais, apelidos);
