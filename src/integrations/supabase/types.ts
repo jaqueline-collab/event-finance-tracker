@@ -2527,6 +2527,7 @@ export type Database = {
           equipe_por_canal: Json
           matriz_filtros_padrao: Json
           matriz_nome: string | null
+          semana_inicia_segunda: boolean
         }
         Insert: {
           atendentes_ignorados?: Json
@@ -2536,6 +2537,7 @@ export type Database = {
           equipe_por_canal?: Json
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
+          semana_inicia_segunda?: boolean
         }
         Update: {
           atendentes_ignorados?: Json
@@ -2545,6 +2547,7 @@ export type Database = {
           equipe_por_canal?: Json
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
+          semana_inicia_segunda?: boolean
         }
         Relationships: [
           {

@@ -1,0 +1,1 @@
+ALTER TABLE public.elora_relatorio_corte_config ADD COLUMN IF NOT EXISTS semana_inicia_segunda boolean NOT NULL DEFAULT false;
