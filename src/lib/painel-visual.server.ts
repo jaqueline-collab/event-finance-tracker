@@ -17,7 +17,7 @@ import {
 import { lerTudo } from "./ler-paginas.server";
 
 /** Cache curto por cliente (contatos e atendimentos mudam só na sincronização). */
-const cache = new Map<string, { em: number; chave: string; contatos: ContatoP[]; atendimentos: AtendimentoP[] }>();
+const cache = new Map<string, { em: number; chave: string; nomesUsuario?: Record<string, string | null>; contatos: ContatoP[]; atendimentos: (AtendimentoP & { suporte?: boolean })[] }>();
 
 
 export async function calcularPainelVisual(adm: any, clienteId: string, p: Periodo, filtros: Filtros = {}, campos: FiltroCampo[] = [], ctx?: import("./calculo-contexto.server").Ctx) {
