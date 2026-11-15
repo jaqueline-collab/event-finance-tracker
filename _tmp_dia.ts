@@ -1,0 +1,10 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { calcularCorteCliente } from "@/lib/indicadores.server";
+const r: any = await calcularCorteCliente(supabaseAdmin as any, "8c0ojhr2", { de: "2026-11-09", ate: "2026-11-11" });
+console.log(Object.keys(r));
+const rem = r.removidas instanceof Map ? Object.fromEntries(r.removidas) : r.removidas;
+console.log("removidas", JSON.stringify(rem));
+const porAt: Record<string, number> = {};
+for (const l of r.linhas ?? []) if (l.dia === "2026-11-10") porAt[l.atendente || "(vazio)"] = (porAt[l.atendente || "(vazio)"] ?? 0) + l.conversas_total_dia;
+console.log(JSON.stringify(porAt));
+process.exit(0);
