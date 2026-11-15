@@ -33,5 +33,4 @@
 - Display formats (date/time in Brasília, R$ with cents, phone, links, sentence-case headers) come only from `src/lib/formatos.ts`; channel names shown anywhere come only from `src/lib/nome-canal.ts` (super admin alias or "Canal sem nome", never the instance code), applied at read time so stored data and matching keys stay untouched.
 - Panel/Matriz speed: SQL `elora_conversas_pares` groups conversations; one request per view with a request `Ctx`; `elora_calculo_cache` keyed by `elora_versoes_cache`, value permission applied after cache, so no stale or leaked numbers.
 - New contacts: SQL `elora_novos_contatos`; catalog cached by `elora_versoes_cache`.
-- Status do lead: per-client origin in `coluna_status`, resolved once in `status-lead.ts` into `status_lead`, so all uses share one rule.
-- Items table "Colunas" (show/hide/reorder/pin) is pure in `colunas-tabela.ts`; viewer changes never save.
+- `status-lead.ts` resolves `status_lead` once: one rule.
