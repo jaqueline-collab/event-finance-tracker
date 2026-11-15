@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
-import { MarcaEstimativa } from "@/components/marca-estimativa";
+import { avisoSemHistorico } from "@/lib/formatos";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { MatrizDimensionalLegada } from "@/components/resultados-cliente";
 import { validarRelatorioDiario } from "@/lib/indicadores.functions";
@@ -40,13 +40,12 @@ function formatar(v: number | null, f: Formato) {
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 }
 
-function Celula({ c, formato, desde, parcial }: { c?: { valor: number | null; estimado: boolean; erro?: string }; formato: Formato; desde?: string | null; parcial?: boolean }) {
+function Celula({ c, formato, parcial }: { c?: { valor: number | null; erro?: string }; formato: Formato; parcial?: boolean }) {
   if (!c) return <span className="text-muted-foreground">—</span>;
   if (c.erro) return <span className="text-xs text-destructive" title={c.erro}>Configuração com erro</span>;
   return (
     <span className="tabular-nums">
-      {parcial && c.valor === 0 ? "—" : formatar(c.valor, formato)}
-      {c.estimado && <MarcaEstimativa desde={desde} />}
+      {c.valor == null || (parcial && c.valor === 0) ? "—" : formatar(c.valor, formato)}
     </span>
   );
 }
@@ -155,8 +154,8 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
         {editavel && modo === "diaria" && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} disabled={filtros.length > 0} />Comparar com gravado</label>}
         {modo === "diaria" && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm">Exportar</Button></DropdownMenuTrigger><DropdownMenuContent>{(["csv", "xlsx", "pdf"] as const).map(f => <DropdownMenuItem key={f} onClick={() => {
           const cols = d.colunas;
-          const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? "—"}${v?.estimado ? " (estimado)" : ""}`; }), d.cobertura[l.dia]]);
-          corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? "—"}${d.total[c.chave]?.estimado ? " (estimado)" : ""}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "parcial" : "confirmado"]);
+          const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? "—"}`; }), d.cobertura[l.dia]]);
+          corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? "—"}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "parcial" : "confirmado"]);
           void exportarMatriz(f, ["Dia", ...cols.map(c=>c.nome), "Cobertura"], corpo, `matriz-${periodo.de}-${periodo.ate}`).catch(e=>toast.error(msg(e)));
         }}>{f.toUpperCase()}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
       </div>
@@ -243,7 +242,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
                       <CelulaManual clienteId={clienteId} chave={c.chave} dia={l.dia} valor={l.celulas[c.chave]?.valor ?? null} aoSalvar={recarregar} />
                     ) : ativasPorChave.has(c.chave) ? (
                       <>
-                      <Celula c={l.celulas[c.chave]} formato={c.formato} desde={d.primeiraLeitura} parcial={c.tipo !== "manual" && d.cobertura[l.dia] !== "confirmado"} />
+                      <Celula c={l.celulas[c.chave]} formato={c.formato} parcial={c.tipo !== "manual" && d.cobertura[l.dia] !== "confirmado"} />
                       {comparacao && comparacao.existente[l.dia]?.[c.chave] !== undefined && <span className="ml-2 text-xs text-muted-foreground">gravado {comparacao.existente[l.dia][c.chave]} · Δ {(l.celulas[c.chave]?.valor ?? 0) - comparacao.existente[l.dia][c.chave]}</span>}
                       </>
                     ) : (
@@ -260,7 +259,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
               <td className="sticky left-0 border-t bg-card px-3 py-2.5">Total</td>
               {colunasTela.map((c) => (
                 <td key={c.chave} className="border-t px-3 py-2.5 text-right">
-                  {ativasPorChave.has(c.chave) ? <Celula c={d.total[c.chave]} formato={c.formato} desde={d.primeiraLeitura} parcial={c.tipo !== "manual" && Object.values(d.cobertura).some(s => s !== "confirmado")} /> : <span className="text-muted-foreground">—</span>}
+                  {ativasPorChave.has(c.chave) ? <Celula c={d.total[c.chave]} formato={c.formato} parcial={c.tipo !== "manual" && Object.values(d.cobertura).some(s => s !== "confirmado")} /> : <span className="text-muted-foreground">—</span>}
                 </td>
               ))}
               {editavel && <td className="border-t" />}
@@ -268,7 +267,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
           </tfoot>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">● Valores estimados incluem dias anteriores à primeira leitura do card; o total mantém essa marca. {Object.values(d.cobertura).some(s => s !== "confirmado") && "Parcial: a sincronização atual não comprova cobertura completa de todos os dias, inclusive no total."}</p>
+      <p className="text-xs text-muted-foreground">{d.semHistoricoAntes && d.colunasSemHistorico.length > 0 && `${avisoSemHistorico(d.semHistoricoAntes)}. `}{Object.values(d.cobertura).some(s => s !== "confirmado") && "Parcial: a sincronização atual não comprova cobertura completa de todos os dias, inclusive no total."}</p>
       {editavel && d.erros.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Colunas com configuração incompleta: {d.erros.map((e) => `${e.nome} (${e.erro})`).join("; ")}.

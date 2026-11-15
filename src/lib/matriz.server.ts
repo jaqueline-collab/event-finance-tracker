@@ -84,7 +84,7 @@ export async function montarMatrizCliente(
   const { diaSP } = await import("./painel-visual");
   const exatas = leituras.filter((l) => !l.estimado).map((l) => l.visto_em).filter(Boolean).sort();
   const semHistoricoAntes = leituras.length ? (exatas[0] ? diaSP(exatas[0]) : "9999-12-31") : null;
-  const chavesCard = new Set(todas.filter((c) => ehCombinadaDeCard(c) && (c as any).evento?.tipo !== "foi_criado").map((c) => c.chave));
+  const chavesCard = new Set(configs.filter((c) => ehCombinadaDeCard(c) && (c.evento as any)?.tipo !== "foi_criado").map((c) => c.chave));
   const r = montarMatriz(todas, listaDias(p), m, manuais, semHistoricoAntes ? { antes: semHistoricoAntes, chaves: chavesCard } : undefined);
   const etapas = [...new Set(leituras.map((l) => l.etapa_titulo).filter(Boolean) as string[])].sort();
   const { data: sync, error: syncError } = await db.from("elora_sync_estado").select("fonte, concluido_em, cursor").eq("cliente_id", clienteId);
