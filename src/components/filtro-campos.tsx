@@ -219,17 +219,20 @@ function EditorFiltro({ campo, opcoes, inicial, aviso, onVoltar, onAplicar }: {
 /** Selo discreto com cadeado para filtro fixo: quem vê sabe que o bloco/visão está filtrado e não remove. */
 export function SelosFixos({ clienteId, filtros, prefixo }: { clienteId: string; filtros: FiltroCampo[]; prefixo?: string }) {
   const catalogo = useCatalogo(clienteId);
-  if (!filtros.length) return null;
   const todos = (catalogo ?? []).flatMap((g) => g.campos);
+  // Só mostra quando o filtro realmente restringe: "está em" com todas as opções do campo não filtra nada.
+  const restringe = (f: FiltroCampo) => {
+    const op = todos.find((c) => chave(c) === chave(f))?.opcoes;
+    const vs = Array.isArray((f as any).valores) ? ((f as any).valores as unknown[]).map(String) : null;
+    return !(f.op === "em" && vs && op?.length && op.every((o) => vs.includes(String(o))));
+  };
+  const ativos = filtros.filter(restringe);
+  if (!ativos.length) return null;
   const rot = (f: FiltroCampo) => todos.find((c) => chave(c) === chave(f))?.rotulo ?? f.campo.replace(/^campo\./, "");
+  const texto = `${prefixo ?? "Filtro fixo"}: ${ativos.map((f) => descreverFiltro(f, rot(f))).join(" · ")}`;
   return (
-    <span className="flex flex-wrap items-center gap-1" aria-label={prefixo ?? "Filtro fixo"}>
-      {filtros.map((f, i) => (
-        <span key={i} title={`${prefixo ?? "Filtro fixo"}: não pode ser removido aqui`} className="inline-flex max-w-full items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-          <Lock className="h-3 w-3 shrink-0" aria-hidden />
-          <span className="truncate">{descreverFiltro(f, rot(f))}</span>
-        </span>
-      ))}
+    <span title={texto} aria-label={texto} role="img" className="inline-flex shrink-0 items-center text-muted-foreground">
+      <Lock className="h-3 w-3" aria-hidden />
     </span>
   );
 }
