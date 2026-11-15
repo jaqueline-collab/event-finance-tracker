@@ -12,7 +12,6 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
 import { avisoSemHistorico } from "@/lib/formatos";
 import { exportarMatriz } from "@/lib/matriz-exportar";
-import { MatrizDimensionalLegada } from "@/components/resultados-cliente";
 import { validarRelatorioDiario } from "@/lib/indicadores.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
@@ -51,7 +50,7 @@ function Celula({ c, formato, parcial }: { c?: { valor: number | null; erro?: st
 }
 
 export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: string; periodo: Periodo; editando: boolean }) {
-  const [modo, setModo] = useState("diaria");
+  const modo = "diaria" as const;
   const [comparar, setComparar] = useState(false);
   const [comparacao, setComparacao] = useState<Awaited<ReturnType<typeof validarRelatorioDiario>> | null>(null);
   const [d, setD] = useState<Dados | null>(null);
@@ -150,7 +149,6 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={modo} onValueChange={setModo}><SelectTrigger className="w-auto" aria-label="Modo da Matriz"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="diaria">Diária · cálculo atual</SelectItem><SelectItem value="dimensoes">Por dimensões · registros e congelamentos</SelectItem></SelectContent></Select>
         {editavel && modo === "diaria" && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} disabled={filtros.length > 0} />Comparar com gravado</label>}
         {modo === "diaria" && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm">Exportar</Button></DropdownMenuTrigger><DropdownMenuContent>{(["csv", "xlsx", "pdf"] as const).map(f => <DropdownMenuItem key={f} onClick={() => {
           const cols = d.colunas;
@@ -159,7 +157,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
           void exportarMatriz(f, ["Dia", ...cols.map(c=>c.nome), "Cobertura"], corpo, `matriz-${periodo.de}-${periodo.ate}`).catch(e=>toast.error(msg(e)));
         }}>{f.toUpperCase()}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
       </div>
-      {modo === "dimensoes" ? <MatrizDimensionalLegada clienteId={clienteId} /> : <>
+      <>
       {editavel && mudouPadrao && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm">
           <span className="text-muted-foreground">Os filtros desta visão mudaram.</span>
