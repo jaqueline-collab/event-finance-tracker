@@ -283,7 +283,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
           }}
         />
       )}
-      </>}
+      </>
     </div>
   );
 }
