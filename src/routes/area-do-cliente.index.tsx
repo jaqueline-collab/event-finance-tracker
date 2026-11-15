@@ -1,4 +1,3 @@
-import { CartoesGraficos } from "@/components/cartoes-graficos";
 import { BLOCO_TABELA_MATRIZ, VISAO_MATRIZ_ID } from "@/lib/graficos";
 const SEM_FILTROS: import("@/lib/campos-elora").FiltroCampo[] = [];
 import { BookOpen } from "lucide-react";
