@@ -17,7 +17,7 @@ import {
 import { lerTudo } from "./ler-paginas.server";
 
 /** Cache curto por cliente (contatos e atendimentos mudam só na sincronização). */
-const cache = new Map<string, { em: number; chave: string; contatos: ContatoP[]; atendimentos: AtendimentoP[] }>();
+const cache = new Map<string, { em: number; chave: string; nomesUsuario?: Record<string, string | null>; contatos: ContatoP[]; atendimentos: (AtendimentoP & { suporte?: boolean })[] }>();
 
 
 export async function calcularPainelVisual(adm: any, clienteId: string, p: Periodo, filtros: Filtros = {}, campos: FiltroCampo[] = [], ctx?: import("./calculo-contexto.server").Ctx) {
@@ -66,6 +66,7 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
       base = {
         em: Date.now(),
         chave: ultimaSync,
+        nomesUsuario: Object.fromEntries(apoio.filter((a: any) => a.tipo === "usuario").map((a: any) => [String(a.externo_id), a.nome as string | null])),
         contatos: ct.map((c: any) => ({
           id: String(c.externo_id),
           criado_em: c.criado_em,
@@ -79,6 +80,7 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
           contato_id: a.contato_id ? String(a.contato_id) : null,
           canal: exibirCanal(mapaCanais, a.canal_id, a.canal_nome || nomes.get(`canal:${a.canal_id}`)) || NAO_DEFINIDO,
           atendente: nomeVisivel(ehSuporte, a.atendente_nome || (a.atendente_id ? nomes.get(`usuario:${a.atendente_id}`) : null)) || SEM_ATENDENTE,
+          suporte: !!(a.atendente_nome || a.atendente_id) && !nomeVisivel(ehSuporte, a.atendente_nome || (a.atendente_id ? nomes.get(`usuario:${a.atendente_id}`) : null)),
           criado_em: a.criado_em,
           tmr: a.time_wait_segundos,
           tma: a.time_service_segundos,
@@ -88,6 +90,11 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
     }
 
     const mensagens: MensagemP[] = await mensagensP;
+    // Atendimento atribuído a usuário de suporte: vale a resposta humana mais recente de outra pessoa (já sem suporte nas mensagens).
+    const humano = new Map<string, { em: string; user: string }>();
+    for (const m of mensagens as any[]) if (m.user_id && m.enviada_em) { const h = humano.get(m.sessao_id); if (!h || m.enviada_em > h.em) humano.set(m.sessao_id, { em: m.enviada_em, user: m.user_id }); }
+    const nomesU: Record<string, string | null> = (base as any).nomesUsuario ?? {};
+    const atendimentos = base.atendimentos.map((a: any) => (a.suporte ? { ...a, atendente: (humano.get(a.id) && nomesU[humano.get(a.id)!.user]) || SEM_ATENDENTE } : a));
 
     let soContatos: Set<string> | null = null;
     if (campos.length) {
@@ -95,7 +102,7 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
       const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
       soContatos = aplicarFiltrosCampos(ctx ? (await (await import("@/lib/campos-elora.server")).catalogoDoCliente(adm, id, ctx)).base : await lerBaseCampos(adm, id), campos as any)?.contatos ?? null;
     }
-    const resumo = agregarPainel({ contatos: base.contatos, atendimentos: base.atendimentos, mensagens }, { de: p.de, ate: p.ate }, filtros, soContatos);
+    const resumo = agregarPainel({ contatos: base.contatos, atendimentos, mensagens }, { de: p.de, ate: p.ate }, filtros, soContatos);
      const cobertura = estadoCobertura(p.ate, ["contatos", "atendimentos", "mensagens"], estado ?? []);
      return { disponivel: true as const, ultimaSync, cobertura, ...resumo };
 }

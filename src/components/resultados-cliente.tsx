@@ -50,9 +50,7 @@ import { toast } from "sonner";
 import {
   getRelatorioDiarioCliente,
   getResultadosCliente,
-  salvarSocialSeller,
   type RelatorioDiarioLinha,
-  type SocialSellerValor,
   type WidgetRenderizado,
 } from "@/lib/integracao-elora.functions";
 import { DashboardGrid } from "@/components/dashboard-grid";
@@ -352,7 +350,6 @@ const COLUNAS_RELATORIO: ColunaRelatorio[] = [
   { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com UTM preenchido.", tipo: "numero" },
   { chave: "procedimentoVendido", titulo: "Procedimento vendido", dica: "Conversas classificadas como ganho com a etiqueta de procedimento vendido no dia.", tipo: "numero" },
   { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido.", tipo: "numero" },
-  { chave: "socialSeller", titulo: "Social Seller", dica: "Preenchido manualmente pela equipe, por dia, canal e equipe.", tipo: "numero" },
   { chave: "canal", titulo: "Canal", dica: "Canal/plataforma da conversa (WhatsApp, Instagram, Messenger...).", tipo: "texto" },
   { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa.", tipo: "texto" },
   { chave: "equipe", titulo: "Equipe", dica: "Equipe/departamento responsável pela conversa.", tipo: "texto" },
@@ -488,10 +485,8 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
   const [de, setDe] = useState(diasAtrasIso(30));
   const [ate, setAte] = useState(hojeIso());
   const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
-  const [social, setSocial] = useState<SocialSellerValor[]>([]);
+  const [social] = useState<{ data: string; canal: string; equipe: string; valor: number }[]>([]);
   const [equipeInterna, setEquipeInterna] = useState(false);
-  const [editSocial, setEditSocial] = useState<{ chave: string; valor: string } | null>(null);
-  const [salvandoSocial, setSalvandoSocial] = useState(false);
   const [porPagina, setPorPagina] = useState(15);
   const [paginaRel, setPaginaRel] = useState(1);
   const [carregando, setCarregando] = useState(true);
@@ -529,7 +524,6 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
     getRelatorioDiarioCliente({ data: { clienteId, de, ate } })
       .then((r) => {
         setLinhas(r.linhas);
-        setSocial(r.socialSeller);
         setEquipeInterna(r.equipeInterna);
       })
       .catch((e) => {
@@ -619,28 +613,6 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
   const adsVisiveis = COLUNAS_ADS.every((k) => colunasVisiveis[k] !== false);
   const alternarAds = (v: boolean) =>
     setColunasVisiveis((s) => ({ ...s, ...Object.fromEntries(COLUNAS_ADS.map((k) => [k, v])) }));
-
-  const salvarSocial = async (l: LinhaExibida, texto: string) => {
-    const valor = Number(texto);
-    if (!Number.isInteger(valor) || valor < 0 || valor > 1_000_000) {
-      toast.error("Informe um número inteiro de 0 a 1.000.000.");
-      return;
-    }
-    setSalvandoSocial(true);
-    try {
-      await salvarSocialSeller({ data: { clienteId, data: l.data, canal: l.canal, equipe: l.equipe, valor } });
-      setSocial((s) => [
-        ...s.filter((x) => !(x.data === l.data && x.canal === l.canal && x.equipe === l.equipe)),
-        { data: l.data, canal: l.canal, equipe: l.equipe, valor },
-      ]);
-      setEditSocial(null);
-      toast.success("Social Seller salvo.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
-    } finally {
-      setSalvandoSocial(false);
-    }
-  };
 
   const aoSoltar = (e: DragEndEvent) => {
     if (travado || !e.over || e.active.id === e.over.id) return;
@@ -828,43 +800,7 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
                             key={c.chave}
                             className={`whitespace-nowrap ${alinhamento(c.tipo === "numero")}`}
                           >
-                            {c.chave === "socialSeller" && editSocial?.chave === chaveLinha ? (
-                              <span className="inline-flex items-center gap-1">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  autoFocus
-                                  className="mx-auto h-7 w-20 text-center tabular-nums"
-                                  value={editSocial.valor}
-                                  aria-label="Valor do Social Seller"
-                                  onChange={(e) => setEditSocial({ chave: chaveLinha, valor: e.target.value })}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") void salvarSocial(l, editSocial.valor);
-                                    if (e.key === "Escape") setEditSocial(null);
-                                  }}
-                                />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={salvandoSocial} aria-label="Salvar" onClick={() => void salvarSocial(l, editSocial.valor)}>
-                                  {salvandoSocial ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Cancelar" onClick={() => setEditSocial(null)}>
-                                  <X className="h-3.5 w-3.5" />
-                                </Button>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1">
-                                {valorCelula(c, l)}
-                                {c.chave === "socialSeller" && equipeInterna && l.socialEditavel && (
-                                  <button
-                                    type="button"
-                                    aria-label="Editar Social Seller"
-                                    className="text-muted-foreground hover:text-foreground"
-                                    onClick={() => setEditSocial({ chave: chaveLinha, valor: String(l.socialSeller) })}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </span>
-                            )}
+                            {valorCelula(c, l)}
                           </TableCell>
                         ))}
                       </TableRow>

@@ -1507,7 +1507,7 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
     async ({
       data,
       context,
-    }): Promise<{ linhas: RelatorioDiarioLinha[]; socialSeller: SocialSellerValor[]; equipeInterna: boolean }> => {
+    }): Promise<{ linhas: RelatorioDiarioLinha[]; equipeInterna: boolean }> => {
     const { data: linhas, error } = await context.supabase
       .from("elora_relatorio_diario")
       .select(
@@ -1519,24 +1519,10 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
       .order("data", { ascending: false });
     if (error) throw new Error(`relatorio-diario: ${error.message}`);
 
-    const { data: social, error: errSocial } = await context.supabase
-      .from("elora_relatorio_social_seller")
-      .select("data, canal, equipe, valor")
-      .eq("cliente_id", data.clienteId)
-      .gte("data", data.de)
-      .lte("data", data.ate);
-    if (errSocial) throw new Error(`relatorio-diario: ${errSocial.message}`);
-
     const { data: interna } = await context.supabase.rpc("is_equipe_interna");
 
     return {
       equipeInterna: Boolean(interna),
-      socialSeller: (social ?? []).map((s: any) => ({
-        data: String(s.data),
-        canal: String(s.canal ?? ""),
-        equipe: String(s.equipe ?? ""),
-        valor: Number(s.valor ?? 0),
-      })),
       linhas: (linhas ?? []).map((l: any) => ({
         data: String(l.data),
         novosContatos: Number(l.novos_contatos ?? 0),
@@ -1556,42 +1542,6 @@ export const getRelatorioDiarioCliente = createServerFn({ method: "POST" })
       })),
     };
   });
-
-export type SocialSellerValor = { data: string; canal: string; equipe: string; valor: number };
-
-/** Grava o Social Seller (preenchimento manual) de um dia + canal + equipe. Só equipe interna. */
-export const salvarSocialSeller = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        clienteId: z.string().min(1).max(200),
-        data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        canal: z.string().max(200),
-        equipe: z.string().max(200),
-        valor: z.number().int().min(0).max(1_000_000),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    await exigirEquipeInterna(context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("elora_relatorio_social_seller").upsert(
-      {
-        cliente_id: data.clienteId,
-        data: data.data,
-        canal: data.canal,
-        equipe: data.equipe,
-        valor: data.valor,
-        atualizado_em: new Date().toISOString(),
-        atualizado_por: context.userId,
-      },
-      { onConflict: "cliente_id,data,canal,equipe" },
-    );
-    if (error) throw new Error(`social-seller: ${error.message}`);
-    return { ok: true };
-  });
-
 
 /* ------------------------------------------------------------------ *
  * Cofre: migração e limpeza das chaves antigas (só equipe interna).
