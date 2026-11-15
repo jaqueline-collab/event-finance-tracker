@@ -2526,6 +2526,7 @@ export type Database = {
           coluna_status: Json | null
           cores_status: Json
           equipe_por_canal: Json
+          matriz_cartoes: Json | null
           matriz_filtros_padrao: Json
           matriz_nome: string | null
           matriz_ordem: number | null
@@ -2538,6 +2539,7 @@ export type Database = {
           coluna_status?: Json | null
           cores_status?: Json
           equipe_por_canal?: Json
+          matriz_cartoes?: Json | null
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
           matriz_ordem?: number | null
@@ -2550,6 +2552,7 @@ export type Database = {
           coluna_status?: Json | null
           cores_status?: Json
           equipe_por_canal?: Json
+          matriz_cartoes?: Json | null
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
           matriz_ordem?: number | null
