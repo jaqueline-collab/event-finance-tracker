@@ -141,7 +141,7 @@ export const salvarCelulaManual = createServerFn({ method: "POST" })
     if (col?.tipo !== "manual") throw new Error("esta coluna não é manual.");
     const { podePreencher, diaPermitido, formatoManual } = await import("@/lib/coluna-manual");
     if (!podePreencher(col.preenche ?? "super_admin", papel)) throw new Error("acesso-negado: você não pode preencher esta coluna.");
-    const { hojeSP } = await import("@/lib/formatos");
+    const { hojeSP } = await import("@/lib/coluna-manual");
     if (!diaPermitido(data.data, hojeSP(), Boolean(col.aceita_futuro))) throw new Error("Esta coluna não aceita dias futuros.");
     if (data.valor !== null && formatoManual(col.formato) === "inteiro" && !Number.isInteger(data.valor)) throw new Error("Esta coluna aceita só números inteiros.");
     const { data: antes } = await db.from("elora_matriz_manual").select("valor").eq("cliente_id", data.clienteId).eq("coluna_chave", data.chave).eq("data", data.data).maybeSingle();
@@ -171,7 +171,7 @@ export const lerRegrasManuais = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: cols } = await (supabaseAdmin as any).from("elora_indicadores_config").select("chave, formato, preenche, aceita_futuro").eq("cliente_id", data.clienteId).eq("tipo", "manual");
     const { podePreencher, formatoManual } = await import("@/lib/coluna-manual");
-    const { hojeSP } = await import("@/lib/formatos");
+    const { hojeSP } = await import("@/lib/coluna-manual");
     const regras: Record<string, { pode: boolean; aceitaFuturo: boolean; formato: "inteiro" | "decimal" | "moeda"; preenche: "cliente" | "parceiro" | "super_admin" }> = {};
     for (const c of cols ?? []) regras[c.chave] = { pode: podePreencher(c.preenche ?? "super_admin", papel), aceitaFuturo: Boolean(c.aceita_futuro), formato: formatoManual(c.formato), preenche: c.preenche ?? "super_admin" };
     return { regras, hoje: hojeSP(), superAdmin: papel.superAdmin };

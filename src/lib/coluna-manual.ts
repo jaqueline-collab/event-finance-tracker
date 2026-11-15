@@ -32,3 +32,6 @@ export function lerNumeroManual(t: string, f: FormatoManual): { ok: true; valor:
   if (f === "moeda" && Math.round(n * 100) !== n * 100) return { ok: false, erro: "Use no máximo 2 casas decimais." };
   return { ok: true, valor: n };
 }
+
+/** Hoje (AAAA-MM-DD) em Brasília. */
+export const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
