@@ -47,7 +47,9 @@ function formatar(v: number | null, f: Formato) {
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 }
 
-function Celula({ c, formato, parcial }: { c?: { valor: number | null; erro?: string }; formato: Formato; parcial?: boolean }) {
+function Celula({ c, formato, parcial, manual }: { c?: { valor: number | null; erro?: string }; formato: Formato; parcial?: boolean; manual?: boolean }) {
+  // Coluna manual vazia fica em branco (vazio não é zero nem "sem histórico").
+  if (manual && (c?.valor == null)) return null;
   if (!c) return <span className="text-muted-foreground">—</span>;
   if (c.erro) return <span className="text-xs text-destructive" title={c.erro}>Configuração com erro</span>;
   return (
@@ -262,7 +264,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
                       <CelulaManual clienteId={clienteId} chave={c.chave} dia={l.dia} formato={regras.regras[c.chave].formato} valor={l.celulas[c.chave]?.valor ?? null} aoSalvar={() => setV((x) => x + 1)} />
                     ) : ativasPorChave.has(c.chave) ? (
                       <>
-                      <Celula c={l.celulas[c.chave]} formato={c.formato} parcial={c.tipo !== "manual" && d.cobertura[l.dia] !== "confirmado"} />
+                      <Celula c={l.celulas[c.chave]} formato={c.formato} manual={c.tipo === "manual"} parcial={c.tipo !== "manual" && d.cobertura[l.dia] !== "confirmado"} />
                       {comparacao && comparacao.existente[l.dia]?.[c.chave] !== undefined && <span className="ml-2 text-xs text-muted-foreground">gravado {comparacao.existente[l.dia][c.chave]} · Δ {(l.celulas[c.chave]?.valor ?? 0) - comparacao.existente[l.dia][c.chave]}</span>}
                       </>
                     ) : (
@@ -279,7 +281,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
               <td className="sticky left-0 border-t bg-card px-3 py-2.5">Total</td>
               {colunasTela.map((c) => (
                 <td key={c.chave} className="border-t px-3 py-2.5 text-center tabular-nums">
-                  {ativasPorChave.has(c.chave) ? <Celula c={d.total[c.chave]} formato={c.formato} parcial={c.tipo !== "manual" && Object.values(d.cobertura).some(s => s !== "confirmado")} /> : <span className="text-muted-foreground">—</span>}
+                  {ativasPorChave.has(c.chave) ? <Celula c={d.total[c.chave]} formato={c.formato} manual={c.tipo === "manual"} parcial={c.tipo !== "manual" && Object.values(d.cobertura).some(s => s !== "confirmado")} /> : <span className="text-muted-foreground">—</span>}
                 </td>
               ))}
               {editavel && <td className="border-t" />}
