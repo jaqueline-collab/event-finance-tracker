@@ -158,6 +158,34 @@ export function cardsDoIndicador(cfg: IndicadorConfig, leituras: Leitura[], de: 
   return out;
 }
 
+/** Dia (São Paulo) de um valor de data gravado no card: ISO com hora, "AAAA-MM-DD" ou "DD/MM/AAAA". */
+export function diaDeValorData(v: unknown): string | null {
+  const s = String(Array.isArray(v) ? (v[0] ?? "") : (v ?? "")).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return diaSP(s);
+  const b = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s);
+  return b ? `${b[3]}-${b[2]}-${b[1]}` : null;
+}
+
+/**
+ * Cards do indicador contados pela data gravada no card: o card vale se alguma leitura cumpre
+ * evento e condições; o dia é a data do campo na leitura mais recente (nada estimado).
+ */
+export function cardsPorDataGravada(cfg: IndicadorConfig, leituras: Leitura[], campo: CampoRef, de: string, ate: string): { card_id: string; dia: string }[] {
+  const ev = cfg.evento as Evento;
+  if (!ev?.tipo || errosDeConfig(cfg).length) return [];
+  const porCard = new Map<string, Leitura[]>();
+  for (const l of leituras) porCard.set(l.card_id, [...(porCard.get(l.card_id) ?? []), l]);
+  const out: { card_id: string; dia: string }[] = [];
+  for (const [id, ls] of porCard) {
+    if (!ls.some((l) => eventoVale(ev, l) && avaliarGrupo(cfg.condicoes, l.campos))) continue;
+    const ultima = ls.reduce((a, b) => (b.visto_em > a.visto_em ? b : a));
+    const dia = diaDeValorData(ultima.campos[chaveLeitura(campo)]);
+    if (dia && dia >= de && dia <= ate) out.push({ card_id: id, dia });
+  }
+  return out;
+}
+
 /** Coluna combinada de cards ("app" é o nome antigo, aceito para não quebrar configurações). */
 export const ehCombinadaDeCard = (c: Pick<IndicadorConfig, "tipo" | "fonte">) => (c.tipo === "combinada" || c.tipo === "app") && c.fonte === "cards";
 

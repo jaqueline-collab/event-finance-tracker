@@ -242,7 +242,8 @@ export type ResultadoCartao = {
   /** Calendário: dias sem sincronização confirmada e com zero (mostrar "aguardando"). */
   aguardando?: string[];
   cobertura?: string;
-  primeiraLeitura?: string | null;
+  /** Colunas de evento do card não têm histórico exato antes deste dia. */
+  semHistoricoAntes?: string | null;
   /** Dois valores: a quantidade ao lado da soma. */
   qtd?: number;
   qtdAnterior?: number | null;
