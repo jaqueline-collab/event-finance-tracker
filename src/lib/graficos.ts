@@ -214,6 +214,23 @@ function registros(base: BaseCampos, fonte: FonteCampo): any[] {
 }
 const contatoDe = (fonte: FonteCampo, r: any): string[] => (fonte === "atendimento" ? (r.contato_id ? [r.contato_id] : []) : fonte === "card" ? (r.contato_ids ?? []) : [r.id]);
 
+
+/**
+ * Filtro dos registros da fonte do cartão. Fonte Atendimentos: filtro de atendimento vale na própria
+ * linha (como a Matriz faz com canal/atendente/equipe); os outros ligam pelo contato, sem juntar linhas.
+ */
+function filtroDaFonte(base: BaseCampos, fonte: FonteCampo, filtros: FiltroCampo[]): ((r: any) => boolean) | null {
+  if (!filtros.length) return null;
+  const naLinha = fonte === "atendimento" ? filtros.filter((f) => f.fonte === "atendimento") : [];
+  const filtro = aplicarFiltrosCampos(base, fonte === "atendimento" ? filtros.filter((f) => f.fonte !== "atendimento") : filtros);
+  return (r: any) => {
+    if (naLinha.length && !naLinha.every((f) => avaliarFiltro(f, valorDe("atendimento", f.campo, r)))) return false;
+    if (!filtro) return true;
+    if (fonte === "card") return filtro.cards.has(r.id);
+    return contatoDe(fonte, r).some((id) => filtro.contatos.has(id));
+  };
+}
+
 /** Liga o registro da fonte do cartão a um campo de outra fonte, sempre pelo contato (sem juntar linhas). */
 function valorLigado(base: BaseCampos, fonte: FonteCampo, f: CampoRef, r: any, idx: Indices): unknown {
   const mesma = f.fonte === fonte || (f.fonte === "utm" && fonte === "contato") || (f.fonte === "contato" && fonte === "utm");
@@ -282,12 +299,8 @@ function valorAcc(a: Acc, m: Medida): number {
 /** Agregação de um cartão (medidas sobre registros). Indicador da Matriz é tratado no servidor. */
 export function agregarCartao(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, filtrosVisao: FiltroCampo[] = [], cat?: GrupoCatalogo[]): ResultadoCartao {
   const idx = indices(base);
-  const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
-  const regsFonte = registros(base, cfg.fonte).filter((r) => {
-    if (!filtro) return true;
-    if (cfg.fonte === "card") return filtro.cards.has(r.id);
-    return contatoDe(cfg.fonte, r).some((id) => filtro.contatos.has(id));
-  });
+  const passa = filtroDaFonte(base, cfg.fonte, [...filtrosVisao, ...cfg.filtros]);
+  const regsFonte = passa ? registros(base, cfg.fonte).filter(passa) : registros(base, cfg.fonte);
   const noPeriodo = (r: any, per: Periodo) => {
     const d = diaSP(r.criado_em);
     return !!d && d >= per.de && d <= per.ate;
