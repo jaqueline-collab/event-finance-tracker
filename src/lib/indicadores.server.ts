@@ -131,7 +131,7 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     (contatosRaw as any[]).map((x) => ({ id: String(x.externo_id), criado_em: x.criado_em, origem: x.origem, utm_campaign: x.utm_campaign })),
     msgsRaw,
     sessoes,
-    { nomeCanal, agentes, equipePorCanal: c.equipe_por_canal ?? {}, ignorar: [...((suporte.data ?? []) as any[]), ...extra] },
+    { nomeCanal, agentes, equipePorCanal: c.equipe_por_canal ?? {}, ignorar: extra, ocultar: (suporte.data ?? []) as any[] },
     primeiras,
   );
 }

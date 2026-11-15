@@ -72,6 +72,9 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
   ]);
   const { data: paineis } = await d.from("elora_paineis_sincronizados").select("painel_id, etapas").eq("cliente_id", clienteId);
   const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(d, clienteId);
+  const { lerEhSuporte } = await import("./suporte.server");
+  const { nomeVisivel } = await import("./suporte");
+  const ehSuporte = await lerEhSuporte(d);
   const canal: Record<string, string> = {};
   const usuario: Record<string, string> = {};
   const definicoes: BaseCampos["definicoes"] = [];
@@ -92,7 +95,7 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
     atendimentos: atend.map((x: any) => ({
       id: String(x.externo_id), contato_id: x.contato_id ? String(x.contato_id) : null,
       canal: exibirCanal(mapaCanais, x.canal_id, x.canal_nome || canal[x.canal_id]) || NAO_DEFINIDO,
-      atendente: x.atendente_nome || usuario[x.atendente_id] || null,
+      atendente: nomeVisivel(ehSuporte, x.atendente_nome || usuario[x.atendente_id] || null),
       equipe: (x.canal_id && equipe[x.canal_id]) || null,
       classificacao: cls.get(String(x.externo_id)) ?? x.classificacao ?? null,
       status: x.status, criado_em: x.criado_em, tempo_espera: x.time_wait_segundos, tempo_atendimento: x.time_service_segundos,
