@@ -2883,18 +2883,21 @@ export type Database = {
           email: string | null
           id: string
           nome: string | null
+          telefone: string | null
         }
         Insert: {
           criado_em?: string
           email?: string | null
           id?: string
           nome?: string | null
+          telefone?: string | null
         }
         Update: {
           criado_em?: string
           email?: string | null
           id?: string
           nome?: string | null
+          telefone?: string | null
         }
         Relationships: []
       }
@@ -3175,7 +3178,12 @@ export type Database = {
         }[]
       }
       elora_conversas_pares: {
-        Args: { _cliente_id: string; _fim: string; _inicio: string }
+        Args: {
+          _cliente_id: string
+          _excluir?: string[]
+          _fim: string
+          _inicio: string
+        }
         Returns: {
           humano_em: string
           humano_user: string
