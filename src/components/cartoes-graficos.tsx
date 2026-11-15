@@ -752,7 +752,7 @@ function EditorCartao({
                               <Button size="icon" variant={f.fixa ? "secondary" : "ghost"} className="h-7 w-7 shrink-0" title="Fixar à esquerda" aria-pressed={!!f.fixa} aria-label={`Fixar ${nome} à esquerda`} onClick={() => muda({ fixa: f.fixa ? undefined : true })}><Pin className="h-3 w-3" /></Button>
                               {i > 0 && <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Subir ${nome}`} onClick={() => set({ colunas: moverColuna(colunasEditor, i, -1) })}><ArrowUp className="h-3 w-3" /></Button>}
                               {i < colunasEditor.length - 1 && <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Descer ${nome}`} onClick={() => set({ colunas: moverColuna(colunasEditor, i, 1) })}><ArrowDown className="h-3 w-3" /></Button>}
-                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Remover ${nome}`} onClick={() => set({ colunas: colunasEditor.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Remover ${nome}`} onClick={() => (status ? muda({ oculta: true }) : set({ colunas: colunasEditor.filter((_, j) => j !== i) }))}><X className="h-3 w-3" /></Button>
                             </div>
                             {status && configStatus && <ConfigStatusLead clienteId={clienteId} catalogo={op.catalogo} />}
                             </div>
