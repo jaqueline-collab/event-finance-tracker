@@ -36,7 +36,7 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
     const { data: estados, error: erroSync } = await (ctx ? ctx.memo("estados", async () => db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId)) : db.from("elora_sync_estado").select("fonte, concluido_em").eq("cliente_id", data.clienteId)) as any;
     if (erroSync) throw new Error(erroSync.message);
     const fonte = c.fonte === "card" ? "cards" : c.fonte === "atendimento" ? "atendimentos" : "contatos";
-    const contadosPor = async (chaves: string[], per: { de: string; ate: string }) => {
+    const contadosPor = async (chaves: string[], per: { de: string; ate: string }, datas?: Record<string, { campoData: { fonte: string; campo: string } }>) => {
       const { lerConfig } = await import("@/lib/indicadores.server");
       const { lerLeiturasCards } = await import("@/lib/matriz.server");
       const { cardsDoIndicador } = await import("@/lib/indicadores-motor");
@@ -46,7 +46,7 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
       const ls = f ? leituras.filter((l) => f.cards.has(l.card_id)) : leituras;
       const { cardsPorDataGravada } = await import("@/lib/indicadores-motor");
       const m = new Map<string, { card_id: string }>();
-      for (const k of chaves) { const cfg = cfgs.find((x) => x.chave === k); if (cfg) for (const x of (c.campoDataCard ? cardsPorDataGravada(cfg, ls, c.campoDataCard, per.de, per.ate) : cardsDoIndicador(cfg, ls, per.de, per.ate))) if (!m.has(x.card_id)) m.set(x.card_id, x); }
+      for (const k of chaves) { const cfg = cfgs.find((x) => x.chave === k); if (cfg) for (const x of ((datas?.[k]?.campoData ?? c.campoDataCard) ? cardsPorDataGravada(cfg, ls, (datas?.[k]?.campoData ?? c.campoDataCard) as any, per.de, per.ate) : cardsDoIndicador(cfg, ls, per.de, per.ate))) if (!m.has(x.card_id)) m.set(x.card_id, x); }
       return [...m.values()];
     };
     if (c.tipo === "dois_valores" && c.indicador) {
@@ -70,7 +70,23 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
     }
     if (c.tipo === "tabela_itens") {
       const { itensTabela } = await import("@/lib/graficos");
-      return { oculto: false as const, r: { ...itensTabela(cat.base, c, p, data.filtrosVisao as any, a.semDinheiro, cat.catalogo, 2000, c.fonte === "card" && c.indicadoresItens.length ? new Set((await contadosPor(c.indicadoresItens, p)).map((x) => x.card_id)) : undefined), cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
+      const porInd = c.itensPorIndicador ?? {};
+      const usaInd = c.fonte === "card" && c.indicadoresItens.length > 0;
+      // por indicador: mesma regra e mesmo campo de data dos blocos "com data no período"; a tabela lista cada card uma vez
+      const listas = usaInd ? await Promise.all(c.indicadoresItens.map((k) => contadosPor([k], p, porInd))) : [];
+      const soCards = usaInd ? new Set(listas.flat().map((x) => x.card_id)) : undefined;
+      let resumoTipos: { rotulo: string; qtd: number; soma: number | null }[] | undefined;
+      if (usaInd && Object.keys(porInd).length) {
+        const { doisValoresDeCards, cartaoSchema } = await import("@/lib/graficos");
+        const cfgs = (await import("@/lib/indicadores.server")).lerConfig;
+        const nomes = await cfgs(db, data.clienteId, ctx);
+        resumoTipos = c.indicadoresItens.map((k, i) => {
+          const def = porInd[k];
+          const soma = def?.campoValor ? doisValoresDeCards(cat.base, cartaoSchema.parse({ id: "r", titulo: "r", tipo: "dois_valores", fonte: "card", campoMedida: def.campoValor }), listas[i], null).total : null;
+          return { rotulo: def?.rotulo || (nomes as any[]).find((x) => x.chave === k)?.nome || k, qtd: listas[i].length, soma };
+        });
+      }
+      return { oculto: false as const, r: { ...itensTabela(cat.base, c, p, data.filtrosVisao as any, a.semDinheiro, cat.catalogo, 2000, soCards), resumoTipos, cobertura: estadoCobertura(p.ate, [fonte], estados ?? []) } };
     }
     if (c.tipo === "calendario") {
       const { eventosCalendario, camposDataCalendario, rotuloTipoData } = await import("@/lib/graficos");
