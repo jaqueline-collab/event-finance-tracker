@@ -1,3 +1,4 @@
+import { tipoPeloNome } from "@/lib/dados-elora";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -1727,12 +1728,13 @@ export const listarCanaisElora = createServerFn({ method: "POST" })
     );
     const canais = listaDe(resp)
       .map((c: any) => {
-        const t = tipoDoCanal(c.type ?? c.channelType ?? c.platform);
+        const t = tipoDoCanal(c.type ?? c.channelType ?? c.platform ?? c.identity?.platform);
         const numero = c.number ?? c.phoneNumber ?? c.phone ?? null;
         const conta = c.identifier ?? c.username ?? c.accountName ?? c.pageName ?? null;
         return {
           id: String(c.id ?? ""),
-          nome: String(c.name ?? c.title ?? c.id ?? ""),
+          // Nome real vindo do Elora: WhatsApp "Instância ...", Instagram o @, Messenger a página.
+          nome: String(c.identity?.displayName ?? c.identity?.name ?? c.name ?? c.title ?? c.identity?.humanId ?? c.id ?? ""),
           numero: t === "whatsapp" ? (numero ?? c.identifier ?? null) : (conta ?? numero ?? null),
           ativo: c.active === undefined && c.isActive === undefined ? true : Boolean(c.active ?? c.isActive),
           tipo: t,
@@ -1741,6 +1743,16 @@ export const listarCanaisElora = createServerFn({ method: "POST" })
       })
       .filter((c) => c.id.length > 0)
       .map((c) => ({ ...c, numero: c.numero ? String(c.numero) : null, foto: c.foto ? String(c.foto) : null }));
+    // Canais que aparecem nos atendimentos mas a busca da conta não devolve entram na lista.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: usados } = await (supabaseAdmin as any).rpc("elora_canais_atendimentos", { _cliente_id: data.clienteId });
+    const ids = new Set(canais.map((c) => c.id));
+    for (const u of usados ?? []) {
+      const id = String(u.canal_id);
+      if (ids.has(id)) continue;
+      const nome = String(u.canal_nome ?? id);
+      canais.push({ id, nome, numero: null, ativo: true, tipo: tipoPeloNome(nome), foto: null });
+    }
     return { canais };
   });
 
