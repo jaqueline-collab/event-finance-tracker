@@ -162,18 +162,18 @@ export const lerNomeMatriz = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await podeVer(context.supabase, data.clienteId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_nome").eq("cliente_id", data.clienteId).maybeSingle();
-    return { nome: (cfg?.matriz_nome as string | null)?.trim() || NOME_MATRIZ_PADRAO };
+    const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_nome, matriz_ordem").eq("cliente_id", data.clienteId).maybeSingle();
+    return { nome: (cfg?.matriz_nome as string | null)?.trim() || NOME_MATRIZ_PADRAO, ordem: typeof cfg?.matriz_ordem === "number" ? (cfg.matriz_ordem as number) : null };
   });
 
 /** Renomeia a aba da Matriz. Só super admin. */
 export const salvarNomeMatriz = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => z.object({ clienteId: z.string().min(1), nome: z.string().trim().min(1).max(60) }).parse(i))
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), nome: z.string().trim().min(1).max(60).optional(), ordem: z.number().int().min(0).max(60).optional() }).parse(i))
   .handler(async ({ data, context }) => {
     await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").upsert({ cliente_id: data.clienteId, matriz_nome: data.nome }, { onConflict: "cliente_id" });
+    const { error } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").upsert({ cliente_id: data.clienteId, ...(data.nome !== undefined ? { matriz_nome: data.nome } : {}), ...(data.ordem !== undefined ? { matriz_ordem: data.ordem } : {}) }, { onConflict: "cliente_id" });
     if (error) throw new Error(`matriz: ${error.message}`);
     return { ok: true };
   });
