@@ -6,6 +6,16 @@ import { cartaoSchema, cartoesValidos, cartaoTemDinheiro, type CartaoGrafico } f
 
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+/** Filtros fixos sempre da versão gravada (bloco e visão), aplicados antes dos de quem vê. */
+async function comFixos(clienteId: string, cartoes: CartaoGrafico[], quemVe: any[]) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { aplicarFixosGravados, filtrosFixosValidos } = await import("@/lib/filtros-fixos");
+  const { data: vs, error } = await (supabaseAdmin as any).from("elora_dashboard_visoes").select("id, filtros").eq("cliente_id", clienteId);
+  if (error) throw new Error(`visoes: ${error.message}`);
+  const visoes = (vs ?? []).map((v: any) => ({ id: String(v.id), cartoes: cartoesValidos(v.filtros?.cartoes), filtrosFixos: filtrosFixosValidos(v.filtros?.filtrosFixos) }));
+  return aplicarFixosGravados(cartoes, visoes, quemVe);
+}
+
 async function acesso(db: any, clienteId: string) {
   const [{ data: interno }, { data: meu }, { data: parceiro }, { data: admin }, { data: veValores }] = await Promise.all([
     db.rpc("is_equipe_interna"),
@@ -51,11 +61,12 @@ export const calcularCartao = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const a = await acesso(context.supabase, data.clienteId);
     if (data.previa && !a.superAdmin) throw new Error("acesso-negado: só a super admin.");
-    const c = data.cartao as CartaoGrafico;
+    const fx = await comFixos(data.clienteId, [data.cartao as CartaoGrafico], data.filtrosVisao);
+    const c = fx.cartoes[0];
     if (a.semDinheiro && cartaoTemDinheiro(c)) return { oculto: true as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { calcularCartaoServidor } = await import("@/lib/cartao-calculo.server");
-    return calcularCartaoServidor(supabaseAdmin as any, data, c, a);
+    return calcularCartaoServidor(supabaseAdmin as any, { ...data, filtrosVisao: fx.filtrosVisao }, c, a);
   });
 
 /** Calcula vários cartões de uma visão numa só requisição (leitura única, cache curto, permissão aplicada depois). */
@@ -69,7 +80,8 @@ export const calcularCartoes = createServerFn({ method: "POST" })
     if (data.previa && !a.superAdmin) throw new Error("acesso-negado: só a super admin.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { calcularCartoesServidor } = await import("@/lib/cartao-calculo.server");
-    return calcularCartoesServidor(supabaseAdmin as any, data, data.cartoes as CartaoGrafico[], a, { usarCache: !data.previa });
+    const fx = await comFixos(data.clienteId, data.cartoes as CartaoGrafico[], data.filtrosVisao);
+    return calcularCartoesServidor(supabaseAdmin as any, { ...data, filtrosVisao: fx.filtrosVisao }, fx.cartoes, a, { usarCache: !data.previa });
   });
 
 /** Itens de um dia do calendário (nome, telefone, atendente, valor, campos escolhidos). Nunca lê texto de mensagem. */
@@ -78,13 +90,14 @@ export const itensDiaCalendario = createServerFn({ method: "POST" })
   .inputValidator((i) => z.object({ clienteId: z.string().min(1), dia, cartao: cartaoSchema, filtrosVisao: z.array(filtroCampoSchema).max(20).default([]) }).parse(i))
   .handler(async ({ data, context }) => {
     const a = await acesso(context.supabase, data.clienteId);
-    const c = data.cartao as CartaoGrafico;
+    const fx = await comFixos(data.clienteId, [data.cartao as CartaoGrafico], data.filtrosVisao);
+    const c = fx.cartoes[0];
     if (c.tipo !== "calendario" || c.medida === "indicador") return { itens: [] };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
     const { itensDoDia } = await import("@/lib/graficos");
     const cat = await catalogoDoCliente(supabaseAdmin as any, data.clienteId);
-    return { itens: itensDoDia(cat.base, c, data.dia, data.filtrosVisao as any, a.semDinheiro) };
+    return { itens: itensDoDia(cat.base, c, data.dia, fx.filtrosVisao as any, a.semDinheiro) };
   });
 
 /** Grava a lista de cartões de uma visão (ordem incluída). Só super admin. Remover cartão não apaga dado. */
@@ -130,3 +143,28 @@ async function gravar(db: any, clienteId: string, visaoId: string, cartoes: Cart
   const { error: e2 } = await db.from("elora_dashboard_visoes").update({ filtros: { ...(v.filtros ?? {}), cartoes } }).eq("id", visaoId).eq("cliente_id", clienteId);
   if (e2) throw new Error(`visoes: ${e2.message}`);
 }
+
+/** Início da semana do Calendário deste cliente (domingo por padrão). Quem vê o painel lê. */
+export const lerInicioSemana = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const a = await acesso(context.supabase, data.clienteId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("semana_inicia_segunda").eq("cliente_id", data.clienteId).maybeSingle();
+    return { iniciaSegunda: Boolean(cfg?.semana_inicia_segunda), podeMudar: a.superAdmin };
+  });
+
+/** Grava o início da semana do Calendário (só super admin). */
+export const salvarInicioSemana = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), iniciaSegunda: z.boolean() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const a = await acesso(context.supabase, data.clienteId);
+    if (!a.superAdmin) throw new Error("acesso-negado: só a super admin.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("elora_relatorio_corte_config")
+      .upsert({ cliente_id: data.clienteId, semana_inicia_segunda: data.iniciaSegunda, atualizado_em: new Date().toISOString() }, { onConflict: "cliente_id" });
+    if (error) throw new Error(`início da semana: ${error.message}`);
+    return { ok: true };
+  });

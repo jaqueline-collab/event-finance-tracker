@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, GripVertical, MoreHorizontal, Pin, Redo2, RotateCcw, Undo2, X } from "lucide-react";
 import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
 import { exportarMatriz } from "@/lib/matriz-exportar";
@@ -19,10 +19,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { FiltroCampos } from "@/components/filtro-campos";
+import { FiltroCampos, SelosFixos } from "@/components/filtro-campos";
 import type { FiltroCampo, FonteCampo } from "@/lib/campos-elora";
 import { FONTES_CATALOGO } from "@/lib/campos-elora";
-import { calcularCartoes, itensDiaCalendario, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
+import { calcularCartoes, itensDiaCalendario, lerInicioSemana, salvarInicioSemana, moverCartaoVisao, opcoesGraficos, salvarCartoesVisao } from "@/lib/graficos.functions";
 import { desfazer, empurrar, encaixar, historico, LARGURA_GRADE_PX, layoutPadrao, LINHA_PX, redimensionar, refazer, reordenar, tamanhoDe, type Historico } from "@/lib/layout-blocos";
 import {
   aplicarAlternativa, ehTituloPadrao, fontesDisponiveis, funilTop, percentuaisFunil, MEDIDAS, tituloPadrao, type ItemDia, novoCartao, ROTULO_MEDIDA, ROTULO_TIPO_GRAFICO, tiposDisponiveis, type CartaoGrafico, type CampoRef, type ResultadoCartao,
@@ -30,7 +30,7 @@ import {
 import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
 import { ehUrl, formatarMoeda, rotuloCorrido, textoLink } from "@/lib/formatos";
-import { cartaoPesado, filtrarPorTipo, reguaHoras, type EventoCalendario, type FiltroTipoCalendario } from "@/lib/graficos";
+import { cartaoPesado, filtrarPorTipo, inicioDaSemana, reguaHoras, resumoDiaMes, type EventoCalendario, type FiltroTipoCalendario } from "@/lib/graficos";
 import { PontoCobertura } from "@/components/ponto-cobertura";
 import { avisoSemHistorico } from "@/lib/formatos";
 
@@ -327,7 +327,7 @@ function CartaoComum({
   return (
     <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}</h3>
+        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}</h3><SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></div>
         <div className="flex items-center gap-1">
           {cartao.painel === "leads-por" && <Select value={dim?.campo ?? "origem"} onValueChange={(campo) => setDim({ fonte: campo === "canal" ? "atendimento" : campo === "campaign" ? "utm" : "contato", campo })}>
             <SelectTrigger className="h-8 w-auto" aria-label="Dimensão da rosca"><SelectValue /></SelectTrigger>
@@ -775,8 +775,9 @@ function EditorCartao({
               )}
               <label className="flex items-center gap-2 text-sm"><Switch checked={c.comparar} onCheckedChange={(v) => set({ comparar: v })} /> Comparar com o período anterior</label>
               <div className="space-y-1">
-                <Label>Filtro do gráfico</Label>
-                <FiltroCampos clienteId={clienteId} filtros={c.filtros} onFiltros={(f) => set({ filtros: f })} fonteDaVisao={c.fonte} />
+                <Label>Filtro fixo</Label>
+                <p className="text-xs text-muted-foreground">Vale sempre para este bloco, inclusive no Exportar e na Elora IA. Quem vê enxerga um selo com cadeado, não remove e pode somar os próprios filtros.</p>
+                <FiltroCampos clienteId={clienteId} filtros={c.filtros} onFiltros={(f) => set({ filtros: f })} fonteDaVisao={c.fonte} rotuloBotao="Filtro fixo" />
               </div>
             </div>
             <div className="min-w-0 lg:sticky lg:top-0">
@@ -870,7 +871,6 @@ const SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const somarDias = (dia: string, n: number) => { const d = new Date(`${dia}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
 const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-const segunda = (dia: string) => somarDias(dia, -((new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7));
 
 /** Cor de cada tipo de compromisso: 1º campo de data = amarelo da marca (texto marinho), 2º = verde de sucesso. */
 export const COR_TIPO_CALENDARIO = ["bg-agenda-consulta text-agenda-consulta-foreground", "bg-agenda-procedimento text-agenda-procedimento-foreground", "bg-accent text-accent-foreground", "bg-muted text-foreground"] as const;
@@ -881,14 +881,25 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
   const [visual, setVisual] = useState(cartao.visualCalendario);
   const [ref, setRef] = useState(hojeSP());
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
+  const [segundaPrimeiro, setSegundaPrimeiro] = useState(false);
+  const [podeMudarSemana, setPodeMudarSemana] = useState(false);
   useEffect(() => setVisual(cartao.visualCalendario), [cartao.visualCalendario]);
+  useEffect(() => { let vivo = true; lerInicioSemana({ data: { clienteId } }).then((r) => { if (vivo) { setSegundaPrimeiro(r.iniciaSegunda); setPodeMudarSemana(r.podeMudar); } }).catch(() => {}); return () => { vivo = false; }; }, [clienteId]);
+  // detalhes do compromisso: lista do dia lida uma vez por dia e reaproveitada pelos cartões flutuantes
+  const detalhes = useRef(new Map<string, Promise<ItemDia[]>>());
+  useEffect(() => { detalhes.current.clear(); }, [clienteId, JSON.stringify(filtrosVisao), cartao.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const itensDia = (dia: string) => {
+    let p = detalhes.current.get(dia);
+    if (!p) { p = itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } }).then((r) => r.itens as ItemDia[]); detalhes.current.set(dia, p); }
+    return p;
+  };
   const per: Periodo = useMemo(() => {
-    if (visual === "semana") { const de = segunda(ref); return { de, ate: somarDias(de, 6) }; }
+    if (visual === "semana") { const de = inicioDaSemana(ref, segundaPrimeiro); return { de, ate: somarDias(de, 6) }; }
     if (visual === "dia") return { de: ref, ate: ref };
     const de = `${ref.slice(0, 7)}-01`;
     const fim = new Date(`${de}T12:00:00Z`); fim.setUTCMonth(fim.getUTCMonth() + 1); fim.setUTCDate(0);
     return { de, ate: iso(fim) };
-  }, [visual, ref]);
+  }, [visual, ref, segundaPrimeiro]);
   const { r, erro } = useResultado(clienteId, { ...cartao, granularidade: "dia" }, per, filtrosVisao, previa);
   if (r?.oculto) return null;
   const res = r?.r;
@@ -899,9 +910,15 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
   for (const e of eventos) porDia.set(e.dia, [...(porDia.get(e.dia) ?? []), e]);
   const valores = new Map((res?.categorias ?? []).map((c) => [c.rotulo, c.total]));
   const aguardando = new Set(res?.aguardando ?? []);
+  const hoje = hojeSP();
+  const abrirDia = (dia: string) => { setRef(dia); setVisual("dia"); };
   const navegar = (n: number) => setRef((d) => (visual === "semana" ? somarDias(d, 7 * n) : visual === "dia" ? somarDias(d, n) : (() => { const x = new Date(`${d.slice(0, 7)}-01T12:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return iso(x); })()));
-  const titulo = visual === "dia" ? new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "UTC" }) : visual === "semana" ? `${per.de.split("-").reverse().join("/")} – ${per.ate.split("-").reverse().join("/")}` : new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
-  const inicio = visual === "semana" ? per.de : segunda(per.de);
+  const fmtD = (d: string, o: Intl.DateTimeFormatOptions) => new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", { ...o, timeZone: "UTC" });
+  const titulo = visual === "dia" ? fmtD(per.de, { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : visual === "semana" ? (per.de.slice(0, 7) === per.ate.slice(0, 7) ? fmtD(per.de, { month: "long", year: "numeric" }) : `${fmtD(per.de, { month: "short" })} – ${fmtD(per.ate, { month: "short", year: "numeric" })}`)
+    : fmtD(per.de, { month: "long", year: "numeric" });
+  const nomesSemana = segundaPrimeiro ? SEMANA : [SEMANA[6], ...SEMANA.slice(0, 6)];
+  const inicio = inicioDaSemana(per.de, segundaPrimeiro);
   const dias: string[] = [];
   for (let d = inicio; d <= per.ate || dias.length % 7 !== 0; d = somarDias(d, 1)) dias.push(d);
   const semanas = dias.length / 7;
@@ -909,35 +926,39 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
     const fora = dia < per.de || dia > per.ate;
     const evs = porDia.get(dia) ?? [];
     const v = valores.get(dia);
-    const ag = aguardando.has(dia) && dia <= hojeSP();
+    const ag = aguardando.has(dia) && dia <= hoje;
+    const { mostrar, mais } = resumoDiaMes(evs, 3);
     return (
-      <button
-        key={dia}
-        type="button"
-        disabled={fora}
-        onClick={() => setDiaAberto(dia)}
-        className={`flex min-h-16 min-w-0 flex-col items-stretch gap-0.5 overflow-hidden rounded-md border p-1 text-left text-xs transition-colors ${fora ? "opacity-30" : "hover:border-primary"} ${dia === hojeSP() ? "border-primary" : ""}`}
-        aria-label={`${dia.split("-").reverse().join("/")}: ${ag ? "sem cobertura de sincronização confirmada" : comEventos ? `${evs.length} compromisso(s)` : v ? fmt(v, cartao) : "sem registro"}`}
-      >
-        <span className="flex w-full items-center justify-between text-muted-foreground">{Number(dia.slice(8))}{ag && <PontoCobertura texto="Dia sem cobertura de sincronização confirmada." />}</span>
+      <div key={dia} className={`flex min-h-20 min-w-0 flex-col gap-0.5 overflow-hidden border-b border-r p-1 text-xs ${fora ? "bg-muted/40 text-muted-foreground" : ""}`}>
+        <button type="button" onClick={() => abrirDia(dia)} aria-label={`Abrir ${dia.split("-").reverse().join("/")}`}
+          className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium hover:bg-muted ${dia === hoje ? "bg-primary text-primary-foreground hover:bg-primary" : ""}`}>
+          {Number(dia.slice(8))}
+        </button>
+        {ag && !fora && <span className="mx-auto"><PontoCobertura texto="Dia sem cobertura de sincronização confirmada." /></span>}
         {comEventos ? (
           <>
-            {evs.slice(0, 3).map((e) => (
-              <span key={e.id} className={`block truncate rounded px-1 py-0.5 text-[11px] font-medium leading-tight ${corTipo(e.tipo)}`} title={`${e.hora ? `${e.hora} · ` : ""}${e.nome} · ${tipos[e.tipo] ?? ""}`}>{e.nome}</span>
-            ))}
-            {evs.length > 3 && <span className="text-[11px] font-semibold text-muted-foreground">+{evs.length - 3}</span>}
+            {mostrar.map((e) => <EventoFlutuante key={e.id} e={e} tipos={tipos} itensDia={itensDia} />)}
+            {mais > 0 && <button type="button" className="rounded px-1 text-left text-[11px] font-semibold text-muted-foreground hover:bg-muted" onClick={() => abrirDia(dia)}>+{mais} mais</button>}
           </>
         ) : (
-          <span className="mt-auto font-semibold tabular-nums">{v ? fmt(v, cartao) : ""}</span>
+          <span className="mt-auto text-center font-semibold tabular-nums">{v ? fmt(v, cartao) : ""}</span>
         )}
-      </button>
+      </div>
     );
   };
   const diasAgenda = comEventos ? [...porDia.keys()] : [...valores.entries()].filter(([, v]) => v).map(([d]) => d);
+  const VISOES = [["dia", "Dia"], ["semana", "Semana"], ["mes", "Mês"], ["agenda", "Agenda"]] as const;
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{cartao.titulo}</h3>
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          <h3 className="mr-2 text-sm font-semibold">{cartao.titulo}</h3>
+          <SelosFixos clienteId={clienteId} filtros={cartao.filtros} />
+          <Button size="sm" variant="outline" className="h-7" onClick={() => setRef(hoje)}>Hoje</Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Anterior" onClick={() => navegar(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Próximo" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>
+          <span className="text-sm font-medium capitalize">{titulo}</span>
+        </div>
         <div className="flex flex-wrap items-center gap-1">
           {tipos.length > 1 && (
             <Select value={String(filtroTipo)} onValueChange={(v) => setFiltroTipo(v === "todos" ? "todos" : Number(v))}>
@@ -948,14 +969,15 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
               </SelectContent>
             </Select>
           )}
-          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Anterior" onClick={() => navegar(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-          <span className="min-w-28 text-center text-sm capitalize">{titulo}</span>
-          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Próximo" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>
-          <Button size="sm" variant="outline" className="h-7" onClick={() => setRef(hojeSP())}>Hoje</Button>
-          <Select value={visual} onValueChange={(v) => setVisual(v as any)}>
-            <SelectTrigger className="h-7 w-auto" aria-label="Visualização"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="mes">Mês</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="dia">Dia</SelectItem><SelectItem value="agenda">Lista</SelectItem></SelectContent>
-          </Select>
+          <div className="inline-flex rounded-md border p-0.5" role="group" aria-label="Visualização">
+            {VISOES.map(([k, rot]) => <Button key={k} size="sm" variant={visual === k ? "secondary" : "ghost"} aria-pressed={visual === k} className="h-6 px-2 text-xs" onClick={() => setVisual(k)}>{rot}</Button>)}
+          </div>
+          {podeMudarSemana && !previa && (
+            <Select value={segundaPrimeiro ? "seg" : "dom"} onValueChange={(v) => { const s = v === "seg"; setSegundaPrimeiro(s); salvarInicioSemana({ data: { clienteId, iniciaSegunda: s } }).catch((e) => toast.error(msg(e))); }}>
+              <SelectTrigger className="h-7 w-auto text-xs" aria-label="Semana começa"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="dom">Semana: domingo</SelectItem><SelectItem value="seg">Semana: segunda</SelectItem></SelectContent>
+            </Select>
+          )}
           {menu}
         </div>
       </header>
@@ -969,20 +991,25 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
       ) : !r ? (
         <Skeleton className="h-64 w-full" />
       ) : (visual === "dia" || visual === "semana") && comEventos ? (
-        <GradeHoras dias={visual === "dia" ? [per.de] : Array.from({ length: 7 }, (_, i) => somarDias(per.de, i))} eventos={eventos} tipos={tipos} onAbrir={setDiaAberto} />
-      ) : visual === "agenda" ? (
+        <GradeHoras dias={visual === "dia" ? [per.de] : Array.from({ length: 7 }, (_, i) => somarDias(per.de, i))} eventos={eventos} tipos={tipos} itensDia={itensDia} onAbrirDia={abrirDia} onListaDia={setDiaAberto} />
+      ) : visual === "agenda" || visual === "dia" || visual === "semana" ? (
         <ul className="min-h-0 flex-1 divide-y overflow-y-auto text-sm">
-          {diasAgenda.map((dia) => (
-            <li key={dia}><button type="button" className="flex w-full items-center justify-between gap-2 py-1.5 text-left hover:text-primary" onClick={() => setDiaAberto(dia)}>
-              <span>{new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" })}</span>
-              {comEventos ? <span className="flex min-w-0 flex-wrap justify-end gap-1">{(porDia.get(dia) ?? []).slice(0, 3).map((e) => <span key={e.id} className={`max-w-40 truncate rounded px-1 text-[11px] ${corTipo(e.tipo)}`}>{e.nome}</span>)}{(porDia.get(dia)?.length ?? 0) > 3 && <span className="text-[11px] text-muted-foreground">+{(porDia.get(dia)?.length ?? 0) - 3}</span>}</span> : <span className="tabular-nums">{fmt(valores.get(dia) ?? 0, cartao)}</span>}
-            </button></li>
+          {diasAgenda.filter((d) => d >= per.de && d <= per.ate).map((dia) => (
+            <li key={dia} className="flex gap-3 py-2">
+              <button type="button" onClick={() => abrirDia(dia)} className={`flex w-14 shrink-0 flex-col items-center rounded-md py-0.5 hover:bg-muted ${dia === hoje ? "text-primary" : ""}`}>
+                <span className="text-lg font-semibold leading-none">{Number(dia.slice(8))}</span>
+                <span className="text-[10px] uppercase text-muted-foreground">{fmtD(dia, { month: "short", weekday: "short" })}</span>
+              </button>
+              {comEventos ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-1">{(porDia.get(dia) ?? []).map((e) => <EventoFlutuante key={e.id} e={e} tipos={tipos} itensDia={itensDia} lista />)}</div>
+              ) : <span className="ml-auto tabular-nums">{fmt(valores.get(dia) ?? 0, cartao)}</span>}
+            </li>
           ))}
-          {!diasAgenda.length && <li className="py-2 text-muted-foreground">Nenhum compromisso neste período.</li>}
+          {!diasAgenda.some((d) => d >= per.de && d <= per.ate) && <li className="py-2 text-muted-foreground">Nenhum compromisso neste período.</li>}
         </ul>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-7 gap-1" style={{ gridTemplateRows: `auto repeat(${semanas}, minmax(4rem, 1fr))` }}>
-          {SEMANA.map((d) => <span key={d} className="pb-1 text-center text-[11px] uppercase text-muted-foreground">{d}</span>)}
+        <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden rounded-md border-l border-t" style={{ gridTemplateRows: `auto repeat(${semanas}, minmax(5rem, 1fr))` }}>
+          {nomesSemana.map((d) => <span key={d} className="border-b border-r py-1 text-center text-[11px] uppercase text-muted-foreground">{d}</span>)}
           {dias.map(celula)}
         </div>
       )}
@@ -992,28 +1019,73 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
   );
 }
 
-const ALTURA_HORA = 56;
+/** Compromisso clicável: abre um cartão flutuante com hora, nome, tipo, telefone, procedimento e valor. */
+function EventoFlutuante({ e, tipos, itensDia, lista, className, style, children }: { e: EventoCalendario; tipos: string[]; itensDia: (dia: string) => Promise<ItemDia[]>; compacto?: boolean; lista?: boolean; className?: string; style?: React.CSSProperties; children?: React.ReactNode }) {
+  const [item, setItem] = useState<ItemDia | null | undefined>(undefined);
+  const abrir = (o: boolean) => {
+    if (!o || item !== undefined) return;
+    itensDia(e.dia).then((xs) => setItem(xs.find((x) => x.id === e.id) ?? xs.find((x) => x.tipo === e.tipo && x.nome === e.nome && x.hora === e.hora) ?? null)).catch(() => setItem(null));
+  };
+  const rotulo = `${e.hora ? `${e.hora}, ` : ""}${e.nome}, ${tipos[e.tipo] ?? ""}`;
+  return (
+    <Popover onOpenChange={abrir}>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label={rotulo} title={rotulo} style={style}
+          className={className ?? `block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium leading-tight ${corTipo(e.tipo)} ${lista ? "py-1 text-xs" : ""}`}>
+          {children ?? <>{e.hora && <span className="tabular-nums">{e.hora} </span>}{e.nome}{lista && tipos[e.tipo] ? <span className="opacity-80"> · {tipos[e.tipo]}</span> : null}</>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 space-y-2 p-3 text-sm">
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 h-3 w-3 shrink-0 rounded-sm ${corTipo(e.tipo)}`} />
+          <div className="min-w-0">
+            <p className="break-words font-semibold">{e.nome}</p>
+            <p className="text-xs text-muted-foreground">{new Date(`${e.dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}{e.hora ? ` · ${e.hora}` : ""}</p>
+          </div>
+        </div>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <dt className="text-muted-foreground">Tipo</dt><dd>{tipos[e.tipo] ?? ""}</dd>
+          {item === undefined ? <><dt className="text-muted-foreground">Detalhes</dt><dd><Skeleton className="h-3 w-24" /></dd></> : item && <>
+            <dt className="text-muted-foreground">Telefone</dt><dd className="tabular-nums">{item.telefone}</dd>
+            {Object.entries(item.campos).map(([k, v]) => <Fragment key={k}><dt className="text-muted-foreground">{rotuloCorrido(k.split("|")[1] ?? k)}</dt><dd className="break-words">{v}</dd></Fragment>)}
+            {item.valor != null && <><dt className="text-muted-foreground">Valor</dt><dd className="tabular-nums">{formatarMoeda(item.valor)}</dd></>}
+          </>}
+        </dl>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
-/** Régua por hora (Dia/Semana): faixas por hora, compromissos na posição do horário, iguais lado a lado. */
-function GradeHoras({ dias, eventos, tipos, onAbrir }: { dias: string[]; eventos: EventoCalendario[]; tipos: string[]; onAbrir: (dia: string) => void }) {
+const ALTURA_HORA = 48;
+
+/** Grade por hora (Dia/Semana, estilo Google Agenda): blocos no horário com altura da duração, linha da hora atual. */
+function GradeHoras({ dias, eventos, tipos, itensDia, onAbrirDia, onListaDia }: { dias: string[]; eventos: EventoCalendario[]; tipos: string[]; itensDia: (dia: string) => Promise<ItemDia[]>; onAbrirDia: (dia: string) => void; onListaDia: (dia: string) => void }) {
   const doPeriodo = eventos.filter((e) => dias.includes(e.dia));
   const r = reguaHoras(doPeriodo);
   const altura = (r.horas.length - 1) * ALTURA_HORA;
-  const rotuloDia = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", timeZone: "UTC" });
+  const hoje = hojeSP();
+  const [agora, setAgora] = useState<number | null>(null);
+  useEffect(() => {
+    const calc = () => { const [h, m] = new Date().toLocaleTimeString("en-GB", { timeZone: "America/Sao_Paulo", hour12: false }).split(":").map(Number); setAgora(h + m / 60); };
+    calc(); const t = setInterval(calc, 60_000); return () => clearInterval(t);
+  }, []);
   const colunas = `3rem repeat(${dias.length}, minmax(${dias.length > 1 ? "6rem" : "0"}, 1fr))`;
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="grid" style={{ gridTemplateColumns: colunas, minWidth: dias.length > 1 ? "48rem" : undefined }}>
         <span />
-        {dias.map((d) => <span key={d} className={`pb-1 text-center text-[11px] uppercase ${d === hojeSP() ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{dias.length > 1 ? rotuloDia(d) : ""}</span>)}
+        {dias.map((d) => (
+          <button key={d} type="button" onClick={() => (dias.length > 1 ? onAbrirDia(d) : onListaDia(d))} className="flex flex-col items-center pb-1" aria-label={dias.length > 1 ? `Abrir ${d.split("-").reverse().join("/")}` : "Ver lista do dia"}>
+            <span className={`text-[10px] uppercase ${d === hoje ? "font-semibold text-primary" : "text-muted-foreground"}`}>{new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", timeZone: "UTC" })}</span>
+            <span className={`flex h-8 w-8 items-center justify-center rounded-full text-base ${d === hoje ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>{Number(d.slice(8))}</span>
+          </button>
+        ))}
         {r.semHora.length > 0 && (
           <>
             <span className="pr-1 text-right text-[10px] text-muted-foreground">sem hora</span>
             {dias.map((d) => (
-              <div key={d} className="flex flex-wrap gap-0.5 border-b p-0.5">
-                {r.semHora.filter((e) => e.dia === d).map((e) => (
-                  <button key={e.id} type="button" onClick={() => onAbrir(d)} className={`max-w-full truncate rounded px-1 text-[11px] font-medium ${corTipo(e.tipo)}`} title={`${e.nome} · ${tipos[e.tipo] ?? ""}`}>{e.nome}</button>
-                ))}
+              <div key={d} className="flex flex-col gap-0.5 border-b border-l p-0.5">
+                {r.semHora.filter((e) => e.dia === d).map((e) => <EventoFlutuante key={e.id} e={e} tipos={tipos} itensDia={itensDia} />)}
               </div>
             ))}
           </>
@@ -1022,21 +1094,21 @@ function GradeHoras({ dias, eventos, tipos, onAbrir }: { dias: string[]; eventos
           {r.horas.map((h, i) => <span key={h} className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground" style={{ top: i * ALTURA_HORA }}>{String(h).padStart(2, "0")}:00</span>)}
         </div>
         {dias.map((d) => (
-          <div key={d} className="relative border-l" style={{ height: altura }}>
+          <div key={d} className={`relative border-l ${d === hoje ? "bg-primary/5" : ""}`} style={{ height: altura }}>
             {r.horas.map((h, i) => <span key={h} aria-hidden className="absolute inset-x-0 border-t border-border" style={{ top: i * ALTURA_HORA }} />)}
             {r.posicoes.filter((p) => p.e.dia === d).map((p) => (
-              <button
-                key={p.e.id}
-                type="button"
-                onClick={() => onAbrir(d)}
-                title={`${p.e.hora} · ${p.e.nome} · ${tipos[p.e.tipo] ?? ""}`}
-                aria-label={`${p.e.hora}, ${p.e.nome}, ${tipos[p.e.tipo] ?? ""}`}
-                className={`absolute z-10 -translate-y-1/2 truncate rounded px-1 py-0.5 text-left text-[11px] font-medium leading-tight shadow-sm ${corTipo(p.e.tipo)}`}
-                style={{ top: p.pos * ALTURA_HORA, left: `calc(${(p.coluna / p.colunas) * 100}% + 2px)`, width: `calc(${100 / p.colunas}% - 4px)` }}
-              >
-                <span className="tabular-nums">{p.e.hora}</span> {p.e.nome}
-              </button>
+              <EventoFlutuante key={p.e.id} e={p.e} tipos={tipos} itensDia={itensDia}
+                className={`absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[11px] font-medium leading-tight shadow-sm ring-1 ring-card ${corTipo(p.e.tipo)}`}
+                style={{ top: p.pos * ALTURA_HORA, height: Math.max(18, p.duracao * ALTURA_HORA - 2), left: `calc(${(p.coluna / p.colunas) * 100}% + 2px)`, width: `calc(${100 / p.colunas}% - 4px)` }}>
+                <span className="block truncate">{p.e.nome}</span>
+                {p.duracao * ALTURA_HORA >= 30 && <span className="block truncate tabular-nums opacity-80">{p.e.hora}</span>}
+              </EventoFlutuante>
             ))}
+            {d === hoje && agora != null && agora >= r.inicio && agora <= r.fim && (
+              <span aria-label="Agora" className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-destructive" style={{ top: (agora - r.inicio) * ALTURA_HORA }}>
+                <span className="absolute -left-1 -top-[5px] h-2 w-2 rounded-full bg-destructive" />
+              </span>
+            )}
           </div>
         ))}
       </div>
