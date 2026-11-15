@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { listarVisoesCliente, salvarVisoesCliente } from "@/lib/dashboard-visoes.functions";
+import { lerNomeMatriz, salvarNomeMatriz } from "@/lib/matriz.functions";
 import { mostrarBarraDeAbas, moverVisao, proximoNomeVisao, type Visao } from "@/lib/dashboard-visoes";
 
 type VisaoEdit = Visao & { novaDe?: string | null };
@@ -84,6 +85,18 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const [excluindo, setExcluindo] = useState<VisaoEdit | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [chave, setChave] = useState(0);
+  const [nomeMatriz, setNomeMatriz] = useState("Relatório diário");
+  const [renomeandoMatriz, setRenomeandoMatriz] = useState(false);
+  useEffect(() => {
+    if (!matriz) return;
+    lerNomeMatriz({ data: { clienteId } }).then((r) => setNomeMatriz(r.nome)).catch(() => {});
+  }, [clienteId, matriz]);
+  const fimRenomearMatriz = async () => {
+    setRenomeandoMatriz(false);
+    const nome = nomeMatriz.trim() || "Relatório diário";
+    setNomeMatriz(nome);
+    try { await salvarNomeMatriz({ data: { clienteId, nome } }); } catch (e) { toast.error(msg(e)); }
+  };
 
   const carregar = useCallback(
     async (comRascunhos: boolean) => {
@@ -227,8 +240,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   };
 
   useEffect(() => {
-    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naMatriz ? "Matriz" : (ativaEdit?.nome ?? null), graficosAtiva: naMatriz ? 0 : graficosAtiva });
-  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naMatriz, ativaEdit?.nome, graficosAtiva]);
+    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naMatriz ? nomeMatriz : (ativaEdit?.nome ?? null), graficosAtiva: naMatriz ? 0 : graficosAtiva });
+  }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naMatriz, nomeMatriz, ativaEdit?.nome, graficosAtiva]);
 
   if (salvas === null) return <Skeleton className="h-64 w-full rounded-xl" />;
   const mostrarAbas = mostrarBarraDeAbas(lista.length, editando) || Boolean(matriz);
@@ -255,15 +268,20 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
                     onExcluir={() => setExcluindo(v)}
                   />
                 ))}
-                {matriz && (
+                {matriz && renomeandoMatriz && (
+                  <Input autoFocus maxLength={60} value={nomeMatriz} aria-label="Nome da aba" className="h-7 w-40 text-foreground"
+                    onChange={(e) => setNomeMatriz(e.target.value)} onBlur={fimRenomearMatriz} onKeyDown={(e) => e.key === "Enter" && fimRenomearMatriz()} />
+                )}
+                {matriz && !renomeandoMatriz && (
                   <button
                     type="button"
                     role="tab"
                     aria-selected={naMatriz}
                     onClick={() => setAtiva(VISAO_MATRIZ)}
+                    onDoubleClick={() => editando && podeEditar && setRenomeandoMatriz(true)}
                     className={`border-b-2 px-4 py-2.5 text-sm transition-colors ${naMatriz ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                   >
-                    Matriz
+                    {nomeMatriz}
                   </button>
                 )}
 
