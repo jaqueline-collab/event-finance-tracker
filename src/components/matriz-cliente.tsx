@@ -12,7 +12,13 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
 import { avisoSemHistorico } from "@/lib/formatos";
 import { exportarMatriz } from "@/lib/matriz-exportar";
-import { MatrizDimensionalLegada } from "@/components/resultados-cliente";
+import { BarraTabela } from "@/components/barra-tabela";
+import type { EstadoColunas } from "@/lib/colunas-tabela";
+
+function ordenarPorEstado<T extends { chave: string }>(cols: T[], e: EstadoColunas): T[] {
+  const pos = new Map(e.ordem.map((k, i) => [k, i]));
+  return [...cols].sort((a, b) => (pos.get(a.chave) ?? 1e9) - (pos.get(b.chave) ?? 1e9));
+}
 import { validarRelatorioDiario } from "@/lib/indicadores.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
@@ -51,7 +57,7 @@ function Celula({ c, formato, parcial }: { c?: { valor: number | null; erro?: st
 }
 
 export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: string; periodo: Periodo; editando: boolean }) {
-  const [modo, setModo] = useState("diaria");
+  const modo = "diaria" as const;
   const [comparar, setComparar] = useState(false);
   const [comparacao, setComparacao] = useState<Awaited<ReturnType<typeof validarRelatorioDiario>> | null>(null);
   const [d, setD] = useState<Dados | null>(null);
@@ -63,6 +69,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   const [ordem, setOrdem] = useState<{ chave: string; desc: boolean }>({ chave: "dia", desc: true });
   const [editor, setEditor] = useState<ColunaMatriz | "nova" | null>(null);
   const [v, setV] = useState(0);
+  const [estadoCols, setEstadoCols] = useState<EstadoColunas>({ ordem: [], ocultas: [], fixas: [] });
   const recarregar = () => setV((x) => x + 1);
 
   useEffect(() => {
@@ -110,12 +117,17 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   if (!d) return <Skeleton className="h-96 w-full rounded-xl" />;
 
   const editavel = editando && d.podeEditar;
-  const colunasTela = editavel ? d.todasColunas : d.colunas;
+  const colsBarra = d.todasColunas.map((c) => ({ chave: c.chave, rotulo: c.nome }));
+  const padraoCols: EstadoColunas = { ordem: d.todasColunas.map((c) => c.chave), ocultas: d.todasColunas.filter((c) => !c.ativo).map((c) => c.chave), fixas: [] };
+  const estadoValido = estadoCols.ordem.length ? estadoCols : padraoCols;
+  // quem vê reordena/oculta só na tela; a super admin em Editar vê todas e salva o padrão
+  const colunasTela = editavel ? ordenarPorEstado(d.todasColunas, { ...estadoValido, ocultas: [] }) : ordenarPorEstado(d.colunas, estadoValido).filter((c) => !estadoValido.ocultas.includes(c.chave));
   const ativasPorChave = new Set(d.colunas.map((c) => c.chave));
 
   const salvarOrdem = async (lista: ColunaMatriz[]) => {
     try {
       await ordenarColunasMatriz({ data: { clienteId, colunas: lista.map((c) => ({ chave: c.chave, nome: c.nome, ativo: c.ativo })) } });
+      setEstadoCols({ ordem: [], ocultas: [], fixas: [] });
       recarregar();
     } catch (e) {
       toast.error(msg(e));
@@ -150,16 +162,17 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={modo} onValueChange={setModo}><SelectTrigger className="w-auto" aria-label="Modo da Matriz"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="diaria">Diária · cálculo atual</SelectItem><SelectItem value="dimensoes">Por dimensões · registros e congelamentos</SelectItem></SelectContent></Select>
         {editavel && modo === "diaria" && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} disabled={filtros.length > 0} />Comparar com gravado</label>}
-        {modo === "diaria" && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm">Exportar</Button></DropdownMenuTrigger><DropdownMenuContent>{(["csv", "xlsx", "pdf"] as const).map(f => <DropdownMenuItem key={f} onClick={() => {
-          const cols = d.colunas;
-          const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? "—"}`; }), d.cobertura[l.dia]]);
-          corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? "—"}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "parcial" : "confirmado"]);
+        <BarraTabela colunas={colsBarra} estado={estadoValido} onEstado={setEstadoCols} padrao={padraoCols} semFixar
+          onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
+          onExportar={(f) => {
+          const cols = colunasTela.filter(c => ativasPorChave.has(c.chave));
+          const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? ""}`; }), d.cobertura[l.dia]]);
+          corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? ""}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "parcial" : "confirmado"]);
           void exportarMatriz(f, ["Dia", ...cols.map(c=>c.nome), "Cobertura"], corpo, `matriz-${periodo.de}-${periodo.ate}`).catch(e=>toast.error(msg(e)));
-        }}>{f.toUpperCase()}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
+        }} />
       </div>
-      {modo === "dimensoes" ? <MatrizDimensionalLegada clienteId={clienteId} /> : <>
+      <>
       {editavel && mudouPadrao && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm">
           <span className="text-muted-foreground">Os filtros desta visão mudaram.</span>
@@ -285,7 +298,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
           }}
         />
       )}
-      </>}
+      </>
     </div>
   );
 }

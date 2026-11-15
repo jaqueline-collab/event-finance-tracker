@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, GripVertical, MoreHorizontal, Pin, Redo2, RotateCcw, Undo2, X } from "lucide-react";
+import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
+import { exportarMatriz } from "@/lib/matriz-exportar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
@@ -1122,11 +1124,8 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
   const POR = 25;
   const paginas = Math.max(1, Math.ceil(linhas.length / POR));
   const pag = linhas.slice(pagina * POR, pagina * POR + POR);
-  const exportar = () => {
-    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const csv = [vis.map((c) => esc(c.rotulo)).join(";"), ...linhas.map((l) => vis.map((c) => esc(l.valores[c.chave] ?? "")).join(";"))].join("\n");
-    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a"); a.href = url; a.download = `${cartao.titulo}.csv`; a.click(); URL.revokeObjectURL(url);
+  const exportar = (f: FormatoExportar) => {
+    void exportarMatriz(f, vis.map((c) => c.rotulo), linhas.map((l) => vis.map((c) => l.valores[c.chave] ?? "")), cartao.titulo);
   };
   if (!linhas.length) return <p className="text-sm text-muted-foreground">Nenhum item no período.</p>;
   const LARG_FIXA = 160;
@@ -1135,33 +1134,10 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
   const celula = (chave: string, v: string) => (etiquetas.has(chave) && v
     ? <span className={`inline-block max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${corEtiqueta(v, r.ordensColunas?.[chave])}`} title={v}>{v}</span>
     : celulaTexto(v));
-  const ordemLista = colunasVisiveis(cols, { ...estado, ocultas: [], fixas: [] });
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-1">
-        <Popover>
-          <PopoverTrigger asChild><Button size="sm" variant="outline" className="h-7 gap-1 text-xs" aria-label="Colunas"><Columns3 className="h-3.5 w-3.5" /> Colunas</Button></PopoverTrigger>
-          <PopoverContent align="start" className="w-72 space-y-1 p-2">
-            {ordemLista.map((c, i) => {
-              const oculta = estado.ocultas.includes(c.chave); const fixa = estado.fixas.includes(c.chave);
-              return (
-                <div key={c.chave} className="flex items-center gap-1 text-xs">
-                  <Checkbox checked={!oculta} aria-label={`Mostrar ${c.rotulo}`} onCheckedChange={(v) => setEstado((e) => ({ ...e, ocultas: v === false ? [...e.ocultas, c.chave] : e.ocultas.filter((x) => x !== c.chave) }))} />
-                  <span className="min-w-0 flex-1 truncate" title={c.rotulo}>{c.rotulo}</span>
-                  <Button size="icon" variant={fixa ? "secondary" : "ghost"} className="h-6 w-6" aria-pressed={fixa} aria-label={`Fixar ${c.rotulo} à esquerda`} title="Fixar à esquerda" onClick={() => setEstado((e) => ({ ...e, fixas: fixa ? e.fixas.filter((x) => x !== c.chave) : [...e.fixas, c.chave] }))}><Pin className="h-3 w-3" /></Button>
-                  <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Subir ${c.rotulo}`} disabled={i === 0} onClick={() => setEstado((e) => ({ ...e, ordem: moverColuna(ordemLista.map((x) => x.chave), i, -1) }))}><ArrowUp className="h-3 w-3" /></Button>
-                  <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Descer ${c.rotulo}`} disabled={i === ordemLista.length - 1} onClick={() => setEstado((e) => ({ ...e, ordem: moverColuna(ordemLista.map((x) => x.chave), i, 1) }))}><ArrowDown className="h-3 w-3" /></Button>
-                </div>
-              );
-            })}
-          </PopoverContent>
-        </Popover>
-        <Select value={agrupar || "_"} onValueChange={(v) => setAgrupar(v === "_" ? "" : v)}>
-          <SelectTrigger className="h-7 w-auto text-xs" aria-label="Agrupar por"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="_">Sem agrupar</SelectItem>{vis.map((c) => <SelectItem key={c.chave} value={c.chave}>Agrupar: {c.rotulo}</SelectItem>)}</SelectContent>
-        </Select>
-        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportar}>Exportar</Button>
-      </div>
+      <BarraTabela colunas={cols} estado={estado} onEstado={setEstado} padrao={estadoInicial(cols)}
+        agruparOpcoes={vis} agrupar={agrupar} onAgrupar={setAgrupar} onExportar={exportar} />
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead><tr>{vis.map((c) => (
