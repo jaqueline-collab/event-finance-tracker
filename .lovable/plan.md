@@ -33,5 +33,9 @@ Regra geral: antes de qualquer gravação, tiro um retrato novo de todos os núm
 - Agenda/Funil: componentes puros em `cartoes-graficos.tsx`, regras de posicionamento em `src/lib/graficos.ts` com testes (posição de 11:30, lado a lado, intervalo de horas).
 - Remover scripts temporários ao final.
 
-## Pergunta pendente
-A regra salva diz para remover a sincronização seletiva por widgets, mas o código antigo ainda sincroniza só os campos usados. Quer que eu mude isso também, ou mantenho como está?
+## Decisões
+- Executar as quatro partes na ordem, com retrato antes e comparação depois de cada uma.
+- Mudança da Matriz ("—" antes de 05/11): mostrar tabela antes/depois e só gravar após sua aprovação.
+- Preenchimento do passado pela API: só após sua aprovação.
+- Sincronização seletiva por widgets: não mexer agora.
+- Depois desta entrega: plano separado para sincronizar o espelho completo de cada cliente (todos os campos), com impacto no tempo da sincronização e na carga do banco (anotado no roadmap).
