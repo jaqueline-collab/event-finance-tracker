@@ -28,3 +28,14 @@ describe("alinhamento", () => {
   it("moeda e milhar são número", () => expect(colunaNumerica(["R$ 1.234,50", "12", ""])).toBe(true));
   it("nome é texto", () => expect(colunaNumerica(["Maria", "12"])).toBe(false));
 });
+
+import { redimensionar as redim, tamanhoDe as tam, LARGURAS_RAPIDAS as LR } from "../layout-blocos";
+describe("tamanho dos blocos", () => {
+  it("tabela do Relatório diário aceita largura inteira e guarda", () => {
+    const c = redim({ id: "__tabela_matriz", tipo: "numero" } as any, 12, 8);
+    expect(tam(c).largura).toBe(12);
+  });
+  it("larguras rápidas: metade 6, dois terços 8, inteira 12", () => {
+    expect(LR.map((x) => x.largura)).toEqual([6, 8, 12]);
+  });
+});
