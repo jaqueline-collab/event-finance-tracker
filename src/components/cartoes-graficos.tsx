@@ -23,7 +23,7 @@ import {
 import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
 import { ehUrl, formatarMoeda, rotuloCorrido, textoLink } from "@/lib/formatos";
-import { cartaoPesado, filtrarPorTipo, type EventoCalendario, type FiltroTipoCalendario } from "@/lib/graficos";
+import { cartaoPesado, filtrarPorTipo, reguaHoras, type EventoCalendario, type FiltroTipoCalendario } from "@/lib/graficos";
 import { MarcaEstimativa, PontoCobertura } from "@/components/marca-estimativa";
 
 const CORES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--primary)", "var(--muted-foreground)"];
@@ -832,6 +832,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
   useEffect(() => setVisual(cartao.visualCalendario), [cartao.visualCalendario]);
   const per: Periodo = useMemo(() => {
     if (visual === "semana") { const de = segunda(ref); return { de, ate: somarDias(de, 6) }; }
+    if (visual === "dia") return { de: ref, ate: ref };
     const de = `${ref.slice(0, 7)}-01`;
     const fim = new Date(`${de}T12:00:00Z`); fim.setUTCMonth(fim.getUTCMonth() + 1); fim.setUTCDate(0);
     return { de, ate: iso(fim) };
@@ -847,8 +848,8 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
   const valores = new Map((res?.categorias ?? []).map((c) => [c.rotulo, c.total]));
   const estimados = new Set(res?.estimados ?? []);
   const aguardando = new Set(res?.aguardando ?? []);
-  const navegar = (n: number) => setRef((d) => (visual === "semana" ? somarDias(d, 7 * n) : (() => { const x = new Date(`${d.slice(0, 7)}-01T12:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return iso(x); })()));
-  const titulo = visual === "semana" ? `${per.de.split("-").reverse().join("/")} – ${per.ate.split("-").reverse().join("/")}` : new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+  const navegar = (n: number) => setRef((d) => (visual === "semana" ? somarDias(d, 7 * n) : visual === "dia" ? somarDias(d, n) : (() => { const x = new Date(`${d.slice(0, 7)}-01T12:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return iso(x); })()));
+  const titulo = visual === "dia" ? new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "UTC" }) : visual === "semana" ? `${per.de.split("-").reverse().join("/")} – ${per.ate.split("-").reverse().join("/")}` : new Date(`${per.de}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
   const inicio = visual === "semana" ? per.de : segunda(per.de);
   const dias: string[] = [];
   for (let d = inicio; d <= per.ate || dias.length % 7 !== 0; d = somarDias(d, 1)) dias.push(d);
@@ -904,7 +905,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
           <Button size="sm" variant="outline" className="h-7" onClick={() => setRef(hojeSP())}>Hoje</Button>
           <Select value={visual} onValueChange={(v) => setVisual(v as any)}>
             <SelectTrigger className="h-7 w-auto" aria-label="Visualização"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="mes">Mês</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="agenda">Agenda</SelectItem></SelectContent>
+            <SelectContent><SelectItem value="mes">Mês</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="dia">Dia</SelectItem><SelectItem value="agenda">Lista</SelectItem></SelectContent>
           </Select>
           {menu}
         </div>
@@ -918,6 +919,8 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
         <p className="text-sm text-muted-foreground">Não foi possível calcular agora.</p>
       ) : !r ? (
         <Skeleton className="h-64 w-full" />
+      ) : (visual === "dia" || visual === "semana") && comEventos ? (
+        <GradeHoras dias={visual === "dia" ? [per.de] : Array.from({ length: 7 }, (_, i) => somarDias(per.de, i))} eventos={eventos} tipos={tipos} onAbrir={setDiaAberto} />
       ) : visual === "agenda" ? (
         <ul className="min-h-0 flex-1 divide-y overflow-y-auto text-sm">
           {diasAgenda.map((dia) => (
@@ -937,6 +940,58 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
       {res && <p className="mt-2 text-xs text-muted-foreground">{comEventos ? `${eventos.length.toLocaleString("pt-BR")} compromisso(s) no período` : `Total no período: ${fmt(res.total, cartao)}`}{estimados.size ? ` · ${estimados.size} dia(s) estimado(s), fora do total` : ""}</p>}
       {diaAberto && <ItensDoDia clienteId={clienteId} cartao={cartao} dia={diaAberto} filtrosVisao={filtrosVisao} filtroTipo={filtroTipo} tipos={tipos} onFechar={() => setDiaAberto(null)} />}
     </section>
+  );
+}
+
+const ALTURA_HORA = 56;
+
+/** Régua por hora (Dia/Semana): faixas por hora, compromissos na posição do horário, iguais lado a lado. */
+function GradeHoras({ dias, eventos, tipos, onAbrir }: { dias: string[]; eventos: EventoCalendario[]; tipos: string[]; onAbrir: (dia: string) => void }) {
+  const doPeriodo = eventos.filter((e) => dias.includes(e.dia));
+  const r = reguaHoras(doPeriodo);
+  const altura = (r.horas.length - 1) * ALTURA_HORA;
+  const rotuloDia = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", timeZone: "UTC" });
+  const colunas = `3rem repeat(${dias.length}, minmax(${dias.length > 1 ? "6rem" : "0"}, 1fr))`;
+  return (
+    <div className="min-h-0 flex-1 overflow-auto">
+      <div className="grid" style={{ gridTemplateColumns: colunas, minWidth: dias.length > 1 ? "48rem" : undefined }}>
+        <span />
+        {dias.map((d) => <span key={d} className={`pb-1 text-center text-[11px] uppercase ${d === hojeSP() ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{dias.length > 1 ? rotuloDia(d) : ""}</span>)}
+        {r.semHora.length > 0 && (
+          <>
+            <span className="pr-1 text-right text-[10px] text-muted-foreground">sem hora</span>
+            {dias.map((d) => (
+              <div key={d} className="flex flex-wrap gap-0.5 border-b p-0.5">
+                {r.semHora.filter((e) => e.dia === d).map((e) => (
+                  <button key={e.id} type="button" onClick={() => onAbrir(d)} className={`max-w-full truncate rounded px-1 text-[11px] font-medium ${corTipo(e.tipo)}`} title={`${e.nome} · ${tipos[e.tipo] ?? ""}`}>{e.nome}</button>
+                ))}
+              </div>
+            ))}
+          </>
+        )}
+        <div className="relative" style={{ height: altura }}>
+          {r.horas.map((h, i) => <span key={h} className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground" style={{ top: i * ALTURA_HORA }}>{String(h).padStart(2, "0")}:00</span>)}
+        </div>
+        {dias.map((d) => (
+          <div key={d} className="relative border-l" style={{ height: altura }}>
+            {r.horas.map((h, i) => <span key={h} aria-hidden className="absolute inset-x-0 border-t border-border" style={{ top: i * ALTURA_HORA }} />)}
+            {r.posicoes.filter((p) => p.e.dia === d).map((p) => (
+              <button
+                key={p.e.id}
+                type="button"
+                onClick={() => onAbrir(d)}
+                title={`${p.e.hora} · ${p.e.nome} · ${tipos[p.e.tipo] ?? ""}`}
+                aria-label={`${p.e.hora}, ${p.e.nome}, ${tipos[p.e.tipo] ?? ""}`}
+                className={`absolute z-10 -translate-y-1/2 truncate rounded px-1 py-0.5 text-left text-[11px] font-medium leading-tight shadow-sm ${corTipo(p.e.tipo)}`}
+                style={{ top: p.pos * ALTURA_HORA, left: `calc(${(p.coluna / p.colunas) * 100}% + 2px)`, width: `calc(${100 / p.colunas}% - 4px)` }}
+              >
+                <span className="tabular-nums">{p.e.hora}</span> {p.e.nome}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
