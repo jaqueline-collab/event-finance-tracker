@@ -9,6 +9,7 @@ import { lerConfigStatusLead, salvarConfigStatusLead, salvarCoresStatus } from "
 import { CAMPO_STATUS_LEAD, REGRA_STATUS_LEAD, ROTULO_STATUS_PADRAO, type ColunaStatus } from "@/lib/status-lead";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+import { COR_SEM_ESCOLHA } from "@/lib/cores-status";
 const NAO_CARD = new Set(["id", "painel", CAMPO_STATUS_LEAD]);
 
 /** Origem e nome da coluna "Status do lead" deste cliente (só super admin). Sem origem, a coluna fica oculta. */
@@ -82,7 +83,7 @@ export function ConfigStatusLead({ clienteId, catalogo }: { clienteId: string; c
           <p className="text-xs text-muted-foreground">O Elora App não envia cor das etapas. Escolha uma cor para cada etapa; sem cor, fica a cor padrão.</p>
           {etapasFunil.map((et) => (
             <label key={et} className="flex items-center gap-2 text-xs">
-              <input type="color" aria-label={`Cor da etapa ${et}`} className="h-6 w-8 cursor-pointer rounded border bg-transparent" value={cores[et] ?? "#cccccc"} onChange={(e) => setCores((c) => ({ ...c, [et]: e.target.value }))} />
+              <input type="color" aria-label={`Cor da etapa ${et}`} className="h-6 w-8 cursor-pointer rounded border bg-transparent" value={cores[et] ?? COR_SEM_ESCOLHA} onChange={(e) => setCores((c) => ({ ...c, [et]: e.target.value }))} />
               <span className="min-w-0 flex-1 truncate" title={et}>{et}</span>
               {cores[et] && <button type="button" className="text-muted-foreground underline" onClick={() => setCores((c) => { const n = { ...c }; delete n[et]; return n; })}>Usar padrão</button>}
             </label>

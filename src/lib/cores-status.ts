@@ -52,3 +52,5 @@ export function estiloCor(cor: string | undefined | null): { backgroundColor: st
   const h = corParaHex(cor);
   return h ? { backgroundColor: h, color: textoSobre(h) } : undefined;
 }
+/** Valor inicial do seletor de cor (o seletor nativo exige um hex). */
+export const COR_SEM_ESCOLHA = "#d1d5db";
