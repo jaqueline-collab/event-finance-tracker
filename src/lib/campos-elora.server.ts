@@ -20,6 +20,38 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
   const chave = await versaoCampos(db, clienteId);
   const c = cache.get(clienteId);
   if (c && c.chave === chave && Date.now() - c.em < 300_000) return c.base;
+  // Cache no banco (compactado), mesma chave de versões: vale para qualquer servidor.
+  const chaveDb = await hashTexto(`base-campos|${clienteId}|${chave}`);
+  const { data: achado } = await (db as any).from("elora_calculo_cache").select("valor").eq("chave", chaveDb).gte("criado_em", new Date(Date.now() - 300_000).toISOString()).maybeSingle();
+  if (achado?.valor?.gz) {
+    try {
+      const base = JSON.parse(await descompactar(achado.valor.gz)) as BaseCampos;
+      cache.set(clienteId, { em: Date.now(), chave, base });
+      return base;
+    } catch (e) { console.error("cache de campos ilegível", e); }
+  }
+  const base = await montarBaseCampos(db, clienteId);
+  cache.set(clienteId, { em: Date.now(), chave, base });
+  const { error } = await (db as any).from("elora_calculo_cache").upsert({ chave: chaveDb, cliente_id: clienteId, valor: { gz: await compactar(JSON.stringify(base)) }, criado_em: new Date().toISOString() }, { onConflict: "chave" });
+  if (error) console.error("cache de campos: gravação falhou", error.message);
+  return base;
+}
+
+async function hashTexto(t: string) {
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function compactar(t: string): Promise<string> {
+  const buf = new Uint8Array(await new Response(new Blob([t]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
+  let s = ""; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function descompactar(b64: string): Promise<string> {
+  const bin = atob(b64); const buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+}
+
+async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<BaseCampos> {
   const d = db as any;
   const [apoio, contatos, atend, cards, classif, corte] = await Promise.all([
     lerTudo(() => d.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["campo", "canal", "usuario"]).order("externo_id")),
@@ -67,7 +99,6 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
       valor: x.valor == null ? null : Number(x.valor), criado_em: x.criado_em, atualizado_em: x.atualizado_em, cf: obj(x.cf),
     })),
   };
-  cache.set(clienteId, { em: Date.now(), chave, base });
   return base;
 }
 
