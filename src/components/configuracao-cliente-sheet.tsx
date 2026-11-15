@@ -1,3 +1,4 @@
+import { HistoricoAlteracoes } from "@/components/historico-alteracoes";
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -103,6 +104,7 @@ export function ConfiguracaoClienteSheet({
           {aba === "canais" && <DadosEloraCliente clienteId={clienteId} aba="canais" />}
           {aba === "painel" && <ConfigurarApiCliente clienteId={clienteId} aba="painel" />}
           {aba === "campos" && <CamposEloraConfig clienteId={clienteId} />}
+          {aba === "alteracoes" && <HistoricoAlteracoes clienteId={clienteId} />}
           {aba === "historico" && <div className="space-y-2"><p className="text-sm text-muted-foreground">Registros enviados pela automação e congelamentos antigos. Só leitura; não aparece para cliente nem parceiro.</p><MatrizDimensionalLegada clienteId={clienteId} /></div>}
         </div>
       </SheetContent>
