@@ -44,7 +44,7 @@ export const cartaoSchema = z.object({
   largura: z.number().int().min(1).max(12).optional(),
   altura: z.number().int().min(1).max(12).optional(),
   /** Calendário: visualização inicial e campos extras na lista do dia. */
-  visualCalendario: z.enum(["mes", "semana", "agenda"]).default("mes"),
+  visualCalendario: z.enum(["mes", "semana", "dia", "agenda"]).default("mes"),
   camposLista: z.array(ref.extend({ rotulo: z.string().trim().max(60).optional() })).max(8).default([]),
   painel: painelEnum.optional(),
   filtros: z.array(filtroCampoSchema).max(20).default([]),
@@ -449,6 +449,32 @@ export type FiltroTipoCalendario = "todos" | number;
 export const filtrarPorTipo = <T extends { tipo: number }>(xs: T[], f: FiltroTipoCalendario) => (f === "todos" ? xs : xs.filter((x) => x.tipo === f));
 
 export type EventoCalendario = { id: string; dia: string; tipo: number; nome: string; hora: string };
+
+/** Posição de um compromisso na régua por hora: `pos` em horas desde a primeira linha. */
+export type PosicaoHora = { e: EventoCalendario; pos: number; coluna: number; colunas: number };
+
+/**
+ * Régua por hora (Agenda Dia/Semana). 11:30 fica entre as linhas de 11h e 12h (pos = 11,5 − início);
+ * horários iguais no mesmo dia ficam lado a lado. As horas vão da primeira à última hora com
+ * compromisso; sem horário fica fora da régua (`semHora`).
+ */
+export function reguaHoras(eventos: EventoCalendario[], padrao: [number, number] = [8, 18]) {
+  const minutos = (h: string) => { const m = /^(\d{1,2}):(\d{2})/.exec(h ?? ""); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const comHora = eventos.filter((e) => minutos(e.hora) != null);
+  const semHora = eventos.filter((e) => minutos(e.hora) == null);
+  let ini = padrao[0], fim = padrao[1];
+  if (comHora.length) {
+    const ms = comHora.map((e) => minutos(e.hora)!);
+    ini = Math.floor(Math.min(...ms) / 60);
+    fim = Math.min(24, Math.floor(Math.max(...ms) / 60) + 1);
+  }
+  const grupos = new Map<string, EventoCalendario[]>();
+  for (const e of comHora) { const k = `${e.dia}|${minutos(e.hora)}`; grupos.set(k, [...(grupos.get(k) ?? []), e]); }
+  const posicoes: PosicaoHora[] = [];
+  for (const g of grupos.values()) g.forEach((e, i) => posicoes.push({ e, pos: minutos(e.hora)! / 60 - ini, coluna: i, colunas: g.length }));
+  const horas = Array.from({ length: fim - ini + 1 }, (_, i) => ini + i);
+  return { inicio: ini, fim, horas, posicoes, semHora };
+}
 
 function valorBrutoData(base: BaseCampos, fonte: FonteCampo, f: CampoRef, r: any, idx: Indices): unknown {
   const v = f.campo === "criado_em" && (f.fonte === fonte || (f.fonte === "utm" && fonte === "contato")) ? r.criado_em : valorLigado(base, fonte, f, r, idx);
