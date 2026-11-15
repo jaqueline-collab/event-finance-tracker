@@ -9,8 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { lerMatriz, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
-import { avisoSemHistorico } from "@/lib/formatos";
+import { lerMatriz, lerRegrasManuais, salvarRegraManual, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
+import { avisoSemHistorico, formatarMoeda } from "@/lib/formatos";
+import { lerNumeroManual, ROTULO_QUEM_PREENCHE, type FormatoManual, type QuemPreenche } from "@/lib/coluna-manual";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { BarraTabela } from "@/components/barra-tabela";
 import { alternarColunasAds, ehColunaAds, type EstadoColunas } from "@/lib/colunas-tabela";
@@ -69,6 +70,8 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   const [ordem, setOrdem] = useState<{ chave: string; desc: boolean }>({ chave: "dia", desc: true });
   const [editor, setEditor] = useState<ColunaMatriz | "nova" | null>(null);
   const [v, setV] = useState(0);
+  const [regras, setRegras] = useState<Awaited<ReturnType<typeof lerRegrasManuais>> | null>(null);
+  useEffect(() => { lerRegrasManuais({ data: { clienteId } }).then(setRegras).catch(() => setRegras(null)); }, [clienteId, v]);
   const [estadoCols, setEstadoCols] = useState<EstadoColunas>({ ordem: [], ocultas: [], fixas: [] });
   const recarregar = () => setV((x) => x + 1);
 
@@ -202,9 +205,10 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
                 </button>
               </th>
               {colunasTela.map((c, i) => (
-                <th key={c.chave} className={`border-b px-3 py-2.5 text-right font-medium ${!c.ativo ? "opacity-50" : ""}`}>
-                  <div className="flex items-center justify-end gap-1.5">
+                <th key={c.chave} className={`border-b px-3 py-2.5 text-center font-medium ${!c.ativo ? "opacity-50" : ""}`}>
+                  <div className="flex items-center justify-center gap-1.5">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COR[c.tipo] }} title={ROTULO_TIPO[c.tipo]} />
+                    {c.tipo === "manual" && <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Preenchida à mão" />}
                     <button type="button" className="flex items-center gap-1 whitespace-nowrap" onClick={() => ativasPorChave.has(c.chave) && ordenar(c.chave)}>
                       {c.nome}
                       {ordem.chave === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
@@ -253,9 +257,9 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
               <tr key={l.dia} className="hover:bg-muted/40">
                 <td className="sticky left-0 border-b bg-card px-3 py-2 tabular-nums text-muted-foreground">{dataBr(l.dia)}{d.cobertura[l.dia] !== "confirmado" && <span className="ml-2 text-[10px]">{d.cobertura[l.dia]}</span>}</td>
                 {colunasTela.map((c) => (
-                  <td key={c.chave} className={`border-b px-3 py-2 text-right ${!c.ativo ? "opacity-50" : ""}`}>
-                    {editavel && c.tipo === "manual" && c.ativo ? (
-                      <CelulaManual clienteId={clienteId} chave={c.chave} dia={l.dia} valor={l.celulas[c.chave]?.valor ?? null} aoSalvar={recarregar} />
+                  <td key={c.chave} className={`border-b px-3 py-2 text-center tabular-nums ${!c.ativo ? "opacity-50" : ""}`}>
+                    {c.tipo === "manual" && c.ativo && regras?.regras[c.chave]?.pode && (regras.regras[c.chave].aceitaFuturo || l.dia <= regras.hoje) ? (
+                      <CelulaManual clienteId={clienteId} chave={c.chave} dia={l.dia} formato={regras.regras[c.chave].formato} valor={l.celulas[c.chave]?.valor ?? null} aoSalvar={() => setV((x) => x + 1)} />
                     ) : ativasPorChave.has(c.chave) ? (
                       <>
                       <Celula c={l.celulas[c.chave]} formato={c.formato} parcial={c.tipo !== "manual" && d.cobertura[l.dia] !== "confirmado"} />
@@ -274,7 +278,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
             <tr className="font-semibold">
               <td className="sticky left-0 border-t bg-card px-3 py-2.5">Total</td>
               {colunasTela.map((c) => (
-                <td key={c.chave} className="border-t px-3 py-2.5 text-right">
+                <td key={c.chave} className="border-t px-3 py-2.5 text-center tabular-nums">
                   {ativasPorChave.has(c.chave) ? <Celula c={d.total[c.chave]} formato={c.formato} parcial={c.tipo !== "manual" && Object.values(d.cobertura).some(s => s !== "confirmado")} /> : <span className="text-muted-foreground">—</span>}
                 </td>
               ))}
@@ -306,30 +310,82 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   );
 }
 
-function CelulaManual({ clienteId, chave, dia, valor, aoSalvar }: { clienteId: string; chave: string; dia: string; valor: number | null; aoSalvar: () => void }) {
-  const [t, setT] = useState(valor == null ? "" : String(valor));
-  useEffect(() => setT(valor == null ? "" : String(valor)), [valor]);
+function CelulaManual({ clienteId, chave, dia, valor, formato, aoSalvar }: { clienteId: string; chave: string; dia: string; valor: number | null; formato: FormatoManual; aoSalvar: () => void }) {
+  const [atual, setAtual] = useState<number | null>(valor);
+  const [editando, setEditando] = useState(false);
+  const [t, setT] = useState("");
+  const [estado, setEstado] = useState<"" | "salvando" | "salvo">("");
+  const [erro, setErro] = useState<string | null>(null);
+  useEffect(() => setAtual(valor), [valor]);
+  const exibir = (n: number | null) => (n == null ? "" : formato === "moeda" ? formatarMoeda(n) : n.toLocaleString("pt-BR"));
+  const abrir = () => { setT(atual == null ? "" : String(atual).replace(".", ",")); setErro(null); setEditando(true); };
   const gravar = async () => {
-    const n = t.trim() === "" ? null : Number(t.replace(",", "."));
-    if (n !== null && !Number.isFinite(n)) return toast.error("Digite um número.");
-    if (n === valor) return;
+    const r = lerNumeroManual(t, formato);
+    if (!r.ok) { setErro(r.erro); return; }
+    setEditando(false);
+    if (r.valor === atual) return;
+    const antes = atual;
+    setAtual(r.valor); setEstado("salvando"); setErro(null);
     try {
-      await salvarCelulaManual({ data: { clienteId, chave, data: dia, valor: n } });
+      await salvarCelulaManual({ data: { clienteId, chave, data: dia, valor: r.valor } });
+      setEstado("salvo"); setTimeout(() => setEstado(""), 2000);
       aoSalvar();
-    } catch (e) {
-      toast.error(msg(e));
-    }
+    } catch (e) { setAtual(antes); setEstado(""); setErro(msg(e)); }
+  };
+  if (editando)
+    return (
+      <span className="inline-flex flex-col items-center">
+        <input
+          autoFocus
+          inputMode={formato === "inteiro" ? "numeric" : "decimal"}
+          value={t}
+          onChange={(e) => { setT(e.target.value); setErro(null); }}
+          onBlur={() => void gravar()}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setErro(null); setEditando(false); } }}
+          className={`h-7 w-24 rounded-md border bg-background px-2 text-center tabular-nums outline-none focus:ring-2 focus:ring-ring ${erro ? "border-destructive" : "border-input"}`}
+          aria-label={`Valor de ${dia}`}
+          aria-invalid={!!erro}
+        />
+        {erro && <span role="alert" className="mt-0.5 text-[10px] text-destructive">{erro}</span>}
+      </span>
+    );
+  return (
+    <span className="inline-flex flex-col items-center">
+      <button
+        type="button"
+        onClick={abrir}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); abrir(); } }}
+        className="group/cel relative inline-flex h-7 w-24 items-center justify-center rounded-md border border-input bg-muted/40 px-2 tabular-nums hover:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Preencher ${dia}${atual == null ? "" : `, valor ${exibir(atual)}`}`}
+      >
+        {exibir(atual)}
+        <Pencil className="absolute right-1 h-3 w-3 text-muted-foreground opacity-0 group-hover/cel:opacity-100 group-focus-visible/cel:opacity-100" aria-hidden />
+      </button>
+      {estado === "salvo" && <span className="mt-0.5 text-[10px] text-muted-foreground">Salvo</span>}
+      {erro && <span role="alert" className="mt-0.5 text-[10px] text-destructive">{erro}</span>}
+    </span>
+  );
+}
+
+/** Quem preenche e se aceita dia futuro (super admin, na configuração da coluna manual). */
+function RegraManual({ clienteId, chave, inicial }: { clienteId: string; chave: string; inicial?: { preenche: QuemPreenche; aceitaFuturo: boolean } }) {
+  const [preenche, setPreenche] = useState<QuemPreenche>(inicial?.preenche ?? "super_admin");
+  const [futuro, setFuturo] = useState(inicial?.aceitaFuturo ?? false);
+  const salvar = async (p: QuemPreenche, f: boolean) => {
+    setPreenche(p); setFuturo(f);
+    try { await salvarRegraManual({ data: { clienteId, chave, preenche: p, aceitaFuturo: f } }); toast.success("Regra da coluna salva."); }
+    catch (e) { toast.error(msg(e)); }
   };
   return (
-    <Input
-      inputMode="decimal"
-      value={t}
-      onChange={(e) => setT(e.target.value)}
-      onBlur={gravar}
-      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-      className="ml-auto h-7 w-20 text-right tabular-nums"
-      aria-label={`Valor de ${dia}`}
-    />
+    <div className="space-y-2 rounded-lg border p-2">
+      <Label>Quem preenche</Label>
+      <Select value={preenche} onValueChange={(v) => void salvar(v as QuemPreenche, futuro)}>
+        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+        <SelectContent>{(Object.keys(ROTULO_QUEM_PREENCHE) as QuemPreenche[]).map((k) => <SelectItem key={k} value={k}>{ROTULO_QUEM_PREENCHE[k]}</SelectItem>)}</SelectContent>
+      </Select>
+      <label className="flex items-center justify-between gap-2 text-sm">Aceita dias futuros<Switch checked={futuro} onCheckedChange={(v) => void salvar(preenche, v)} /></label>
+      <p className="text-xs text-muted-foreground">Sem dias futuros, só hoje e dias passados podem ser preenchidos.</p>
+    </div>
   );
 }
 
@@ -545,7 +601,8 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo }: { cliente
             </div>
           )}
 
-          {tipo === "manual" && <p className="text-xs text-muted-foreground">Os valores são digitados por dia, direto na matriz, em modo Editar.</p>}
+          {tipo === "manual" && <p className="text-xs text-muted-foreground">Os valores são digitados por dia, direto na tabela, por quem tem permissão.</p>}
+          {tipo === "manual" && coluna?.chave && <RegraManual clienteId={clienteId} chave={coluna.chave} inicial={regrasColuna} />}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
