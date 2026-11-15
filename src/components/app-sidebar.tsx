@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { useCurrentUserAccess, type ModuleKey } from "@/lib/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EloraLogo, EloraIcone } from "@/components/elora-logo";
+import { BuscaMenu, type ItemBuscaMenu } from "@/components/busca-menu";
 
 const defaultGestaoItems: { title: string; url: string; icon: any; moduleKey: ModuleKey }[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, moduleKey: "dashboard" },
@@ -279,51 +280,12 @@ export function AppSidebar() {
 function VerComoBusca() {
   const navigate = useNavigate();
   const { parceiros, clientes } = useStore();
-  const [busca, setBusca] = useState("");
-  const q = busca.trim().toLowerCase();
-  const resultados = q
-    ? [
-        ...parceiros.map((p) => ({ id: p.id, nome: p.nome, tipo: "parceiro" as const })),
-        ...clientes.map((c) => ({ id: c.id, nome: c.nome, tipo: "cliente" as const })),
-      ]
-        .filter((i) => i.nome.toLowerCase().includes(q))
-        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-        .slice(0, 8)
-    : [];
-  const abrir = (i: { id: string; tipo: "parceiro" | "cliente" }) => {
-    setBusca("");
+  const itens: ItemBuscaMenu[] = [
+    ...parceiros.map((p) => ({ id: p.id, nome: p.nome, tipo: "parceiro" as const })),
+    ...clientes.map((c) => ({ id: c.id, nome: c.nome, tipo: "cliente" as const })),
+  ];
+  const abrir = (i: ItemBuscaMenu) => {
     navigate({ to: i.tipo === "parceiro" ? "/parceiro" : "/area-do-cliente", search: { como: i.id } as never });
   };
-  return (
-    <div className="px-2 pt-1">
-      <label className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs">
-        <Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Ver como… (parceiro ou cliente)"
-          aria-label="Ver como parceiro ou cliente"
-          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
-        />
-      </label>
-      {q && (
-        <ul className="mt-1 max-h-64 overflow-y-auto rounded-md border border-sidebar-border bg-popover text-xs">
-          {resultados.map((i) => (
-            <li key={`${i.tipo}-${i.id}`}>
-              <button
-                type="button"
-                onClick={() => abrir(i)}
-                className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-sidebar-accent"
-              >
-                {i.tipo === "parceiro" ? <Handshake className="h-3.5 w-3.5 shrink-0" /> : <Users className="h-3.5 w-3.5 shrink-0" />}
-                <span className="min-w-0 flex-1 truncate">{i.nome}</span>
-                <span className="text-[10px] text-muted-foreground">{i.tipo === "parceiro" ? "Parceiro" : "Cliente"}</span>
-              </button>
-            </li>
-          ))}
-          {resultados.length === 0 && <li className="px-2 py-1.5 text-muted-foreground">Nada encontrado.</li>}
-        </ul>
-      )}
-    </div>
-  );
+  return <div className="px-2 pt-1"><BuscaMenu itens={itens} onSelecionar={abrir} /></div>;
 }
