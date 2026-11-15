@@ -128,7 +128,11 @@ export function eventoVale(ev: Evento, l: Leitura): boolean {
  * Dia (São Paulo) em que o card passa a contar: a primeira leitura em que
  * evento e todas as condições valem. Conta uma vez e continua contado.
  */
-export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[]): { dia: string; estimado: boolean } | null {
+/**
+ * Leitura com `estimado` (primeira foto do card, dia real desconhecido) nunca dá dia: o card não
+ * conta nesse caso, para nenhum número ser inferido.
+ */
+export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[]): { dia: string } | null {
   const ev = cfg.evento as Evento;
   if (!ev?.tipo || errosDeConfig(cfg).length) return null;
   const ordenadas = [...leituras].sort((a, b) => a.visto_em.localeCompare(b.visto_em));
@@ -136,19 +140,20 @@ export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[]): { dia: str
     if (!eventoVale(ev, l) || !avaliarGrupo(cfg.condicoes, l.campos)) continue;
     if (ev.tipo === "foi_criado") {
       const d = diaSP(l.criado_em);
-      return d ? { dia: d, estimado: false } : null;
+      return d ? { dia: d } : null;
     }
+    if (l.estimado) return null;
     const d = diaSP(l.visto_em);
-    return d ? { dia: d, estimado: l.estimado } : null;
+    return d ? { dia: d } : null;
   }
   return null;
 }
 
 /** Cards contados por um indicador no período (mesma regra de `calcularIndicadoresCards`). */
-export function cardsDoIndicador(cfg: IndicadorConfig, leituras: Leitura[], de: string, ate: string): { card_id: string; dia: string; estimado: boolean }[] {
+export function cardsDoIndicador(cfg: IndicadorConfig, leituras: Leitura[], de: string, ate: string): { card_id: string; dia: string }[] {
   const porCard = new Map<string, Leitura[]>();
   for (const l of leituras) porCard.set(l.card_id, [...(porCard.get(l.card_id) ?? []), l]);
-  const out: { card_id: string; dia: string; estimado: boolean }[] = [];
+  const out: { card_id: string; dia: string }[] = [];
   for (const [id, ls] of porCard) { const r = diaDoCard(cfg, ls); if (r && r.dia >= de && r.dia <= ate) out.push({ card_id: id, ...r }); }
   return out;
 }
@@ -156,15 +161,14 @@ export function cardsDoIndicador(cfg: IndicadorConfig, leituras: Leitura[], de: 
 /** Coluna combinada de cards ("app" é o nome antigo, aceito para não quebrar configurações). */
 export const ehCombinadaDeCard = (c: Pick<IndicadorConfig, "tipo" | "fonte">) => (c.tipo === "combinada" || c.tipo === "app") && c.fonte === "cards";
 
-export type Celula = { valor: number; estimado: number };
-/** dia → chave → { valor, quantos desse valor são estimados } */
+export type Celula = { valor: number };
+/** dia → chave → { valor } */
 export type PorDia = Map<string, Record<string, Celula>>;
 
-const somar = (m: PorDia, dia: string, chave: string, n: number, est: boolean) => {
+const somar = (m: PorDia, dia: string, chave: string, n: number) => {
   const linha = m.get(dia) ?? {};
-  const c = linha[chave] ?? { valor: 0, estimado: 0 };
+  const c = linha[chave] ?? { valor: 0 };
   c.valor += n;
-  if (est) c.estimado += n;
   linha[chave] = c;
   m.set(dia, linha);
 };
@@ -177,7 +181,7 @@ export function calcularIndicadoresCards(configs: IndicadorConfig[], leituras: L
     if (!cfg.ativo || !ehCombinadaDeCard(cfg)) continue;
     for (const ls of porCard.values()) {
       const r = diaDoCard(cfg, ls);
-      if (r) somar(m, r.dia, cfg.chave, 1, r.estimado);
+      if (r) somar(m, r.dia, cfg.chave, 1);
     }
   }
   return m;
@@ -191,12 +195,12 @@ export function calcularPadrao(contatos: ContatoMotor[], mensagens: MensagemP[],
     if (String(c.origem ?? "").toUpperCase() === "IMPORTED") continue;
     const d = diaSP(c.criado_em);
     if (!d) continue;
-    somar(m, d, "novos_contatos", 1, false);
-    if (preenchido(c.utm_campaign)) somar(m, d, "novos_contatos_ads", 1, false);
+    somar(m, d, "novos_contatos", 1);
+    if (preenchido(c.utm_campaign)) somar(m, d, "novos_contatos_ads", 1);
   }
   for (const p of conversasPorDia(mensagens)) {
-    somar(m, p.dia, "conversas_total_dia", 1, false);
-    somar(m, p.dia, p.usuario ? "conversas_usuario" : "conversas_bot", 1, false);
+    somar(m, p.dia, "conversas_total_dia", 1);
+    somar(m, p.dia, p.usuario ? "conversas_usuario" : "conversas_bot", 1);
   }
   return m;
 }
@@ -205,13 +209,12 @@ export type LinhaRelatorio = { dia: string; valores: Record<string, Celula> };
 
 /** Linhas do período (todos os dias, vazios com zero) + linha de total. */
 export function montarRelatorio(m: PorDia, dias: string[], chaves: string[]) {
-  const vazia = () => Object.fromEntries(chaves.map((k) => [k, { valor: 0, estimado: 0 }]));
+  const vazia = () => Object.fromEntries(chaves.map((k) => [k, { valor: 0 }]));
   const linhas: LinhaRelatorio[] = dias.map((dia) => ({ dia, valores: { ...vazia(), ...(m.get(dia) ?? {}) } }));
   const total = vazia() as Record<string, Celula>;
   for (const l of linhas)
     for (const k of chaves) {
       total[k].valor += l.valores[k]?.valor ?? 0;
-      total[k].estimado += l.valores[k]?.estimado ?? 0;
     }
   return { linhas, total };
 }
