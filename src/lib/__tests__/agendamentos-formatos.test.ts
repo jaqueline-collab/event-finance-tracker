@@ -60,3 +60,17 @@ describe("calendário", () => {
     expect(limiteDe("calendario").maxA).toBe(12);
   });
 });
+
+import { criarEhSuporte, nomeVisivel } from "../suporte";
+import { nomeCanalExibido } from "../nome-canal";
+describe("regras do lote", () => {
+  it("nunca mostra 'Instância ...'", () => {
+    expect(nomeCanalExibido(null, "Instância decc86")).toBe("Canal sem nome");
+    expect(nomeCanalExibido(null, "(55) 31 99086-1102")).toBe("(55) 31 99086-1102");
+  });
+  it("usuário de suporte some das listas", () => {
+    const eh = criarEhSuporte([{ nome: "Jaqueline Ditós" }]);
+    expect(nomeVisivel(eh, "jaqueline ditós")).toBeNull();
+    expect(nomeVisivel(eh, "Vinicio")).toBe("Vinicio");
+  });
+});
