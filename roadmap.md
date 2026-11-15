@@ -43,4 +43,4 @@
 - [ ] Depois: plano separado para espelho completo de cada cliente (tempo de sincronização e carga do banco)
 - [ ] Espelho completo: código pronto; regravação do cliente jvu3dzqk bloqueada (chave sem permissão em /v1/contact/filter)
 - [ ] Depois: plano separado de pré-agregação de totais por dia ao fim da sincronização (< 3 s sem cache)
-- [ ] Exibição: vazio em branco em itens/lista do dia/detalhes/exportar; sem NaN; agrupamentos com "Sem informação"
+- [x] Exibição: vazio em branco em itens/lista do dia/detalhes/exportar; sem NaN; agrupamentos com "Sem informação"
