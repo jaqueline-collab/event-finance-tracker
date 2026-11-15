@@ -782,33 +782,63 @@ function EditorCartao({
 
 /* ---------------- funil ---------------- */
 
-/** Funil no estilo do Elora App: faixas centradas e decrescentes, texto dentro da faixa (nunca por cima do desenho). */
+/**
+ * Funil no estilo do Elora App: faixas trapezoidais empilhadas e centradas, todas da mesma altura,
+ * nome pequeno e valor grande dentro da faixa; painel à direita com a conversão final em destaque.
+ */
 function FunilCartao({ cartao, r, onClique }: { cartao: CartaoGrafico; r: ResultadoCartao; onClique?: (rotulo: string) => void }) {
   const faixas = funilTop(r.categorias, 8);
-  const max = Math.max(1, ...faixas.map((f) => f.total));
   const pcts = percentuaisFunil(faixas, cartao.modoFunil);
-  const pct = (i: number) => (pcts[i] == null ? "início" : `${pcts[i]!.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
+  const n = faixas.length;
+  if (!n) return <p className="text-sm text-muted-foreground">Sem dados no período.</p>;
+  const pctTxt = (v: number | null | undefined) => (v == null ? "—" : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
+  // larguras de 100% (topo) a 34% (base), lineares, para todas as faixas terem a mesma altura
+  const larg = (k: number) => 100 - (66 * k) / Math.max(1, n);
+  const primeira = faixas[0]?.total ?? 0, ultima = faixas[n - 1]?.total ?? 0;
+  const final = cartao.modoFunil === "etapas" ? (primeira ? (ultima / primeira) * 100 : null) : pcts[0] ?? null;
+  const cor = (i: number, rot: string) => (rot === "Outras" ? { bg: "var(--muted)", fg: "var(--foreground)" } : { bg: `var(--chart-${(i % 5) + 1})`, fg: `var(--chart-${(i % 5) + 1}-foreground)` });
   return (
-    <>
-    <p className="mb-1 text-xs text-muted-foreground">{cartao.modoFunil === "etapas" ? "Conversão de uma etapa para a seguinte" : "% sobre o total"}</p>
-    <ol className="flex flex-col items-center gap-1" aria-label={cartao.titulo}>
-      {faixas.map((f, i) => (
-        <li key={f.rotulo} className="flex w-full flex-col items-center">
-          <button
-            type="button"
-            disabled={!onClique || f.rotulo === "Outras"}
-            onClick={() => onClique?.(f.rotulo)}
-            title={`${f.rotulo}: ${fmt(f.total, cartao)} (${pct(i)})`}
-            className="flex items-center justify-between gap-2 rounded-md border-l-4 px-3 py-1.5 text-xs text-foreground transition-opacity enabled:hover:opacity-90"
-            style={{ width: `${Math.max(40, (f.total / max) * 100)}%`, borderColor: f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5], background: `color-mix(in oklch, ${f.rotulo === "Outras" ? "var(--muted-foreground)" : CORES[i % 5]} 22%, var(--card))` }}
-          >
-            <span className="min-w-0 truncate font-medium">{f.rotulo}</span>
-            <span className="shrink-0 tabular-nums">{fmt(f.total, cartao)} · {pct(i)}</span>
-          </button>
-        </li>
-      ))}
-    </ol>
-    </>
+    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-stretch">
+      <ol className="flex min-w-0 flex-1 flex-col items-center gap-1" aria-label={cartao.titulo}>
+        {faixas.map((f, i) => {
+          const topo = larg(i), base = larg(i + 1), recuo = ((topo - base) / 2 / topo) * 100;
+          const c = cor(i, f.rotulo);
+          return (
+            <li key={f.rotulo} className="flex w-full justify-center">
+              <button
+                type="button"
+                disabled={!onClique || f.rotulo === "Outras"}
+                onClick={() => onClique?.(f.rotulo)}
+                title={`${f.rotulo}: ${fmt(f.total, cartao)} (${pcts[i] == null ? "início" : pctTxt(pcts[i])})`}
+                className="flex h-14 min-w-0 flex-col items-center justify-center px-[12%] text-center transition-opacity enabled:hover:opacity-90"
+                style={{ width: `${topo}%`, background: c.bg, color: c.fg, clipPath: `polygon(0 0, 100% 0, ${100 - recuo}% 100%, ${recuo}% 100%)` }}
+              >
+                <span className="block w-full truncate text-[11px] leading-tight">{f.rotulo}</span>
+                <span className="block w-full truncate text-base font-bold leading-tight tabular-nums">{fmt(f.total, cartao)}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <aside className="flex shrink-0 flex-col justify-between gap-2 rounded-lg border bg-muted/40 p-3 sm:w-44">
+        <div>
+          <p className="text-xs text-muted-foreground">{cartao.modoFunil === "etapas" ? "Conversão final" : "Maior fatia"}</p>
+          <p className="text-2xl font-bold tabular-nums text-foreground">{pctTxt(final)}</p>
+          <p className="truncate text-[11px] text-muted-foreground" title={cartao.modoFunil === "etapas" ? `${faixas[0].rotulo} → ${faixas[n - 1].rotulo}` : faixas[0].rotulo}>
+            {cartao.modoFunil === "etapas" ? `${faixas[0].rotulo} → ${faixas[n - 1].rotulo}` : faixas[0].rotulo}
+          </p>
+        </div>
+        <ul className="space-y-0.5 text-[11px]">
+          {faixas.map((f, i) => i > 0 || cartao.modoFunil === "ranking" ? (
+            <li key={f.rotulo} className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-muted-foreground" title={f.rotulo}>{f.rotulo}</span>
+              <span className="shrink-0 font-semibold tabular-nums text-foreground">{pctTxt(pcts[i])}</span>
+            </li>
+          ) : null)}
+        </ul>
+        <p className="text-[10px] text-muted-foreground">{cartao.modoFunil === "etapas" ? "% sobre a etapa anterior" : "% sobre o total"}</p>
+      </aside>
+    </div>
   );
 }
 
