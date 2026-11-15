@@ -68,7 +68,7 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
       d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_id:payload->>panelId, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).order("externo_id"),
     8),
     lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id"), 8),
-    d.from("elora_relatorio_corte_config").select("equipe_por_canal, coluna_status").eq("cliente_id", clienteId).maybeSingle(),
+    d.from("elora_relatorio_corte_config").select("equipe_por_canal, coluna_status, cores_status").eq("cliente_id", clienteId).maybeSingle(),
   ]);
   const { data: paineis } = await d.from("elora_paineis_sincronizados").select("painel_id, etapas").eq("cliente_id", clienteId);
   const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(d, clienteId);
@@ -118,6 +118,18 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
       base.ordens["card|status_lead"] = o;
     }
   }
+  // Cores: etiquetas trazem cor do Elora App; etapas usam a cor escolhida pela super admin (cores_status).
+  const { data: tags } = await d.from("elora_apoio_espelho").select("nome, payload").eq("cliente_id", clienteId).eq("tipo", "etiqueta").limit(2000);
+  const coresTags: Record<string, string> = {};
+  for (const t of tags ?? []) if (t?.nome && t?.payload?.color) coresTags[String(t.nome)] = String(t.payload.color);
+  const escolhidas: Record<string, string> = corte?.data?.cores_status && typeof corte.data.cores_status === "object" ? corte.data.cores_status : {};
+  base.cores = { "contato|etiquetas": coresTags };
+  if (cfgStatus) {
+    const doStatus = cfgStatus.fonte === "contato" && cfgStatus.campo === "etiquetas" ? coresTags : cfgStatus.fonte === "card" && cfgStatus.campo === "etapa" ? escolhidas : {};
+    base.cores["contato|status_lead"] = doStatus;
+    base.cores["card|status_lead"] = doStatus;
+  }
+  if (Object.keys(escolhidas).length) base.cores["card|etapa"] = escolhidas;
   return base;
 }
 

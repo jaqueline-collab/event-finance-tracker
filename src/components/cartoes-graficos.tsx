@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
 import { corEtiqueta } from "@/lib/status-lead";
+import { estiloCor } from "@/lib/cores-status";
 import { ConfigStatusLead } from "@/components/config-status-lead";
 import { toast } from "sonner";
 import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -1160,9 +1161,17 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
   const LARG_FIXA = 160;
   const fixas = vis.filter((c) => c.fixa);
   const estiloFixa = (chave: string) => { const i = fixas.findIndex((c) => c.chave === chave); return i < 0 ? undefined : { left: i * LARG_FIXA, minWidth: LARG_FIXA, maxWidth: LARG_FIXA }; };
-  const celula = (chave: string, v: string) => (etiquetas.has(chave) && v
-    ? <span className={`inline-block max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${corEtiqueta(v, r.ordensColunas?.[chave])}`} title={v}>{v}</span>
-    : celulaTexto(v));
+  const chip = (chave: string, v: string) => {
+    const est = estiloCor(r.coresColunas?.[chave]?.[v]);
+    return <span key={v} className={`inline-block max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${est ? "" : corEtiqueta(v, r.ordensColunas?.[chave])}`} style={est} title={v}>{v}</span>;
+  };
+  const celula = (chave: string, v: string) => {
+    if (!v) return celulaTexto(v);
+    if (etiquetas.has(chave)) return chip(chave, v);
+    // Etiquetas do contato com cor do Elora App: uma etiqueta colorida por valor.
+    if (chave === "contato|etiquetas" && r.coresColunas?.[chave]) return <span className="flex flex-wrap gap-1">{v.split(/,\s*/).filter(Boolean).map((x) => chip(chave, x))}</span>;
+    return celulaTexto(v);
+  };
   return (
     <div className="space-y-2">
       <BarraTabela colunas={cols} estado={estado} onEstado={setEstado} padrao={estadoInicial(cols)}
