@@ -184,7 +184,7 @@ const textos = (v: unknown): string[] => {
   return t.length ? t : [NAO_DEFINIDO];
 };
 /** Célula de item (tabela, lista do dia, detalhes, exportar): vazio fica em branco. */
-const textoItem = (v: unknown): string => { const t = textos(v); return t[0] === NAO_DEFINIDO && t.length === 1 && !preenchidoCampo(Array.isArray(v) ? v[0] : v) ? "" : t.join(", "); };
+const textoItem = (v: unknown): string => { const t = textos(v); return t.length === 1 && t[0] === NAO_DEFINIDO ? "" : t.join(", "); };
 const numero = (v: unknown): number | null => {
   const x = Array.isArray(v) ? v[0] : v;
   if (x == null || x === "") return null;
