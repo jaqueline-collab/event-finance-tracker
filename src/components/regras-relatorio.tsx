@@ -125,7 +125,7 @@ export function RegrasRelatorio({ clienteId }: { clienteId: string }) {
 
 /** Global support has one editor in general administration; server checks super admin. */
 export function SuporteInternoGlobal() {
-  const [suporte, setSuporte] = useState<{ id: string; nome: string | null; email: string | null }[]>([]);
+  const [suporte, setSuporte] = useState<{ id: string; nome: string | null; email: string | null; telefone: string | null }[]>([]);
   const [novoSuporte, setNovoSuporte] = useState("");
   const [liberado, setLiberado] = useState(false);
   useEffect(() => { lerSuporteInterno().then(r => { setSuporte(r); setLiberado(true); }).catch(() => setLiberado(false)); }, []);
@@ -135,7 +135,7 @@ export function SuporteInternoGlobal() {
           <p className="text-xs text-muted-foreground">Conversas dessas pessoas não entram nas colunas de conversas de nenhum cliente. Por nome ou e-mail.</p>
           {suporte.map((p) => (
             <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
-              <span>{p.nome || p.email}</span>
+              <span>{[p.nome, p.email, p.telefone].filter(Boolean).join(" · ")}</span>
               <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Remover" onClick={async () => {
                 try {
                   await salvarSuporteInterno({ data: { acao: "remover", id: p.id } });
@@ -149,10 +149,10 @@ export function SuporteInternoGlobal() {
             </div>
           ))}
           <div className="flex gap-2">
-            <Input value={novoSuporte} placeholder="Nome ou e-mail" onChange={(e) => setNovoSuporte(e.target.value)} />
+            <Input value={novoSuporte} placeholder="Nome, e-mail ou telefone" onChange={(e) => setNovoSuporte(e.target.value)} />
             <Button variant="outline" disabled={!novoSuporte.trim()} onClick={async () => {
               try {
-                await salvarSuporteInterno({ data: { acao: "adicionar", pessoa: pessoaDe(novoSuporte) } });
+                await salvarSuporteInterno({ data: /^[\d\s()+-]{8,}$/.test(novoSuporte.trim()) ? { acao: "adicionar", telefone: novoSuporte.trim() } : { acao: "adicionar", pessoa: pessoaDe(novoSuporte) } });
                 setNovoSuporte("");
                 setSuporte(await lerSuporteInterno());
               } catch (e) {

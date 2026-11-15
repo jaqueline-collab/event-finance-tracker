@@ -13,5 +13,13 @@ export async function idsSuporteDoCliente(db: SupabaseClient, clienteId: string)
   const eh = await lerEhSuporte(db);
   const { data, error } = await (db as any).from("elora_apoio_espelho").select("externo_id, nome, payload").eq("cliente_id", clienteId).eq("tipo", "usuario");
   if (error) throw new Error(`usuários da conta: ${error.message}`);
-  return (data ?? []).filter((a: any) => { const u = dadosUsuario(a); return eh(u.nome, u.email, u.telefone); }).map((a: any) => String(a.externo_id));
+  const ids = new Set<string>((data ?? []).filter((a: any) => { const u = dadosUsuario(a); return eh(u.nome, u.email, u.telefone); }).map((a: any) => String(a.externo_id)));
+  // Pessoa que não está no cadastro de usuários da conta, mas aparece como atendente (ex.: suporte de fora).
+  const nomes = (await lerListaSuporte(db)).map((p) => p.nome).filter(Boolean) as string[];
+  if (nomes.length) {
+    const { data: at, error: e2 } = await (db as any).from("elora_atendimentos_espelho").select("atendente_id, atendente_nome").eq("cliente_id", clienteId).in("atendente_nome", nomes).not("atendente_id", "is", null).limit(1000);
+    if (e2) throw new Error(`atendentes de suporte: ${e2.message}`);
+    for (const a of at ?? []) if (eh(a.atendente_nome, null, null)) ids.add(String(a.atendente_id));
+  }
+  return [...ids];
 }

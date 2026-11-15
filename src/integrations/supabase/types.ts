@@ -2726,47 +2726,6 @@ export type Database = {
         }
         Relationships: []
       }
-      elora_relatorio_social_seller: {
-        Row: {
-          atualizado_em: string
-          atualizado_por: string | null
-          canal: string
-          cliente_id: string
-          data: string
-          equipe: string
-          id: string
-          valor: number
-        }
-        Insert: {
-          atualizado_em?: string
-          atualizado_por?: string | null
-          canal?: string
-          cliente_id: string
-          data: string
-          equipe?: string
-          id?: string
-          valor?: number
-        }
-        Update: {
-          atualizado_em?: string
-          atualizado_por?: string | null
-          canal?: string
-          cliente_id?: string
-          data?: string
-          equipe?: string
-          id?: string
-          valor?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "elora_relatorio_social_seller_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "elora_clientes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       elora_release_destinos: {
         Row: {
           cliente_id: string
