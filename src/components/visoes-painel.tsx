@@ -85,6 +85,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const [ativa, setAtiva] = useState<string | null>(iniciarNaMatriz ? VISAO_MATRIZ : null);
   const [renomeando, setRenomeando] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState<VisaoEdit | null>(null);
+  /** Visões excluídas de propósito pelo "Excluir" nesta edição (só estas o servidor apaga). */
+  const [excluidas, setExcluidas] = useState<string[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [chave, setChave] = useState(0);
   const [nomeMatriz, setNomeMatriz] = useState("Relatório diário");
@@ -152,6 +154,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
 
   const cancelar = async () => {
     setOrdemMatriz(ordemMatrizSalva);
+    setExcluidas([]);
     setEditando(false);
     setRenomeando(null);
     await carregar(false);
@@ -171,12 +174,14 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
             novaDe: v.novaDe ?? null,
             ocultos: v.ocultos ?? [],
           })),
+          excluir: excluidas,
         },
       });
       if (matriz && ordemMatriz !== ordemMatrizSalva && ordemMatriz !== null) {
         await salvarNomeMatriz({ data: { clienteId, ordem: ordemMatriz } });
         setOrdemMatrizSalva(ordemMatriz);
       }
+      setExcluidas([]);
       setRascunho(r.visoes.map((v) => ({ ...v })));
       setSalvas(r.visoes);
       setAtiva((a) => (a === VISAO_MATRIZ || (a && r.visoes.some((v) => v.id === a)) ? a : (r.visoes[0]?.id ?? null)));
@@ -366,6 +371,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
                   toast.error("O painel precisa de pelo menos uma visão.");
                   return;
                 }
+                setExcluidas((l) => [...l, excluindo.id]);
                 setRascunho((l) => moverVisao(l.filter((v) => v.id !== excluindo.id), 0, 0));
                 if (ativa === excluindo.id) setAtiva(rascunho.find((v) => v.id !== excluindo.id)?.id ?? null);
                 setExcluindo(null);

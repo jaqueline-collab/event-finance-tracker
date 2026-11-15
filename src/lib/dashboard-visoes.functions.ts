@@ -84,7 +84,7 @@ const visaoEditadaSchema = z.object({
 export const salvarVisoesCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ clienteId: z.string().min(1), visoes: z.array(visaoEditadaSchema).min(1).max(30) }).parse(input),
+    z.object({ clienteId: z.string().min(1), visoes: z.array(visaoEditadaSchema).min(1).max(30), excluir: z.array(z.string().uuid()).max(30).default([]) }).parse(input),
   )
   .handler(async ({ data, context }): Promise<{ visoes: Visao[] }> => {
     if (!(await ehSuperAdmin(context.supabase))) throw new Error("acesso-negado: apenas super admin.");
@@ -93,7 +93,15 @@ export const salvarVisoesCliente = createServerFn({ method: "POST" })
     const salvas = await lerVisoes(db, data.clienteId);
     const { criar, atualizar, excluir } = diffVisoes(salvas, data.visoes);
 
-    for (const id of excluir) {
+    // Proteção: só some a visão pedida explicitamente pelo "Excluir"; as demais ausentes ficam como estão.
+    const pedidas = new Set(data.excluir);
+    const quem = { id: (context as any).userId ?? null, email: (context as any).claims?.email ?? null };
+    for (const id of excluir.filter((x) => pedidas.has(x))) {
+      const { data: linha } = await db.from("elora_dashboard_visoes").select("*").eq("id", id).eq("cliente_id", data.clienteId).maybeSingle();
+      if (linha) {
+        const { error: eLog } = await db.from("elora_config_acoes").insert({ cliente_id: data.clienteId, usuario_id: quem.id, usuario_email: quem.email, alvo: `visao_excluida:${id}`, descricao: `Excluiu a visão ${linha.nome}`, antes: linha, depois: null });
+        if (eLog) throw new Error(`registro: ${eLog.message}`);
+      }
       const { error } = await db.from("elora_dashboard_visoes").delete().eq("id", id).eq("cliente_id", data.clienteId);
       if (error) throw new Error(`visoes: ${error.message}`);
     }
