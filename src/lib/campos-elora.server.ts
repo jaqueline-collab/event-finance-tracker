@@ -32,8 +32,11 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
   }
   const base = await montarBaseCampos(db, clienteId);
   cache.set(clienteId, { em: Date.now(), chave, base });
-  const { error } = await (db as any).from("elora_calculo_cache").upsert({ chave: chaveDb, cliente_id: clienteId, valor: { gz: await compactar(JSON.stringify(base)) }, criado_em: new Date().toISOString() }, { onConflict: "chave" });
-  if (error) console.error("cache de campos: gravação falhou", error.message);
+  // gravação em segundo plano: não atrasa a abertura
+  void compactar(JSON.stringify(base))
+    .then((gz) => (db as any).from("elora_calculo_cache").upsert({ chave: chaveDb, cliente_id: clienteId, valor: { gz }, criado_em: new Date().toISOString() }, { onConflict: "chave" }))
+    .then((r: any) => r?.error && console.error("cache de campos: gravação falhou", r.error.message))
+    .catch((e: unknown) => console.error("cache de campos: gravação falhou", e));
   return base;
 }
 
