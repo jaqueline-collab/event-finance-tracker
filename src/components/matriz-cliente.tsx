@@ -96,12 +96,6 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
     };
   }, [clienteId, periodo.de, periodo.ate, JSON.stringify(filtros), v]);
 
-  useEffect(() => {
-    if (!comparar || !editando || !d?.podeEditar || filtros.length) { setComparacao(null); return; }
-    let vivo = true;
-    validarRelatorioDiario({ data: { clienteId, de: periodo.de, ate: periodo.ate } }).then(r => vivo && setComparacao(r)).catch(e => toast.error(msg(e)));
-    return () => { vivo = false; };
-  }, [comparar, editando, d?.podeEditar, clienteId, periodo.de, periodo.ate, JSON.stringify(filtros)]);
 
   const linhas = useMemo(() => {
     if (!d) return [];
