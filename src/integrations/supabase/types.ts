@@ -3195,6 +3195,21 @@ export type Database = {
           usuario: boolean
         }[]
       }
+      elora_novos_contatos: {
+        Args: { _cliente_id: string; _fim: string; _inicio: string }
+        Returns: {
+          atendente_id: string
+          atendente_nome: string
+          canal_id: string
+          canal_nome: string
+          criado_em: string
+          externo_id: string
+          origem: string
+          sessao_criado_em: string
+          sessao_id: string
+          utm_campaign: string
+        }[]
+      }
       elora_versoes_cache: { Args: { _cliente_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_equipe_interna: { Args: never; Returns: boolean }
