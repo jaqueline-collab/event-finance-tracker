@@ -49,7 +49,8 @@ import { abaConfigurarDoEndereco, podeConfigurarArea, type AbaDadosElora } from 
 import { ConfiguracaoClienteSheet } from "@/components/configuracao-cliente-sheet";
 import { PainelVisual, SeletorPeriodo } from "@/components/painel-visual";
 import { MatrizCliente } from "@/components/matriz-cliente";
-import { salvarFiltrosPadraoVisao } from "@/lib/dashboard-visoes.functions";
+import { salvarFiltrosFixosVisao, salvarFiltrosPadraoVisao } from "@/lib/dashboard-visoes.functions";
+import { FiltroCampos, SelosFixos } from "@/components/filtro-campos";
 import { CartoesGraficos } from "@/components/cartoes-graficos";
 import type { CartaoGrafico } from "@/lib/graficos";
 import type { FiltroCampo } from "@/lib/campos-elora";
@@ -587,6 +588,7 @@ function PainelComFiltros({
       <PainelVisual {...rest} filtros={filtros} onFiltros={setFiltros} />
       {visaoId && (
         <CartoesGraficos
+          key={JSON.stringify(fixos)}
           clienteId={rest.clienteId}
           visaoId={visaoId}
           iniciais={cartoes}
@@ -594,7 +596,6 @@ function PainelComFiltros({
           podeEditar={podeSalvarPadrao}
           periodo={rest.periodo}
           filtrosVisao={filtros}
-          chaveFixos={JSON.stringify(fixos)}
           onFiltroGrafico={(f) => setFiltros((l) => [...l.filter((x) => !(x.fonte === f.fonte && x.campo === f.campo)), f])}
           outrasVisoes={outrasVisoes}
           novoChave={novoGraficoChave}
