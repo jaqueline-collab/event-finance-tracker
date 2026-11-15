@@ -419,8 +419,10 @@ export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string
     return ((await ctx.msgs.lista) as MsgSemTexto[]).filter((m) => { const t = Date.parse(m.enviada_em ?? ""); return t >= ini && t <= f; });
   }
   if (ctx) return ctx.memo(`msgs|${clienteId}|${inicio}|${fim}`, () => lerMensagensSemTexto(db, clienteId, inicio, fim));
+  // Respostas de usuários de suporte não definem o atendente: vale a resposta humana anterior de outra pessoa.
+  const excluir = await (await import("./suporte.server")).idsSuporteDoCliente(db, clienteId);
   const pares = await lerTudo(() =>
-    (db as any).rpc("elora_conversas_pares", { _cliente_id: clienteId, _inicio: inicio, _fim: fim }).order("sessao_id").order("primeira_em"),
+    (db as any).rpc("elora_conversas_pares", { _cliente_id: clienteId, _inicio: inicio, _fim: fim, _excluir: excluir }).order("sessao_id").order("primeira_em"),
   8);
   const out: MsgSemTexto[] = [];
   for (const r of pares as any[]) {
