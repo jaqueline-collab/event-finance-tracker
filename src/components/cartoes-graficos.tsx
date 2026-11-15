@@ -327,7 +327,7 @@ function CartaoComum({
   return (
     <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}</h3>
+        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}</h3><SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></div>
         <div className="flex items-center gap-1">
           {cartao.painel === "leads-por" && <Select value={dim?.campo ?? "origem"} onValueChange={(campo) => setDim({ fonte: campo === "canal" ? "atendimento" : campo === "campaign" ? "utm" : "contato", campo })}>
             <SelectTrigger className="h-8 w-auto" aria-label="Dimensão da rosca"><SelectValue /></SelectTrigger>
@@ -775,8 +775,9 @@ function EditorCartao({
               )}
               <label className="flex items-center gap-2 text-sm"><Switch checked={c.comparar} onCheckedChange={(v) => set({ comparar: v })} /> Comparar com o período anterior</label>
               <div className="space-y-1">
-                <Label>Filtro do gráfico</Label>
-                <FiltroCampos clienteId={clienteId} filtros={c.filtros} onFiltros={(f) => set({ filtros: f })} fonteDaVisao={c.fonte} />
+                <Label>Filtro fixo</Label>
+                <p className="text-xs text-muted-foreground">Vale sempre para este bloco, inclusive no Exportar e na Elora IA. Quem vê enxerga um selo com cadeado, não remove e pode somar os próprios filtros.</p>
+                <FiltroCampos clienteId={clienteId} filtros={c.filtros} onFiltros={(f) => set({ filtros: f })} fonteDaVisao={c.fonte} rotuloBotao="Filtro fixo" />
               </div>
             </div>
             <div className="min-w-0 lg:sticky lg:top-0">
@@ -952,6 +953,7 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-1">
           <h3 className="mr-2 text-sm font-semibold">{cartao.titulo}</h3>
+          <SelosFixos clienteId={clienteId} filtros={cartao.filtros} />
           <Button size="sm" variant="outline" className="h-7" onClick={() => setRef(hoje)}>Hoje</Button>
           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Anterior" onClick={() => navegar(-1)}><ChevronLeft className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Próximo" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>

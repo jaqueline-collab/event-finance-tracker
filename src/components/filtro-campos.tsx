@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, Check, Plus, X } from "lucide-react";
+import { ArrowLeft, Check, Lock, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,8 +32,9 @@ function useCatalogo(clienteId: string) {
  * `opcoesNativas` substitui as opções de campos que a visão calcula direto (ex.: origem já rotulada).
  */
 export function FiltroCampos({
-  clienteId, filtros, onFiltros, fonteDaVisao, opcoesNativas = {}, extra,
+  clienteId, filtros, onFiltros, fonteDaVisao, opcoesNativas = {}, extra, rotuloBotao = "Filtro",
 }: {
+  rotuloBotao?: string;
   clienteId: string;
   filtros: FiltroCampo[];
   onFiltros: (f: FiltroCampo[]) => void;
@@ -93,7 +94,7 @@ export function FiltroCampos({
         >
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 rounded-full border-input text-foreground" disabled={!catalogo}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Filtro
+              <Plus className="mr-1 h-3.5 w-3.5" /> {rotuloBotao}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] p-0" align="start">
@@ -212,5 +213,23 @@ function EditorFiltro({ campo, opcoes, inicial, aviso, onVoltar, onAplicar }: {
         Aplicar
       </Button>
     </div>
+  );
+}
+
+/** Selo discreto com cadeado para filtro fixo: quem vê sabe que o bloco/visão está filtrado e não remove. */
+export function SelosFixos({ clienteId, filtros, prefixo }: { clienteId: string; filtros: FiltroCampo[]; prefixo?: string }) {
+  const catalogo = useCatalogo(clienteId);
+  if (!filtros.length) return null;
+  const todos = (catalogo ?? []).flatMap((g) => g.campos);
+  const rot = (f: FiltroCampo) => todos.find((c) => chave(c) === chave(f))?.rotulo ?? f.campo.replace(/^campo\./, "");
+  return (
+    <span className="flex flex-wrap items-center gap-1" aria-label={prefixo ?? "Filtro fixo"}>
+      {filtros.map((f, i) => (
+        <span key={i} title={`${prefixo ?? "Filtro fixo"}: não pode ser removido aqui`} className="inline-flex max-w-full items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          <Lock className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="truncate">{descreverFiltro(f, rot(f))}</span>
+        </span>
+      ))}
+    </span>
   );
 }
