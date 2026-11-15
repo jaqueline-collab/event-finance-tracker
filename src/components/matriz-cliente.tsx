@@ -297,6 +297,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
         <EditorColuna
           clienteId={clienteId}
           coluna={editor === "nova" ? null : editor}
+          regrasColuna={editor !== "nova" ? regras?.regras[editor.chave] : undefined}
           dados={d}
           onFechar={() => setEditor(null)}
           onSalvo={() => {
@@ -418,7 +419,7 @@ function SeletorCampo({ valor, catalogo, onMudar }: { valor: Ref | null; catalog
   );
 }
 
-function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo }: { clienteId: string; coluna: ColunaMatriz | null; dados: Dados; onFechar: () => void; onSalvo: () => void }) {
+function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColuna }: { clienteId: string; coluna: ColunaMatriz | null; dados: Dados; onFechar: () => void; onSalvo: () => void; regrasColuna?: { preenche: QuemPreenche; aceitaFuturo: boolean } }) {
   const cfgAtual = coluna as any;
   const [nome, setNome] = useState(coluna?.nome ?? "");
   const [tipo, setTipo] = useState<TipoColuna>(coluna?.tipo && coluna.tipo !== "app" ? coluna.tipo : dados.temCards ? "combinada" : "manual");
