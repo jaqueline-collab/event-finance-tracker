@@ -21,12 +21,17 @@ export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGraf
       const { montarMatrizCliente } = await import("@/lib/matriz.server");
       const { cartaoDeIndicador } = await import("@/lib/graficos");
       const { periodoAnterior } = await import("@/lib/painel-visual");
-      const campos = [...data.filtrosVisao, ...c.filtros] as any;
-      const m = await (ctx ? ctx.memo(`matriz|${p.de}|${p.ate}|${JSON.stringify(campos)}`, () => montarMatrizCliente(db, data.clienteId, p, {}, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, p, {}, { campos }));
+      // mesma separação da tela da Matriz: canal/atendente/equipe valem direto nas linhas, o resto liga pelo contato
+      const { separarFiltros } = await import("@/lib/campos-elora");
+      const NAT = { canal: { fonte: "atendimento" as const, campo: "canal" }, atendente: { fonte: "atendimento" as const, campo: "atendente" }, equipe: { fonte: "atendimento" as const, campo: "equipe" } };
+      const sep = separarFiltros([...data.filtrosVisao, ...c.filtros] as any, NAT);
+      const diretos: any = sep.diretos, campos: any = sep.outros;
+      const chaveM = `${JSON.stringify(diretos)}|${JSON.stringify(campos)}`;
+      const m = await (ctx ? ctx.memo(`matriz|${p.de}|${p.ate}|${chaveM}`, () => montarMatrizCliente(db, data.clienteId, p, diretos, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, p, diretos, { campos }));
       if (!m.todasColunas.some((x) => x.chave === c.indicador)) return { oculto: false as const, r: null };
       let ant: number | null = null;
       if (c.comparar) {
-        const ma = await (ctx ? ctx.memo(`matriz|${periodoAnterior(p).de}|${periodoAnterior(p).ate}|${JSON.stringify(campos)}`, () => montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, periodoAnterior(p), {}, { campos }));
+        const ma = await (ctx ? ctx.memo(`matriz|${periodoAnterior(p).de}|${periodoAnterior(p).ate}|${chaveM}`, () => montarMatrizCliente(db, data.clienteId, periodoAnterior(p), diretos, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, periodoAnterior(p), diretos, { campos }));
         ant = cartaoDeIndicador(ma.linhas as any, c.indicador, c, null).total;
       }
       return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), semHistoricoAntes: m.semHistoricoAntes, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
