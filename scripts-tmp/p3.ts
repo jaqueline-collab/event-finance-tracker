@@ -1,0 +1,18 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { lerBaseCampos } from "@/lib/campos-elora.server";
+import { lerLeiturasCards } from "@/lib/matriz.server";
+import { calcularCorteCliente } from "@/lib/indicadores.server";
+import { lerMensagensSemTexto } from "@/lib/elora-espelho.server";
+const db: any = supabaseAdmin; const CL="8c0ojhr2";
+const t=async(n:string,f:()=>Promise<any>)=>{const a=performance.now();const r=await f();console.log(n,((performance.now()-a)/1000).toFixed(2));return r;};
+await t("base",()=>lerBaseCampos(db,CL));
+await t("leituras",()=>lerLeiturasCards(db,CL));
+await t("msgs",()=>lerMensagensSemTexto(db,CL,"2026-10-14T03:00:00Z","2026-11-13T02:59:59Z"));
+await t("corte",()=>calcularCorteCliente(db,CL,{de:"2026-10-14",ate:"2026-11-12"}));
+const d=db; 
+await t("contatos-so",()=>import("@/lib/ler-paginas.server").then(m=>m.lerTudo(()=>d.from("elora_contatos_espelho").select("externo_id, nome, telefone, status, etiquetas, origem, utm_source, utm_medium, utm_campaign, criado_em, cf:payload->customFields, utm:payload->utm").eq("cliente_id",CL).order("externo_id"),12)));
+await t("atend-so",()=>import("@/lib/ler-paginas.server").then(m=>m.lerTudo(()=>d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id",CL).order("externo_id"))));
+await t("classif-so",()=>import("@/lib/ler-paginas.server").then(m=>m.lerTudo(()=>d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id",CL).order("id"))));
+const {count}=await d.from("elora_contatos_espelho").select("*",{count:"exact",head:true}).eq("cliente_id",CL); console.log("contatos",count);
+const {count:c2}=await d.from("elora_atendimentos_espelho").select("*",{count:"exact",head:true}).eq("cliente_id",CL); console.log("atend",c2);
+process.exit(0);
