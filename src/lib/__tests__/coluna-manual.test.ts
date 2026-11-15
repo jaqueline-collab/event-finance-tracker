@@ -21,3 +21,10 @@ describe("coluna manual", () => {
     expect(montarMatriz(col, ["2026-11-02"], new Map(), new Map()).total.ss.valor).toBeNull();
   });
 });
+import { alinhamento, colunaNumerica } from "../colunas-tabela";
+describe("alinhamento", () => {
+  it("números centralizados e tabulares", () => expect(alinhamento(true)).toBe("text-center tabular-nums"));
+  it("texto à esquerda", () => expect(alinhamento(false)).toBe("text-left"));
+  it("moeda e milhar são número", () => expect(colunaNumerica(["R$ 1.234,50", "12", ""])).toBe(true));
+  it("nome é texto", () => expect(colunaNumerica(["Maria", "12"])).toBe(false));
+});
