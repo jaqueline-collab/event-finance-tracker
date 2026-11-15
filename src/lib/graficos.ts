@@ -410,12 +410,8 @@ function diaDoCampo(base: BaseCampos, fonte: FonteCampo, f: CampoRef, r: any, id
 }
 
 function registrosCalendario(base: BaseCampos, cfg: CartaoGrafico, filtrosVisao: FiltroCampo[]) {
-  const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
-  return registros(base, cfg.fonte).filter((r) => {
-    if (!filtro) return true;
-    if (cfg.fonte === "card") return filtro.cards.has(r.id);
-    return contatoDe(cfg.fonte, r).some((id) => filtro.contatos.has(id));
-  });
+  const passa = filtroDaFonte(base, cfg.fonte, [...filtrosVisao, ...cfg.filtros]);
+  return passa ? registros(base, cfg.fonte).filter(passa) : registros(base, cfg.fonte);
 }
 
 /** Calendário: agrupa pelo dia do campo de data escolhido (não pela criação). */
@@ -693,9 +689,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const idx = indices(base);
   const fonte: FonteCampo = cfg.fonte === "card" ? "card" : cfg.fonte === "atendimento" ? "atendimento" : "contato";
   // Atendimentos: filtro de atendimento vale na própria linha (como na Matriz); os demais ligam pelo contato.
-  const todosFiltros = [...filtrosVisao, ...cfg.filtros];
-  const filtrosLinha = fonte === "atendimento" ? todosFiltros.filter((f) => f.fonte === "atendimento") : [];
-  const filtro = aplicarFiltrosCampos(base, fonte === "atendimento" ? todosFiltros.filter((f) => f.fonte !== "atendimento") : todosFiltros);
+  const passa = filtroDaFonte(base, fonte, [...filtrosVisao, ...cfg.filtros]);
   const ehOrigem = (f: CampoRef) => f.fonte === "contato" && f.campo === "origem";
   const rot = (f: CampoRef & { rotulo?: string }) => rotuloCorrido(f.rotulo || (cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, "")));
   const ehStatus = (f: CampoRef) => f.campo === CAMPO_STATUS_LEAD && (f.fonte === "contato" || f.fonte === "card");
@@ -719,8 +713,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const itens: { id: string; valores: Record<string, string>; brutos: Record<string, string> }[] = [];
   for (const r of registros(base, fonte)) {
     if (soCards ? !soCards.has(String(r.id)) : !noPer(r.criado_em, p)) continue;
-    if (filtrosLinha.length && !filtrosLinha.every((f) => avaliarFiltro(f, valorDe("atendimento", f.campo, r)))) continue;
-    if (filtro && !(fonte === "card" ? filtro.cards.has(r.id) : fonte === "atendimento" ? !!r.contato_id && filtro.contatos.has(r.contato_id) : filtro.contatos.has(r.id))) continue;
+    if (passa && !passa(r)) continue;
     const valores: Record<string, string> = {};
     const brutos: Record<string, string> = {};
     for (const f of colunas) if (!ehOrigem(f)) {
