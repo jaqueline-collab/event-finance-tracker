@@ -21,7 +21,12 @@ Regra geral: retrato antes e depois de cada parte; parar e mostrar se algum núm
    - Mostrar antes e depois: quantas conversas saem de "Sem informação" e para quem vão, por período (14/10–12/11 e 22/09–03/10). Total de conversas igual.
    - Paro aqui para sua aprovação, já que essa mudança altera a divisão por atendente.
 
-4. **Remover o Social Seller antigo** (0 valores). Sem mexer em sincronização por widgets, relatório gravado antigo e Kanban.
+4. **Regra de origem do atendente (só conferência)**
+   - Onde a fonte é Atendimentos (Conversas por atendente, Relatório diário, Resultados), o atendente vem só da conversa (atendimento e mensagens), nunca do responsável do card ou do painel.
+   - O responsável do card só aparece onde a fonte é Cards.
+   - Conferir no código e listar no relatório quais blocos usam cada origem. Nenhum número muda por isso; se eu achar um bloco misturando as origens, paro e mostro antes de corrigir.
+
+5. **Remover o Social Seller antigo** (0 valores). Sem mexer em sincronização por widgets, relatório gravado antigo e Kanban.
 
 ## Parte B — arquivo anexo (ordenar colunas e ícone "i")
 
