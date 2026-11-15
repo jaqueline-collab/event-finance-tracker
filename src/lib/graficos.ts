@@ -86,8 +86,9 @@ export const tituloPadrao = (tipo: string) => (tipo === "calendario" ? TITULO_PA
 export const ehTituloPadrao = (t: string) => Object.values(TITULO_PADRAO).includes(t as any);
 
 /** Funil: as N maiores etapas e o resto somado em "Outras" (a soma total não muda). */
-export function funilTop<T extends { rotulo: string; total: number }>(lista: T[], n = 8): { rotulo: string; total: number }[] {
-  const ord = [...lista].sort((a, b) => b.total - a.total);
+export function funilTop<T extends { rotulo: string; total: number }>(lista: T[], n = 8, manterOrdem = false): { rotulo: string; total: number }[] {
+  // Etapas de funil (ordem conhecida) ficam na ordem do funil; o resto vai do maior para o menor.
+  const ord = manterOrdem ? [...lista] : [...lista].sort((a, b) => b.total - a.total);
   if (ord.length <= n) return ord.map(({ rotulo, total }) => ({ rotulo, total }));
   const resto = ord.slice(n).reduce((a, b) => a + b.total, 0);
   return [...ord.slice(0, n).map(({ rotulo, total }) => ({ rotulo, total })), { rotulo: "Outras", total: resto }];
@@ -259,6 +260,11 @@ export type ResultadoCartao = {
   tiposCalendario?: string[];
   /** Tabela de itens por indicador: quantidade e soma de cada tipo (um card pode estar em dois tipos; a tabela lista cada card uma vez). */
   resumoTipos?: { rotulo: string; qtd: number; soma: number | null }[];
+  /** Valores com ordem conhecida (etapas do funil): categorias e agrupamentos seguem esta ordem. */
+  ordemFixa?: string[];
+  /** Tabela de itens: ordem conhecida por coluna (agrupar segue o funil) e colunas de etiqueta colorida. */
+  ordensColunas?: Record<string, string[]>;
+  etiquetas?: string[];
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };
@@ -327,13 +333,15 @@ export function agregarCartao(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, 
     for (const s of series) { const a = g.get(s); valores[s] = a ? valorAcc(a, cfg.medida) : 0; }
     return { rotulo, valores, total: Object.values(valores).reduce((x, y) => x + y, 0) };
   });
-  return { ...finalizar(categorias, series, cfg, ehCampoData(cfg.dimensao, cat)), total: valorAcc(geral, cfg.medida), anterior, linhas: atuais.length };
+  const ordemFixa = cfg.dimensao ? base.ordens?.[`${cfg.dimensao.fonte === "utm" ? "utm" : cfg.dimensao.fonte}|${cfg.dimensao.campo}`] : undefined;
+  return { ...finalizar(categorias, series, cfg, ehCampoData(cfg.dimensao, cat), ordemFixa), total: valorAcc(geral, cfg.medida), anterior, linhas: atuais.length, ...(ordemFixa?.length ? { ordemFixa } : {}) };
 }
 
 /** Ordena, aplica Top N com "Outros" (somente medidas somáveis). Datas ficam em ordem cronológica. */
-export function finalizar(categorias: ResultadoCartao["categorias"], series: string[], cfg: Pick<CartaoGrafico, "ordem" | "topN" | "medida">, cronologico: boolean) {
+export function finalizar(categorias: ResultadoCartao["categorias"], series: string[], cfg: Pick<CartaoGrafico, "ordem" | "topN" | "medida">, cronologico: boolean, ordemFixa?: string[]) {
   let c = [...categorias];
-  if (cronologico) c.sort((a, b) => (a.rotulo === NAO_DEFINIDO ? 1 : b.rotulo === NAO_DEFINIDO ? -1 : a.rotulo.localeCompare(b.rotulo)));
+  if (!cronologico && ordemFixa?.length) c = ordenarPor(c.sort((a, b) => a.rotulo.localeCompare(b.rotulo)), [...ordemFixa, NAO_DEFINIDO], (x) => x.rotulo);
+  else if (cronologico) c.sort((a, b) => (a.rotulo === NAO_DEFINIDO ? 1 : b.rotulo === NAO_DEFINIDO ? -1 : a.rotulo.localeCompare(b.rotulo)));
   else if (cfg.ordem === "rotulo") c.sort((a, b) => a.rotulo.localeCompare(b.rotulo));
   else c.sort((a, b) => (cfg.ordem === "valor_asc" ? a.total - b.total : b.total - a.total));
   const somavel = cfg.medida === "contagem" || cfg.medida === "soma" || cfg.medida === "indicador";
