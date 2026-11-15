@@ -15,7 +15,8 @@ import {
   type PaginaGuia,
 } from "./elora-ia";
 
-export type CelulaIa = { valor: number | null; estimado: boolean };
+/** `valor: null` = sem histórico exato naquele dia (nunca zero). */
+export type CelulaIa = { valor: number | null };
 export type MatrizIa = {
   colunas: { chave: string; nome: string; formato: string }[];
   linhas: { dia: string; celulas: Record<string, CelulaIa> }[];
@@ -56,7 +57,6 @@ function resumoTotal(m: MatrizIa, veValores: boolean) {
     indicador: c.nome,
     formato: c.formato,
     valor: m.total[c.chave]?.valor ?? null,
-    estimado: Boolean(m.total[c.chave]?.estimado),
   }));
 }
 
@@ -126,7 +126,6 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
                 periodo_b: b?.valor ?? null,
                 diferenca: va - vb,
                 variacao_percentual: vb ? Math.round(((va - vb) / vb) * 1000) / 10 : null,
-                estimado: x.estimado || Boolean(b?.estimado),
               };
             }),
           };
@@ -148,7 +147,7 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
         }),
     }),
     matriz_por_dia: tool({
-      description: "Valores da Matriz dia a dia (até 62 dias), com marca de dia estimado.",
+      description: "Valores da Matriz dia a dia (até 62 dias). null = sem histórico exato naquele dia (não é zero).",
       inputSchema: z.object({ cliente, de: dia, ate: dia }),
       execute: async (i) =>
         seguro("Matriz", async () => {
@@ -164,7 +163,6 @@ export function criarFerramentasElora(acesso: AcessoEloraIa, deps: DepsFerrament
             dias: m.linhas.map((l) => ({
               dia: br(l.dia),
               ...Object.fromEntries(cols.map((x) => [x.nome, l.celulas[x.chave]?.valor ?? null])),
-              estimado: cols.some((x) => l.celulas[x.chave]?.estimado),
             })),
           };
         }),
