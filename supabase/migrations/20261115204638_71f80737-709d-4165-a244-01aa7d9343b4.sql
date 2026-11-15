@@ -1,0 +1,1 @@
+alter table public.elora_relatorio_corte_config add column if not exists matriz_cartoes jsonb;

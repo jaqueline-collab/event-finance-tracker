@@ -203,6 +203,15 @@ async function comCanaisTraduzidos(db: any, data: Dados, c: CartaoGrafico, ctx?:
   if (!tem(data.filtrosVisao) && !tem(c.filtros)) return { data, c };
   const { lerMapaCanais } = await import("./nome-canal.server");
   const { traduzirFiltrosCanal } = await import("./nome-canal");
-  const mapa = await (ctx ? ctx.memo(`mapa-canais|${data.clienteId}`, () => lerMapaCanais(db, data.clienteId)) : lerMapaCanais(db, data.clienteId));
+  const base = await (ctx ? ctx.memo(`mapa-canais|${data.clienteId}`, () => lerMapaCanais(db, data.clienteId)) : lerMapaCanais(db, data.clienteId));
+  // Nome bruto gravado no filtro (ex.: "Instância decc86") que não está no mapa: acha o canal pelo próprio atendimento.
+  const brutos = [...new Set([...(data.filtrosVisao ?? []), ...(c.filtros ?? [])].filter((f: any) => f?.campo === "canal" && Array.isArray(f.valores)).flatMap((f: any) => f.valores.map(String)))]
+    .filter((v) => !base.porNome[v] && !base.porId[v]);
+  const mapa = { porId: base.porId, porNome: { ...base.porNome } };
+  await Promise.all(brutos.slice(0, 30).map(async (v) => {
+    const { data: r } = await db.from("elora_atendimentos_espelho").select("canal_id").eq("cliente_id", data.clienteId).eq("canal_nome", v).not("canal_id", "is", null).limit(1);
+    const id = r?.[0]?.canal_id;
+    if (id && base.porId[String(id)]) mapa.porNome[v] = base.porId[String(id)];
+  }));
   return { data: { ...data, filtrosVisao: traduzirFiltrosCanal(data.filtrosVisao ?? [], mapa) }, c: { ...c, filtros: traduzirFiltrosCanal(c.filtros ?? [], mapa) } };
 }

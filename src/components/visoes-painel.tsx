@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState, type
 import { toast } from "sonner";
 import { definirModoEditar } from "@/lib/modo-editar";
 import { dataHoraSync } from "@/lib/sync-fontes";
+import { lerCartoesMatriz } from "@/lib/graficos.functions";
 import { ArrowLeft, ArrowRight, Copy, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
@@ -66,7 +67,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   clienteId: string;
   iniciarNaMatriz?: boolean;
   /** Visão fixa "Matriz" (recebe o modo Editar). */
-  matriz?: (editando: boolean) => ReactNode;
+  matriz?: (editando: boolean, m: { cartoes: import("@/lib/graficos").CartaoGrafico[]; podeEditar: boolean; outrasVisoes: { id: string; nome: string }[] }) => ReactNode;
   onEstado?: (e: EstadoVisoes) => void;
   /** Conteúdo da visão ativa (null = visão padrão). */
   children: (
@@ -92,6 +93,8 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const [ordemMatriz, setOrdemMatriz] = useState<number | null>(null);
   const [ordemMatrizSalva, setOrdemMatrizSalva] = useState<number | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
+  const [cartoesMatriz, setCartoesMatriz] = useState<import("@/lib/graficos").CartaoGrafico[] | null>(null);
+  useEffect(() => { if (matriz) lerCartoesMatriz({ data: { clienteId } }).then((r) => setCartoesMatriz(r.cartoes)).catch(() => setCartoesMatriz([])); }, [clienteId, Boolean(matriz), chave]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { lerAtualizadoAte({ data: { clienteId } }).then((r) => setAtualizadoEm(r.ate)).catch(() => {}); }, [clienteId]);
   useEffect(() => {
     if (!matriz) return;
@@ -252,7 +255,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   const naMatriz = ativa === VISAO_MATRIZ && Boolean(matriz);
   const ativaEdit = naMatriz ? null : (lista.find((v) => v.id === ativa) ?? null);
   const visaoParaConteudo = ativaEdit && !ehNova(ativaEdit.id) ? ativaEdit.id : salvas?.[0]?.id ?? null;
-  const aceitaGraficos = !naMatriz && Boolean(ativaEdit && !ehNova(ativaEdit.id));
+  const aceitaGraficos = naMatriz ? podeEditar : Boolean(ativaEdit && !ehNova(ativaEdit.id));
   const visaoConteudo = lista.find((v) => v.id === visaoParaConteudo) ?? null;
   const graficosAtiva = visaoConteudo?.totalGraficos ?? 0;
   const ctx = {
@@ -272,7 +275,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
   };
 
   useEffect(() => {
-    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naMatriz ? nomeMatriz : (ativaEdit?.nome ?? null), graficosAtiva: naMatriz ? 0 : graficosAtiva });
+    onEstado?.({ podeEditar, editando, alterado: alteradoNaoSalvo, salvando, aceitaGraficos, nomeAtiva: naMatriz ? nomeMatriz : (ativaEdit?.nome ?? null), graficosAtiva: naMatriz ? Math.max(0, (cartoesMatriz?.length ?? 1) - 1) : graficosAtiva });
   }, [onEstado, podeEditar, editando, alteradoNaoSalvo, salvando, aceitaGraficos, naMatriz, nomeMatriz, ativaEdit?.nome, graficosAtiva]);
 
   if (salvas === null) return <Skeleton className="h-64 w-full rounded-xl" />;
@@ -333,7 +336,7 @@ export const VisoesPainel = forwardRef<VisoesPainelHandle, {
       )}
 
       {naMatriz ? (
-        matriz?.(editando)
+        cartoesMatriz === null ? <Skeleton className="h-64 w-full rounded-xl" /> : matriz?.(editando, { cartoes: cartoesMatriz, podeEditar, outrasVisoes: lista.filter((v) => !ehNova(v.id)).map((v) => ({ id: v.id, nome: v.nome })) })
       ) : editando && ativaEdit && ehNova(ativaEdit.id) ? (
         <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
           Salve para começar a montar os gráficos desta visão.

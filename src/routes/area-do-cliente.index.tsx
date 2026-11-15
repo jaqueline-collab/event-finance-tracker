@@ -1,3 +1,5 @@
+import { BLOCO_TABELA_MATRIZ, VISAO_MATRIZ_ID } from "@/lib/graficos";
+const SEM_FILTROS: import("@/lib/campos-elora").FiltroCampo[] = [];
 import { BookOpen } from "lucide-react";
 import { ELORA_APP_URL, ELORA_GUIA_URL } from "@/lib/links-globais";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -327,7 +329,21 @@ function AreaCliente() {
                 clienteId={cliente.id}
                 onEstado={aoEstadoVisoes}
                 iniciarNaMatriz={visao === "matriz"}
-                matriz={(editando) => <MatrizCliente clienteId={cliente.id} periodo={periodo} editando={editando} />}
+                matriz={(editando, m) => (
+                  <CartoesGraficos
+                    clienteId={cliente.id}
+                    visaoId={VISAO_MATRIZ_ID}
+                    iniciais={m.cartoes}
+                    editando={editando}
+                    podeEditar={m.podeEditar}
+                    periodo={periodo}
+                    filtrosVisao={SEM_FILTROS}
+                    onFiltroGrafico={() => {}}
+                    outrasVisoes={m.outrasVisoes}
+                    novoChave={novoGrafico}
+                    blocosFixos={{ [BLOCO_TABELA_MATRIZ]: <MatrizCliente clienteId={cliente.id} periodo={periodo} editando={editando} /> }}
+                  />
+                )}
                 editorGraficos={
                   modoConfig && painelVisual === false
                     ? (visaoId, aoMudar) => (

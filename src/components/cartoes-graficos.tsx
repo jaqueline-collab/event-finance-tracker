@@ -52,8 +52,10 @@ function fmt(v: number | null | undefined, c: Pick<CartaoGrafico, "formato" | "m
 
 /** Grade de cartões configuráveis de uma visão. Cliente vê pronto; super admin edita em modo Editar. */
 export function CartoesGraficos({
-  clienteId, visaoId, iniciais, editando, podeEditar, periodo, filtrosVisao, onFiltroGrafico, outrasVisoes, novoChave,
+  clienteId, visaoId, iniciais, editando, podeEditar, periodo, filtrosVisao, onFiltroGrafico, outrasVisoes, novoChave, blocosFixos,
 }: {
+  /** Blocos com conteúdo próprio (ex.: a tabela do Relatório diário): movem e redimensionam, mas não são editados nem removidos. */
+  blocosFixos?: Record<string, React.ReactNode>;
   clienteId: string;
   visaoId: string;
   iniciais: CartaoGrafico[];
@@ -156,6 +158,16 @@ export function CartoesGraficos({
               className={`group relative min-w-0 ${editavel ? "rounded-xl ring-primary/40 hover:ring-2" : ""}`}
               style={larga ? { gridColumn: `span ${t.largura} / span ${t.largura}`, gridRow: `span ${t.altura} / span ${t.altura}`, minHeight: t.altura * LINHA_PX - 16 } : undefined}
             >{(alca) => (<>
+              {blocosFixos?.[c.id] !== undefined ? (
+                <div className="relative h-full min-w-0">
+                  {editavel && (
+                    <div className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded-md bg-card/90 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                      <button type="button" {...alca} className="cursor-grab touch-none rounded p-0.5 text-muted-foreground active:cursor-grabbing" aria-label="Arrastar para reordenar"><GripVertical className="h-4 w-4" /></button>
+                    </div>
+                  )}
+                  {blocosFixos[c.id]}
+                </div>
+              ) : (
               <CartaoView
                 clienteId={clienteId}
                 cartao={c}
@@ -208,6 +220,7 @@ export function CartoesGraficos({
                   ) : null
                 }
               />
+              )}
               {editavel && larga && (
                 <>
                   <span role="separator" aria-label="Redimensionar largura" className="absolute inset-y-3 -right-1.5 w-3 cursor-ew-resize rounded opacity-0 hover:bg-primary/30 group-hover:opacity-100" onPointerDown={(e) => iniciarResize(e, c, "x")} />
