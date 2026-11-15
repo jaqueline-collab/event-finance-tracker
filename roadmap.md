@@ -46,3 +46,8 @@
 - [x] Exibição: vazio em branco em itens/lista do dia/detalhes/exportar; sem NaN; agrupamentos com "Sem informação"
 - [x] Status do lead configurável (contato ou card de um funil), etiquetas, filtro/agrupamento/dimensão na ordem do funil; Dr. Ricardo = Etapa do Funil de vendas - Vini
 - [x] Lista única "Colunas" na tabela de itens (mostrar, ocultar, reordenar, fixar à esquerda) e aba da Matriz renomeável ("Relatório diário")
+
+- [ ] Relatório diário sem seletor
+- [ ] Barra padrão em toda tabela
+- [ ] Calendário estilo Google Agenda
+- [ ] Filtros fixos (cache invalidado, exportar, IA, Atendente do Dr. Ricardo)
