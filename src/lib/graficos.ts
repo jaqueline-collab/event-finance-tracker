@@ -1,7 +1,7 @@
 /**
  * Construtor de gráficos (Fase 4): configuração de cartão e agregação pura.
  * Lê só o catálogo Campos do Elora (rótulos/ocultos) e a base de campos;
- * nada específico de cliente. Valor ausente = "Não definido".
+ * nada específico de cliente. Valor ausente = "Sem informação" no agrupamento, em branco no item.
  */
 import { z } from "zod";
 import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
@@ -183,6 +183,8 @@ const textos = (v: unknown): string[] => {
   const t = l.filter(preenchidoCampo).map((x) => (x && typeof x === "object" ? String((x as any).name ?? (x as any).value ?? "") : String(x))).filter((s) => s.trim());
   return t.length ? t : [NAO_DEFINIDO];
 };
+/** Célula de item (tabela, lista do dia, detalhes, exportar): vazio fica em branco. */
+const textoItem = (v: unknown): string => { const t = textos(v); return t.length === 1 && t[0] === NAO_DEFINIDO ? "" : t.join(", "); };
 const numero = (v: unknown): number | null => {
   const x = Array.isArray(v) ? v[0] : v;
   if (x == null || x === "") return null;
@@ -485,7 +487,7 @@ export function eventosCalendario(base: BaseCampos, cfg: CartaoGrafico, p: Perio
   if (!campos.length) return [];
   const idx = indices(base);
   const out: EventoCalendario[] = [];
-  const txt = (v: unknown) => { const t = textos(v); return t[0] === NAO_DEFINIDO ? NAO_DEFINIDO : t.join(", "); };
+  const txt = textoItem;
   for (const r of registrosCalendario(base, cfg, filtrosVisao)) {
     const cid = contatoDe(cfg.fonte, r)[0];
     const contato = cid ? idx.contato.get(cid) : undefined;
@@ -505,7 +507,7 @@ export function itensDoDia(base: BaseCampos, cfg: CartaoGrafico, dia: string, fi
   if (!campos.length) return [];
   const idx = indices(base);
   const out: ItemDia[] = [];
-  const txt = (v: unknown) => { const t = textos(v); return t[0] === NAO_DEFINIDO ? NAO_DEFINIDO : t.join(", "); };
+  const txt = textoItem;
   for (const r of registrosCalendario(base, cfg, filtrosVisao)) {
     for (let tipo = 0; tipo < campos.length; tipo += 1) {
       const f = campos[tipo];
@@ -565,10 +567,10 @@ export function aplicarAlternativa(cfg: CartaoGrafico, i: number): CartaoGrafico
 }
 
 /** Origem calculada pela mesma regra de ADS do motor: contato com campanha = patrocinado. */
-export function origemCalculada(c: Pick<import("./campos-elora").ContatoBase, "utm_campaign" | "origem"> | undefined | null): string {
-  if (!c) return NAO_DEFINIDO;
+export function origemCalculada(c: Pick<import("./campos-elora").ContatoBase, "utm_campaign" | "origem"> | undefined | null, vazio: string = NAO_DEFINIDO): string {
+  if (!c) return vazio;
   if (c.utm_campaign) return "Patrocinado";
-  if (!c.origem) return NAO_DEFINIDO;
+  if (!c.origem) return vazio;
   return c.origem.toUpperCase() === "IMPORTED" ? "Outro" : "Orgânico";
 }
 
@@ -638,7 +640,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const colunas: (CampoRef & { rotulo?: string })[] = cfg.colunas.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
   const temOrigem = colunas.some(ehOrigem);
   const colunasItens = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem" } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
-  const txt = (v: unknown) => textos(v).join(", ");
+  const txt = textoItem;
   const itens: { id: string; valores: Record<string, string>; brutos: Record<string, string> }[] = [];
   for (const r of registros(base, fonte)) {
     if (soCards ? !soCards.has(String(r.id)) : !noPer(r.criado_em, p)) continue;
@@ -649,10 +651,10 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
       const k = `${f.fonte}|${f.campo}`;
       const b = txt(valorLigado(base, fonte, f, r, idx));
       brutos[k] = b;
-      valores[k] = f.fonte === "card" && f.campo === "valor" ? formatarMoeda(b === "" ? null : Number(b)) : formatarCelula(f.campo, b);
+      valores[k] = f.fonte === "card" && f.campo === "valor" ? formatarMoeda(numero(b)) : formatarCelula(f.campo, b);
     }
     const cid = contatoDe(fonte, r)[0];
-    valores.origem_calc = origemCalculada(cid ? idx.contato.get(cid) : undefined);
+    valores.origem_calc = origemCalculada(cid ? idx.contato.get(cid) : undefined, "");
     itens.push({ id: String(r.id), valores, brutos });
     if (itens.length >= limite) break;
   }

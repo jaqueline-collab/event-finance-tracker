@@ -96,7 +96,7 @@ describe("Fase 6: Calendário", () => {
   it("lista do dia traz nome, telefone, atendente e valor; parceiro sem valores não vê dinheiro", () => {
     const com = itensDoDia(base, cal, "2026-10-02", [], false);
     expect(com[0]).toMatchObject({ nome: "Ana", telefone: "+55 11 9", atendente: "Bia", valor: 500 });
-    expect(com[1].nome).toBe("Não definido");
+    expect(com[1].nome).toBe("");
     expect(itensDoDia(base, cal, "2026-10-02", [], true).every((i) => i.valor === null)).toBe(true);
   });
   it("cliente sem cards nem classificação não dá erro", () => {

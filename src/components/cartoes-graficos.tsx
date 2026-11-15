@@ -1044,12 +1044,12 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, filtroTipo, tipos, o
               <tbody>
                 {itens.map((i) => (
                   <tr key={i.id} className="border-t">
-                    <td className="py-1.5 pr-2 tabular-nums">{i.data || "—"}</td>
+                    <td className="py-1.5 pr-2 tabular-nums">{i.data}</td>
                     <td className="py-1.5 pr-2">{i.nome}</td>
-                    <td className="py-1.5 pr-2"><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${corTipo(i.tipo)}`}>{tipos[i.tipo] ?? "—"}</span></td>
+                    <td className="py-1.5 pr-2"><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${corTipo(i.tipo)}`}>{tipos[i.tipo] ?? ""}</span></td>
                     <td className="whitespace-nowrap py-1.5 pr-2 tabular-nums">{i.telefone}</td>
                     {extras.map((k) => <td key={k} className="py-1.5 pr-2">{i.campos[k]}</td>)}
-                    {temValor && <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{i.valor == null ? "—" : formatarMoeda(i.valor)}</td>}
+                    {temValor && <td className="whitespace-nowrap py-1.5 pr-2 text-right tabular-nums">{formatarMoeda(i.valor)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -1086,7 +1086,8 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
   const linhas = useMemo(() => {
     const l = [...(r.itens ?? [])];
     if (ordem) l.sort((a, b) => { const va = a.brutos?.[ordem.col] ?? a.valores[ordem.col] ?? ""; const vb = b.brutos?.[ordem.col] ?? b.valores[ordem.col] ?? ""; const na = Number(va), nb = Number(vb); const s = va !== "" && vb !== "" && Number.isFinite(na) && Number.isFinite(nb) ? na - nb : va.localeCompare(vb, "pt-BR", { numeric: true }); return ordem.desc ? -s : s; });
-    if (agrupar) l.sort((a, b) => (a.valores[agrupar] ?? "").localeCompare(b.valores[agrupar] ?? "", "pt-BR"));
+    // agrupar: linha de grupo sem valor recebe "Sem informação" e vai para o fim
+    if (agrupar) l.sort((a, b) => { const va = a.valores[agrupar] ?? "", vb = b.valores[agrupar] ?? ""; return va === vb ? 0 : !va ? 1 : !vb ? -1 : va.localeCompare(vb, "pt-BR"); });
     return l;
   }, [r, ordem, agrupar]);
   const POR = 25;
@@ -1122,7 +1123,7 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
             {pag.map((l, i) => {
               const novoGrupo = agrupar && (i === 0 ? true : pag[i - 1].valores[agrupar] !== l.valores[agrupar]);
               return [
-                novoGrupo ? <tr key={`g${l.id}`}><td colSpan={vis.length} className="bg-muted px-2 py-1 font-semibold">{l.valores[agrupar]}</td></tr> : null,
+                novoGrupo ? <tr key={`g${l.id}`}><td colSpan={vis.length} className="bg-muted px-2 py-1 font-semibold">{l.valores[agrupar] || NAO_DEFINIDO}</td></tr> : null,
                 <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} className="max-w-56 truncate px-2 py-1.5">{celulaTexto(l.valores[c.chave] ?? "")}</td>)}</tr>,
               ];
             })}
