@@ -1,5 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { montarMapaCanais, type MapaCanais } from "./nome-canal";
+import { formatarTelefoneBr, tipoDoCanal } from "./dados-elora";
+
+/** Nome real pela regra: @ do Instagram, página do Messenger, número do WhatsApp formatado. */
+export function nomeRealCanal(payload: any, nome?: string | null): string | null {
+  const idn = payload?.identity ?? {};
+  const tipo = tipoDoCanal(payload?.type ?? idn.platform);
+  if (tipo === "whatsapp") return formatarTelefoneBr(payload?.number ?? idn.humanId ?? nome ?? null) || null;
+  return idn.displayName ?? idn.name ?? idn.humanId ?? nome ?? null;
+}
 
 /** Lê canais do espelho e apelidos do cliente (só servidor). */
 export async function lerMapaCanais(db: SupabaseClient, clienteId: string): Promise<MapaCanais> {
@@ -19,7 +28,7 @@ export async function lerMapaCanais(db: SupabaseClient, clienteId: string): Prom
   for (const r of ap.data ?? []) { apelidos[String(r.canal_id)] = r.apelido; extras[String(r.canal_id)] = [r.nome, r.numero]; }
   const canais = (apoio.data ?? []).map((a: any) => ({
     id: String(a.externo_id),
-    real: a.payload?.identity?.displayName ?? a.payload?.identity?.name ?? a.nome ?? vistos[String(a.externo_id)] ?? null,
+    real: nomeRealCanal(a.payload, a.nome) ?? vistos[String(a.externo_id)] ?? null,
     nomes: [a.payload?.identity?.humanId, a.payload?.identity?.name, a.nome, a.payload?.numberFormatted, a.payload?.number, ...(extras[String(a.externo_id)] ?? [])],
   }));
   const conhecidos = new Set(canais.map((c: any) => c.id));

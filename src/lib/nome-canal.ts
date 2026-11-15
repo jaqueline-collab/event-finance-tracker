@@ -1,8 +1,9 @@
-/** Nome do canal nas telas: apelido da super admin; sem apelido, o nome real do Elora (WhatsApp "Instância ...", Instagram o @, Messenger a página); sem nenhum, "Canal sem nome". */
+/** Nome do canal nas telas: apelido; senão @ do Instagram; senão página do Messenger; senão número do WhatsApp (55) 31 99864-6532; senão "Canal sem nome". Nunca "Instância ...". */
 export const CANAL_SEM_NOME = "Canal sem nome";
 /** "Instância decc86" é o código da instância, não um apelido. */
 export const ehCodigoInstancia = (v: string | null | undefined) => /^inst[âa]ncia\s+\S+$/i.test((v ?? "").trim());
-export const nomeCanalExibido = (apelido: string | null | undefined, real?: string | null) => (ehCodigoInstancia(apelido) ? "" : (apelido ?? "").trim()) || (real ?? "").trim() || CANAL_SEM_NOME;
+const limpo = (v: string | null | undefined) => (ehCodigoInstancia(v) ? "" : (v ?? "").trim());
+export const nomeCanalExibido = (apelido: string | null | undefined, real?: string | null) => limpo(apelido) || limpo(real) || CANAL_SEM_NOME;
 
 export type MapaCanais = { porId: Record<string, string>; porNome: Record<string, string> };
 
@@ -24,7 +25,7 @@ export function exibirCanal(m: MapaCanais, id: string | null | undefined, nomeBr
   if (id && m.porId[id]) return m.porId[id];
   if (nomeBruto && m.porNome[nomeBruto]) return m.porNome[nomeBruto];
   if (!id && !nomeBruto) return "";
-  return (nomeBruto ?? "").trim() || CANAL_SEM_NOME;
+  return limpo(nomeBruto) || CANAL_SEM_NOME;
 }
 
 /**

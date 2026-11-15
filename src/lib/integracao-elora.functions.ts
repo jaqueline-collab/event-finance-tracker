@@ -1734,7 +1734,7 @@ export const listarCanaisElora = createServerFn({ method: "POST" })
         return {
           id: String(c.id ?? ""),
           // Nome real vindo do Elora: WhatsApp "Instância ...", Instagram o @, Messenger a página.
-          nome: String(c.identity?.displayName ?? c.identity?.name ?? c.name ?? c.title ?? c.identity?.humanId ?? c.id ?? ""),
+          nome: String((await import("@/lib/nome-canal.server")).nomeRealCanal(c, c.name ?? c.title) ?? c.id ?? ""),
           numero: t === "whatsapp" ? (numero ?? c.identifier ?? null) : (conta ?? numero ?? null),
           ativo: c.active === undefined && c.isActive === undefined ? true : Boolean(c.active ?? c.isActive),
           tipo: t,
