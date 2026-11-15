@@ -36,7 +36,7 @@
 - [ ] Etapa 2: novos tipos de bloco
 - [ ] Etapa 3: Resultados (novo) em rascunho, Agenda + Calendário, Agendamentos nova
 - [x] Desempenho: retrato, SQL por dia, um cálculo por visão, cache (versão sync+config, permissão após cache), carregamento em ordem, índices, meta <3s/<1s
-- [ ] Sem leitura estimada — aguarda aprovação da tabela antes/depois (Matriz "—" antes de 05/11 aguarda aprovação da tabela; preenchimento via API aguarda aprovação)
+- [x] Sem leitura estimada gravada; tabela "Agendamentos e vendas" aguarda decisão (Matriz "—" antes de 05/11 aguarda aprovação da tabela; preenchimento via API aguarda aprovação)
 - [x] Otimização final (tempos 2,4–3,6 s sem cache; meta de 3 s não garantida)
 - [x] Agenda por hora (Dia/Semana)
 - [x] Funil estilo Elora App
