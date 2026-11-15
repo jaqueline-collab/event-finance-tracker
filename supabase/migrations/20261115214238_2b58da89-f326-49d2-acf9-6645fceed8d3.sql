@@ -1,0 +1,1 @@
+alter table public.elora_indicadores_config add column if not exists preenche text not null default 'super_admin' check (preenche in ('cliente','parceiro','super_admin')), add column if not exists aceita_futuro boolean not null default false;

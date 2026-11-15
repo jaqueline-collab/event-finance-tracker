@@ -4,7 +4,7 @@ import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
+import { alinhamento, colunaNumerica, colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
 import { corEtiqueta } from "@/lib/status-lead";
 import { estiloCor } from "@/lib/cores-status";
 import { ConfigStatusLead } from "@/components/config-status-lead";
@@ -1193,6 +1193,7 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
     void exportarMatriz(f, vis.map((c) => c.rotulo), linhas.map((l) => vis.map((c) => l.valores[c.chave] ?? "")), cartao.titulo);
   };
   if (!linhas.length) return <p className="text-sm text-muted-foreground">Nenhum item no período.</p>;
+  const numericas = new Set(vis.filter((c) => !etiquetas.has(c.chave) && colunaNumerica(linhas.map((l) => l.valores[c.chave]))).map((c) => c.chave));
   const LARG_FIXA = 160;
   const fixas = vis.filter((c) => c.fixa);
   const estiloFixa = (chave: string) => { const i = fixas.findIndex((c) => c.chave === chave); return i < 0 ? undefined : { left: i * LARG_FIXA, minWidth: LARG_FIXA, maxWidth: LARG_FIXA }; };
@@ -1214,7 +1215,7 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead><tr>{vis.map((c) => (
-            <th key={c.chave} style={estiloFixa(c.chave)} className={`whitespace-nowrap border-b px-2 py-1.5 text-left font-medium ${c.fixa ? "sticky z-10 truncate bg-card" : ""}`}>
+            <th key={c.chave} style={estiloFixa(c.chave)} className={`whitespace-nowrap border-b px-2 py-1.5 font-medium ${alinhamento(numericas.has(c.chave))} ${c.fixa ? "sticky z-10 truncate bg-card" : ""}`}>
               <button type="button" className="inline-flex items-center gap-1" onClick={() => setOrdem((o) => ({ col: c.chave, desc: o?.col === c.chave ? !o.desc : false }))}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}</button>
             </th>
           ))}</tr></thead>
@@ -1223,7 +1224,7 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
               const novoGrupo = agrupar && (i === 0 ? true : pag[i - 1].valores[agrupar] !== l.valores[agrupar]);
               return [
                 novoGrupo ? <tr key={`g${l.id}`}><td colSpan={vis.length} className="bg-muted px-2 py-1 font-semibold">{l.valores[agrupar] || NAO_DEFINIDO}</td></tr> : null,
-                <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} style={estiloFixa(c.chave)} className={`max-w-56 truncate px-2 py-1.5 ${c.fixa ? "sticky z-10 bg-card" : ""}`}>{celula(c.chave, l.valores[c.chave] ?? "")}</td>)}</tr>,
+                <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} style={estiloFixa(c.chave)} className={`max-w-56 truncate px-2 py-1.5 ${alinhamento(numericas.has(c.chave))} ${c.fixa ? "sticky z-10 bg-card" : ""}`}>{celula(c.chave, l.valores[c.chave] ?? "")}</td>)}</tr>,
               ];
             })}
           </tbody>

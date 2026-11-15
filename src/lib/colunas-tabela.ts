@@ -42,3 +42,12 @@ export function compararGrupo(a: string, b: string, ordem?: string[]): number {
   if (ib >= 0) return 1;
   return a.localeCompare(b, "pt-BR");
 }
+
+/** Alinhamento único das tabelas: número centralizado com dígitos tabulares; texto (e Dia) à esquerda. */
+export const alinhamento = (numerica: boolean) => (numerica ? "text-center tabular-nums" : "text-left");
+const NUM = /^(R\$\s?)?-?\d{1,3}(\.\d{3})*(,\d+)?%?$|^(R\$\s?)?-?\d+(,\d+)?%?$|^\d+h( \d+min)?$|^\d+min( \d+s)?$|^\d+s$/;
+/** Coluna é numérica quando todo valor preenchido parece número (moeda, %, duração); vazio não decide. */
+export function colunaNumerica(valores: (string | null | undefined)[]): boolean {
+  const cheios = valores.map((v) => (v ?? "").trim()).filter(Boolean);
+  return cheios.length > 0 && cheios.every((v) => NUM.test(v));
+}

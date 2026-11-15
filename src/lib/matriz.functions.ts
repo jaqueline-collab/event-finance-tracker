@@ -121,20 +121,70 @@ export const ordenarColunasMatriz = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Célula de coluna manual: valor do dia (null apaga o valor). Só super admin. */
+async function papelDe(db: any, clienteId: string) {
+  const [{ data: admin }, { data: meu }, { data: parc }] = await Promise.all([
+    db.rpc("is_admin"), db.rpc("cliente_do_usuario"), db.rpc("parceiro_pode_ver_painel", { _cliente_id: clienteId }),
+  ]);
+  return { superAdmin: Boolean(admin), cliente: meu === clienteId, parceiro: Boolean(parc) && !admin };
+}
+
+/** Célula de coluna manual: valor do dia (null apaga). Quem preenche e dia futuro seguem a regra da coluna; toda alteração fica registrada. */
 export const salvarCelulaManual = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => z.object({ clienteId: z.string().min(1), chave: z.string().min(1).max(60), data: dia, valor: z.number().finite().nullable() }).parse(i))
   .handler(async ({ data, context }) => {
-    await exigirSuperAdmin(context.supabase);
+    await podeVer(context.supabase, data.clienteId);
+    const papel = await papelDe(context.supabase, data.clienteId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const { data: col } = await db.from("elora_indicadores_config").select("tipo").eq("cliente_id", data.clienteId).eq("chave", data.chave).maybeSingle();
+    const { data: col } = await db.from("elora_indicadores_config").select("tipo, nome, formato, preenche, aceita_futuro").eq("cliente_id", data.clienteId).eq("chave", data.chave).maybeSingle();
     if (col?.tipo !== "manual") throw new Error("esta coluna não é manual.");
+    const { podePreencher, diaPermitido, formatoManual } = await import("@/lib/coluna-manual");
+    if (!podePreencher(col.preenche ?? "super_admin", papel)) throw new Error("acesso-negado: você não pode preencher esta coluna.");
+    const { hojeSP } = await import("@/lib/coluna-manual");
+    if (!diaPermitido(data.data, hojeSP(), Boolean(col.aceita_futuro))) throw new Error("Esta coluna não aceita dias futuros.");
+    if (data.valor !== null && formatoManual(col.formato) === "inteiro" && !Number.isInteger(data.valor)) throw new Error("Esta coluna aceita só números inteiros.");
+    const { data: antes } = await db.from("elora_matriz_manual").select("valor").eq("cliente_id", data.clienteId).eq("coluna_chave", data.chave).eq("data", data.data).maybeSingle();
+    const anterior = antes?.valor == null ? null : Number(antes.valor);
+    if (anterior === data.valor) return { ok: true };
     const quem = (context as any).claims?.email ?? (context as any).userId ?? null;
     const { error } = await db
       .from("elora_matriz_manual")
       .upsert({ cliente_id: data.clienteId, coluna_chave: data.chave, data: data.data, valor: data.valor, alterado_por: quem, alterado_em: new Date().toISOString() }, { onConflict: "cliente_id,coluna_chave,data" });
+    if (error) throw new Error(error.message);
+    const txt = (v: number | null) => (v == null ? "vazio" : String(v));
+    await db.from("elora_config_acoes").insert({
+      cliente_id: data.clienteId, usuario_id: (context as any).userId ?? null, usuario_email: (context as any).claims?.email ?? null,
+      alvo: `manual:${data.chave}|${data.data}`, descricao: `${col.nome ?? data.chave} em ${data.data.split("-").reverse().join("/")}: ${txt(anterior)} → ${txt(data.valor)}`,
+      antes: { valor: anterior }, depois: { valor: data.valor },
+    });
+    return { ok: true };
+  });
+
+/** Regra de cada coluna manual para quem está vendo (quem preenche, dia futuro, formato). */
+export const lerRegrasManuais = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await podeVer(context.supabase, data.clienteId);
+    const papel = await papelDe(context.supabase, data.clienteId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cols } = await (supabaseAdmin as any).from("elora_indicadores_config").select("chave, formato, preenche, aceita_futuro").eq("cliente_id", data.clienteId).eq("tipo", "manual");
+    const { podePreencher, formatoManual } = await import("@/lib/coluna-manual");
+    const { hojeSP } = await import("@/lib/coluna-manual");
+    const regras: Record<string, { pode: boolean; aceitaFuturo: boolean; formato: "inteiro" | "decimal" | "moeda"; preenche: "cliente" | "parceiro" | "super_admin" }> = {};
+    for (const c of cols ?? []) regras[c.chave] = { pode: podePreencher(c.preenche ?? "super_admin", papel), aceitaFuturo: Boolean(c.aceita_futuro), formato: formatoManual(c.formato), preenche: c.preenche ?? "super_admin" };
+    return { regras, hoje: hojeSP(), superAdmin: papel.superAdmin };
+  });
+
+/** Quem preenche e se aceita dia futuro (só super admin). */
+export const salvarRegraManual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), chave: z.string().min(1).max(60), preenche: z.enum(["cliente", "parceiro", "super_admin"]), aceitaFuturo: z.boolean() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("elora_indicadores_config").update({ preenche: data.preenche, aceita_futuro: data.aceitaFuturo }).eq("cliente_id", data.clienteId).eq("chave", data.chave).eq("tipo", "manual");
     if (error) throw new Error(error.message);
     return { ok: true };
   });

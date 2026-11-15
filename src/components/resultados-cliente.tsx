@@ -1,3 +1,4 @@
+import { alinhamento } from "@/lib/colunas-tabela";
 import { BarraTabela } from "@/components/barra-tabela";
 import { TabelaItens } from "@/components/cartoes-graficos";
 import type { ResultadoCartao } from "@/lib/graficos";
@@ -458,7 +459,7 @@ function CabecalhoOrdenavel({ c, travado }: { c: ColunaRelatorio; travado: boole
     <TableHead
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
-      className={`whitespace-nowrap ${c.tipo === "numero" ? "text-right" : "text-left"}`}
+      className={`whitespace-nowrap ${alinhamento(c.tipo === "numero")}`}
     >
       <span className="inline-flex items-center gap-1">
         {!travado && (
@@ -921,7 +922,7 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
                   <TableRow className="bg-muted font-semibold hover:bg-muted">
                     <TableCell className="sticky left-0 z-30 whitespace-nowrap bg-muted">Total</TableCell>
                     {colunasExibidas.map((c) => (
-                      <TableCell key={c.chave} className={c.tipo === "numero" ? "whitespace-nowrap text-right tabular-nums" : "text-left"}>
+                      <TableCell key={c.chave} className={`whitespace-nowrap ${alinhamento(c.tipo === "numero")}`}>
                         {valorCelula(c, null)}
                       </TableCell>
                     ))}
@@ -938,7 +939,7 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
                         {colunasExibidas.map((c) => (
                           <TableCell
                             key={c.chave}
-                            className={c.tipo === "numero" ? "whitespace-nowrap text-right tabular-nums" : "text-left whitespace-nowrap"}
+                            className={`whitespace-nowrap ${alinhamento(c.tipo === "numero")}`}
                           >
                             {c.chave === "socialSeller" && editSocial?.chave === chaveLinha ? (
                               <span className="inline-flex items-center gap-1">
@@ -946,7 +947,7 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
                                   type="number"
                                   min={0}
                                   autoFocus
-                                  className="h-7 w-20 text-right"
+                                  className="mx-auto h-7 w-20 text-center tabular-nums"
                                   value={editSocial.valor}
                                   aria-label="Valor do Social Seller"
                                   onChange={(e) => setEditSocial({ chave: chaveLinha, valor: e.target.value })}
