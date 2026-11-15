@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, GripVertical, MoreHorizontal, Redo2, RotateCcw, Undo2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, GripVertical, MoreHorizontal, Pin, Redo2, RotateCcw, Undo2, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
+import { corEtiqueta } from "@/lib/status-lead";
+import { ConfigStatusLead } from "@/components/config-status-lead";
 import { toast } from "sonner";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -718,6 +723,24 @@ function EditorCartao({
                   <div className="space-y-1">
                     <Label>{rot}</Label>
                     <SelCampo valor={null} onMudar={(r) => r && (c.tipo !== "matriz_utm" || r.fonte === "utm") && !lista.some((x) => x.fonte === r.fonte && x.campo === r.campo) && set({ [k]: [...lista, r].slice(0, c.tipo === "tabela_itens" ? 24 : c.tipo === "calendario" ? 4 : 8) } as any)} filtro={c.tipo === "calendario" ? (t) => t === "data" : undefined} nenhum="Adicionar campo…" />
+                    {c.tipo === "tabela_itens" ? (
+                      <div className="space-y-1">
+                        {c.colunas.map((f, i) => {
+                          const nome = op.catalogo.find((g) => g.fonte === f.fonte)?.campos.find((x) => x.campo === f.campo)?.rotulo ?? f.campo;
+                          const muda = (x: Partial<(typeof c.colunas)[number]>) => set({ colunas: c.colunas.map((y, j) => (j === i ? { ...y, ...x } : y)) });
+                          return (
+                            <div key={`${f.fonte}|${f.campo}`} className="flex items-center gap-1">
+                              <Checkbox checked={!f.oculta} aria-label={`Mostrar ${nome}`} onCheckedChange={(v) => muda({ oculta: v === false ? true : undefined })} />
+                              <Input className="h-7 text-xs" value={f.rotulo ?? ""} placeholder={nome} maxLength={60} aria-label={`Nome da coluna ${nome}`} onChange={(e) => muda({ rotulo: e.target.value || undefined })} />
+                              <Button size="icon" variant={f.fixa ? "secondary" : "ghost"} className="h-7 w-7 shrink-0" title="Fixar à esquerda" aria-pressed={!!f.fixa} aria-label={`Fixar ${nome} à esquerda`} onClick={() => muda({ fixa: f.fixa ? undefined : true })}><Pin className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Subir ${nome}`} disabled={i === 0} onClick={() => set({ colunas: moverColuna(c.colunas, i, -1) })}><ArrowUp className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Descer ${nome}`} disabled={i === c.colunas.length - 1} onClick={() => set({ colunas: moverColuna(c.colunas, i, 1) })}><ArrowDown className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Remover ${nome}`} onClick={() => set({ colunas: c.colunas.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
                     <div className="flex flex-wrap gap-1">
                       {lista.map((f) => (
                         <button key={`${f.fonte}|${f.campo}`} type="button" className="rounded-full border px-2 py-0.5 text-xs" onClick={() => set({ [k]: lista.filter((x) => x !== f) } as any)}>
@@ -725,7 +748,9 @@ function EditorCartao({
                         </button>
                       ))}
                     </div>
+                    )}
                     {c.tipo === "tabela_itens" && <p className="text-xs text-muted-foreground">A coluna "Origem" (patrocinado, orgânico ou outro) entra sempre.</p>}
+                    {c.tipo === "tabela_itens" && <ConfigStatusLead clienteId={clienteId} catalogo={op.catalogo} />}
                   </div>
                 );
               })()}
@@ -1078,16 +1103,20 @@ function celulaTexto(v: string) {
 /** Uma linha por contato/card: ordenar, agrupar, ocultar colunas, paginar e exportar (CSV, só o que está visível). */
 function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao }) {
   const cols = r.colunasItens ?? [];
-  const [ocultas, setOcultas] = useState<string[]>([]);
+  const chaveCols = cols.map((c) => `${c.chave}:${c.oculta ? 1 : 0}${c.fixa ? 1 : 0}`).join("|");
+  // Quem vê ajusta as colunas aqui sem gravar; a configuração salva do bloco é o ponto de partida.
+  const [estado, setEstado] = useState<EstadoColunas>(() => estadoInicial(cols));
+  useEffect(() => setEstado(estadoInicial(cols)), [chaveCols]); // eslint-disable-line react-hooks/exhaustive-deps
   const [ordem, setOrdem] = useState<{ col: string; desc: boolean } | null>(null);
   const [agrupar, setAgrupar] = useState<string>("");
   const [pagina, setPagina] = useState(0);
-  const vis = cols.filter((c) => !ocultas.includes(c.chave));
+  const vis = colunasVisiveis(cols, estado);
+  const etiquetas = new Set(r.etiquetas ?? []);
   const linhas = useMemo(() => {
     const l = [...(r.itens ?? [])];
     if (ordem) l.sort((a, b) => { const va = a.brutos?.[ordem.col] ?? a.valores[ordem.col] ?? ""; const vb = b.brutos?.[ordem.col] ?? b.valores[ordem.col] ?? ""; const na = Number(va), nb = Number(vb); const s = va !== "" && vb !== "" && Number.isFinite(na) && Number.isFinite(nb) ? na - nb : va.localeCompare(vb, "pt-BR", { numeric: true }); return ordem.desc ? -s : s; });
-    // agrupar: linha de grupo sem valor recebe "Sem informação" e vai para o fim
-    if (agrupar) l.sort((a, b) => { const va = a.valores[agrupar] ?? "", vb = b.valores[agrupar] ?? ""; return va === vb ? 0 : !va ? 1 : !vb ? -1 : va.localeCompare(vb, "pt-BR"); });
+    // agrupar: grupos na ordem do funil quando houver; linha sem valor recebe "Sem informação" e vai para o fim
+    if (agrupar) l.sort((a, b) => compararGrupo(a.valores[agrupar] ?? "", b.valores[agrupar] ?? "", r.ordensColunas?.[agrupar]));
     return l;
   }, [r, ordem, agrupar]);
   const POR = 25;
@@ -1100,12 +1129,33 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
     const a = document.createElement("a"); a.href = url; a.download = `${cartao.titulo}.csv`; a.click(); URL.revokeObjectURL(url);
   };
   if (!linhas.length) return <p className="text-sm text-muted-foreground">Nenhum item no período.</p>;
+  const LARG_FIXA = 160;
+  const fixas = vis.filter((c) => c.fixa);
+  const estiloFixa = (chave: string) => { const i = fixas.findIndex((c) => c.chave === chave); return i < 0 ? undefined : { left: i * LARG_FIXA, minWidth: LARG_FIXA, maxWidth: LARG_FIXA }; };
+  const celula = (chave: string, v: string) => (etiquetas.has(chave) && v
+    ? <span className={`inline-block max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${corEtiqueta(v, r.ordensColunas?.[chave])}`} title={v}>{v}</span>
+    : celulaTexto(v));
+  const ordemLista = colunasVisiveis(cols, { ...estado, ocultas: [], fixas: [] });
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1">
-        {cols.map((c) => (
-          <button key={c.chave} type="button" onClick={() => setOcultas((o) => (o.includes(c.chave) ? o.filter((x) => x !== c.chave) : [...o, c.chave]))} aria-pressed={!ocultas.includes(c.chave)} className={`rounded-full border px-2 py-0.5 text-xs font-medium ${ocultas.includes(c.chave) ? "border-border bg-background text-muted-foreground line-through" : "border-navy bg-secondary text-secondary-foreground dark:border-border"}`}>{c.rotulo}</button>
-        ))}
+        <Popover>
+          <PopoverTrigger asChild><Button size="sm" variant="outline" className="h-7 gap-1 text-xs" aria-label="Colunas"><Columns3 className="h-3.5 w-3.5" /> Colunas</Button></PopoverTrigger>
+          <PopoverContent align="start" className="w-72 space-y-1 p-2">
+            {ordemLista.map((c, i) => {
+              const oculta = estado.ocultas.includes(c.chave); const fixa = estado.fixas.includes(c.chave);
+              return (
+                <div key={c.chave} className="flex items-center gap-1 text-xs">
+                  <Checkbox checked={!oculta} aria-label={`Mostrar ${c.rotulo}`} onCheckedChange={(v) => setEstado((e) => ({ ...e, ocultas: v === false ? [...e.ocultas, c.chave] : e.ocultas.filter((x) => x !== c.chave) }))} />
+                  <span className="min-w-0 flex-1 truncate" title={c.rotulo}>{c.rotulo}</span>
+                  <Button size="icon" variant={fixa ? "secondary" : "ghost"} className="h-6 w-6" aria-pressed={fixa} aria-label={`Fixar ${c.rotulo} à esquerda`} title="Fixar à esquerda" onClick={() => setEstado((e) => ({ ...e, fixas: fixa ? e.fixas.filter((x) => x !== c.chave) : [...e.fixas, c.chave] }))}><Pin className="h-3 w-3" /></Button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Subir ${c.rotulo}`} disabled={i === 0} onClick={() => setEstado((e) => ({ ...e, ordem: moverColuna(ordemLista.map((x) => x.chave), i, -1) }))}><ArrowUp className="h-3 w-3" /></Button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Descer ${c.rotulo}`} disabled={i === ordemLista.length - 1} onClick={() => setEstado((e) => ({ ...e, ordem: moverColuna(ordemLista.map((x) => x.chave), i, 1) }))}><ArrowDown className="h-3 w-3" /></Button>
+                </div>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
         <Select value={agrupar || "_"} onValueChange={(v) => setAgrupar(v === "_" ? "" : v)}>
           <SelectTrigger className="h-7 w-auto text-xs" aria-label="Agrupar por"><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="_">Sem agrupar</SelectItem>{vis.map((c) => <SelectItem key={c.chave} value={c.chave}>Agrupar: {c.rotulo}</SelectItem>)}</SelectContent>
@@ -1115,7 +1165,7 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead><tr>{vis.map((c) => (
-            <th key={c.chave} className="whitespace-nowrap border-b px-2 py-1.5 text-left font-medium">
+            <th key={c.chave} style={estiloFixa(c.chave)} className={`whitespace-nowrap border-b px-2 py-1.5 text-left font-medium ${c.fixa ? "sticky z-10 truncate bg-card" : ""}`}>
               <button type="button" className="inline-flex items-center gap-1" onClick={() => setOrdem((o) => ({ col: c.chave, desc: o?.col === c.chave ? !o.desc : false }))}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}</button>
             </th>
           ))}</tr></thead>
@@ -1124,7 +1174,7 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
               const novoGrupo = agrupar && (i === 0 ? true : pag[i - 1].valores[agrupar] !== l.valores[agrupar]);
               return [
                 novoGrupo ? <tr key={`g${l.id}`}><td colSpan={vis.length} className="bg-muted px-2 py-1 font-semibold">{l.valores[agrupar] || NAO_DEFINIDO}</td></tr> : null,
-                <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} className="max-w-56 truncate px-2 py-1.5">{celulaTexto(l.valores[c.chave] ?? "")}</td>)}</tr>,
+                <tr key={l.id} className="border-b last:border-0">{vis.map((c) => <td key={c.chave} style={estiloFixa(c.chave)} className={`max-w-56 truncate px-2 py-1.5 ${c.fixa ? "sticky z-10 bg-card" : ""}`}>{celula(c.chave, l.valores[c.chave] ?? "")}</td>)}</tr>,
               ];
             })}
           </tbody>

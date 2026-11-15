@@ -282,7 +282,7 @@ function AreaCliente() {
               {estadoVisoes?.nomeAtiva ?? "Resultados"}
             </h1>
           </div>
-          {estadoVisoes?.nomeAtiva !== "Relatório diário" && !estadoVisoes?.editando && !estadoVisoes?.graficosAtiva && (
+          {!estadoVisoes?.editando && !estadoVisoes?.graficosAtiva && (
             <SeletorPeriodo chave={periodoChave} periodo={periodo} onMudar={(c, p) => { setPeriodoChave(c); setPeriodo(p); }} />
           )}
         </div>

@@ -152,3 +152,28 @@ export const salvarFiltrosPadraoMatriz = createServerFn({ method: "POST" })
     if (error) throw new Error(`matriz: ${error.message}`);
     return { ok: true };
   });
+
+export const NOME_MATRIZ_PADRAO = "Relatório diário";
+
+/** Nome da aba fixa da Matriz (qualquer pessoa com acesso ao painel lê). */
+export const lerNomeMatriz = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await podeVer(context.supabase, data.clienteId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_nome").eq("cliente_id", data.clienteId).maybeSingle();
+    return { nome: (cfg?.matriz_nome as string | null)?.trim() || NOME_MATRIZ_PADRAO };
+  });
+
+/** Renomeia a aba da Matriz. Só super admin. */
+export const salvarNomeMatriz = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), nome: z.string().trim().min(1).max(60) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").upsert({ cliente_id: data.clienteId, matriz_nome: data.nome }, { onConflict: "cliente_id" });
+    if (error) throw new Error(`matriz: ${error.message}`);
+    return { ok: true };
+  });

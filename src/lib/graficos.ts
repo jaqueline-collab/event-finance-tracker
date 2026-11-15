@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { aplicarFiltrosCampos, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
 import { NAO_DEFINIDO } from "./nao-definido";
+import { CAMPO_STATUS_LEAD, ordenarPor } from "./status-lead";
 import { DINHEIRO as DINHEIRO_RE, formatarCelula, formatarDataHora, formatarMoeda, formatarTelefone, horaDe, rotuloCorrido } from "./formatos";
 import { diaSP, formatarDuracao, periodoAnterior, type Periodo } from "./painel-visual";
 
@@ -66,7 +67,7 @@ export const cartaoSchema = z.object({
   agrupar: z.array(ref).max(8).default([]),
   soPatrocinados: z.boolean().default(false),
   /** Tabela de itens: colunas do catálogo (a coluna "Origem" calculada é sempre incluída). */
-  colunas: z.array(ref.extend({ rotulo: z.string().trim().max(60).optional() })).max(24).default([]),
+  colunas: z.array(ref.extend({ rotulo: z.string().trim().max(60).optional(), oculta: z.boolean().optional(), fixa: z.boolean().optional() })).max(24).default([]),
   /** Tabela de itens de cards: só os cards contados por estes indicadores da Matriz no período (mesma regra da Matriz). */
   indicadoresItens: z.array(z.string().min(1).max(80)).max(6).default([]),
   /** Dois valores de indicador: conta pela data gravada neste campo do card (no período), em vez do dia da leitura. */
@@ -86,8 +87,9 @@ export const tituloPadrao = (tipo: string) => (tipo === "calendario" ? TITULO_PA
 export const ehTituloPadrao = (t: string) => Object.values(TITULO_PADRAO).includes(t as any);
 
 /** Funil: as N maiores etapas e o resto somado em "Outras" (a soma total não muda). */
-export function funilTop<T extends { rotulo: string; total: number }>(lista: T[], n = 8): { rotulo: string; total: number }[] {
-  const ord = [...lista].sort((a, b) => b.total - a.total);
+export function funilTop<T extends { rotulo: string; total: number }>(lista: T[], n = 8, manterOrdem = false): { rotulo: string; total: number }[] {
+  // Etapas de funil (ordem conhecida) ficam na ordem do funil; o resto vai do maior para o menor.
+  const ord = manterOrdem ? [...lista] : [...lista].sort((a, b) => b.total - a.total);
   if (ord.length <= n) return ord.map(({ rotulo, total }) => ({ rotulo, total }));
   const resto = ord.slice(n).reduce((a, b) => a + b.total, 0);
   return [...ord.slice(0, n).map(({ rotulo, total }) => ({ rotulo, total })), { rotulo: "Outras", total: resto }];
@@ -217,6 +219,8 @@ function valorLigado(base: BaseCampos, fonte: FonteCampo, f: CampoRef, r: any, i
   const mesma = f.fonte === fonte || (f.fonte === "utm" && fonte === "contato") || (f.fonte === "contato" && fonte === "utm");
   if (mesma) return valorDe(f.fonte, f.campo, r);
   const cid = contatoDe(fonte, r)[0];
+  // Status do lead já vem resolvido em cada contato e card (regra única em status-lead.ts).
+  if (f.campo === CAMPO_STATUS_LEAD && (f.fonte === "contato" || f.fonte === "card")) return fonte === "atendimento" ? (cid ? idx.contato.get(cid)?.status_lead ?? null : null) : (r?.status_lead ?? null);
   if (!cid) return null;
   if (f.fonte === "contato" || f.fonte === "utm") return valorDe(f.fonte, f.campo, idx.contato.get(cid));
   if (f.fonte === "atendimento") return valorDe("atendimento", f.campo, idx.atendimento.get(cid));
@@ -252,13 +256,18 @@ export type ResultadoCartao = {
   qtd?: number;
   qtdAnterior?: number | null;
   /** Tabela de itens: colunas e linhas já formatadas (sem texto de mensagem). */
-  colunasItens?: { chave: string; rotulo: string }[];
+  colunasItens?: { chave: string; rotulo: string; oculta?: boolean; fixa?: boolean }[];
   itens?: { id: string; valores: Record<string, string>; brutos?: Record<string, string> }[];
   /** Calendário: compromissos de todos os campos de data (nome, hora, tipo). */
   eventos?: EventoCalendario[];
   tiposCalendario?: string[];
   /** Tabela de itens por indicador: quantidade e soma de cada tipo (um card pode estar em dois tipos; a tabela lista cada card uma vez). */
   resumoTipos?: { rotulo: string; qtd: number; soma: number | null }[];
+  /** Valores com ordem conhecida (etapas do funil): categorias e agrupamentos seguem esta ordem. */
+  ordemFixa?: string[];
+  /** Tabela de itens: ordem conhecida por coluna (agrupar segue o funil) e colunas de etiqueta colorida. */
+  ordensColunas?: Record<string, string[]>;
+  etiquetas?: string[];
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };
@@ -327,13 +336,15 @@ export function agregarCartao(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, 
     for (const s of series) { const a = g.get(s); valores[s] = a ? valorAcc(a, cfg.medida) : 0; }
     return { rotulo, valores, total: Object.values(valores).reduce((x, y) => x + y, 0) };
   });
-  return { ...finalizar(categorias, series, cfg, ehCampoData(cfg.dimensao, cat)), total: valorAcc(geral, cfg.medida), anterior, linhas: atuais.length };
+  const ordemFixa = cfg.dimensao ? base.ordens?.[`${cfg.dimensao.fonte === "utm" ? "utm" : cfg.dimensao.fonte}|${cfg.dimensao.campo}`] : undefined;
+  return { ...finalizar(categorias, series, cfg, ehCampoData(cfg.dimensao, cat), ordemFixa), total: valorAcc(geral, cfg.medida), anterior, linhas: atuais.length, ...(ordemFixa?.length ? { ordemFixa } : {}) };
 }
 
 /** Ordena, aplica Top N com "Outros" (somente medidas somáveis). Datas ficam em ordem cronológica. */
-export function finalizar(categorias: ResultadoCartao["categorias"], series: string[], cfg: Pick<CartaoGrafico, "ordem" | "topN" | "medida">, cronologico: boolean) {
+export function finalizar(categorias: ResultadoCartao["categorias"], series: string[], cfg: Pick<CartaoGrafico, "ordem" | "topN" | "medida">, cronologico: boolean, ordemFixa?: string[]) {
   let c = [...categorias];
-  if (cronologico) c.sort((a, b) => (a.rotulo === NAO_DEFINIDO ? 1 : b.rotulo === NAO_DEFINIDO ? -1 : a.rotulo.localeCompare(b.rotulo)));
+  if (!cronologico && ordemFixa?.length) c = ordenarPor(c.sort((a, b) => a.rotulo.localeCompare(b.rotulo)), [...ordemFixa, NAO_DEFINIDO], (x) => x.rotulo);
+  else if (cronologico) c.sort((a, b) => (a.rotulo === NAO_DEFINIDO ? 1 : b.rotulo === NAO_DEFINIDO ? -1 : a.rotulo.localeCompare(b.rotulo)));
   else if (cfg.ordem === "rotulo") c.sort((a, b) => a.rotulo.localeCompare(b.rotulo));
   else c.sort((a, b) => (cfg.ordem === "valor_asc" ? a.total - b.total : b.total - a.total));
   const somavel = cfg.medida === "contagem" || cfg.medida === "soma" || cfg.medida === "indicador";
@@ -641,9 +652,23 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const filtro = aplicarFiltrosCampos(base, [...filtrosVisao, ...cfg.filtros]);
   const ehOrigem = (f: CampoRef) => f.fonte === "contato" && f.campo === "origem";
   const rot = (f: CampoRef & { rotulo?: string }) => rotuloCorrido(f.rotulo || (cat?.find((g) => g.fonte === f.fonte)?.campos.find((c) => c.campo === f.campo)?.rotulo ?? f.campo.replace(/^campo\./, "")));
-  const colunas: (CampoRef & { rotulo?: string })[] = cfg.colunas.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
+  const ehStatus = (f: CampoRef) => f.campo === CAMPO_STATUS_LEAD && (f.fonte === "contato" || f.fonte === "card");
+  // Status do lead: sem origem configurada não existe; com origem entra visível (a menos que a lista de colunas diga outra coisa).
+  const listaCols: (CampoRef & { rotulo?: string; oculta?: boolean; fixa?: boolean })[] = [
+    ...cfg.colunas.filter((f) => !ehStatus(f) || !!base.rotuloStatus).map((f) => (ehStatus(f) ? { ...f, fonte, rotulo: f.rotulo || base.rotuloStatus! } : f)),
+    ...(base.rotuloStatus && !cfg.colunas.some(ehStatus) ? [{ fonte, campo: CAMPO_STATUS_LEAD, rotulo: base.rotuloStatus }] : []),
+  ];
+  const colunas = listaCols.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
   const temOrigem = colunas.some(ehOrigem);
-  const colunasItens = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem" } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
+  const meta = (f: { oculta?: boolean; fixa?: boolean }) => ({ ...(f.oculta ? { oculta: true } : {}), ...(f.fixa ? { fixa: true } : {}) });
+  const colunasItens: { chave: string; rotulo: string; oculta?: boolean; fixa?: boolean }[] = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem", ...meta(f) } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f), ...meta(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
+  const ordensColunas: Record<string, string[]> = {};
+  const etiquetas: string[] = [];
+  for (const f of colunas) {
+    const o = base.ordens?.[`${f.fonte}|${f.campo}`];
+    if (o?.length) ordensColunas[`${f.fonte}|${f.campo}`] = o;
+    if (ehStatus(f)) etiquetas.push(`${f.fonte}|${f.campo}`);
+  }
   const txt = textoItem;
   const itens: { id: string; valores: Record<string, string>; brutos: Record<string, string> }[] = [];
   for (const r of registros(base, fonte)) {
@@ -662,7 +687,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
     itens.push({ id: String(r.id), valores, brutos });
     if (itens.length >= limite) break;
   }
-  return { categorias: [], series: [], total: itens.length, anterior: null, linhas: itens.length, colunasItens, itens };
+  return { categorias: [], series: [], total: itens.length, anterior: null, linhas: itens.length, colunasItens, itens, ...(Object.keys(ordensColunas).length ? { ordensColunas } : {}), ...(etiquetas.length ? { etiquetas } : {}) };
 }
 
 /** Coluna de dinheiro na tabela de itens (mesma regra de `itensTabela`). */

@@ -2523,22 +2523,28 @@ export type Database = {
           atendentes_ignorados: Json
           atualizado_em: string
           cliente_id: string
+          coluna_status: Json | null
           equipe_por_canal: Json
           matriz_filtros_padrao: Json
+          matriz_nome: string | null
         }
         Insert: {
           atendentes_ignorados?: Json
           atualizado_em?: string
           cliente_id: string
+          coluna_status?: Json | null
           equipe_por_canal?: Json
           matriz_filtros_padrao?: Json
+          matriz_nome?: string | null
         }
         Update: {
           atendentes_ignorados?: Json
           atualizado_em?: string
           cliente_id?: string
+          coluna_status?: Json | null
           equipe_por_canal?: Json
           matriz_filtros_padrao?: Json
+          matriz_nome?: string | null
         }
         Relationships: [
           {
