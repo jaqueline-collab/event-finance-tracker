@@ -388,23 +388,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
 
     if (!conta.ativo) throw new Error("integracao: a integração deste cliente está desligada.");
 
-    // Sincronização seletiva: só as chaves de campo personalizado usadas por
-    // algum widget deste cliente são extraídas e gravadas.
-    const { data: widgetsCliente } = await supabaseAdmin
-      .from("elora_dashboard_widgets")
-      .select("configuracao")
-      .eq("cliente_id", data.clienteId);
-    const chavesUsadas = new Set<string>();
-    for (const w of (widgetsCliente ?? []) as any[]) {
-      const cfgW = (w.configuracao ?? {}) as any;
-      for (const k of listaTexto(cfgW.camposUsados)) chavesUsadas.add(k);
-      for (const c of Array.isArray(cfgW.camadas) ? cfgW.camadas : []) {
-        if (c?.campoChave) chavesUsadas.add(String(c.campoChave));
-      }
-      const fCampoW = cfgW?.filtros?.campoPersonalizado;
-      if (fCampoW?.chave) chavesUsadas.add(String(fCampoW.chave));
-    }
-
+    // Espelho completo: todos os campos personalizados de cada contato são gravados (sem olhar widgets).
     const epoca = new Date(0).toISOString();
     const retomando = Boolean(conta.sync_janela_inicio);
     const janelaInicio = retomando
@@ -455,11 +439,7 @@ export const sincronizarIntegracaoCliente = createServerFn({ method: "POST" })
           const linhas = itens
             .map((c: any) => {
               const custom = (c.customFields ?? {}) as Record<string, unknown>;
-              const selecionados: Record<string, string> = {};
-              for (const k of chavesUsadas) {
-                const v = custom[k];
-                if (v != null && v !== "") selecionados[k] = String(v);
-              }
+              const selecionados = camposCompletos(custom);
               const utm = (c.utm ?? {}) as Record<string, unknown>;
               return {
                 cliente_id: data.clienteId,
@@ -884,6 +864,13 @@ export const getResultadosCliente = createServerFn({ method: "POST" })
  * Exploração da conta: painéis, sequências, usuários, etiquetas e
  * classificações. Tudo passa pela mesma trava de equipe interna.
  * ------------------------------------------------------------------ */
+
+/** Todos os campos personalizados preenchidos, como texto (mesmo formato de antes, sem recorte por widget). */
+export function camposCompletos(custom: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(custom ?? {})) if (v != null && v !== "") out[k] = String(v);
+  return out;
+}
 
 export async function contaDoCliente(clienteId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
