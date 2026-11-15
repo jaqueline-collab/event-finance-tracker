@@ -37,7 +37,7 @@ export const listarAcoesConfig = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: l, error } = await (supabaseAdmin as any).from("elora_config_acoes").select("id, usuario_email, alvo, descricao, desfeita_em, created_at").eq("cliente_id", data.clienteId).order("created_at", { ascending: false }).limit(30);
+    const { data: l, error } = await (supabaseAdmin as any).from("elora_config_acoes").select("id, usuario_email, alvo, descricao, desfeita_em, created_at").eq("cliente_id", data.clienteId).order("created_at", { ascending: false }).limit(100);
     if (error) throw new Error(error.message);
     return { acoes: (l ?? []).map((a: any) => ({ id: String(a.id), quem: a.usuario_email ?? "", alvo: String(a.alvo), descricao: String(a.descricao ?? ""), desfeita: Boolean(a.desfeita_em), em: String(a.created_at) })) };
   });
