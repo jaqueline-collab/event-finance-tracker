@@ -3,7 +3,8 @@ import type { CartaoGrafico } from "@/lib/graficos";
 
 type Dados = { clienteId: string; de: string; ate: string; filtrosVisao: any[] };
 
-export async function calcularCartaoServidor(db: any, data: Dados, c: CartaoGrafico, a: { semDinheiro: boolean }, ctx?: import("./calculo-contexto.server").Ctx) {
+export async function calcularCartaoServidor(db: any, data0: Dados, c0: CartaoGrafico, a: { semDinheiro: boolean }, ctx?: import("./calculo-contexto.server").Ctx) {
+    const { data, c } = await comCanaisTraduzidos(db, data0, c0, ctx);
     const p = { de: data.de, ate: data.ate };
     if (c.painel) {
       const { calcularPainelVisual } = await import("@/lib/painel-visual.server");
@@ -194,4 +195,14 @@ export async function comCacheCalculo<T>(db: any, clienteId: string, partes: unk
   const { error: e2 } = await db.from("elora_calculo_cache").upsert({ chave, cliente_id: clienteId, valor: r, criado_em: new Date().toISOString() }, { onConflict: "chave" });
   if (e2) console.error("cache: gravação falhou", e2.message);
   return r;
+}
+
+/** Traduz filtros de canal gravados com nome antigo para o nome exibido (ver nome-canal.ts). */
+async function comCanaisTraduzidos(db: any, data: Dados, c: CartaoGrafico, ctx?: import("./calculo-contexto.server").Ctx) {
+  const tem = (fs: any[]) => (fs ?? []).some((f) => f?.campo === "canal");
+  if (!tem(data.filtrosVisao) && !tem(c.filtros)) return { data, c };
+  const { lerMapaCanais } = await import("./nome-canal.server");
+  const { traduzirFiltrosCanal } = await import("./nome-canal");
+  const mapa = await (ctx ? ctx.memo(`mapa-canais|${data.clienteId}`, () => lerMapaCanais(db, data.clienteId)) : lerMapaCanais(db, data.clienteId));
+  return { data: { ...data, filtrosVisao: traduzirFiltrosCanal(data.filtrosVisao ?? [], mapa) }, c: { ...c, filtros: traduzirFiltrosCanal(c.filtros ?? [], mapa) } };
 }
