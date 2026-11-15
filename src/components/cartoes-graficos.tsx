@@ -380,7 +380,7 @@ function CartaoComum({
   return (
     <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}</h3><SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></div>
+        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}<SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></h3></div>
         <div className="flex items-center gap-1">
           {cartao.painel === "leads-por" && <Select value={dim?.campo ?? "origem"} onValueChange={(campo) => setDim({ fonte: campo === "canal" ? "atendimento" : campo === "campaign" ? "utm" : "contato", campo })}>
             <SelectTrigger className="h-8 w-auto" aria-label="Dimensão da rosca"><SelectValue /></SelectTrigger>
@@ -414,11 +414,14 @@ function CartaoComum({
 /** Variação: sucesso, alerta (destrutivo) ou neutro — tokens com contraste AA nos dois temas. */
 export const corVariacao = (varia: number | null, bom: boolean) => (varia == null || Math.abs(varia) < 0.05 ? "text-muted-foreground" : bom ? "text-success" : "text-destructive");
 
+/** Legenda: texto sempre escuro (token), a cor fica só na amostra ao lado. */
+const textoLegenda = (v: unknown) => <span style={{ color: "var(--foreground)" }}>{String(v)}</span>;
+
 function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: ResultadoCartao; onClique?: (rotulo: string) => void }) {
   const [ocultas, setOcultas] = useState<string[]>([]);
   const dados = useMemo(() => r.categorias.map((x) => ({ rotulo: x.rotulo, total: x.total, ...x.valores })), [r]);
   const series = r.series.filter((s) => !ocultas.includes(s));
-  const legenda = r.series.length > 1 ? <Legend onClick={(e: any) => setOcultas((o) => (o.includes(e.value) ? o.filter((x) => x !== e.value) : [...o, e.value]))} wrapperStyle={{ cursor: "pointer", fontSize: 12 }} /> : null;
+  const legenda = r.series.length > 1 ? <Legend onClick={(e: any) => setOcultas((o) => (o.includes(e.value) ? o.filter((x) => x !== e.value) : [...o, e.value]))} wrapperStyle={{ cursor: "pointer", fontSize: 12 }} formatter={textoLegenda} /> : null;
   const eixo = { tick: { fontSize: 11, fill: "var(--muted-foreground)" }, stroke: "var(--border)" };
   const tip = <Tooltip formatter={(v: any) => fmt(Number(v), c)} contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />;
   const clique = (d: any) => onClique?.(d?.rotulo ?? d?.payload?.rotulo ?? d?.name);
@@ -475,7 +478,7 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
             <Pie data={dados} dataKey="total" nameKey="rotulo" innerRadius={c.tipo === "rosca" ? "55%" : 0} outerRadius="85%" onClick={clique} className={onClique ? "cursor-pointer" : ""}>
               {dados.map((d, i) => <Cell key={d.rotulo} fill={d.rotulo === NAO_DEFINIDO ? "var(--muted)" : CORES[i % CORES.length]} />)}
             </Pie>
-            <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: any, e: any) => { const t = r.categorias.reduce((a, b) => a + b.total, 0); const x = e?.payload?.total ?? 0; return `${v} · ${(t ? (x / t) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`; }} />
+            <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: any, e: any) => { const t = r.categorias.reduce((a, b) => a + b.total, 0); const x = e?.payload?.total ?? 0; return textoLegenda(`${v} · ${(t ? (x / t) * 100 : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`); }} />
             {c.tipo === "rosca" && <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-sm font-semibold">{fmt(r.categorias.reduce((a, b) => a + b.total, 0), c)}</text>}
           </PieChart>
         ) : c.tipo === "linhas" ? (

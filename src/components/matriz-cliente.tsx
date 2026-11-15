@@ -20,7 +20,6 @@ function ordenarPorEstado<T extends { chave: string }>(cols: T[], e: EstadoColun
   const pos = new Map(e.ordem.map((k, i) => [k, i]));
   return [...cols].sort((a, b) => (pos.get(a.chave) ?? 1e9) - (pos.get(b.chave) ?? 1e9));
 }
-import { validarRelatorioDiario } from "@/lib/indicadores.functions";
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
 import { FiltroCampos } from "@/components/filtro-campos";
@@ -61,8 +60,6 @@ function Celula({ c, formato, parcial, manual }: { c?: { valor: number | null; e
 
 export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: string; periodo: Periodo; editando: boolean }) {
   const modo = "diaria" as const;
-  const [comparar, setComparar] = useState(false);
-  const [comparacao, setComparacao] = useState<Awaited<ReturnType<typeof validarRelatorioDiario>> | null>(null);
   const [d, setD] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltroCampo[]>([]);
@@ -99,12 +96,6 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
     };
   }, [clienteId, periodo.de, periodo.ate, JSON.stringify(filtros), v]);
 
-  useEffect(() => {
-    if (!comparar || !editando || !d?.podeEditar || filtros.length) { setComparacao(null); return; }
-    let vivo = true;
-    validarRelatorioDiario({ data: { clienteId, de: periodo.de, ate: periodo.ate } }).then(r => vivo && setComparacao(r)).catch(e => toast.error(msg(e)));
-    return () => { vivo = false; };
-  }, [comparar, editando, d?.podeEditar, clienteId, periodo.de, periodo.ate, JSON.stringify(filtros)]);
 
   const linhas = useMemo(() => {
     if (!d) return [];
@@ -169,7 +160,6 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {editavel && modo === "diaria" && filtros.length === 0 && <label className="flex items-center gap-2 text-sm"><Switch checked={comparar} onCheckedChange={setComparar} />Comparar com gravado</label>}
         <BarraTabela colunas={colsBarra} estado={estadoValido} onEstado={setEstadoCols} padrao={padraoCols} semFixar
           extras={chavesAds.length > 0 ? <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label> : undefined}
           onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
@@ -265,7 +255,6 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
                     ) : ativasPorChave.has(c.chave) ? (
                       <>
                       <Celula c={l.celulas[c.chave]} formato={c.formato} manual={c.tipo === "manual"} parcial={c.tipo !== "manual" && d.cobertura[l.dia] !== "confirmado"} />
-                      {comparacao && comparacao.existente[l.dia]?.[c.chave] !== undefined && <span className="ml-2 text-xs text-muted-foreground">gravado {comparacao.existente[l.dia][c.chave]} · Δ {(l.celulas[c.chave]?.valor ?? 0) - comparacao.existente[l.dia][c.chave]}</span>}
                       </>
                     ) : (
                       <span className="text-muted-foreground">—</span>
