@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { filtroCampoSchema } from "@/lib/campos-elora";
-import { cartaoSchema, cartoesValidos, cartaoTemDinheiro, type CartaoGrafico } from "@/lib/graficos";
+import { BLOCO_TABELA_MATRIZ, cartaoSchema, cartoesDaMatriz, cartoesValidos, VISAO_MATRIZ_ID, cartaoTemDinheiro, type CartaoGrafico } from "@/lib/graficos";
 
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
