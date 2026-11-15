@@ -48,21 +48,23 @@ export function BarraTabela({
                 <Checkbox checked={!oculta} aria-label={`Mostrar ${c.rotulo}`} onCheckedChange={(v) => set({ ocultas: v === false ? [...estado.ocultas, c.chave] : estado.ocultas.filter((x) => x !== c.chave) })} />
                 <span className="min-w-0 flex-1 truncate" title={c.rotulo}>{c.rotulo}</span>
                 {!semFixar && <Button size="icon" variant={fixa ? "secondary" : "ghost"} className="h-6 w-6" aria-pressed={fixa} aria-label={`Fixar ${c.rotulo} à esquerda`} title="Fixar à esquerda" onClick={() => set({ fixas: fixa ? estado.fixas.filter((x) => x !== c.chave) : [...estado.fixas, c.chave] })}><Pin className="h-3 w-3" /></Button>}
-                <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Subir ${c.rotulo}`} disabled={i === 0} onClick={() => set({ ordem: moverColuna(lista.map((x) => x.chave), i, -1) })}><ArrowUp className="h-3 w-3" /></Button>
-                <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Descer ${c.rotulo}`} disabled={i === lista.length - 1} onClick={() => set({ ordem: moverColuna(lista.map((x) => x.chave), i, 1) })}><ArrowDown className="h-3 w-3" /></Button>
+                <div className="flex w-12 justify-end">
+                  {i > 0 && <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Subir ${c.rotulo}`} onClick={() => set({ ordem: moverColuna(lista.map((x) => x.chave), i, -1) })}><ArrowUp className="h-3 w-3" /></Button>}
+                  {i < lista.length - 1 && <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Descer ${c.rotulo}`} onClick={() => set({ ordem: moverColuna(lista.map((x) => x.chave), i, 1) })}><ArrowDown className="h-3 w-3" /></Button>}
+                </div>
               </div>
             );
           })}
-          <div className="flex gap-1 border-t pt-2">
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" disabled={!mudou} onClick={() => onEstado(padrao)}><RotateCcw className="h-3 w-3" /> Restaurar padrão</Button>
-            {onSalvarPadrao && <Button size="sm" variant="outline" className="ml-auto h-7 text-xs" disabled={!mudou} onClick={onSalvarPadrao}>Salvar como padrão</Button>}
-          </div>
+          {mudou && <div className="flex gap-1 border-t pt-2">
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => onEstado(padrao)}><RotateCcw className="h-3 w-3" /> Restaurar padrão</Button>
+            {onSalvarPadrao && <Button size="sm" variant="outline" className="ml-auto h-7 text-xs" onClick={onSalvarPadrao}>Salvar como padrão</Button>}
+          </div>}
         </PopoverContent>
       </Popover>
-      <Select value={agrupar || "_"} onValueChange={(v) => onAgrupar?.(v === "_" ? "" : v)} disabled={!agruparOpcoes?.length}>
-        <SelectTrigger className="h-7 w-auto text-xs" aria-label="Agrupar por"><SelectValue /></SelectTrigger>
+      {Boolean(agruparOpcoes?.length) && onAgrupar && <Select value={agrupar || "_"} onValueChange={(v) => onAgrupar(v === "_" ? "" : v)}>
+        <SelectTrigger className="h-7 w-auto text-xs" aria-label="Agrupar por"><SelectValue placeholder="Agrupar por" /></SelectTrigger>
         <SelectContent><SelectItem value="_">Sem agrupar</SelectItem>{(agruparOpcoes ?? []).map((c) => <SelectItem key={c.chave} value={c.chave}>Agrupar: {c.rotulo}</SelectItem>)}</SelectContent>
-      </Select>
+      </Select>}
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button size="sm" variant="outline" className="h-7 text-xs">Exportar</Button></DropdownMenuTrigger>
         <DropdownMenuContent>{formatos.map((f) => <DropdownMenuItem key={f} onClick={() => onExportar(f)}>{f.toUpperCase()}</DropdownMenuItem>)}</DropdownMenuContent>
