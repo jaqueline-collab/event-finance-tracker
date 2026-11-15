@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { listarVisoesCliente, salvarVisoesCliente } from "@/lib/dashboard-visoes.functions";
-import { lerNomeMatriz, salvarNomeMatriz } from "@/lib/matriz.functions";
+import { lerAtualizadoAte, lerNomeMatriz, salvarNomeMatriz } from "@/lib/matriz.functions";
 import { mostrarBarraDeAbas, moverVisao, proximoNomeVisao, type Visao } from "@/lib/dashboard-visoes";
 
 type VisaoEdit = Visao & { novaDe?: string | null };
