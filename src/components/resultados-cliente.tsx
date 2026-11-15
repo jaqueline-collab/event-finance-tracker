@@ -485,7 +485,7 @@ export function MatrizDimensionalLegada({ clienteId }: { clienteId: string }) {
   const [de, setDe] = useState(diasAtrasIso(30));
   const [ate, setAte] = useState(hojeIso());
   const [linhas, setLinhas] = useState<RelatorioDiarioLinha[] | null>(null);
-  const [social, setSocial] = useState<{ data: string; canal: string; equipe: string; valor: number }[]>([]);
+  const [social] = useState<{ data: string; canal: string; equipe: string; valor: number }[]>([]);
   const [equipeInterna, setEquipeInterna] = useState(false);
   const [porPagina, setPorPagina] = useState(15);
   const [paginaRel, setPaginaRel] = useState(1);
