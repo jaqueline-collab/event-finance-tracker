@@ -1131,7 +1131,10 @@ function TabelaItens({ cartao, r }: { cartao: CartaoGrafico; r: ResultadoCartao 
         </table>
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{linhas.length.toLocaleString("pt-BR")} itens</span>
+        <span className="flex flex-wrap gap-x-3">
+          <span className="font-semibold text-foreground">{linhas.length.toLocaleString("pt-BR")} itens</span>
+          {r.resumoTipos?.map((t) => <span key={t.rotulo}>{t.rotulo}: {t.qtd.toLocaleString("pt-BR")}{t.soma != null ? ` · ${formatarMoeda(t.soma)}` : ""}</span>)}
+        </span>
         {paginas > 1 && (
           <span className="flex items-center gap-1">
             <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Página anterior" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}><ChevronLeft className="h-3.5 w-3.5" /></Button>

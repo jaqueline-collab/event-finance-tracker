@@ -71,6 +71,8 @@ export const cartaoSchema = z.object({
   indicadoresItens: z.array(z.string().min(1).max(80)).max(6).default([]),
   /** Dois valores de indicador: conta pela data gravada neste campo do card (no período), em vez do dia da leitura. */
   campoDataCard: ref.nullable().optional(),
+  /** Tabela de itens: por indicador, o campo de data gravado no card (mesma regra do bloco "com data no período") e o campo somado no resumo. */
+  itensPorIndicador: z.record(z.string().min(1).max(80), z.object({ campoData: ref, campoValor: ref.nullable().optional(), rotulo: z.string().trim().max(60).optional() })).default({}),
 });
 export type CartaoGrafico = z.infer<typeof cartaoSchema>;
 export type CampoRef = z.infer<typeof ref>;
@@ -255,6 +257,8 @@ export type ResultadoCartao = {
   /** Calendário: compromissos de todos os campos de data (nome, hora, tipo). */
   eventos?: EventoCalendario[];
   tiposCalendario?: string[];
+  /** Tabela de itens por indicador: quantidade e soma de cada tipo (um card pode estar em dois tipos; a tabela lista cada card uma vez). */
+  resumoTipos?: { rotulo: string; qtd: number; soma: number | null }[];
 };
 
 type Acc = { n: number; soma: number; qtd: number; ids: Set<string> };
@@ -672,6 +676,7 @@ export function aplicarPermissaoValores(cfg: CartaoGrafico, x: { oculto: boolean
   if (!semDinheiro) return x;
   if (cartaoTemDinheiro(cfg)) return { oculto: true, r: null };
   if (cfg.tipo !== "tabela_itens" || !x.r?.colunasItens) return x;
+  if (x.r.resumoTipos) x = { ...x, r: { ...x.r, resumoTipos: x.r.resumoTipos.map((t: any) => ({ ...t, soma: null })) } };
   const fora = new Set(cfg.colunas.filter(colunaEhDinheiro).map((f) => `${f.fonte}|${f.campo}`));
   if (!fora.size) return x;
   const tira = (o: Record<string, string> | undefined) => (o ? Object.fromEntries(Object.entries(o).filter(([k]) => !fora.has(k))) : o);
