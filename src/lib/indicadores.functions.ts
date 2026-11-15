@@ -51,21 +51,21 @@ export const lerSuporteInterno = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await (supabaseAdmin as any).from("elora_suporte_interno").select("id, nome, email").order("criado_em");
+    const { data, error } = await (supabaseAdmin as any).from("elora_suporte_interno").select("id, nome, email, telefone").order("criado_em");
     if (error) throw new Error(error.message);
-    return data as { id: string; nome: string | null; email: string | null }[];
+    return data as { id: string; nome: string | null; email: string | null; telefone: string | null }[];
   });
 
 export const salvarSuporteInterno = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => z.object({ acao: z.enum(["adicionar", "remover"]), id: z.string().uuid().optional(), pessoa: pessoa.optional() }).parse(i))
+  .inputValidator((i) => z.object({ acao: z.enum(["adicionar", "remover"]), id: z.string().uuid().optional(), pessoa: pessoa.optional(), telefone: z.string().trim().max(30).regex(/^[\d\s()+-]*$/).optional() }).parse(i))
   .handler(async ({ data, context }) => {
     await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const t = (supabaseAdmin as any).from("elora_suporte_interno");
     const { error } =
       data.acao === "adicionar"
-        ? await t.insert({ nome: data.pessoa?.nome || null, email: data.pessoa?.email || null })
+        ? await t.insert({ nome: data.pessoa?.nome || null, email: data.pessoa?.email || null, telefone: data.telefone || null })
         : await t.delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
