@@ -723,6 +723,24 @@ function EditorCartao({
                   <div className="space-y-1">
                     <Label>{rot}</Label>
                     <SelCampo valor={null} onMudar={(r) => r && (c.tipo !== "matriz_utm" || r.fonte === "utm") && !lista.some((x) => x.fonte === r.fonte && x.campo === r.campo) && set({ [k]: [...lista, r].slice(0, c.tipo === "tabela_itens" ? 24 : c.tipo === "calendario" ? 4 : 8) } as any)} filtro={c.tipo === "calendario" ? (t) => t === "data" : undefined} nenhum="Adicionar campo…" />
+                    {c.tipo === "tabela_itens" ? (
+                      <div className="space-y-1">
+                        {c.colunas.map((f, i) => {
+                          const nome = op.catalogo.find((g) => g.fonte === f.fonte)?.campos.find((x) => x.campo === f.campo)?.rotulo ?? f.campo;
+                          const muda = (x: Partial<(typeof c.colunas)[number]>) => set({ colunas: c.colunas.map((y, j) => (j === i ? { ...y, ...x } : y)) });
+                          return (
+                            <div key={`${f.fonte}|${f.campo}`} className="flex items-center gap-1">
+                              <Checkbox checked={!f.oculta} aria-label={`Mostrar ${nome}`} onCheckedChange={(v) => muda({ oculta: v === false ? true : undefined })} />
+                              <Input className="h-7 text-xs" value={f.rotulo ?? ""} placeholder={nome} maxLength={60} aria-label={`Nome da coluna ${nome}`} onChange={(e) => muda({ rotulo: e.target.value || undefined })} />
+                              <Button size="icon" variant={f.fixa ? "secondary" : "ghost"} className="h-7 w-7 shrink-0" title="Fixar à esquerda" aria-pressed={!!f.fixa} aria-label={`Fixar ${nome} à esquerda`} onClick={() => muda({ fixa: f.fixa ? undefined : true })}><Pin className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Subir ${nome}`} disabled={i === 0} onClick={() => set({ colunas: moverColuna(c.colunas, i, -1) })}><ArrowUp className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Descer ${nome}`} disabled={i === c.colunas.length - 1} onClick={() => set({ colunas: moverColuna(c.colunas, i, 1) })}><ArrowDown className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Remover ${nome}`} onClick={() => set({ colunas: c.colunas.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
                     <div className="flex flex-wrap gap-1">
                       {lista.map((f) => (
                         <button key={`${f.fonte}|${f.campo}`} type="button" className="rounded-full border px-2 py-0.5 text-xs" onClick={() => set({ [k]: lista.filter((x) => x !== f) } as any)}>
@@ -730,7 +748,9 @@ function EditorCartao({
                         </button>
                       ))}
                     </div>
+                    )}
                     {c.tipo === "tabela_itens" && <p className="text-xs text-muted-foreground">A coluna "Origem" (patrocinado, orgânico ou outro) entra sempre.</p>}
+                    {c.tipo === "tabela_itens" && <ConfigStatusLead clienteId={clienteId} catalogo={op.catalogo} />}
                   </div>
                 );
               })()}
