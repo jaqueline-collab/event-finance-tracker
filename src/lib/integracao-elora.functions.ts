@@ -1726,6 +1726,7 @@ export const listarCanaisElora = createServerFn({ method: "POST" })
       "chat",
       `/v1/channel?ChannelType=${encodeURIComponent(tipo)}`,
     );
+    const { nomeRealCanal } = await import("@/lib/nome-canal.server");
     const canais = listaDe(resp)
       .map((c: any) => {
         const t = tipoDoCanal(c.type ?? c.channelType ?? c.platform ?? c.identity?.platform);
@@ -1733,8 +1734,8 @@ export const listarCanaisElora = createServerFn({ method: "POST" })
         const conta = c.identifier ?? c.username ?? c.accountName ?? c.pageName ?? null;
         return {
           id: String(c.id ?? ""),
-          // Nome real vindo do Elora: WhatsApp "Instância ...", Instagram o @, Messenger a página.
-          nome: String((await import("@/lib/nome-canal.server")).nomeRealCanal(c, c.name ?? c.title) ?? c.id ?? ""),
+          // Nome real pela regra única: @ do Instagram, página do Messenger, número do WhatsApp.
+          nome: String(nomeRealCanal(c, c.name ?? c.title) ?? c.id ?? ""),
           numero: t === "whatsapp" ? (numero ?? c.identifier ?? null) : (conta ?? numero ?? null),
           ativo: c.active === undefined && c.isActive === undefined ? true : Boolean(c.active ?? c.isActive),
           tipo: t,
@@ -1750,8 +1751,10 @@ export const listarCanaisElora = createServerFn({ method: "POST" })
     for (const u of usados ?? []) {
       const id = String(u.canal_id);
       if (ids.has(id)) continue;
-      const nome = String(u.canal_nome ?? id);
-      canais.push({ id, nome, numero: null, ativo: true, tipo: tipoPeloNome(nome), foto: null });
+      const bruto = String(u.canal_nome ?? "");
+      const { ehCodigoInstancia } = await import("@/lib/nome-canal");
+      const nome = ehCodigoInstancia(bruto) || !bruto ? "Canal sem nome" : bruto;
+      canais.push({ id, nome, numero: null, ativo: true, tipo: tipoPeloNome(bruto), foto: null });
     }
     return { canais };
   });
