@@ -47,7 +47,8 @@
 - [x] Status do lead configurável (contato ou card de um funil), etiquetas, filtro/agrupamento/dimensão na ordem do funil; Dr. Ricardo = Etapa do Funil de vendas - Vini
 - [x] Lista única "Colunas" na tabela de itens (mostrar, ocultar, reordenar, fixar à esquerda) e aba da Matriz renomeável ("Relatório diário")
 
-- [ ] Relatório diário sem seletor
-- [ ] Barra padrão em toda tabela
-- [ ] Calendário estilo Google Agenda
-- [ ] Filtros fixos (cache invalidado, exportar, IA, Atendente do Dr. Ricardo)
+- [x] Relatório diário sem seletor
+- [x] Barra padrão em toda tabela
+- [x] Calendário estilo Google Agenda
+- [x] Filtros fixos (cache invalidado, exportar, IA, Atendente do Dr. Ricardo)
+- [ ] Conferência visual com login em 390, 834 e 1440 px nos dois temas (sem login automático neste projeto)

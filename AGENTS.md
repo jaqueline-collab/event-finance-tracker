@@ -33,3 +33,7 @@
 - Display formats (date/time in Brasília, R$ with cents, phone, links, sentence-case headers) come only from `src/lib/formatos.ts`; channel names shown anywhere come only from `src/lib/nome-canal.ts` (super admin alias or "Canal sem nome", never the instance code), applied at read time so stored data and matching keys stay untouched.
 - Panel/Matriz speed: SQL `elora_conversas_pares` groups conversations; one request per view with a request `Ctx`; `elora_calculo_cache` keyed by `elora_versoes_cache`, value permission applied after cache, so no stale or leaked numbers.
 - New contacts: SQL `elora_novos_contatos`; catalog cached by `elora_versoes_cache`.
+- Every table in the panel uses the single `BarraTabela` (Colunas, Agrupar por, Exportar in fixed order); viewers change it without saving, only super admin saves defaults, so all tables behave the same.
+- Fixed filters: block = `cartao.filtros`, view = `elora_dashboard_visoes.filtros.filtrosFixos`; the server always replaces them with the stored version (`filtros-fixos.ts`, `comFixos` in `graficos.functions.ts`) before viewer filters, so viewers can never remove them; cache keys include them, so edits invalidate at once.
+- Source filtering lives in `filtroDaFonte` (graficos.ts) and indicator blocks split canal/atendente/equipe like the Matriz screen, so a filtered block and the filtered Matriz give the same number.
+- The legacy daily report (automation rows, freezes) is reachable only from the super admin config sheet ("Histórico do relatório (antigo)"); data is kept, never deleted.
