@@ -24,7 +24,7 @@
 - Filtros padrão da Matriz ficam em `elora_relatorio_corte_config.matriz_filtros_padrao` (só servidor; grava só super admin), porque a Matriz é visão fixa sem linha em `elora_dashboard_visoes`.
 - Construtor de gráficos: cartões em `elora_dashboard_visoes.filtros.cartoes`, regras puras em `src/lib/graficos.ts`, cálculo e gravação só em `graficos.functions.ts`; medida "indicador" usa `montarMatrizCliente`, para o gráfico dar o mesmo número da Matriz.
 - Default cards delegate to `cartaoDoPainel`: one metric rule.
-- Matriz is the only daily table entry; its dimensional compatibility mode retains saved reports, Social Seller, exports and per-user freezes without deleting historical settings.
+- Matriz is the only daily table; the legacy report (rows, freezes) is kept and shown only in the super admin config sheet.
 - Coverage is confirmed only by explicit source intervals; completed cursors alone remain partial to avoid presenting missing rows as confirmed zeros.
 - Block layout (width 3–12 cols, height in grid rows) lives on each card in `elora_dashboard_visoes.filtros.cartoes`, rules in `src/lib/layout-blocos.ts`; header KPIs are `kpi-*` cards via `cartaoDoPainel`, so there is one metric rule and one layout store per view.
 - Elora admin mode (assistente de configuração) is enabled only server-side after `is_admin`; its tools only propose (`assistente-config-ferramentas.ts`), writes happen only in `aplicarProposta` limited to config tables and logged in `elora_config_acoes` (service role only) for undo.
@@ -33,6 +33,4 @@
 - Display formats (date/time in Brasília, R$ with cents, phone, links, sentence-case headers) come only from `src/lib/formatos.ts`; channel names shown anywhere come only from `src/lib/nome-canal.ts` (super admin alias or "Canal sem nome", never the instance code), applied at read time so stored data and matching keys stay untouched.
 - Panel/Matriz speed: SQL `elora_conversas_pares` groups conversations; one request per view with a request `Ctx`; `elora_calculo_cache` keyed by `elora_versoes_cache`, value permission applied after cache, so no stale or leaked numbers.
 - New contacts: SQL `elora_novos_contatos`; catalog cached by `elora_versoes_cache`.
-- All panel tables use the single `BarraTabela`; viewers never save, only super admin saves defaults.
-- Fixed filters (block `cartao.filtros`, view `filtros.filtrosFixos`) are always replaced server-side by the stored version (`filtros-fixos.ts`), so viewers cannot remove them; cache keys include them.
-- `filtroDaFonte` (graficos.ts) and indicator blocks filter canal/atendente/equipe like the Matriz, so filtered blocks match the filtered Matriz.
+- Tables use one `BarraTabela` (viewers never save). Fixed filters are re-read server-side (`filtros-fixos.ts`) so viewers cannot drop them; `filtroDaFonte` matches the Matriz rules.
