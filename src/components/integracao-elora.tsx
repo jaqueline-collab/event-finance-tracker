@@ -17,7 +17,7 @@ import {
   testarIntegracaoCliente,
 } from "@/lib/integracao-elora.functions";
 import { sincronizarAgoraCliente } from "@/lib/elora-espelho.functions";
-import { NOME_FONTE_SYNC, ORDEM_FONTES, rotuloFonte, ultimaRodada } from "@/lib/sync-fontes";
+import { NOME_FONTE_SYNC, ORDEM_FONTES, dataHoraSync, fonteParada, rotuloFonte, ultimaRodada } from "@/lib/sync-fontes";
 
 const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens", cards: "cards" };
 
@@ -122,6 +122,7 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
           break;
         }
         total[r.fonte] = r.registros;
+        if (r.erro) toast.error(`${NOME_FONTE[r.fonte]}: ${r.erro}`);
         if (r.concluido) setProgresso(`${NOME_FONTE[r.fonte]}: ${r.registros.toLocaleString("pt-BR")} atualizados`);
         fonte = r.proxima;
         if (!fonte) {
@@ -236,8 +237,18 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
                   <span className="font-medium">{NOME_FONTE_SYNC[f]}</span>
                   <span className="text-muted-foreground">
                     {rotuloFonte(linha)}
-                    {linha?.comErro ? " · com erro registrado" : ""}
                   </span>
+                  {fonteParada(linha) && (
+                    <p className="w-full rounded-md bg-destructive/10 px-2 py-1 text-destructive">
+                      Sem atualização há mais de 6 horas
+                      {linha?.atualizadoEm ? ` (última em ${dataHoraSync(linha.atualizadoEm)})` : ""}.
+                    </p>
+                  )}
+                  {linha?.ultimoErro && (
+                    <p className="w-full text-destructive">
+                      Último erro{linha.ultimoErroEm ? ` em ${dataHoraSync(linha.ultimoErroEm)}` : ""}: {linha.ultimoErro}
+                    </p>
+                  )}
                 </div>
               );
             })}
