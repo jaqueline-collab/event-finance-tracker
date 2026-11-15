@@ -143,7 +143,7 @@ function WidgetPizza({ w }: { w: WidgetRenderizado }) {
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend formatter={(v: unknown) => <span style={{ color: "var(--foreground)" }}>{String(v)}</span>} />
             </PieChart>
           </ResponsiveContainer>
         </div>
