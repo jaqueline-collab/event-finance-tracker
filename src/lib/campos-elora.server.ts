@@ -8,16 +8,53 @@ import { lerTudo } from "./ler-paginas.server";
 
 const cache = new Map<string, { em: number; chave: string | null; base: BaseCampos }>();
 
-async function ultimaSync(db: SupabaseClient, clienteId: string): Promise<string | null> {
-  const { data } = await (db as any).from("elora_sync_estado").select("concluido_em, atualizado_em").eq("cliente_id", clienteId);
-  return ((data ?? []) as any[]).map((r) => r.concluido_em ?? r.atualizado_em).filter(Boolean).sort().pop() ?? null;
+/** Versão da sincronização + versão de configuração (mesma chave do cache de cálculo). */
+async function versaoCampos(db: SupabaseClient, clienteId: string): Promise<string> {
+  const { data, error } = await (db as any).rpc("elora_versoes_cache", { _cliente_id: clienteId });
+  if (error) throw new Error(`versoes: ${error.message}`);
+  return JSON.stringify(data);
 }
 
-/** Tudo que o catálogo e os filtros precisam, por cliente. Cache curto, renovado a cada sincronização. */
+/** Tudo que o catálogo e os filtros precisam, por cliente. Cache por cliente, renovado a cada sincronização ou mudança de configuração. */
 export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Promise<BaseCampos> {
-  const chave = await ultimaSync(db, clienteId);
+  const chave = await versaoCampos(db, clienteId);
   const c = cache.get(clienteId);
-  if (c && c.chave === chave && Date.now() - c.em < 120_000) return c.base;
+  if (c && c.chave === chave && Date.now() - c.em < 300_000) return c.base;
+  // Cache no banco (compactado), mesma chave de versões: vale para qualquer servidor.
+  const chaveDb = await hashTexto(`base-campos|${clienteId}|${chave}`);
+  const { data: achado } = await (db as any).from("elora_calculo_cache").select("valor").eq("chave", chaveDb).gte("criado_em", new Date(Date.now() - 300_000).toISOString()).maybeSingle();
+  if (achado?.valor?.gz) {
+    try {
+      const base = JSON.parse(await descompactar(achado.valor.gz)) as BaseCampos;
+      cache.set(clienteId, { em: Date.now(), chave, base });
+      return base;
+    } catch (e) { console.error("cache de campos ilegível", e); }
+  }
+  const base = await montarBaseCampos(db, clienteId);
+  cache.set(clienteId, { em: Date.now(), chave, base });
+  // gravação em segundo plano: não atrasa a abertura
+  void compactar(JSON.stringify(base))
+    .then((gz) => (db as any).from("elora_calculo_cache").upsert({ chave: chaveDb, cliente_id: clienteId, valor: { gz }, criado_em: new Date().toISOString() }, { onConflict: "chave" }))
+    .then((r: any) => r?.error && console.error("cache de campos: gravação falhou", r.error.message))
+    .catch((e: unknown) => console.error("cache de campos: gravação falhou", e));
+  return base;
+}
+
+async function hashTexto(t: string) {
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function compactar(t: string): Promise<string> {
+  const buf = new Uint8Array(await new Response(new Blob([t]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
+  let s = ""; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function descompactar(b64: string): Promise<string> {
+  const bin = atob(b64); const buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+}
+
+async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<BaseCampos> {
   const d = db as any;
   const [apoio, contatos, atend, cards, classif, corte] = await Promise.all([
     lerTudo(() => d.from("elora_apoio_espelho").select("tipo, externo_id, nome, payload").eq("cliente_id", clienteId).in("tipo", ["campo", "canal", "usuario"]).order("externo_id")),
@@ -26,11 +63,11 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
     12),
     lerTudo(() =>
       d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
-    ),
+    8),
     lerTudo(() =>
       d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).order("externo_id"),
-    ),
-    lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id")),
+    8),
+    lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id"), 8),
     d.from("elora_relatorio_corte_config").select("equipe_por_canal").eq("cliente_id", clienteId).maybeSingle(),
   ]);
   const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(d, clienteId);
@@ -65,7 +102,6 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
       valor: x.valor == null ? null : Number(x.valor), criado_em: x.criado_em, atualizado_em: x.atualizado_em, cf: obj(x.cf),
     })),
   };
-  cache.set(clienteId, { em: Date.now(), chave, base });
   return base;
 }
 

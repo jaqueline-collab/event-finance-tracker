@@ -421,7 +421,7 @@ export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string
   if (ctx) return ctx.memo(`msgs|${clienteId}|${inicio}|${fim}`, () => lerMensagensSemTexto(db, clienteId, inicio, fim));
   const pares = await lerTudo(() =>
     (db as any).rpc("elora_conversas_pares", { _cliente_id: clienteId, _inicio: inicio, _fim: fim }).order("sessao_id").order("primeira_em"),
-  );
+  8);
   const out: MsgSemTexto[] = [];
   for (const r of pares as any[]) {
     const s = String(r.sessao_id);

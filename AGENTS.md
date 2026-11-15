@@ -23,7 +23,7 @@
 - Relatório gravado defasado: a sincronização marca os dias de contatos/mensagens alterados e `relatorio-recalculo.server.ts` regrava só os dias cujo total mudou, sempre com backup em `elora_relatorio_diario_backup`, para nunca perder o valor anterior.
 - Filtros padrão da Matriz ficam em `elora_relatorio_corte_config.matriz_filtros_padrao` (só servidor; grava só super admin), porque a Matriz é visão fixa sem linha em `elora_dashboard_visoes`.
 - Construtor de gráficos: cartões em `elora_dashboard_visoes.filtros.cartoes`, regras puras em `src/lib/graficos.ts`, cálculo e gravação só em `graficos.functions.ts`; medida "indicador" usa `montarMatrizCliente`, para o gráfico dar o mesmo número da Matriz.
-- Default dashboard cards delegate to `painel-visual.server.ts` and `cartaoDoPainel` so replacing presentation never creates a second metric rule.
+- Default cards delegate to `cartaoDoPainel`: one metric rule.
 - Matriz is the only daily table entry; its dimensional compatibility mode retains saved reports, Social Seller, exports and per-user freezes without deleting historical settings.
 - Coverage is confirmed only by explicit source intervals; completed cursors alone remain partial to avoid presenting missing rows as confirmed zeros.
 - Block layout (width 3–12 cols, height in grid rows) lives on each card in `elora_dashboard_visoes.filtros.cartoes`, rules in `src/lib/layout-blocos.ts`; header KPIs are `kpi-*` cards via `cartaoDoPainel`, so there is one metric rule and one layout store per view.
@@ -32,3 +32,4 @@
 - New block types (dois_valores, matriz_utm, tabela_itens), funnel modes, viewer-switchable measures and calendar date fields are generic options on the card schema in `src/lib/graficos.ts`; viewer switches never save, so one card config serves every client.
 - Display formats (date/time in Brasília, R$ with cents, phone, links, sentence-case headers) come only from `src/lib/formatos.ts`; channel names shown anywhere come only from `src/lib/nome-canal.ts` (super admin alias or "Canal sem nome", never the instance code), applied at read time so stored data and matching keys stay untouched.
 - Panel/Matriz speed: SQL `elora_conversas_pares` groups conversations; one request per view with a request `Ctx`; `elora_calculo_cache` keyed by `elora_versoes_cache`, value permission applied after cache, so no stale or leaked numbers.
+- New contacts: SQL `elora_novos_contatos`; catalog cached by `elora_versoes_cache`.
