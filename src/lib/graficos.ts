@@ -465,30 +465,60 @@ export const filtrarPorTipo = <T extends { tipo: number }>(xs: T[], f: FiltroTip
 
 export type EventoCalendario = { id: string; dia: string; tipo: number; nome: string; hora: string };
 
-/** Posição de um compromisso na régua por hora: `pos` em horas desde a primeira linha. */
-export type PosicaoHora = { e: EventoCalendario; pos: number; coluna: number; colunas: number };
+/** Posição de um compromisso na régua por hora: `pos` e `duracao` em horas desde a primeira linha. */
+export type PosicaoHora = { e: EventoCalendario; pos: number; duracao: number; coluna: number; colunas: number };
+
+/** Duração padrão de um compromisso sem duração, como no Google Agenda. */
+export const DURACAO_PADRAO_MIN = 30;
 
 /**
- * Régua por hora (Agenda Dia/Semana). 11:30 fica entre as linhas de 11h e 12h (pos = 11,5 − início);
- * horários iguais no mesmo dia ficam lado a lado. As horas vão da primeira à última hora com
- * compromisso; sem horário fica fora da régua (`semHora`).
+ * Régua por hora (Dia/Semana, estilo Google Agenda). 11:30 fica entre as linhas de 11h e 12h
+ * (pos = 11,5 − início); o bloco tem a altura da duração (30 min sem duração). Compromissos que se
+ * sobrepõem no mesmo dia ficam lado a lado. As horas vão da primeira à última hora com compromisso;
+ * sem horário fica fora da régua (`semHora`).
  */
-export function reguaHoras(eventos: EventoCalendario[], padrao: [number, number] = [8, 18]) {
+export function reguaHoras(eventos: (EventoCalendario & { duracaoMin?: number })[], padrao: [number, number] = [8, 18]) {
   const minutos = (h: string) => { const m = /^(\d{1,2}):(\d{2})/.exec(h ?? ""); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
   const comHora = eventos.filter((e) => minutos(e.hora) != null);
   const semHora = eventos.filter((e) => minutos(e.hora) == null);
+  const dur = (e: { duracaoMin?: number }) => (e.duracaoMin && e.duracaoMin > 0 ? e.duracaoMin : DURACAO_PADRAO_MIN);
   let ini = padrao[0], fim = padrao[1];
   if (comHora.length) {
-    const ms = comHora.map((e) => minutos(e.hora)!);
-    ini = Math.floor(Math.min(...ms) / 60);
-    fim = Math.min(24, Math.floor(Math.max(...ms) / 60) + 1);
+    ini = Math.floor(Math.min(...comHora.map((e) => minutos(e.hora)!)) / 60);
+    fim = Math.min(24, Math.max(Math.floor(Math.max(...comHora.map((e) => minutos(e.hora)!)) / 60) + 1, Math.ceil(Math.max(...comHora.map((e) => minutos(e.hora)! + dur(e))) / 60)));
   }
-  const grupos = new Map<string, EventoCalendario[]>();
-  for (const e of comHora) { const k = `${e.dia}|${minutos(e.hora)}`; grupos.set(k, [...(grupos.get(k) ?? []), e]); }
   const posicoes: PosicaoHora[] = [];
-  for (const g of grupos.values()) g.forEach((e, i) => posicoes.push({ e, pos: minutos(e.hora)! / 60 - ini, coluna: i, colunas: g.length }));
+  const porDia = new Map<string, typeof comHora>();
+  for (const e of comHora) porDia.set(e.dia, [...(porDia.get(e.dia) ?? []), e]);
+  for (const lista of porDia.values()) {
+    const ord = [...lista].sort((a, b) => minutos(a.hora)! - minutos(b.hora)! || a.id.localeCompare(b.id));
+    // grupos de sobreposição: cada grupo divide a largura pelo número de colunas que precisou
+    let grupo: { e: (typeof ord)[number]; col: number }[] = []; let fimGrupo = -1; let fins: number[] = [];
+    const fechar = () => { const n = Math.max(1, fins.length); for (const g of grupo) { const m = minutos(g.e.hora)!; posicoes.push({ e: g.e, pos: m / 60 - ini, duracao: dur(g.e) / 60, coluna: g.col, colunas: n }); } grupo = []; fins = []; };
+    for (const e of ord) {
+      const m = minutos(e.hora)!, f = m + dur(e);
+      if (grupo.length && m >= fimGrupo) fechar();
+      let col = fins.findIndex((x) => x <= m);
+      if (col < 0) { col = fins.length; fins.push(f); } else fins[col] = f;
+      grupo.push({ e, col }); fimGrupo = Math.max(fimGrupo, f);
+    }
+    fechar();
+  }
   const horas = Array.from({ length: fim - ini + 1 }, (_, i) => ini + i);
   return { inicio: ini, fim, horas, posicoes, semHora };
+}
+
+/** Primeiro dia da semana que contém `dia` (domingo como no Google Agenda, ou segunda se o cliente escolheu). */
+export function inicioDaSemana(dia: string, iniciaSegunda = false): string {
+  const d = new Date(`${dia}T12:00:00Z`);
+  const recuo = iniciaSegunda ? (d.getUTCDay() + 6) % 7 : d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() - recuo);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Mês: até `max` compromissos por dia e o resto vira "+N mais". */
+export function resumoDiaMes<T>(evs: T[], max = 3): { mostrar: T[]; mais: number } {
+  return evs.length > max ? { mostrar: evs.slice(0, max - 1), mais: evs.length - (max - 1) } : { mostrar: evs, mais: 0 };
 }
 
 function valorBrutoData(base: BaseCampos, fonte: FonteCampo, f: CampoRef, r: any, idx: Indices): unknown {

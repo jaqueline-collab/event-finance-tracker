@@ -130,3 +130,28 @@ async function gravar(db: any, clienteId: string, visaoId: string, cartoes: Cart
   const { error: e2 } = await db.from("elora_dashboard_visoes").update({ filtros: { ...(v.filtros ?? {}), cartoes } }).eq("id", visaoId).eq("cliente_id", clienteId);
   if (e2) throw new Error(`visoes: ${e2.message}`);
 }
+
+/** Início da semana do Calendário deste cliente (domingo por padrão). Quem vê o painel lê. */
+export const lerInicioSemana = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const a = await acesso(context.supabase, data.clienteId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("semana_inicia_segunda").eq("cliente_id", data.clienteId).maybeSingle();
+    return { iniciaSegunda: Boolean(cfg?.semana_inicia_segunda), podeMudar: a.superAdmin };
+  });
+
+/** Grava o início da semana do Calendário (só super admin). */
+export const salvarInicioSemana = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), iniciaSegunda: z.boolean() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const a = await acesso(context.supabase, data.clienteId);
+    if (!a.superAdmin) throw new Error("acesso-negado: só a super admin.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("elora_relatorio_corte_config")
+      .upsert({ cliente_id: data.clienteId, semana_inicia_segunda: data.iniciaSegunda, atualizado_em: new Date().toISOString() }, { onConflict: "cliente_id" });
+    if (error) throw new Error(`início da semana: ${error.message}`);
+    return { ok: true };
+  });
