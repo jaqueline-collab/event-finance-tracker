@@ -28,11 +28,11 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
     12),
     lerTudo(() =>
       d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
-    ),
+    8),
     lerTudo(() =>
       d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).order("externo_id"),
-    ),
-    lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id")),
+    8),
+    lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id"), 8),
     d.from("elora_relatorio_corte_config").select("equipe_por_canal").eq("cliente_id", clienteId).maybeSingle(),
   ]);
   const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(d, clienteId);
