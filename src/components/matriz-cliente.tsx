@@ -127,6 +127,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   const salvarOrdem = async (lista: ColunaMatriz[]) => {
     try {
       await ordenarColunasMatriz({ data: { clienteId, colunas: lista.map((c) => ({ chave: c.chave, nome: c.nome, ativo: c.ativo })) } });
+      setEstadoCols({ ordem: [], ocultas: [], fixas: [] });
       recarregar();
     } catch (e) {
       toast.error(msg(e));
