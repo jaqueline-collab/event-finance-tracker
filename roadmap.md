@@ -1,5 +1,9 @@
 # Roadmap — Dash do cliente
 
+## Busca do menu e confirmação — 15/11
+- [x] Busca: contraste AA nos dois temas, trecho destacado, estado vazio e seleção por setas/Enter; componente real verificado isoladamente no navegador, sem sessão interna.
+- [x] Comparar retratos atuais antes/depois: zero diferenças; confirmar barras e contagem mensal na conversa, sem publicar.
+
 ## Ajustes de barras — 15/11
 - [x] Retrato atual antes/depois, zero diferenças nos dois períodos.
 - [x] BarraTabela também nas tabelas agregadas de Resultados/Resultados (novo), legadas e lista do dia.
