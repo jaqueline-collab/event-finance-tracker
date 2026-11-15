@@ -23,8 +23,8 @@ const matriz: MatrizIa = {
     { chave: "novos_contatos", nome: "Novos contatos", formato: "numero" },
     { chave: "faturamento", nome: "Faturamento", formato: "moeda" },
   ],
-  linhas: [{ dia: "2026-11-01", celulas: { novos_contatos: { valor: 5, estimado: false }, faturamento: { valor: 9876, estimado: false } } }],
-  total: { novos_contatos: { valor: 5, estimado: false }, faturamento: { valor: 9876, estimado: true } },
+  linhas: [{ dia: "2026-11-01", celulas: { novos_contatos: { valor: 5 }, faturamento: { valor: 9876 } } }],
+  total: { novos_contatos: { valor: 5 }, faturamento: { valor: 9876 } },
 };
 const lidos: string[] = [];
 const deps: DepsFerramentas = {
@@ -76,10 +76,10 @@ describe("Elora: parceiro sem permissão de valores", () => {
     }
     expect(direto).toContain("Novos contatos");
   });
-  it("com permissão, o valor aparece com a marca de estimado", async () => {
+  it("com permissão, o valor aparece, sem marca de estimado", async () => {
     const r = await exec(criarFerramentasElora(parceiroComValores, deps).indicadores_periodo, { cliente: null, de: "2026-11-01", ate: "2026-11-07" });
     expect(r).toContain("9876");
-    expect(r).toMatch(/"Faturamento".*"estimado":true/);
+    expect(r).not.toContain("estimado");
   });
   it("as instruções proíbem citar valores", () => {
     expect(instrucoesElora({ acesso: parceiroSemValores, hoje: "2026-11-10", guiaUrl: "x" })).toMatch(/não pode ver valores em dinheiro/);

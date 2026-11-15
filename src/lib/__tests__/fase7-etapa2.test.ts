@@ -87,9 +87,8 @@ describe("Fase 7 · Etapa 3", () => {
   });
   it("Dois valores por indicador: quantidade = cards contados, valor = soma desses cards", async () => {
     const { doisValoresDeCards } = await import("../graficos");
-    const r = doisValoresDeCards(base, cartaoSchema.parse({ id: "d", titulo: "D", tipo: "dois_valores", fonte: "card", campoMedida: { fonte: "card", campo: "valor" } }), [{ card_id: "k1", estimado: true }], null);
+    const r = doisValoresDeCards(base, cartaoSchema.parse({ id: "d", titulo: "D", tipo: "dois_valores", fonte: "card", campoMedida: { fonte: "card", campo: "valor" } }), [{ card_id: "k1" }], null);
     expect(r.qtd).toBe(1);
     expect(r.total).toBe(1000);
-    expect(r.qtdEstimados).toBe(1);
   });
 });

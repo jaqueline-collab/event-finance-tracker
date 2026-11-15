@@ -53,15 +53,15 @@ describe("Construtor de gráficos", () => {
     const t = agregarCartao(semCards, cartao({ fonte: "atendimento", medida: "tempo_medio", dimensao: null, campoMedida: { fonte: "atendimento", campo: "tempo_espera" } }), p);
     expect(t.total).toBe(90);
   });
-  it("indicador da Matriz: mesmo número da Matriz, dias estimados marcados e fora do total", () => {
+  it("indicador da Matriz: mesmo número da Matriz, dia sem histórico exato (null) fica fora", () => {
     const linhas = [
       { dia: "2026-10-01", celulas: { x: { valor: 5 } } },
-      { dia: "2026-10-02", celulas: { x: { valor: 3, estimado: true } } },
+      { dia: "2026-10-02", celulas: { x: { valor: null } } },
       { dia: "2026-10-03", celulas: { x: { valor: 2 } } },
     ];
     const r = cartaoDeIndicador(linhas, "x", cartao({ medida: "indicador", indicador: "x" }), null);
     expect(r.total).toBe(7);
-    expect(r.estimados).toEqual(["2026-10-02"]);
+    expect(r.categorias.map((c) => c.rotulo)).not.toContain("2026-10-02");
   });
   it("só super admin cria/edita/move cartão (o servidor confere antes de gravar)", () => {
     const src = readFileSync("src/lib/graficos.functions.ts", "utf8");

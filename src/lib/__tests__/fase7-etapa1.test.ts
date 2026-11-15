@@ -67,11 +67,11 @@ describe("Etapa 1: funil e calendário", () => {
     expect(f.reduce((a, b) => a + b.total, 0)).toBe(66);
   });
   it("dia futuro nunca é 'sem cobertura'", () => {
-    const d = diasAguardando({ de: "2026-11-10", ate: "2026-11-15" }, { categorias: [], estimados: [] }, () => "parcial", "2026-11-12");
+    const d = diasAguardando({ de: "2026-11-10", ate: "2026-11-15" }, { categorias: [] }, () => "parcial", "2026-11-12");
     expect(d).toEqual(["2026-11-10", "2026-11-11", "2026-11-12"]);
   });
   it("dia confirmado sem registro fica vazio (não é marcado)", () => {
-    expect(diasAguardando(p, { categorias: [], estimados: [] }, () => "confirmado", "2026-12-01")).toEqual([]);
+    expect(diasAguardando(p, { categorias: [] }, () => "confirmado", "2026-12-01")).toEqual([]);
   });
   it("calendário novo tem título padrão 'Agendamentos'", () => {
     expect(tituloPadrao("calendario")).toBe("Agendamentos");

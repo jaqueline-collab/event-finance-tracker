@@ -75,11 +75,20 @@ describe("motor de indicadores", () => {
     expect(calcularIndicadoresCards([ads], ls).get("2026-10-01")?.ads.valor).toBe(1);
   });
 
-  it("primeira leitura sai marcada como estimado e o total carrega a marca", () => {
+  it("card cuja leitura que vale é a primeira foto (dia desconhecido) não conta: nada inferido", () => {
     const m = calcularIndicadoresCards([cfg({ chave: "ag" })], [leitura({ etapa_titulo: "Agendados", estimado: true })]);
-    expect(m.get("2026-10-01")?.ag).toEqual({ valor: 1, estimado: 1 });
+    expect(m.get("2026-10-01")?.ag).toBeUndefined();
     const { total } = montarRelatorio(m, ["2026-10-01", "2026-10-02"], ["ag"]);
-    expect(total.ag).toEqual({ valor: 1, estimado: 1 });
+    expect(total.ag).toEqual({ valor: 0 });
+  });
+  it("conta pela data gravada no card, no período", async () => {
+    const { cardsPorDataGravada } = await import("../indicadores-motor");
+    const ls = [
+      leitura({ card_id: "a", etapa_titulo: "Agendados", estimado: true, campos: { "card.campo.data": "2026-10-09T11:30:00-03:00" } }),
+      leitura({ card_id: "b", etapa_titulo: "Agendados", campos: { "card.campo.data": "2026-12-01T10:00:00-03:00" } }),
+    ];
+    const r = cardsPorDataGravada(cfg({ chave: "ag" }), ls, { fonte: "card", campo: "campo.data" }, "2026-10-01", "2026-10-31");
+    expect(r).toEqual([{ card_id: "a", dia: "2026-10-09" }]);
   });
 
   it("cliente sem configuração mostra só as colunas padrão", () => {
