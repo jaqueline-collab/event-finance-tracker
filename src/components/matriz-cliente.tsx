@@ -176,8 +176,8 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
           onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
           onExportar={lerIncorporado ? undefined : (f) => {
           const cols = colunasTela.filter(c => ativasPorChave.has(c.chave));
-          const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? ""}`; }), d.cobertura[l.dia]]);
-          corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? ""}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "parcial" : "confirmado"]);
+          const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? ""}`; }), d.cobertura[l.dia] === "confirmado" ? "" : "pode estar incompleto"]);
+          corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? ""}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "pode estar incompleto" : ""]);
           void exportarMatriz(f, ["Dia", ...cols.map(c=>c.nome), "Cobertura"], corpo, `matriz-${periodo.de}-${periodo.ate}`).catch(e=>toast.error(msg(e)));
         }} />
       </div>
@@ -260,7 +260,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
           <tbody>
             {linhas.map((l) => (
               <tr key={l.dia} className="hover:bg-muted/40">
-                <td className="sticky left-0 border-b bg-card px-3 py-2 tabular-nums text-muted-foreground">{dataBr(l.dia)}{d.cobertura[l.dia] !== "confirmado" && <span className="ml-2 text-[10px]">{d.cobertura[l.dia]}</span>}</td>
+                <td className="sticky left-0 border-b bg-card px-3 py-2 tabular-nums text-muted-foreground">{dataBr(l.dia)}{d.cobertura[l.dia] !== "confirmado" && <span className="ml-2 text-[10px]">pode estar incompleto</span>}</td>
                 {colunasTela.map((c) => (
                   <td key={c.chave} className={`border-b px-3 py-2 text-center tabular-nums ${!c.ativo ? "opacity-50" : ""}`}>
                     {c.tipo === "manual" && c.ativo && regras?.regras[c.chave]?.pode && (regras.regras[c.chave].aceitaFuturo || l.dia <= regras.hoje) ? (

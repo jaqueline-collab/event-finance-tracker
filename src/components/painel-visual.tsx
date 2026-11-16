@@ -182,7 +182,7 @@ export function PainelVisual({
       ) : dados ? (
         <div className={`space-y-5 transition-opacity duration-300 ${carregando ? "opacity-60" : "opacity-100"}`} aria-busy={carregando}>
           {/* Indicadores são só blocos da visão (filtros.cartoes); aqui fica apenas o aviso único de cobertura. */}
-          {dados.cobertura !== "confirmado" && <p className="text-xs text-muted-foreground">{dados.cobertura} · cobertura diária não confirmada</p>}
+          {dados.cobertura !== "confirmado" && <p className="text-xs text-muted-foreground">Alguns dias deste período podem estar incompletos.</p>}
 
         </div>
       ) : null}
