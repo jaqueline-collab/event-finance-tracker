@@ -165,7 +165,12 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <BarraTabela colunas={colsBarra} estado={estadoValido} onEstado={setEstadoCols} padrao={padraoCols} semFixar
-          extras={chavesAds.length > 0 ? <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label> : undefined}
+          extras={<>
+            {editavel && JSON.stringify(ordemAtual) !== JSON.stringify(padraoOrdem) && (
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { const o = ordemAtual!; salvarOrdemLinhasMatriz({ data: { clienteId, ordem: o } }).then(() => { toast.success("Ordem padrão salva."); setOrdem(null); recarregar(); }).catch((e) => toast.error(msg(e))); }}>Salvar ordem como padrão</Button>
+            )}
+            {chavesAds.length > 0 && <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label>}
+          </>}
           onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
           onExportar={lerIncorporado ? undefined : (f) => {
           const cols = colunasTela.filter(c => ativasPorChave.has(c.chave));
@@ -204,7 +209,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
                 <th key={c.chave} className={`border-b px-3 py-2.5 text-center font-medium ${!c.ativo ? "opacity-50" : ""}`}>
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COR[c.tipo] }} title={ROTULO_TIPO[c.tipo]} />
-                    {c.tipo === "manual" && <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Preenchida à mão" />}
+                    {c.tipo === "manual" && !lerIncorporado && <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Preenchida à mão" />}
                     <button type="button" className="flex items-center gap-1 whitespace-nowrap" onClick={() => ativasPorChave.has(c.chave) && ordenar(c.chave)}>
                       {c.nome}
                       {ordemAtual?.col === c.chave && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
