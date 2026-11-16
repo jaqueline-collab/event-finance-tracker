@@ -66,12 +66,24 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+// Painel incorporado: só o Elora App pode exibir o link numa moldura; qualquer outro site é bloqueado.
+const CSP_INCORPORADO = "frame-ancestors https://app.eloracrm.com.br";
+function comMolduraRestrita(request: Request, response: Response): Response {
+  if (!new URL(request.url).pathname.startsWith("/incorporado/")) return response;
+  const r = new Response(response.body, response);
+  r.headers.set("Content-Security-Policy", CSP_INCORPORADO);
+  r.headers.set("Cache-Control", "no-store");
+  r.headers.set("Referrer-Policy", "no-referrer");
+  r.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return r;
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return comMolduraRestrita(request, await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       return brandedErrorResponse();
