@@ -43,6 +43,8 @@ export const cartaoSchema = z.object({
   tamanho: z.enum(["metade", "inteiro"]).default("metade"),
   /** Layout na grade de 12 colunas (ausente = padrão do tipo). */
   largura: z.number().int().min(1).max(12).optional(),
+  /** Ordem padrão da tabela do bloco (salva pela super admin; quem vê muda só na tela). */
+  ordemTabela: z.object({ col: z.string().max(120), desc: z.boolean() }).nullable().optional(),
   altura: z.number().int().min(1).max(12).optional(),
   /** Calendário: visualização inicial e campos extras na lista do dia. */
   visualCalendario: z.enum(["mes", "semana", "dia", "agenda"]).default("mes"),
