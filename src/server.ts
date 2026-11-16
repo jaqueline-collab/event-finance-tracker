@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { CSP_INCORPORADO, PREFIXO_INCORPORADO } from "./lib/incorporar";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -67,9 +68,8 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 }
 
 // Painel incorporado: só o Elora App pode exibir o link numa moldura; qualquer outro site é bloqueado.
-const CSP_INCORPORADO = "frame-ancestors https://app.eloracrm.com.br";
 function comMolduraRestrita(request: Request, response: Response): Response {
-  if (!new URL(request.url).pathname.startsWith("/incorporado/")) return response;
+  if (!new URL(request.url).pathname.startsWith(PREFIXO_INCORPORADO)) return response;
   const r = new Response(response.body, response);
   r.headers.set("Content-Security-Policy", CSP_INCORPORADO);
   r.headers.set("Cache-Control", "no-store");

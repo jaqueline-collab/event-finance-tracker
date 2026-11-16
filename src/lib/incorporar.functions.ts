@@ -83,66 +83,37 @@ export const alterarDadosPessoaisLink = createServerFn({ method: "POST" })
 
 /* ---------------- Pelo link (sem login) ---------------- */
 
-/** Link válido → cliente, visão e blocos que o link pode mostrar. Inválido ou revogado → null. */
-async function abrirLink(t: string, registrarAcesso: boolean) {
+const INVALIDO = { valido: false as const };
+
+async function admin() {
   setResponseHeader("Cache-Control", "no-store");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { hashToken, cartoesDoLink } = await import("@/lib/incorporar");
-  const { cartoesValidos } = await import("@/lib/graficos");
-  const { filtrosFixosValidos } = await import("@/lib/filtros-fixos");
-  const db = supabaseAdmin as any;
-  const { data: l } = await db.from("elora_paineis_incorporados").select("id, cliente_id, visao_id, dados_pessoais").eq("token_hash", await hashToken(t)).is("revogado_em", null).maybeSingle();
-  if (!l) return null;
-  const { data: v } = await db.from("elora_dashboard_visoes").select("id, nome, publicada, filtros").eq("id", l.visao_id).eq("cliente_id", l.cliente_id).maybeSingle();
-  if (!v?.publicada) return null;
-  if (registrarAcesso) await db.from("elora_paineis_incorporados").update({ ultimo_acesso_em: new Date().toISOString() }).eq("id", l.id);
-  const ocultos = Array.isArray(v.filtros?.cartoesOcultos) ? v.filtros.cartoesOcultos.map(String) : [];
-  return {
-    db,
-    clienteId: String(l.cliente_id),
-    visaoNome: String(v.nome),
-    cartoes: cartoesDoLink(cartoesValidos(v.filtros?.cartoes), ocultos, Boolean(l.dados_pessoais)),
-    fixos: filtrosFixosValidos(v.filtros?.filtrosFixos),
-    padrao: filtrosFixosValidos(v.filtros?.filtrosPadrao),
-  };
+  return supabaseAdmin as any;
 }
-
-const INVALIDO = { valido: false as const };
 
 export const lerPainelIncorporado = createServerFn({ method: "POST" })
   .inputValidator((i) => z.object({ token }).parse(i))
   .handler(async ({ data }) => {
-    const l = await abrirLink(data.token, true);
+    const db = await admin();
+    const { abrirLink } = await import("@/lib/incorporar.server");
+    const l = await abrirLink(db, data.token, true);
     if (!l) return INVALIDO;
-    const { data: c } = await l.db.from("elora_clientes").select("nome").eq("id", l.clienteId).maybeSingle();
+    const { data: c } = await db.from("elora_clientes").select("nome").eq("id", l.clienteId).maybeSingle();
     return { valido: true as const, nomeCliente: String(c?.nome ?? ""), nomeVisao: l.visaoNome, cartoes: l.cartoes, filtrosPadrao: l.padrao };
   });
 
 export const calcularPainelIncorporado = createServerFn({ method: "POST" })
   .inputValidator((i) => z.object({ token, de: dia, ate: dia, cartoes: z.array(cartaoSchema).min(1).max(40), filtrosVisao: z.array(filtroCampoSchema).max(20).default([]) }).parse(i))
   .handler(async ({ data }) => {
-    const l = await abrirLink(data.token, false);
-    if (!l) throw new Error("link-invalido: este link foi revogado ou não existe.");
-    const { cartaoPedido } = await import("@/lib/incorporar");
-    const { calcularCartoesServidor } = await import("@/lib/cartao-calculo.server");
-    const gravados = new Map(l.cartoes.map((c) => [c.id, c]));
-    const cartoes = data.cartoes.filter((c) => gravados.has(c.id)).map((c) => cartaoPedido(gravados.get(c.id)!, c));
-    if (!cartoes.length) return {};
-    // Mesmo cálculo e cache do painel normal (chave já inclui o cliente); quem vê é o próprio cliente.
-    return calcularCartoesServidor(l.db, { clienteId: l.clienteId, de: data.de, ate: data.ate, filtrosVisao: [...l.fixos, ...data.filtrosVisao] }, cartoes, { semDinheiro: false }, { usarCache: true });
+    const db = await admin();
+    const { calcularPeloLink } = await import("@/lib/incorporar.server");
+    return calcularPeloLink(db, data.token, data as any);
   });
 
 export const itensDiaIncorporado = createServerFn({ method: "POST" })
   .inputValidator((i) => z.object({ token, dia, cartao: cartaoSchema, filtrosVisao: z.array(filtroCampoSchema).max(20).default([]) }).parse(i))
   .handler(async ({ data }) => {
-    const l = await abrirLink(data.token, false);
-    if (!l) throw new Error("link-invalido: este link foi revogado ou não existe.");
-    const gravado = l.cartoes.find((c) => c.id === data.cartao.id);
-    // Calendário só existe no link quando a super admin liberou dados pessoais.
-    if (!gravado || gravado.tipo !== "calendario" || gravado.medida === "indicador") return { itens: [] };
-    const { cartaoPedido } = await import("@/lib/incorporar");
-    const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
-    const { itensDoDia } = await import("@/lib/graficos");
-    const cat = await catalogoDoCliente(l.db, l.clienteId);
-    return { itens: itensDoDia(cat.base, cartaoPedido(gravado, data.cartao), data.dia, [...l.fixos, ...data.filtrosVisao] as any, false) };
+    const db = await admin();
+    const { itensDiaPeloLink } = await import("@/lib/incorporar.server");
+    return itensDiaPeloLink(db, data.token, data as any);
   });
