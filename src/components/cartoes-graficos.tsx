@@ -3,7 +3,7 @@ import { Settings, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, Grip
 import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { InfoTitulo } from "@/components/info-titulo";
-import { textoBloco, textoColuna } from "@/lib/textos-info";
+import { textoBlocoOuAuto, textoColunaOuAuto } from "@/lib/textos-info";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cicloOrdem, compararValores, type OrdemTabela, alinhamento, colunaNumerica, colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
@@ -38,7 +38,6 @@ import { formatarDuracao, type Periodo } from "@/lib/painel-visual";
 import { NAO_DEFINIDO } from "@/lib/nao-definido";
 import { ehUrl, formatarMoeda, rotuloCorrido, textoLink } from "@/lib/formatos";
 import { cartaoPesado, filtrarPorTipo, inicioDaSemana, reguaHoras, resumoDiaMes, type EventoCalendario, type FiltroTipoCalendario } from "@/lib/graficos";
-import { PontoCobertura } from "@/components/ponto-cobertura";
 import { avisoSemHistorico } from "@/lib/formatos";
 
 const CORES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--primary)", "var(--muted-foreground)"];
@@ -402,7 +401,7 @@ function CartaoComum({
   return (
     <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}<InfoTitulo titulo={cartao.titulo} texto={textoBloco(cartao.titulo)} />{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}<SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></h3></div>
+        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}<InfoTitulo titulo={cartao.titulo} texto={textoBlocoOuAuto(cartao)} incompleto={!!r?.r?.cobertura && r.r.cobertura !== "confirmado"} /><SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></h3></div>
         <div className="flex items-center gap-1">
           {cartao.painel === "leads-por" && <Select value={dim?.campo ?? "origem"} onValueChange={(campo) => setDim({ fonte: campo === "canal" ? "atendimento" : campo === "campaign" ? "utm" : "contato", campo })}>
             <SelectTrigger className="h-8 w-auto" aria-label="Dimensão da rosca"><SelectValue /></SelectTrigger>
@@ -976,7 +975,6 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
           className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium hover:bg-muted ${dia === hoje ? "bg-primary text-primary-foreground hover:bg-primary" : ""}`}>
           {Number(dia.slice(8))}
         </button>
-        {ag && !fora && <span className="mx-auto"><PontoCobertura texto="Dia sem cobertura de sincronização confirmada." /></span>}
         {comEventos ? (
           <>
             {mostrar.map((e) => <EventoFlutuante key={e.id} e={e} tipos={tipos} itensDia={itensDia} />)}
@@ -1259,7 +1257,7 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
         <table className="w-full text-xs">
           <thead><tr>{vis.map((c) => (
             <th key={c.chave} style={estiloFixa(c.chave)} className={`whitespace-nowrap border-b px-2 py-1.5 font-medium ${alinhamento(numericas.has(c.chave))} ${c.fixa ? "sticky z-10 truncate bg-card" : ""}`}>
-              <button type="button" aria-sort={ordem?.col === c.chave ? (ordem.desc ? "descending" : "ascending") : "none"} title="Ordenar" className="inline-flex items-center gap-1" onClick={() => { setOrdem((o) => cicloOrdem(o, c.chave, padraoOrdem)); setPagina(0); }}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" aria-label="decrescente" /> : <ArrowUp className="h-3 w-3" aria-label="crescente" />)}</button>{" "}<InfoTitulo titulo={c.rotulo} texto={textoColuna(c.rotulo)} />
+              <button type="button" aria-sort={ordem?.col === c.chave ? (ordem.desc ? "descending" : "ascending") : "none"} title="Ordenar" className="inline-flex items-center gap-1" onClick={() => { setOrdem((o) => cicloOrdem(o, c.chave, padraoOrdem)); setPagina(0); }}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" aria-label="decrescente" /> : <ArrowUp className="h-3 w-3" aria-label="crescente" />)}</button>{" "}<InfoTitulo titulo={c.rotulo} texto={textoColunaOuAuto(c.rotulo)} />
             </th>
           ))}</tr></thead>
           <tbody>

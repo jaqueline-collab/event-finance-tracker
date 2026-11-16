@@ -19,3 +19,10 @@ describe("textos do i", () => {
     expect(rotuloCampanha("Telefone")).toBe("Telefone");
   });
 });
+
+import { textoBlocoOuAuto, textoColunaOuAuto } from "@/lib/textos-info";
+describe("reserva automática do i", () => {
+  it("bloco com texto usa o dicionário", () => { expect(textoBlocoOuAuto({ titulo: "TMR" }).oque).toBe("Tempo médio até a primeira resposta."); });
+  it("bloco sem texto usa o automático", () => { expect(textoBlocoOuAuto({ titulo: "Bloco novo xyz", medida: "contagem", fonte: "card" }).oque).toContain("Quantidade de cards"); });
+  it("coluna sem texto nunca fica vazia", () => { expect(textoColunaOuAuto("Coluna inventada").oque.length).toBeGreaterThan(0); });
+});

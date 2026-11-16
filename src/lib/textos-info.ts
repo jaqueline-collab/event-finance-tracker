@@ -16,7 +16,7 @@ const CRIADO = "Pelo dia em que o contato foi criado.";
 const INICIO = "Pelo dia de início do atendimento.";
 
 const COLUNAS: Record<string, TextoInfo> = {
-  "dia": { oque: "Data de cada linha.", como: "Um dia por linha, todos os dias do período, mesmo sem movimento.", fonte: "Dia em Brasília.", aviso: "Marca ao lado do dia: dia que ainda pode estar incompleto." },
+  "dia": { oque: "Data de cada linha.", como: "Um dia por linha, todos os dias do período, mesmo sem movimento.", fonte: "Dia em Brasília.", aviso: "Quando aparece uma marca ao lado do dia, é um dia que ainda pode estar incompleto." },
   "social selling": { oque: "Quantidade de contatos de Social Selling do dia.", como: "Valor informado no próprio relatório; vazio não conta como zero.", fonte: "Dia da linha." },
   "novos contatos": { oque: "Pessoas que viraram contato no dia.", como: "Cada contato novo conta 1. Contatos importados em lote não contam.", fonte: `Contatos do Elora App. ${CRIADO}` },
   "novos ads": { oque: "Novos contatos que vieram de anúncio.", como: "Novos contatos com campanha de anúncio registrada.", fonte: CRIADO, aviso: ADS },
@@ -100,4 +100,17 @@ export function rotuloCampanha(r: string): string {
   if (CAMPANHA[k]) return CAMPANHA[k];
   if (/^utm[\s_]/i.test(r.trim())) return `Campanha de anúncio (${r.trim().replace(/^utm[\s_]+/i, "")})`;
   return r;
+}
+
+export const AVISO_INCOMPLETO = "Alguns dias deste período podem estar incompletos.";
+
+const MEDIDA_TXT: Record<string, string> = { contagem: "Quantidade", soma: "Soma", media: "Média", indicador: "Indicador" };
+const FONTE_TXT: Record<string, string> = { contato: "contatos", atendimento: "atendimentos", card: "cards", utm: "campanhas de anúncio" };
+
+/** Texto do bloco: dicionário ou, na falta, o automático do construtor. Nunca vazio. */
+export function textoBlocoOuAuto(c: { titulo: string; medida?: string; fonte?: string; dimensao?: { campo: string } | null }): TextoInfo {
+  return textoBloco(c.titulo) ?? textoAutomatico(MEDIDA_TXT[c.medida ?? "contagem"] ?? "Quantidade", FONTE_TXT[c.fonte ?? "contato"] ?? "registros", c.dimensao?.campo ?? null);
+}
+export function textoColunaOuAuto(titulo: string): TextoInfo {
+  return textoColuna(titulo) ?? { oque: `${rotuloCampanha(titulo)} de cada linha da tabela, no período.` };
 }

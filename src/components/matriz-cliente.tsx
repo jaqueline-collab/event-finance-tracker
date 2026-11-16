@@ -24,7 +24,7 @@ import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
 import { FiltroCampos } from "@/components/filtro-campos";
 import { InfoTitulo } from "@/components/info-titulo";
-import { textoColuna } from "@/lib/textos-info";
+import { textoColunaOuAuto } from "@/lib/textos-info";
 import { separarFiltros, type FiltroCampo } from "@/lib/campos-elora";
 
 type Dados = Awaited<ReturnType<typeof lerMatriz>>;
@@ -206,7 +206,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
                 <span className="inline-flex items-center gap-1"><button type="button" className="flex items-center gap-1" onClick={() => ordenar("dia")}>
                   Dia {ordemAtual?.col === "dia" && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                 </button>
-                <InfoTitulo titulo="Dia" texto={textoColuna("Dia")} /></span>
+                <InfoTitulo titulo="Dia" texto={textoColunaOuAuto("Dia")} /></span>
               </th>
               {colunasTela.map((c, i) => (
                 <th key={c.chave} className={`border-b px-3 py-2.5 text-center font-medium ${!c.ativo ? "opacity-50" : ""}`}>
@@ -217,7 +217,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
                       {c.nome}
                       {ordemAtual?.col === c.chave && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                     </button>
-                    <InfoTitulo titulo={c.nome} texto={textoColuna(c.nome)} />
+                    <InfoTitulo titulo={c.nome} texto={textoColunaOuAuto(c.nome)} incompleto={Object.values(d.cobertura).some(s => s !== "confirmado")} />
                     {editavel && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -291,7 +291,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
           </tfoot>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">{d.semHistoricoAntes && d.colunasSemHistorico.length > 0 && `${avisoSemHistorico(d.semHistoricoAntes)}. `}{Object.values(d.cobertura).some(s => s !== "confirmado") && "Parcial: a sincronização atual não comprova cobertura completa de todos os dias, inclusive no total."}</p>
+      <p className="text-xs text-muted-foreground">{d.semHistoricoAntes && d.colunasSemHistorico.length > 0 && `${avisoSemHistorico(d.semHistoricoAntes)}. `}{Object.values(d.cobertura).some(s => s !== "confirmado") && "Alguns dias deste período podem estar incompletos, inclusive no total."}</p>
       {editavel && d.erros.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Colunas com configuração incompleta: {d.erros.map((e) => `${e.nome} (${e.erro})`).join("; ")}.

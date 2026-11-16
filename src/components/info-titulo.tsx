@@ -1,11 +1,11 @@
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { TextoInfo } from "@/lib/textos-info";
+import { AVISO_INCOMPLETO, type TextoInfo } from "@/lib/textos-info";
 
 /** Ícone "i" ao lado de um título: abre ao tocar (funciona no celular). */
-export function InfoTitulo({ titulo, texto, filtros }: { titulo: string; texto: TextoInfo | null; filtros?: string[] }) {
-  if (!texto) return null;
-  const partes: [string, string | undefined][] = [["O que é", texto.oque], ["Como é contado", texto.como], ["De onde vem", texto.fonte], ["Aviso", texto.aviso]];
+export function InfoTitulo({ titulo, texto, filtros, incompleto }: { titulo: string; texto: TextoInfo; filtros?: string[]; incompleto?: boolean }) {
+  const avisos = [texto.aviso, incompleto ? AVISO_INCOMPLETO : undefined].filter(Boolean).join(" ");
+  const partes: [string, string | undefined][] = [["O que é", texto.oque], ["Como é contado", texto.como], ["De onde vem", texto.fonte], ["Avisos", avisos || undefined]];
   return (
     <Popover>
       <PopoverTrigger asChild>
