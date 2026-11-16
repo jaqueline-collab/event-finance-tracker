@@ -12,7 +12,7 @@
 ## O que proponho fazer (sem mexer em números nem telas)
 1. Retirar do visitante e do usuário logado qualquer permissão na tabela dos links. Fica só o servidor.
 2. Tirar o token do endereço visto pelo servidor: o link passa a ser `/incorporado#<token>`. O trecho depois do `#` não sai do navegador nem entra no registro de acessos. A página envia o token só dentro da chamada protegida.
-   - Nenhum link foi entregue ainda, então ninguém perde acesso.
+   - O link de teste já colocado no Elora App será invalidado (aprovado); você gera um novo depois de publicar.
 3. No registro de erros do servidor, mascarar qualquer trecho com aparência de token (ex.: `/incorporado/abc…` vira `/incorporado/[oculto]`).
 4. Testes:
    - Visitante e usuário logado recebem "sem permissão" ao tentar ler a tabela.
@@ -28,8 +28,13 @@
    - a lista de abas é lida a cada abertura: visão nova marcada como visível aparece sozinha, visão ocultada some na hora, sem link novo.
 3. Cada aba segue as regras do link atual: mesmo cálculo e filtros fixos do painel normal, suporte escondido, nomes de paciente ocultos por padrão e a liberação da super admin (vale para todas as abas do link).
 4. Revogar, gerar novo, aviso de app.eloracrm.com.br e último acesso funcionam igual.
-5. **Relatório diário:** no painel do cliente ele é uma aba fixa e tem um cálculo próprio. Nesta entrega, o link mostra só as visões de blocos. Se você quiser o Relatório diário também, faço em seguida.
+5. **Relatório diário** entra como aba do link, na mesma posição do painel do cliente e com o mesmo cálculo. Ele mostra só os totais por dia e por atendente, sem dados de paciente, e sem Congelar, ADS editável, colunas manuais ou exportar.
 6. Retrato: cada visão pelo link "Todas" comparada ao painel normal, em 14/10–12/11 e 22/09–03/10. Testes e conferência em 390, 834 e 1440, nos dois temas.
+
+## Ajustes só no link incorporado
+1. **Largura total:** o conteúdo ocupa toda a largura e altura da moldura, com respiro de 16px. Os blocos se reorganizam pela largura, sem rolagem lateral. As abas ficam sempre visíveis no topo, inclusive em moldura estreita.
+2. **Botão "Abrir área do cliente"**, discreto, no canto do topo. Ele abre a tela de login do EloraCRM numa aba nova, nunca dentro da moldura. Se a pessoa já estiver logada, entra direto. Funciona no celular. O painel normal não muda.
+3. Conferência em 390, 834 e 1440 nos dois temas, mais uma moldura estreita (cerca de 320px).
 
 ## Detalhes técnicos
 - Migração: `REVOKE ALL ON public.elora_paineis_incorporados FROM anon, authenticated;` (mantém `service_role`).
@@ -37,3 +42,5 @@
 - `src/server.ts`: função de mascarar aplicada antes de `console.error`.
 - Seção da configuração gera a URL com `#`.
 - "Todas as visões": `visao_id` passa a aceitar vazio (migração); índice de link ativo único por cliente quando vazio. O servidor lê `elora_dashboard_visoes` com `publicada = true` ordenado por `ordem` a cada chamada, e o cálculo valida o bloco pedido contra a aba pedida.
+- Relatório diário no link: mesma função de montagem da Matriz do painel do cliente, chamada pelo servidor com o cliente do link, devolvendo só colunas agregadas (sem itens de contato).
+- Botão: `<a href="https://eloracrm.com.br/area-do-cliente" target="_blank" rel="noopener noreferrer">`; o login já redireciona quem tem sessão.
