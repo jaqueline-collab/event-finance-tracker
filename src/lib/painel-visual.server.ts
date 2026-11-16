@@ -17,7 +17,7 @@ import {
 import { lerTudo } from "./ler-paginas.server";
 
 /** Cache curto por cliente (contatos e atendimentos mudam só na sincronização). */
-const cache = new Map<string, { em: number; chave: string; nomesUsuario?: Record<string, string | null>; contatos: ContatoP[]; atendimentos: (AtendimentoP & { suporte?: boolean })[] }>();
+const cache = new Map<string, { em: number; chave: string; nomesUsuario?: Record<string, string | null>; humanoSessao?: Record<string, string>; contatos: ContatoP[]; atendimentos: (AtendimentoP & { suporte?: boolean })[] }>();
 
 
 export async function calcularPainelVisual(adm: any, clienteId: string, p: Periodo, filtros: Filtros = {}, campos: FiltroCampo[] = [], ctx?: import("./calculo-contexto.server").Ctx) {
@@ -92,7 +92,6 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
     }
 
     const mensagens: MensagemP[] = await mensagensP;
-    // Atendimento atribuído a usuário de suporte: vale a resposta humana mais recente de outra pessoa (já sem suporte nas mensagens).
     // Regra única: atendente do atendimento = última pessoa da equipe que respondeu nele (sem suporte); sem resposta = "Sem informação".
     const nomesU: Record<string, string | null> = (base as any).nomesUsuario ?? {};
     const atendimentos = base.atendimentos.map((a: any) => { const u = (base as any).humanoSessao?.[a.id]; return { ...a, atendente: (u && nomesU[u]) || SEM_ATENDENTE }; });
