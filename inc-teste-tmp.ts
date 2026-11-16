@@ -17,7 +17,8 @@ async function criar(cliente: string, visao: string, pessoais = false) {
   const { data, error } = await db.from("elora_paineis_incorporados").insert({ cliente_id: cliente, visao_id: visao, token_hash: await hashToken(t), dados_pessoais: pessoais }).select("id").single();
   if (error) throw error; criados.push(data.id); return t;
 }
-const limpa = (x: any) => JSON.parse(JSON.stringify(x));
+const ord = (x: any): any => Array.isArray(x) ? x.map(ord) : x && typeof x === "object" ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, ord(x[k])])) : x;
+const limpa = (x: any) => ord(JSON.parse(JSON.stringify(x)));
 let dif = 0; const linhas: string[] = [];
 for (const v of doA) {
   const t = await criar(A, v.id, true); tokens[v.nome] = t;
