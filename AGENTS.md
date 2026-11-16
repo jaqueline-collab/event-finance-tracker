@@ -33,4 +33,4 @@
 - Panel/Matriz speed: SQL `elora_conversas_pares` and `elora_novos_contatos` group rows; one request per view (`Ctx`); `elora_calculo_cache` keyed by `elora_versoes_cache`, permission after cache.
 - Tables use one `BarraTabela` (viewers never save). Fixed filters are re-read server-side (`filtros-fixos.ts`) so viewers cannot drop them; `filtroDaFonte` matches the Matriz rules.
 - Embed link: server-only table, hashed token after `#`, masked in logs; `incorporar.server.ts` reuses the panel engines; CSP frame-ancestors — same numbers, no token leak.
-- Atendente (Matriz, painel, filtros, campos): last non-support team reply via `elora_conversas_pares` (per day) / `elora_ultimo_humano_sessao` (per atendimento); never the assigned atendente, so every screen splits the same totals the same way.
+- Atendente everywhere = last non-support team reply (`elora_conversas_pares` per day, `elora_ultimo_humano_sessao` per atendimento), never the assigned one, so all screens split alike.
