@@ -15,7 +15,7 @@ import { textoSelo } from "@/lib/filtros-fixos";
 import type { FiltroCampo } from "@/lib/campos-elora";
 
 export const Route = createFileRoute("/incorporado")({
-  validateSearch: zodValidator(z.object({ tema: fallback(z.enum(["claro", "escuro", ""]), "").default("") })),
+  validateSearch: zodValidator(z.object({ tema: fallback(z.string(), "").optional(), k: fallback(z.string(), "").optional() })),
   head: () => ({
     meta: [
       { title: "Painel · Elora" },
