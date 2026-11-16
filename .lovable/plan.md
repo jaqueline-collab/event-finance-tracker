@@ -26,9 +26,9 @@
    - só as visões marcadas como "Visível ao cliente", na mesma ordem e com os mesmos nomes do painel do cliente;
    - quem vê troca de aba, mas não renomeia, reordena, oculta nem edita nada;
    - a lista de abas é lida a cada abertura: visão nova marcada como visível aparece sozinha, visão ocultada some na hora, sem link novo.
-3. Cada aba segue as regras do link atual: mesmo cálculo e filtros fixos do painel normal, suporte escondido, nomes de paciente ocultos por padrão e a liberação da super admin (vale para todas as abas do link).
+3. Cada aba segue as regras do painel normal: mesmo cálculo, filtros fixos e suporte escondido. **Por padrão o link mostra exatamente o que o painel normal mostra**, inclusive nome e telefone, tabelas de itens, calendário e blocos agrupados por nome. A opção por link passa a ser "Ocultar dados de pacientes (nome e telefone)", desligada por padrão (vale também para o link de uma visão só).
 4. Revogar, gerar novo, aviso de app.eloracrm.com.br e último acesso funcionam igual.
-5. **Relatório diário** entra como aba do link, na mesma posição do painel do cliente e com o mesmo cálculo. Ele mostra só os totais por dia e por atendente, sem dados de paciente, e sem Congelar, ADS editável, colunas manuais ou exportar.
+5. **Relatório diário** entra como aba do link, na mesma posição do painel do cliente e com o mesmo cálculo. Mostra **todas as colunas** do painel normal, inclusive Social Selling e ADS, só para leitura: sem editar, sem Congelar e sem exportar.
 6. Retrato: cada visão pelo link "Todas" comparada ao painel normal, em 14/10–12/11 e 22/09–03/10. Testes e conferência em 390, 834 e 1440, nos dois temas.
 
 ## Ajustes só no link incorporado
@@ -42,5 +42,6 @@
 - `src/server.ts`: função de mascarar aplicada antes de `console.error`.
 - Seção da configuração gera a URL com `#`.
 - "Todas as visões": `visao_id` passa a aceitar vazio (migração); índice de link ativo único por cliente quando vazio. O servidor lê `elora_dashboard_visoes` com `publicada = true` ordenado por `ordem` a cada chamada, e o cálculo valida o bloco pedido contra a aba pedida.
-- Relatório diário no link: mesma função de montagem da Matriz do painel do cliente, chamada pelo servidor com o cliente do link, devolvendo só colunas agregadas (sem itens de contato).
+- Relatório diário no link: mesma função de montagem da Matriz do painel do cliente, chamada pelo servidor com o cliente do link, com todas as colunas; edição manual, ADS editável e exportar desligados no link.
 - Botão: `<a href="https://eloracrm.com.br/area-do-cliente" target="_blank" rel="noopener noreferrer">`; o login já redireciona quem tem sessão.
+- Privacidade: a coluna `dados_pessoais` passa a significar "ocultar" (padrão falso, links existentes revogados), invertendo o filtro de blocos com nome/telefone.
