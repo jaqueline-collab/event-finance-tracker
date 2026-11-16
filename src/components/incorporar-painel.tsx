@@ -8,17 +8,18 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { alterarDadosPessoaisLink, gerarLinkIncorporado, listarLinksIncorporados, revogarLinkIncorporado } from "@/lib/incorporar.functions";
+import { alterarOcultarPessoaisLink, gerarLinkIncorporado, listarLinksIncorporados, revogarLinkIncorporado } from "@/lib/incorporar.functions";
 import { ORIGEM_MOLDURA } from "@/lib/incorporar";
 import { formatarDataHora } from "@/lib/formatos";
 
 type Dados = Awaited<ReturnType<typeof listarLinksIncorporados>>;
+const TODAS = "todas";
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Seção "Incorporar no Elora App": um link só leitura por visão (só super admin). */
 export function IncorporarPainel({ clienteId }: { clienteId: string }) {
   const [d, setD] = useState<Dados | null>(null);
-  const [visaoId, setVisaoId] = useState("");
+  const [visaoId, setVisaoId] = useState(TODAS);
   const [novos, setNovos] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState(false);
   const [copiado, setCopiado] = useState(false);
@@ -26,23 +27,23 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
 
   const carregar = useCallback(() => {
     listarLinksIncorporados({ data: { clienteId } })
-      .then((r) => { setD(r); setVisaoId((v) => v || r.visoes[0]?.id || ""); })
+      .then((r) => setD(r))
       .catch((e) => toast.error(msg(e)));
   }, [clienteId]);
   useEffect(carregar, [carregar]);
 
   if (!d) return <Skeleton className="h-48 w-full rounded-xl" />;
-  if (!d.visoes.length) return <p className="text-sm text-muted-foreground">Este cliente ainda não tem visão publicada para incorporar.</p>;
-
-  const link = d.links.find((l) => l.visaoId === visaoId) ?? null;
+  
+  const alvo = visaoId === TODAS ? null : visaoId;
+  const link = d.links.find((l) => l.visaoId === alvo) ?? null;
   const token = novos[visaoId];
-  const url = token ? `${window.location.origin}/incorporado/${token}` : "";
+  const url = token ? `${window.location.origin}/incorporado#${token}` : "";
 
   const gerar = async () => {
     if (ocupado) return;
     setOcupado(true);
     try {
-      const r = await gerarLinkIncorporado({ data: { clienteId, visaoId, dadosPessoais: link?.dadosPessoais ?? false } });
+      const r = await gerarLinkIncorporado({ data: { clienteId, visaoId: alvo, ocultarPessoais: link?.ocultarPessoais ?? false } });
       setNovos((n) => ({ ...n, [visaoId]: r.token }));
       toast.success(link ? "Link novo gerado. O anterior parou de funcionar." : "Link gerado.");
       carregar();
@@ -66,8 +67,8 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
   const mudarPrivacidade = async (v: boolean) => {
     if (!link) return;
     try {
-      await alterarDadosPessoaisLink({ data: { clienteId, id: link.id, dadosPessoais: v } });
-      toast.success(v ? "Tabelas com nomes liberadas neste link." : "Tabelas com nomes ocultas neste link.");
+      await alterarOcultarPessoaisLink({ data: { clienteId, id: link.id, ocultarPessoais: v } });
+      toast.success(v ? "Nome e telefone de pacientes ocultos neste link." : "Este link volta a mostrar o mesmo que o painel.");
       carregar();
     } catch (e) { toast.error(msg(e)); }
   };
@@ -77,7 +78,7 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
       <div className="space-y-1">
         <h3 className="flex items-center gap-2 text-base font-semibold"><Link2 className="h-4 w-4" /> Incorporar no Elora App</h3>
         <p className="text-sm text-muted-foreground">
-          Gera um link só leitura de uma visão para colocar dentro do Elora App. Abre sem login, sem menu e sem botões de editar ou exportar.
+          Gera um link só leitura de todas as visões visíveis ao cliente (com o Relatório diário) ou de uma visão só, para colocar dentro do Elora App. Abre sem login, sem menu e sem botões de editar ou exportar.
           Só funciona dentro de {ORIGEM_MOLDURA.replace("https://", "")}.
         </p>
       </div>
@@ -86,7 +87,7 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
         <Label htmlFor="inc-visao">Visão incorporada</Label>
         <Select value={visaoId} onValueChange={setVisaoId}>
           <SelectTrigger id="inc-visao" className="w-full sm:w-72"><SelectValue /></SelectTrigger>
-          <SelectContent>{d.visoes.map((v) => <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>)}</SelectContent>
+          <SelectContent><SelectItem value={TODAS}>Todas as visões</SelectItem>{d.visoes.map((v) => <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>)}</SelectContent>
         </Select>
       </div>
 
@@ -118,13 +119,13 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
       {link && (
         <div className="flex items-start justify-between gap-4 rounded-xl border p-4">
           <div className="space-y-1">
-            <Label htmlFor="inc-pessoais">Mostrar tabelas com nome de paciente ou contato</Label>
+            <Label htmlFor="inc-pessoais">Ocultar dados de pacientes (nome e telefone)</Label>
             <p className="text-xs text-muted-foreground">
-              Desligado (padrão): o link mostra só números e gráficos. Tabelas de itens, calendário e blocos agrupados por nome ou telefone ficam ocultos.
-              Ligado: quem tiver o link dentro do Elora App vê também esses nomes.
+              Desligado (padrão): o link mostra exatamente o que o painel do cliente mostra, inclusive nomes, telefones, tabelas de itens e calendário.
+              Ligado: blocos com nome ou telefone de pacientes e contatos somem do link; números e gráficos continuam.
             </p>
           </div>
-          <Switch id="inc-pessoais" checked={link.dadosPessoais} onCheckedChange={(v) => void mudarPrivacidade(v)} />
+          <Switch id="inc-pessoais" checked={link.ocultarPessoais} onCheckedChange={(v) => void mudarPrivacidade(v)} />
         </div>
       )}
 
