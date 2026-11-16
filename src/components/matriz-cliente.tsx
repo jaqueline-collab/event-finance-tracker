@@ -9,12 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { lerMatriz, lerRegrasManuais, salvarRegraManual, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
+import { salvarOrdemLinhasMatriz, lerMatriz, lerRegrasManuais, salvarRegraManual, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
 import { avisoSemHistorico, formatarMoeda } from "@/lib/formatos";
 import { lerNumeroManual, ROTULO_QUEM_PREENCHE, type FormatoManual, type QuemPreenche } from "@/lib/coluna-manual";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { BarraTabela } from "@/components/barra-tabela";
-import { alternarColunasAds, ehColunaAds, type EstadoColunas } from "@/lib/colunas-tabela";
+import { alternarColunasAds, cicloOrdem, compararValores, ehColunaAds, type EstadoColunas, type OrdemTabela } from "@/lib/colunas-tabela";
 
 function ordenarPorEstado<T extends { chave: string }>(cols: T[], e: EstadoColunas): T[] {
   const pos = new Map(e.ordem.map((k, i) => [k, i]));
@@ -197,7 +197,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
             <tr>
               <th className="sticky left-0 z-20 border-b bg-card px-3 py-2.5 text-left font-medium">
                 <button type="button" className="flex items-center gap-1" onClick={() => ordenar("dia")}>
-                  Dia {ordem.chave === "dia" && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+                  Dia {ordemAtual?.col === "dia" && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                 </button>
               </th>
               {colunasTela.map((c, i) => (
@@ -207,7 +207,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
                     {c.tipo === "manual" && <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Preenchida à mão" />}
                     <button type="button" className="flex items-center gap-1 whitespace-nowrap" onClick={() => ativasPorChave.has(c.chave) && ordenar(c.chave)}>
                       {c.nome}
-                      {ordem.chave === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+                      {ordemAtual?.col === c.chave && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                     </button>
                     {editavel && (
                       <DropdownMenu>
