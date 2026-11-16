@@ -1,3 +1,4 @@
+import { ehRotaIncorporada } from "@/lib/incorporar";
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -151,7 +152,7 @@ function ehPaginaPublica(pathname: string) {
 }
 
 /** Painel incorporado no Elora App (link sem login, só leitura). */
-const ehIncorporado = (pathname: string) => pathname.startsWith("/incorporado/");
+const ehIncorporado = (pathname: string) => ehRotaIncorporada(pathname);
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

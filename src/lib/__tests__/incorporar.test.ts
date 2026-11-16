@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { cartaoSchema } from "@/lib/graficos";
-import { cartaoComDadosPessoais, cartaoPedido, cartoesDoLink, CSP_INCORPORADO, hashToken, novoToken, tokenValido } from "@/lib/incorporar";
+import { ehRotaIncorporada, mascararToken, cartaoComDadosPessoais, cartaoPedido, cartoesDoLink, CSP_INCORPORADO, hashToken, novoToken, tokenValido } from "@/lib/incorporar";
 
 const c = (x: Record<string, unknown>) => cartaoSchema.parse({ id: "a", titulo: "Bloco", tipo: "barras", fonte: "atendimento", ...x });
 
 describe("painel incorporado", () => {
-  it("sem liberação, esconde tabela de itens, calendário e agrupado por nome do contato", () => {
+  it("padrão mostra tudo; com ocultar, tira tabela de itens, calendário e agrupado por nome", () => {
     const lista = [
       c({ id: "num", tipo: "numero" }),
       c({ id: "itens", tipo: "tabela_itens", fonte: "contato" }),
@@ -13,12 +13,12 @@ describe("painel incorporado", () => {
       c({ id: "nome", fonte: "contato", dimensao: { fonte: "contato", campo: "nome" } }),
       c({ id: "canal", dimensao: { fonte: "atendimento", campo: "canal" } }),
     ];
-    expect(cartoesDoLink(lista, [], false).map((x) => x.id)).toEqual(["num", "canal"]);
-    expect(cartoesDoLink(lista, [], true).map((x) => x.id)).toEqual(["num", "itens", "cal", "nome", "canal"]);
+    expect(cartoesDoLink(lista, [], true).map((x) => x.id)).toEqual(["num", "canal"]);
+    expect(cartoesDoLink(lista, [], false).map((x) => x.id)).toEqual(["num", "itens", "cal", "nome", "canal"]);
   });
 
   it("blocos ocultos da visão nunca aparecem no link", () => {
-    expect(cartoesDoLink([c({ id: "x", tipo: "numero" })], ["x"], true)).toEqual([]);
+    expect(cartoesDoLink([c({ id: "x", tipo: "numero" })], ["x"], false)).toEqual([]);
   });
 
   it("telefone também é dado pessoal", () => {
@@ -50,5 +50,17 @@ describe("painel incorporado", () => {
 
   it("só o Elora App pode emoldurar o link", () => {
     expect(CSP_INCORPORADO).toBe("frame-ancestors https://app.eloracrm.com.br");
+  });
+
+  it("token nunca aparece em registro de erro", () => {
+    const t = novoToken();
+    const m = mascararToken(`Erro em https://eloracrm.com.br/incorporado#${t} e /incorporado/${t} token=${t}`);
+    expect(m).not.toContain(t);
+    expect(m).toContain("[oculto]");
+  });
+
+  it("rota do link é /incorporado (token só depois do #)", () => {
+    expect(ehRotaIncorporada("/incorporado")).toBe(true);
+    expect(ehRotaIncorporada("/incorporados")).toBe(false);
   });
 });

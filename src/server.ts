@@ -2,7 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
-import { CSP_INCORPORADO, PREFIXO_INCORPORADO } from "./lib/incorporar";
+import { CSP_INCORPORADO, ehRotaIncorporada, mascararToken } from "./lib/incorporar";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -63,13 +63,19 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
     return response;
   }
 
-  console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
+  registrarErro(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
   return brandedErrorResponse();
+}
+
+/** Registro de erro sem nenhum token do link incorporado. */
+function registrarErro(e: unknown) {
+  const texto = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack ?? ""}` : String(e);
+  console.error(mascararToken(texto));
 }
 
 // Painel incorporado: só o Elora App pode exibir o link numa moldura; qualquer outro site é bloqueado.
 function comMolduraRestrita(request: Request, response: Response): Response {
-  if (!new URL(request.url).pathname.startsWith(PREFIXO_INCORPORADO)) return response;
+  if (!ehRotaIncorporada(new URL(request.url).pathname)) return response;
   const r = new Response(response.body, response);
   r.headers.set("Content-Security-Policy", CSP_INCORPORADO);
   r.headers.set("Cache-Control", "no-store");
@@ -85,7 +91,7 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       return comMolduraRestrita(request, await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
-      console.error(error);
+      registrarErro(error);
       return brandedErrorResponse();
     }
   },
