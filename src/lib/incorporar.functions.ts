@@ -78,7 +78,6 @@ export const alterarDadosPessoaisLink = createServerFn({ method: "POST" })
     const db = supabaseAdmin as any;
     const { error } = await db.from("elora_paineis_incorporados").update({ dados_pessoais: data.dadosPessoais }).eq("id", data.id).eq("cliente_id", data.clienteId).is("revogado_em", null);
     if (error) throw new Error(error.message);
-    await db.from("elora_calculo_cache").delete().eq("cliente_id", data.clienteId).like("chave", "incorp:%");
     return { ok: true };
   });
 
@@ -130,7 +129,7 @@ export const calcularPainelIncorporado = createServerFn({ method: "POST" })
     const cartoes = data.cartoes.filter((c) => gravados.has(c.id)).map((c) => cartaoPedido(gravados.get(c.id)!, c));
     if (!cartoes.length) return {};
     // Mesmo cálculo e cache do painel normal (chave já inclui o cliente); quem vê é o próprio cliente.
-    return calcularCartoesServidor(l.db, { clienteId: l.clienteId, de: data.de, ate: data.ate, filtrosVisao: [...l.fixos, ...data.filtrosVisao] }, cartoes, { semDinheiro: false });
+    return calcularCartoesServidor(l.db, { clienteId: l.clienteId, de: data.de, ate: data.ate, filtrosVisao: [...l.fixos, ...data.filtrosVisao] }, cartoes, { semDinheiro: false }, { usarCache: true });
   });
 
 export const itensDiaIncorporado = createServerFn({ method: "POST" })
