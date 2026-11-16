@@ -39,6 +39,7 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
   const url = token ? `${window.location.origin}/incorporado/${token}` : "";
 
   const gerar = async () => {
+    if (ocupado) return;
     setOcupado(true);
     try {
       const r = await gerarLinkIncorporado({ data: { clienteId, visaoId, dadosPessoais: link?.dadosPessoais ?? false } });
@@ -48,7 +49,7 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
     } catch (e) { toast.error(msg(e)); } finally { setOcupado(false); setConfirmar(null); }
   };
   const revogar = async () => {
-    if (!link) return;
+    if (!link || ocupado) return;
     setOcupado(true);
     try {
       await revogarLinkIncorporado({ data: { clienteId, id: link.id } });
@@ -108,9 +109,9 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
         )}
 
         <div className="flex flex-wrap gap-2">
-          {!link && <Button onClick={() => void gerar()} disabled={ocupado}><Link2 className="mr-1 h-4 w-4" />Gerar link</Button>}
-          {link && <Button variant="outline" onClick={() => setConfirmar("novo")} disabled={ocupado}><RefreshCw className="mr-1 h-4 w-4" />Gerar novo</Button>}
-          {link && <Button variant="outline" className="text-destructive" onClick={() => setConfirmar("revogar")} disabled={ocupado}><ShieldOff className="mr-1 h-4 w-4" />Revogar link</Button>}
+          {!link && <Button onClick={() => void gerar()}><Link2 className="mr-1 h-4 w-4" />Gerar link</Button>}
+          {link && <Button variant="outline" onClick={() => setConfirmar("novo")}><RefreshCw className="mr-1 h-4 w-4" />Gerar novo</Button>}
+          {link && <Button variant="outline" className="text-destructive" onClick={() => setConfirmar("revogar")}><ShieldOff className="mr-1 h-4 w-4" />Revogar link</Button>}
         </div>
       </div>
 
