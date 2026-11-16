@@ -7,7 +7,11 @@ import type { CartaoGrafico, CampoRef } from "./graficos";
 /** Único endereço que pode exibir o link numa moldura (iframe). */
 export const ORIGEM_MOLDURA = "https://app.eloracrm.com.br";
 export const CSP_INCORPORADO = `frame-ancestors ${ORIGEM_MOLDURA}`;
-export const PREFIXO_INCORPORADO = "/incorporado/";
+export const PREFIXO_INCORPORADO = "/incorporado";
+/** Rota do link: o token vai depois do "#", que o navegador nunca envia ao servidor. */
+export const ehRotaIncorporada = (pathname: string) => pathname === PREFIXO_INCORPORADO || pathname.startsWith(`${PREFIXO_INCORPORADO}/`);
+/** Mascara qualquer trecho com cara de token (registros de erro nunca levam o link). */
+export const mascararToken = (s: string) => s.replace(/(incorporado[/#])[A-Za-z0-9_-]{20,}/g, "$1[oculto]").replace(/[A-Za-z0-9_-]{40,64}/g, "[oculto]");
 
 const PESSOAIS = new Set(["contato|nome", "contato|telefone", "card|id"]);
 const ehPessoal = (r?: CampoRef | null) => Boolean(r && PESSOAIS.has(`${r.fonte}|${r.campo}`));
@@ -18,9 +22,9 @@ export function cartaoComDadosPessoais(c: CartaoGrafico): boolean {
   return ehPessoal(c.dimensao) || ehPessoal(c.serie) || c.agrupar.some(ehPessoal) || c.camposData.some(ehPessoal);
 }
 
-/** Blocos que o link mostra: sem os ocultos da visão e, sem liberação, sem os que têm dados pessoais. */
-export function cartoesDoLink(cartoes: CartaoGrafico[], ocultos: string[], dadosPessoais: boolean): CartaoGrafico[] {
-  return cartoes.filter((c) => !ocultos.includes(c.id) && (dadosPessoais || !cartaoComDadosPessoais(c)));
+/** Blocos que o link mostra: os mesmos do painel (sem os ocultos da visão); com "ocultar dados de pacientes", sem os de nome/telefone. */
+export function cartoesDoLink(cartoes: CartaoGrafico[], ocultos: string[], ocultarPessoais: boolean): CartaoGrafico[] {
+  return cartoes.filter((c) => !ocultos.includes(c.id) && !(ocultarPessoais && cartaoComDadosPessoais(c)));
 }
 
 const chaveMedida = (x: { fonte: string; medida?: string; campoMedida?: CampoRef | null; serie?: CampoRef | null; painel?: string }) =>
