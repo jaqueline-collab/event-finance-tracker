@@ -22,7 +22,7 @@ async function exigirSuperAdmin(db: any) {
 export const listarLinksIncorporados = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<{ visoes: { id: string; nome: string }[]; links: { id: string; visaoId: string; dadosPessoais: boolean; criadoEm: string; ultimoAcessoEm: string | null }[] }> => {
     await exigirSuperAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
