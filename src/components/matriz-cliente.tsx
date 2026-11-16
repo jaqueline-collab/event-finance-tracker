@@ -23,6 +23,8 @@ function ordenarPorEstado<T extends { chave: string }>(cols: T[], e: EstadoColun
 import { periodoDe, type Periodo } from "@/lib/painel-visual";
 import type { ColunaMatriz, Formato, TipoColuna } from "@/lib/matriz";
 import { FiltroCampos } from "@/components/filtro-campos";
+import { InfoTitulo } from "@/components/info-titulo";
+import { textoColuna } from "@/lib/textos-info";
 import { separarFiltros, type FiltroCampo } from "@/lib/campos-elora";
 
 type Dados = Awaited<ReturnType<typeof lerMatriz>>;
@@ -201,9 +203,10 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
           <thead className="sticky top-0 z-10 bg-card">
             <tr>
               <th className="sticky left-0 z-20 border-b bg-card px-3 py-2.5 text-left font-medium">
-                <button type="button" className="flex items-center gap-1" onClick={() => ordenar("dia")}>
+                <span className="inline-flex items-center gap-1"><button type="button" className="flex items-center gap-1" onClick={() => ordenar("dia")}>
                   Dia {ordemAtual?.col === "dia" && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                 </button>
+                <InfoTitulo titulo="Dia" texto={textoColuna("Dia")} /></span>
               </th>
               {colunasTela.map((c, i) => (
                 <th key={c.chave} className={`border-b px-3 py-2.5 text-center font-medium ${!c.ativo ? "opacity-50" : ""}`}>
@@ -214,6 +217,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
                       {c.nome}
                       {ordemAtual?.col === c.chave && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                     </button>
+                    <InfoTitulo titulo={c.nome} texto={textoColuna(c.nome)} />
                     {editavel && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

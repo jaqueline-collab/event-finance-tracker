@@ -15,7 +15,7 @@ export const FONTES_CATALOGO: { fonte: FonteCampo; nome: string }[] = [
   { fonte: "contato", nome: "Contato" },
   { fonte: "atendimento", nome: "Atendimento" },
   { fonte: "card", nome: "Card" },
-  { fonte: "utm", nome: "UTM" },
+  { fonte: "utm", nome: "Campanha de anúncio" },
 ];
 
 export type CampoCatalogo = {
@@ -97,9 +97,9 @@ const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
   ],
 };
 const UTM: Fixo[] = [
-  { campo: "source", nome: "utm_source", tipo: "lista", ler: (r) => r.utm_source },
-  { campo: "medium", nome: "utm_medium", tipo: "lista", ler: (r) => r.utm_medium },
-  { campo: "campaign", nome: "utm_campaign", tipo: "lista", ler: (r) => r.utm_campaign },
+  { campo: "source", nome: "Campanha de anúncio (origem)", tipo: "lista", ler: (r) => r.utm_source },
+  { campo: "medium", nome: "Campanha de anúncio (meio)", tipo: "lista", ler: (r) => r.utm_medium },
+  { campo: "campaign", nome: "Campanha de anúncio (nome)", tipo: "lista", ler: (r) => r.utm_campaign },
 ];
 
 export const preenchidoCampo = (v: unknown): boolean =>
@@ -189,7 +189,7 @@ export function montarCatalogo(base: BaseCampos, ajustes: AjusteCampo[] = []): G
     utm: [
       ...fixos("utm", UTM, base.contatos),
       ...[...new Set(base.contatos.flatMap((c) => Object.keys(c.utm ?? {})))]
-        .filter((k) => !UTM.some((u) => u.campo === k || u.nome === `utm_${k}`))
+        .filter((k) => !UTM.some((u) => u.campo === k))
         .map((k) => campoDe("utm", k, k, null, base.contatos.map((c) => c.utm?.[k] ?? null)))
         .filter((c) => c.preenchidos > 0)
         .sort((a, b) => a.nome.localeCompare(b.nome)),
