@@ -46,6 +46,7 @@ try { await calcularPeloLink(db, tA, { ...PER[0], cartoes: [], filtrosVisao: [] 
 console.log("token inventado abre?", await abrirLink(db, novoToken(), false));
 // link de privacidade padrão
 const vR = doA.find((v: any) => v.nome === "Agendamentos") ?? doA[0];
+await db.from("elora_paineis_incorporados").update({ revogado_em: new Date().toISOString() }).eq("visao_id", vR.id).is("revogado_em", null);
 const tP = await criar(A, vR.id, false);
 const lp = await abrirLink(db, tP, false);
 console.log("privacidade padrão em", vR.nome, ":", lp?.cartoes.map((c) => c.tipo).join(","));
