@@ -315,7 +315,7 @@ type FonteIncorporada = {
 let fonteIncorporada: FonteIncorporada | null = null;
 export function usarFonteIncorporada(f: FonteIncorporada | null) { fonteIncorporada = f; }
 function lerItensDia(clienteId: string, dia: string, cartao: CartaoGrafico, filtrosVisao: FiltroCampo[]) {
-  return fonteIncorporada ? fonteIncorporada.itensDia(dia, cartao, filtrosVisao) : lerItensDia(clienteId, dia, cartao, filtrosVisao);
+  return fonteIncorporada ? fonteIncorporada.itensDia(dia, cartao, filtrosVisao) : itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } });
 }
 
 type Pedido = { cartao: CartaoGrafico; ok: (x: any) => void; erro: (e: unknown) => void };
