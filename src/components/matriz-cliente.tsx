@@ -9,12 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { lerMatriz, lerRegrasManuais, salvarRegraManual, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
+import { salvarOrdemLinhasMatriz, lerMatriz, lerRegrasManuais, salvarRegraManual, ordenarColunasMatriz, previaColunaMatriz, salvarCelulaManual, salvarColunaMatriz, salvarFiltrosPadraoMatriz } from "@/lib/matriz.functions";
 import { avisoSemHistorico, formatarMoeda } from "@/lib/formatos";
 import { lerNumeroManual, ROTULO_QUEM_PREENCHE, type FormatoManual, type QuemPreenche } from "@/lib/coluna-manual";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { BarraTabela } from "@/components/barra-tabela";
-import { alternarColunasAds, ehColunaAds, type EstadoColunas } from "@/lib/colunas-tabela";
+import { alternarColunasAds, cicloOrdem, compararValores, ehColunaAds, type EstadoColunas, type OrdemTabela } from "@/lib/colunas-tabela";
 
 function ordenarPorEstado<T extends { chave: string }>(cols: T[], e: EstadoColunas): T[] {
   const pos = new Map(e.ordem.map((k, i) => [k, i]));
@@ -70,7 +70,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
   // padrão da visão: aplicado uma vez ao abrir; depois o filtro é só da sessão
   const [padrao, setPadrao] = useState<FiltroCampo[] | null>(null);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
-  const [ordem, setOrdem] = useState<{ chave: string; desc: boolean }>({ chave: "dia", desc: true });
+  const [ordem, setOrdem] = useState<OrdemTabela>(null);
   const [editor, setEditor] = useState<ColunaMatriz | "nova" | null>(null);
   const [v, setV] = useState(0);
   const [regras, setRegras] = useState<Awaited<ReturnType<typeof lerRegrasManuais>> | null>(null);
@@ -101,17 +101,17 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
   }, [clienteId, periodo.de, periodo.ate, JSON.stringify(filtros), v]);
 
 
+  const padraoOrdem: OrdemTabela = d?.ordemLinhas ?? { col: "dia", desc: true };
+  // quem vê ordena só na tela; sem escolha, vale o padrão (dia mais recente primeiro ou o salvo pela super admin)
+  const ordemAtual = ordem ?? padraoOrdem;
   const linhas = useMemo(() => {
     if (!d) return [];
     const l = [...d.linhas];
-    l.sort((a, b) => {
-      const x = ordem.chave === "dia" ? a.dia : (a.celulas[ordem.chave]?.valor ?? -Infinity);
-      const y = ordem.chave === "dia" ? b.dia : (b.celulas[ordem.chave]?.valor ?? -Infinity);
-      const r = x < y ? -1 : x > y ? 1 : 0;
-      return ordem.desc ? -r : r;
-    });
+    const o = ordemAtual ?? { col: "dia", desc: true };
+    const val = (x: (typeof l)[number]) => (o.col === "dia" ? x.dia : x.celulas[o.col]?.valor == null ? "" : String(x.celulas[o.col]!.valor));
+    l.sort((a, b) => compararValores(val(a), val(b), o.desc));
     return l;
-  }, [d, ordem]);
+  }, [d, JSON.stringify(ordemAtual)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (erro && !d) return <p className="rounded-xl border p-6 text-sm text-muted-foreground">Não foi possível carregar a matriz agora.</p>;
   if (!d) return <Skeleton className="h-96 w-full rounded-xl" />;
@@ -144,7 +144,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
   };
   const alternar = (c: ColunaMatriz) => void salvarOrdem(d.todasColunas.map((x) => (x.chave === c.chave ? { ...x, ativo: !x.ativo } : x)));
 
-  const ordenar = (chave: string) => setOrdem((o) => ({ chave, desc: o.chave === chave ? !o.desc : true }));
+  const ordenar = (chave: string) => setOrdem(cicloOrdem(ordemAtual, chave, padraoOrdem) ?? padraoOrdem);
 
   const padraoAtual = padrao ?? [];
   const mudouPadrao = JSON.stringify(filtros) !== JSON.stringify(padraoAtual);
@@ -165,7 +165,12 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <BarraTabela colunas={colsBarra} estado={estadoValido} onEstado={setEstadoCols} padrao={padraoCols} semFixar
-          extras={chavesAds.length > 0 ? <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label> : undefined}
+          extras={<>
+            {editavel && JSON.stringify(ordemAtual) !== JSON.stringify(padraoOrdem) && (
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { const o = ordemAtual!; salvarOrdemLinhasMatriz({ data: { clienteId, ordem: o } }).then(() => { toast.success("Ordem padrão salva."); setOrdem(null); recarregar(); }).catch((e) => toast.error(msg(e))); }}>Salvar ordem como padrão</Button>
+            )}
+            {chavesAds.length > 0 && <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label>}
+          </>}
           onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
           onExportar={lerIncorporado ? undefined : (f) => {
           const cols = colunasTela.filter(c => ativasPorChave.has(c.chave));
@@ -197,17 +202,17 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
             <tr>
               <th className="sticky left-0 z-20 border-b bg-card px-3 py-2.5 text-left font-medium">
                 <button type="button" className="flex items-center gap-1" onClick={() => ordenar("dia")}>
-                  Dia {ordem.chave === "dia" && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+                  Dia {ordemAtual?.col === "dia" && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                 </button>
               </th>
               {colunasTela.map((c, i) => (
                 <th key={c.chave} className={`border-b px-3 py-2.5 text-center font-medium ${!c.ativo ? "opacity-50" : ""}`}>
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COR[c.tipo] }} title={ROTULO_TIPO[c.tipo]} />
-                    {c.tipo === "manual" && <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Preenchida à mão" />}
+                    {c.tipo === "manual" && !lerIncorporado && <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Preenchida à mão" />}
                     <button type="button" className="flex items-center gap-1 whitespace-nowrap" onClick={() => ativasPorChave.has(c.chave) && ordenar(c.chave)}>
                       {c.nome}
-                      {ordem.chave === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+                      {ordemAtual?.col === c.chave && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                     </button>
                     {editavel && (
                       <DropdownMenu>

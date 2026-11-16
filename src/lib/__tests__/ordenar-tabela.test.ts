@@ -12,6 +12,12 @@ describe("ordenar colunas", () => {
     expect(o).toEqual({ col: "nome", desc: true });
     expect(cicloOrdem(o, "nome", p)).toEqual(p);
   });
+  it("na coluna do padrão (Dia mais recente primeiro) o clique inverte e depois volta", () => {
+    const p = { col: "dia", desc: true };
+    const o = cicloOrdem(p, "dia", p);
+    expect(o).toEqual({ col: "dia", desc: false });
+    expect(cicloOrdem(o, "dia", p)).toEqual(p);
+  });
   it("datas ordenam pela data real, não pelo texto", () => {
     expect(ordenar(["02/11/2026", "15/10/2026", "01/12/2025"])).toEqual(["01/12/2025", "15/10/2026", "02/11/2026"]);
     expect(ordenar(["10/11/26 13:33", "10/11/26 09:05"])).toEqual(["10/11/26 09:05", "10/11/26 13:33"]);

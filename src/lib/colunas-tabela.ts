@@ -58,6 +58,8 @@ export type OrdemTabela = { col: string; desc: boolean } | null;
 /** Clique no título: crescente → decrescente → padrão da tabela (o padrão nunca é gravado por quem vê). */
 export function cicloOrdem(atual: OrdemTabela, col: string, padrao: OrdemTabela = null): OrdemTabela {
   if (!atual || atual.col !== col) return { col, desc: false };
+  // na coluna do padrão, o clique inverte o sentido; o próximo volta ao padrão
+  if (padrao && padrao.col === col && padrao.desc === atual.desc) return { col, desc: !atual.desc };
   if (!atual.desc) return { col, desc: true };
   return padrao && padrao.col === col && padrao.desc ? null : padrao;
 }

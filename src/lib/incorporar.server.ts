@@ -80,8 +80,10 @@ export async function matrizPeloLink(db: any, t: string, p: { de: string; ate: s
   const r = await comCacheCalculo(db, clienteId, ["matriz", false, p.de, p.ate, p.filtros, p.campos], () =>
     montarMatrizCliente(db, clienteId, { de: p.de, ate: p.ate }, p.filtros as any, { comCatalogo: false, campos: p.campos as any, ctx: criarContexto() }),
   );
+  const { data: cfg } = await db.from("elora_relatorio_corte_config").select("matriz_ordem_linhas").eq("cliente_id", clienteId).maybeSingle();
+  const { ordemLinhasValida } = await import("@/lib/matriz.functions");
   return {
-    podeEditar: false, filtrosPadrao: a.padrao, colunas: r.colunas, todasColunas: r.colunas, linhas: r.linhas, total: r.total, cobertura: r.cobertura,
+    podeEditar: false, filtrosPadrao: a.padrao, ordemLinhas: ordemLinhasValida(cfg?.matriz_ordem_linhas), colunas: r.colunas, todasColunas: r.colunas, linhas: r.linhas, total: r.total, cobertura: r.cobertura,
     semHistoricoAntes: r.semHistoricoAntes, colunasSemHistorico: r.colunasSemHistorico, erros: [], opcoes: r.opcoes, temCards: r.temCards, etapas: r.etapas, catalogo: r.catalogo,
   };
 }

@@ -2580,6 +2580,7 @@ export type Database = {
           matriz_filtros_padrao: Json
           matriz_nome: string | null
           matriz_ordem: number | null
+          matriz_ordem_linhas: Json | null
           semana_inicia_segunda: boolean
         }
         Insert: {
@@ -2593,6 +2594,7 @@ export type Database = {
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
           matriz_ordem?: number | null
+          matriz_ordem_linhas?: Json | null
           semana_inicia_segunda?: boolean
         }
         Update: {
@@ -2606,6 +2608,7 @@ export type Database = {
           matriz_filtros_padrao?: Json
           matriz_nome?: string | null
           matriz_ordem?: number | null
+          matriz_ordem_linhas?: Json | null
           semana_inicia_segunda?: boolean
         }
         Relationships: [
