@@ -3221,6 +3221,13 @@ export type Database = {
         Args: { _cliente_id: string; _dono: string }
         Returns: undefined
       }
+      elora_ultimo_humano_sessao: {
+        Args: { _cliente_id: string; _excluir?: string[] }
+        Returns: {
+          humano_user: string
+          sessao_id: string
+        }[]
+      }
       elora_versoes_cache: { Args: { _cliente_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_equipe_interna: { Args: never; Returns: boolean }
