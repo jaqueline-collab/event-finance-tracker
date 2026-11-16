@@ -1,10 +1,10 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Settings, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, GripVertical, MoreHorizontal, Pin, Redo2, RotateCcw, Undo2, X } from "lucide-react";
 import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { alinhamento, colunaNumerica, colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
+import { cicloOrdem, compararValores, type OrdemTabela, alinhamento, colunaNumerica, colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
 import { CAMPO_STATUS_LEAD, ROTULO_STATUS_PADRAO, corEtiqueta } from "@/lib/status-lead";
 import { ListaOrdenavel, moverPara } from "@/components/lista-ordenavel";
 import { estiloCor } from "@/lib/cores-status";
@@ -146,6 +146,7 @@ export function CartoesGraficos({
         </div>
       )}
       {cartoes.length > 0 && (
+        <SalvarOrdemCtx.Provider value={editavel ? (id, ordem) => void gravar(cartoes.map((x) => (x.id === id ? { ...x, ordemTabela: ordem } : x)), "Ordem padrão salva.") : null}>
         <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoSoltarBloco}>
           <SortableContext items={cartoes.map((c) => c.id)} strategy={rectSortingStrategy}>
         <div ref={grade} className="grid grid-cols-1 gap-4" style={larga ? { gridTemplateColumns: "repeat(12, minmax(0, 1fr))", gridAutoRows: `minmax(${LINHA_PX - 16}px, auto)` } : undefined}>
@@ -258,6 +259,7 @@ export function CartoesGraficos({
         </div>
           </SortableContext>
         </DndContext>
+        </SalvarOrdemCtx.Provider>
       )}
       {editor && (
         <EditorCartao
@@ -286,6 +288,9 @@ function BlocoOrdenavel({ id, ativo, className, style, children }: { id: string;
     </div>
   );
 }
+
+/** Gravação da ordem padrão das tabelas: só existe para a super admin em Editar. */
+const SalvarOrdemCtx = createContext<((cartaoId: string, ordem: OrdemTabela) => void) | null>(null);
 
 function useLarga() {
   const [larga, setLarga] = useState(false);
@@ -1200,20 +1205,23 @@ function celulaTexto(v: string) {
 }
 
 /** Uma linha por contato/card: ordenar, agrupar, ocultar colunas, paginar e exportar (CSV, só o que está visível). */
-export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<CartaoGrafico, "titulo">; r: ResultadoCartao; ordemInicial?: { col: string; desc: boolean } | null }) {
+export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<CartaoGrafico, "titulo"> & Partial<Pick<CartaoGrafico, "id" | "ordemTabela">>; r: ResultadoCartao; ordemInicial?: OrdemTabela }) {
+  const salvarOrdem = useContext(SalvarOrdemCtx);
+  const padraoOrdem: OrdemTabela = cartao.ordemTabela !== undefined ? cartao.ordemTabela ?? null : ordemInicial;
   const cols = r.colunasItens ?? [];
   const chaveCols = cols.map((c) => `${c.chave}:${c.oculta ? 1 : 0}${c.fixa ? 1 : 0}`).join("|");
   // Quem vê ajusta as colunas aqui sem gravar; a configuração salva do bloco é o ponto de partida.
   const [estado, setEstado] = useState<EstadoColunas>(() => estadoInicial(cols));
   useEffect(() => setEstado(estadoInicial(cols)), [chaveCols]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [ordem, setOrdem] = useState<{ col: string; desc: boolean } | null>(ordemInicial);
+  const [ordem, setOrdem] = useState<OrdemTabela>(padraoOrdem);
+  useEffect(() => setOrdem(padraoOrdem), [JSON.stringify(padraoOrdem)]); // eslint-disable-line react-hooks/exhaustive-deps
   const [agrupar, setAgrupar] = useState<string>("");
   const [pagina, setPagina] = useState(0);
   const vis = colunasVisiveis(cols, estado);
   const etiquetas = new Set(r.etiquetas ?? []);
   const linhas = useMemo(() => {
     const l = [...(r.itens ?? [])];
-    if (ordem) l.sort((a, b) => { const va = a.brutos?.[ordem.col] ?? a.valores[ordem.col] ?? ""; const vb = b.brutos?.[ordem.col] ?? b.valores[ordem.col] ?? ""; const na = Number(va), nb = Number(vb); const s = va !== "" && vb !== "" && Number.isFinite(na) && Number.isFinite(nb) ? na - nb : va.localeCompare(vb, "pt-BR", { numeric: true }); return ordem.desc ? -s : s; });
+    if (ordem) l.sort((a, b) => compararValores(a.brutos?.[ordem.col] ?? a.valores[ordem.col], b.brutos?.[ordem.col] ?? b.valores[ordem.col], ordem.desc));
     // agrupar: grupos na ordem do funil quando houver; linha sem valor recebe "Sem informação" e vai para o fim
     if (agrupar) l.sort((a, b) => compararGrupo(a.valores[agrupar] ?? "", b.valores[agrupar] ?? "", r.ordensColunas?.[agrupar]));
     return l;
@@ -1243,12 +1251,13 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
   return (
     <div className="space-y-2">
       <BarraTabela colunas={cols} estado={estado} onEstado={setEstado} padrao={estadoInicial(cols)}
-        agruparOpcoes={vis} agrupar={agrupar} onAgrupar={setAgrupar} onExportar={fonteIncorporada ? undefined : exportar} />
+        agruparOpcoes={vis} agrupar={agrupar} onAgrupar={setAgrupar} onExportar={fonteIncorporada ? undefined : exportar}
+        extras={salvarOrdem && cartao.id && JSON.stringify(ordem) !== JSON.stringify(padraoOrdem) ? <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => salvarOrdem(cartao.id!, ordem)}>Salvar ordem como padrão</Button> : undefined} />
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead><tr>{vis.map((c) => (
             <th key={c.chave} style={estiloFixa(c.chave)} className={`whitespace-nowrap border-b px-2 py-1.5 font-medium ${alinhamento(numericas.has(c.chave))} ${c.fixa ? "sticky z-10 truncate bg-card" : ""}`}>
-              <button type="button" className="inline-flex items-center gap-1" onClick={() => setOrdem((o) => ({ col: c.chave, desc: o?.col === c.chave ? !o.desc : false }))}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}</button>
+              <button type="button" aria-sort={ordem?.col === c.chave ? (ordem.desc ? "descending" : "ascending") : "none"} title="Ordenar" className="inline-flex items-center gap-1" onClick={() => { setOrdem((o) => cicloOrdem(o, c.chave, padraoOrdem)); setPagina(0); }}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" aria-label="decrescente" /> : <ArrowUp className="h-3 w-3" aria-label="crescente" />)}</button>
             </th>
           ))}</tr></thead>
           <tbody>
