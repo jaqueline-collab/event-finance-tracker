@@ -54,7 +54,6 @@ for (const [nome, key] of [["visitante", process.env.SUPABASE_PUBLISHABLE_KEY!]]
   const r = await c.from("elora_paineis_incorporados").select("id").limit(1);
   console.log(nome, "lê a tabela?", r.error ? `não (${r.error.code})` : `linhas: ${r.data?.length}`);
 }
-const { data: priv } = await db.rpc("pg_has", {}).then(() => ({ data: null }), () => ({ data: null }));
 // revogado + token inválido
 await db.from("elora_paineis_incorporados").update({ revogado_em: new Date().toISOString() }).eq("id", ins.id);
 console.log("revogado abre?", await abrirLink(db, t, false));
