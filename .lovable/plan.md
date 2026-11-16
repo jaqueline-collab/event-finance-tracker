@@ -27,7 +27,7 @@ Regras gerais: dias e horários no horário de Brasília. Linguagem simples, sem
 ## Resultados (blocos)
 | Bloco | O que é | Como é contado | De onde vem e qual data | Avisos |
 |---|---|---|---|---|
-| Novos leads | Contatos novos no período. | Cada contato novo conta 1. Importados em lote só entram se você filtrar por Origem. Compara com o período anterior de mesmo tamanho. | Pelo dia em que o contato foi criado. | |
+| Novos leads | Contatos novos no período. | Cada contato novo conta 1. Contatos importados em lote não contam como novos leads. Compara com o período anterior de mesmo tamanho. | Pelo dia em que o contato foi criado. | |
 | Conversas realizadas | Igual à coluna do Relatório diário, somada no período. | Mesma regra da coluna. | Pelo dia da mensagem. | |
 | TMR | Tempo médio até a primeira resposta. | Média dos atendimentos do período que têm esse tempo; o rodapé mostra quantos entraram. | Pelo dia de início do atendimento. | Atendimentos sem esse tempo ficam fora da média. |
 | TMA | Tempo médio de atendimento. | Média dos atendimentos do período que têm esse tempo; o rodapé mostra quantos entraram. | Pelo dia de início do atendimento. | Atendimentos sem esse tempo ficam fora da média. |
@@ -36,7 +36,7 @@ Regras gerais: dias e horários no horário de Brasília. Linguagem simples, sem
 | Conversas por dia | Conversas realizadas por dia, separadas em Usuário do sistema e Bot. | Mesma regra das colunas. | Pelo dia da mensagem. | |
 | Principais campanhas | Contatos por campanha de anúncio. | Contatos do período com campanha de anúncio, pelo nome da campanha. | Pelo dia em que o contato foi criado. | |
 | Atendimentos por canal | Atendimentos por canal de entrada. | Cada atendimento iniciado no período conta 1 no seu canal. | Pelo dia de início do atendimento. | Costuma ser menor que Conversas realizadas: aqui cada atendimento conta uma vez; em Conversas, ele conta em cada dia com mensagem. |
-| Conversas por atendente | Atendimentos e conversas de cada atendente. | (texto depende da decisão abaixo) | Atendimentos pelo dia de início; conversas pelo dia da mensagem. | |
+| Conversas por atendente | Atendimentos e conversas de cada atendente. | Atendente da conversa = a última pessoa da equipe que respondeu, sem contar usuários de suporte (se a última foi de suporte, vale a anterior). Sem resposta de pessoa da equipe: "Sem informação". | Atendimentos pelo dia de início; conversas pelo dia da mensagem. | |
 
 **Colunas das tabelas dos blocos**
 - **Canal** (Atendimentos por canal): nome do canal de entrada.
@@ -53,7 +53,7 @@ Regras gerais: dias e horários no horário de Brasília. Linguagem simples, sem
 | Procedimentos com data no período | Cards com data do procedimento dentro do período, e a soma dos valores. | Cada card conta 1; valor = soma do valor do card. | Pela data do procedimento registrada no card. | Card sem valor não entra na soma. |
 | Agendamentos e vendas | Lista dos cards contados nos dois blocos acima. | Um card por linha, mesmo se tiver consulta e procedimento no período. | Pela data da consulta ou do procedimento. | O total de linhas pode ser menor que a soma dos dois blocos. |
 
-**Colunas de "Agendamentos e vendas"**: Nome (do contato) · Telefone · Origem (de onde o contato chegou) · Canal (canal do atendimento) · Fase do Cliente (etapa atual do card) · Procedimentos (procedimento registrado no card) · Data da consulta · Valor da consulta · Data do procedimento · Valor do Procedimento (valor do card) · Campanha de anúncio: origem · Campanha de anúncio: nome · Campanha de anúncio: página de entrada. Os três últimos títulos hoje dizem "UTM"; troco só o texto do "i", sem mudar os títulos, a menos que você peça.
+**Colunas de "Agendamentos e vendas"**: Nome (do contato) · Telefone · Origem (de onde o contato chegou) · Canal (canal do atendimento) · Fase do Cliente (etapa atual do card) · Procedimentos (procedimento registrado no card) · Data da consulta · Valor da consulta (campo "Valor da consulta" do card) · Data do procedimento · Valor do Procedimento (campo "Valor" principal do card) · Campanha de anúncio (origem) · Campanha de anúncio (nome) · Campanha de anúncio (página de entrada). Os títulos dessas três colunas deixam de dizer "UTM".
 
 ## Agenda (blocos)
 | Bloco | O que é | Como é contado | De onde vem e qual data | Avisos |
@@ -67,13 +67,17 @@ Regras gerais: dias e horários no horário de Brasília. Linguagem simples, sem
 ## Blocos novos do construtor (texto automático)
 "{Medida} de {fonte}{, agrupado por {campo}}, pela {campo de data} no período." Exemplo: "Contagem de contatos agrupada por Origem, pela data de criação no período."
 
-## Decisão necessária: atendente
-Hoje o código usa duas regras diferentes:
-- **Relatório diário:** última pessoa da equipe que respondeu naquele dia, sem contar usuários de suporte. Sem essa resposta, usa o atendente atribuído ao atendimento no Elora App. Não usa o responsável do card.
-- **Bloco "Conversas por atendente":** usa o atendente atribuído ao atendimento. Só quando esse atendente é de suporte, usa a última pessoa da equipe que respondeu.
+## Etapas de execução
+1. **Regra única de atendente (opção A)** no Relatório diário, no filtro por atendente, em Conversas por atendente e em Resultados: o atendente é a última pessoa da equipe que respondeu, sem contar usuários de suporte (se a última foi de suporte, vale a anterior). Se ninguém da equipe respondeu, fica "Sem informação". O atendente atribuído ao atendimento deixa de ser usado como reserva.
+   - **Conversas:** vale a última resposta da equipe naquele atendimento, naquele dia.
+   - **Atendimentos:** vale a última resposta da equipe em todo o atendimento.
+   - O total de conversas e o de atendimentos não mudam; muda só a divisão por atendente.
+2. **Retrato antes e depois** por atendente, nos dois períodos de sempre, com conferência de que os totais são iguais. **Paro aqui para a sua aprovação.**
+3. Depois da aprovação: trocar "UTM" por "Campanha de anúncio (origem / nome / página de entrada)" nos títulos das colunas de "Agendamentos e vendas" do Dr. Ricardo.
+4. Gravar os textos acima e ligar o ícone "i" nas colunas e blocos, como no plano da Parte B. Os filtros em vigor entram no fim do balão, e as partes vazias não aparecem.
+5. Testes da regra de atendente (suporte por último, ninguém da equipe respondeu, totais iguais) e conferência em 390, 834 e 1440 nos dois temas. Não publicar.
 
-A regra que você descreveu (última pessoa da equipe que respondeu, sem contar suporte; "Sem informação" = sem resposta de pessoa da equipe) **não é o que nenhuma das duas faz exatamente**. Opções:
-- **A)** Gravar o texto da sua regra e, numa entrega separada, ajustar as duas telas para segui-la. Os números por atendente podem mudar.
-- **B)** Gravar textos que descrevem o que cada tela faz hoje, sem mudar números.
-
-Depois da sua aprovação (e da escolha A ou B), gravo o dicionário e ligo o ícone "i" como no plano da Parte B.
+## Detalhes técnicos
+- Matriz: em `indicadores-motor.ts`, tirar a reserva `responsavel_id/nome` da sessão; o par vem de `elora_conversas_pares` (já ignora suporte).
+- Painel visual: em `painel-visual.server.ts`/`painel-visual.ts`, o atendente do par (dia) e do atendimento passa a vir da última mensagem da equipe que não seja de suporte; sem atribuído como reserva. O filtro por atendente usa o mesmo cálculo.
+- O cache é invalidado por versão, para não sobrar número antigo.
