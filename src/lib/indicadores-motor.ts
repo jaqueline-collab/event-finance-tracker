@@ -397,9 +397,10 @@ export function calcularPadraoPorCorteDetalhado(
       if (!h || c.ultimoHumano.em > h.em) humanoSessao.set(c.s, c.ultimoHumano);
     }
   const atendenteDaSessao = (s: SessaoCorte | undefined, humano: { user: string } | null) => {
-    let agente = humano ? (cfg.agentes[humano.user] ?? null) : null;
-    if (!agente && s?.responsavel_id) agente = cfg.agentes[s.responsavel_id] ?? null;
-    const nome = agente?.nome || s?.responsavel_nome || "";
+    // Regra única: atendente = última pessoa da equipe que respondeu (sem suporte). Sem resposta = vazio; nunca o atribuído.
+    void s;
+    const agente = humano ? (cfg.agentes[humano.user] ?? null) : null;
+    const nome = agente?.nome || "";
     if (ehOculto(agente, nome)) return { nome: "", ignorado: false };
     return { nome, ignorado: ehIgnorado(agente, nome) };
   };
