@@ -62,11 +62,13 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
       const mapaCanais = await (await import("./nome-canal.server")).lerMapaCanais(adm, id);
       const ehSuporte = await (await import("./suporte.server")).lerEhSuporte(adm);
       const { nomeVisivel } = await import("./suporte");
+      const humanoSessao = Object.fromEntries(await (await import("@/lib/elora-espelho.server")).lerUltimoHumanoSessao(adm, id));
       const nomes = new Map(apoio.map((a: any) => [`${a.tipo}:${a.externo_id}`, a.nome as string | null]));
       base = {
         em: Date.now(),
         chave: ultimaSync,
-        nomesUsuario: Object.fromEntries(apoio.filter((a: any) => a.tipo === "usuario").map((a: any) => [String(a.externo_id), a.nome as string | null])),
+        humanoSessao,
+        nomesUsuario: Object.fromEntries(apoio.filter((a: any) => a.tipo === "usuario").map((a: any) => [String(a.externo_id), nomeVisivel(ehSuporte, a.nome as string | null) || null])),
         contatos: ct.map((c: any) => ({
           id: String(c.externo_id),
           criado_em: c.criado_em,
@@ -91,10 +93,9 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
 
     const mensagens: MensagemP[] = await mensagensP;
     // Atendimento atribuído a usuário de suporte: vale a resposta humana mais recente de outra pessoa (já sem suporte nas mensagens).
-    const humano = new Map<string, { em: string; user: string }>();
-    for (const m of mensagens as any[]) if (m.user_id && m.enviada_em) { const h = humano.get(m.sessao_id); if (!h || m.enviada_em > h.em) humano.set(m.sessao_id, { em: m.enviada_em, user: m.user_id }); }
+    // Regra única: atendente do atendimento = última pessoa da equipe que respondeu nele (sem suporte); sem resposta = "Sem informação".
     const nomesU: Record<string, string | null> = (base as any).nomesUsuario ?? {};
-    const atendimentos = base.atendimentos.map((a: any) => (a.suporte ? { ...a, atendente: (humano.get(a.id) && nomesU[humano.get(a.id)!.user]) || SEM_ATENDENTE } : a));
+    const atendimentos = base.atendimentos.map((a: any) => { const u = (base as any).humanoSessao?.[a.id]; return { ...a, atendente: (u && nomesU[u]) || SEM_ATENDENTE }; });
 
     let soContatos: Set<string> | null = null;
     if (campos.length) {
@@ -102,7 +103,7 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
       const { aplicarFiltrosCampos } = await import("@/lib/campos-elora");
       soContatos = aplicarFiltrosCampos(ctx ? (await (await import("@/lib/campos-elora.server")).catalogoDoCliente(adm, id, ctx)).base : await lerBaseCampos(adm, id), campos as any)?.contatos ?? null;
     }
-    const resumo = agregarPainel({ contatos: base.contatos, atendimentos, mensagens }, { de: p.de, ate: p.ate }, filtros, soContatos);
+    const resumo = agregarPainel({ contatos: base.contatos, atendimentos, mensagens }, { de: p.de, ate: p.ate }, filtros, soContatos, nomesU);
      const cobertura = estadoCobertura(p.ate, ["contatos", "atendimentos", "mensagens"], estado ?? []);
      return { disponivel: true as const, ultimaSync, cobertura, ...resumo };
 }

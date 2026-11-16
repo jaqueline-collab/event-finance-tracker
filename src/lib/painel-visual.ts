@@ -205,8 +205,6 @@ export function agregarPainel(
     contatoOk(c) && (!(temDim(filtros.canal) || temDim(filtros.atendente)) || (sessoesPorContato.get(c.id) ?? []).some(sessaoAtributosOk));
 
   const sessoes = base.atendimentos.filter(sessaoOk);
-  const sessoesIds = new Set(sessoes.map((s) => s.id));
-  const sessaoPorId = new Map(sessoes.map((s) => [s.id, s]));
   const leads = base.contatos.filter(leadOk);
   const atendenteDoPar = (x: { humano?: { user: string } }) => (x.humano && nomeUsuario[x.humano.user]) || SEM_ATENDENTE;
   const sessoesConversa = new Set(base.atendimentos.filter(sessaoOkConversa).map((s) => s.id));
@@ -270,7 +268,7 @@ export function agregarPainel(
 
   const opcoes: Record<Dimensao, string[]> = {
     canal: [...new Set(base.atendimentos.map((a) => a.canal))].sort(),
-    atendente: [...new Set(base.atendimentos.map((a) => a.atendente))].sort(),
+    atendente: [...new Set([...base.atendimentos.map((a) => a.atendente), ...Object.values(nomeUsuario).filter((v): v is string => !!v)])].sort(),
     origem: [...new Set(base.contatos.map((c) => c.origem))].sort(),
     etiqueta: [...new Set(base.contatos.flatMap((c) => c.etiquetas))].sort(),
     campanha: [...new Set(base.contatos.map((c) => c.campanha).filter((v): v is string => !!v))].sort(),
