@@ -58,7 +58,11 @@ function Celula({ c, formato, parcial, manual }: { c?: { valor: number | null; e
   );
 }
 
-export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: string; periodo: Periodo; editando: boolean }) {
+export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: {
+  clienteId: string; periodo: Periodo; editando: boolean;
+  /** Link incorporado: lê pelo link, só leitura (sem células manuais, sem exportar). */
+  lerIncorporado?: (a: { de: string; ate: string; filtros: Record<string, unknown>; campos: FiltroCampo[] }) => Promise<Dados>;
+}) {
   const modo = "diaria" as const;
   const [d, setD] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -70,14 +74,14 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
   const [editor, setEditor] = useState<ColunaMatriz | "nova" | null>(null);
   const [v, setV] = useState(0);
   const [regras, setRegras] = useState<Awaited<ReturnType<typeof lerRegrasManuais>> | null>(null);
-  useEffect(() => { lerRegrasManuais({ data: { clienteId } }).then(setRegras).catch(() => setRegras(null)); }, [clienteId, v]);
+  useEffect(() => { if (lerIncorporado) return; lerRegrasManuais({ data: { clienteId } }).then(setRegras).catch(() => setRegras(null)); }, [clienteId, v]);
   const [estadoCols, setEstadoCols] = useState<EstadoColunas>({ ordem: [], ocultas: [], fixas: [] });
   const recarregar = () => setV((x) => x + 1);
 
   useEffect(() => {
     let vivo = true;
     const { diretos, outros } = separarFiltros(filtros, NATIVOS_MATRIZ);
-    lerMatriz({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros: diretos, campos: outros } })
+    (lerIncorporado ? lerIncorporado({ de: periodo.de, ate: periodo.ate, filtros: diretos, campos: outros }) : lerMatriz({ data: { clienteId, de: periodo.de, ate: periodo.ate, filtros: diretos, campos: outros } }))
       .then((r) => {
         if (!vivo) return;
         setErro(null);
@@ -163,7 +167,7 @@ export function MatrizCliente({ clienteId, periodo, editando }: { clienteId: str
         <BarraTabela colunas={colsBarra} estado={estadoValido} onEstado={setEstadoCols} padrao={padraoCols} semFixar
           extras={chavesAds.length > 0 ? <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label> : undefined}
           onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
-          onExportar={(f) => {
+          onExportar={lerIncorporado ? undefined : (f) => {
           const cols = colunasTela.filter(c => ativasPorChave.has(c.chave));
           const corpo = linhas.map(l => [l.dia, ...cols.map(c => { const v = l.celulas[c.chave]; return `${v?.valor ?? ""}`; }), d.cobertura[l.dia]]);
           corpo.push(["Total", ...cols.map(c => `${d.total[c.chave]?.valor ?? ""}`), Object.values(d.cobertura).some(s=>s!=="confirmado") ? "parcial" : "confirmado"]);
