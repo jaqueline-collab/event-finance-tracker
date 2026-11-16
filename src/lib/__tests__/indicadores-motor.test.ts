@@ -195,11 +195,6 @@ describe("colunas padrão por canal/atendente/equipe", () => {
     expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
     expect(L.find((l) => l.conversas_total_dia)?.atendente).toBe("Bia");
   });
-    expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
-    const s2 = [sessoes[0], { ...sessoes[1], responsavel_nome: "Suporte X" }];
-    const L2 = calcularPadraoPorCorte(contatos, [msgs[2]], s2, { ...cfgCorte, ignorar: [{ nome: "suporte x" }] });
-    expect(L2.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(0);
-  });
 });
 
 describe("novos contatos pela primeira sessão", () => {
