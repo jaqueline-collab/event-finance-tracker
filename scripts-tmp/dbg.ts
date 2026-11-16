@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { lerTudo } from "@/lib/elora-espelho.server";
+import { lerTudo } from "@/lib/ler-tudo";
 const db:any=supabaseAdmin;
 const r:any[]=await lerTudo(()=>db.rpc("elora_conversas_pares",{_cliente_id:"8c0ojhr2",_inicio:"2026-10-14T03:00:00Z",_fim:"2026-11-13T03:00:00Z",_excluir:[]}).order("sessao_id").order("primeira_em"),8);
 const c=(f:any)=>r.filter(f).length;
