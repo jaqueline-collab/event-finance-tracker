@@ -73,7 +73,7 @@ export async function itensDiaPeloLink(db: any, t: string, p: { abaId: string; d
 
 /** Relatório diário pelo link: a mesma leitura de quem vê o painel (sem edição), todas as colunas visíveis ao cliente. */
 export async function matrizPeloLink(db: any, t: string, p: { de: string; ate: string; filtros: Record<string, unknown>; campos: FiltroCampo[] }) {
-  const { clienteId } = await aba(db, t, VISAO_MATRIZ_ID);
+  const { clienteId, a } = await aba(db, t, VISAO_MATRIZ_ID);
   const { montarMatrizCliente } = await import("@/lib/matriz.server");
   const { comCacheCalculo } = await import("@/lib/cartao-calculo.server");
   const { criarContexto } = await import("@/lib/calculo-contexto.server");
@@ -81,7 +81,7 @@ export async function matrizPeloLink(db: any, t: string, p: { de: string; ate: s
     montarMatrizCliente(db, clienteId, { de: p.de, ate: p.ate }, p.filtros as any, { comCatalogo: false, campos: p.campos as any, ctx: criarContexto() }),
   );
   return {
-    podeEditar: false, filtrosPadrao: [] as FiltroCampo[], colunas: r.colunas, todasColunas: r.colunas, linhas: r.linhas, total: r.total, cobertura: r.cobertura,
+    podeEditar: false, filtrosPadrao: a.padrao, colunas: r.colunas, todasColunas: r.colunas, linhas: r.linhas, total: r.total, cobertura: r.cobertura,
     semHistoricoAntes: r.semHistoricoAntes, colunasSemHistorico: r.colunasSemHistorico, erros: [], opcoes: r.opcoes, temCards: r.temCards, etapas: r.etapas, catalogo: r.catalogo,
   };
 }
