@@ -183,13 +183,13 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
           </Button>
         </div>
       )}
-      <FiltroCampos
+      {!lerIncorporado && <FiltroCampos
         clienteId={clienteId}
         filtros={filtros}
         onFiltros={setFiltros}
         fonteDaVisao="atendimento"
         opcoesNativas={{ "atendimento|canal": d.opcoes.canal, "atendimento|atendente": d.opcoes.atendente, "atendimento|equipe": d.opcoes.equipe }}
-      />
+      />}
 
       <div className="max-h-[70vh] overflow-auto rounded-xl border bg-card">
         <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
