@@ -15,7 +15,7 @@ import { textoSelo } from "@/lib/filtros-fixos";
 import type { FiltroCampo } from "@/lib/campos-elora";
 
 export const Route = createFileRoute("/incorporado")({
-  validateSearch: zodValidator(z.object({ tema: fallback(z.enum(["claro", "escuro", ""]), "").default("") })),
+  validateSearch: zodValidator(z.object({ tema: fallback(z.string(), "").optional(), k: fallback(z.string(), "").optional() })),
   head: () => ({
     meta: [
       { title: "Painel · Elora" },
@@ -51,7 +51,9 @@ function PainelIncorporado() {
 
   // O token fica depois do "#": o navegador nunca o envia no endereço; só vai dentro das chamadas.
   useEffect(() => {
-    const t = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+    const k = new URLSearchParams(window.location.search).get("k");
+    if (k) window.history.replaceState(null, "", "/incorporado");
+    const t = k ?? decodeURIComponent(window.location.hash.replace(/^#/, ""));
     if (!tokenValido(t)) { setInvalido(true); return; }
     setToken(t);
   }, []);
