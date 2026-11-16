@@ -11,7 +11,7 @@ export const PREFIXO_INCORPORADO = "/incorporado";
 /** Rota do link: o token vai depois do "#", que o navegador nunca envia ao servidor. */
 export const ehRotaIncorporada = (pathname: string) => pathname === PREFIXO_INCORPORADO || pathname.startsWith(`${PREFIXO_INCORPORADO}/`);
 /** Mascara qualquer trecho com cara de token (registros de erro nunca levam o link). */
-export const mascararToken = (s: string) => s.replace(/(incorporado[/#])[A-Za-z0-9_-]{20,}/g, "$1[oculto]").replace(/[A-Za-z0-9_-]{40,64}/g, "[oculto]");
+export const mascararToken = (s: string) => s.replace(/([?&]k=)[A-Za-z0-9_-]{20,}/g, "$1[oculto]").replace(/(incorporado[/#])[A-Za-z0-9_-]{20,}/g, "$1[oculto]").replace(/[A-Za-z0-9_-]{40,64}/g, "[oculto]");
 
 const PESSOAIS = new Set(["contato|nome", "contato|telefone", "card|id"]);
 const ehPessoal = (r?: CampoRef | null) => Boolean(r && PESSOAIS.has(`${r.fonte}|${r.campo}`));
