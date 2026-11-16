@@ -10,7 +10,7 @@ const A = "8c0ojhr2";
 const PER = [{ de: "2026-10-14", ate: "2026-11-12" }, { de: "2026-09-22", ate: "2026-10-03" }];
 const { data: vs } = await db.from("elora_dashboard_visoes").select("id, nome, publicada, filtros, cliente_id").eq("publicada", true);
 const doA = vs.filter((v: any) => v.cliente_id === A);
-const deB = vs.find((v: any) => v.cliente_id !== A && cartoesValidos(v.filtros?.cartoes).length);
+const deB = { cliente_id: "(bloco de fora)", filtros: { cartoes: [{ id: "bloco-de-outro-cliente", titulo: "X", tipo: "numero", fonte: "contato" }] } };
 const criados: string[] = []; const tokens: Record<string, string> = {};
 async function criar(cliente: string, visao: string, pessoais = false) {
   const t = novoToken();
