@@ -1,0 +1,119 @@
+import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { filtroCampoSchema } from "@/lib/campos-elora";
+import { cartaoSchema } from "@/lib/graficos";
+
+/**
+ * Link de painel incorporado. Gerar, revogar e listar: só super admin (is_admin, conferido aqui).
+ * Ler e calcular pelo link: sem login; o token é validado (hash, não revogado) a cada chamada e
+ * só a visão e o cliente do link são lidos. Respostas sem cache compartilhado.
+ */
+
+const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const token = z.string().regex(/^[A-Za-z0-9_-]{40,64}$/);
+
+async function exigirSuperAdmin(db: any) {
+  const { data } = await db.rpc("is_admin");
+  if (!data) throw new Error("acesso-negado: só a super admin.");
+}
+
+export const listarLinksIncorporados = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1) }).parse(i))
+  .handler(async ({ data, context }): Promise<{ visoes: { id: string; nome: string }[]; links: { id: string; visaoId: string; dadosPessoais: boolean; criadoEm: string; ultimoAcessoEm: string | null }[] }> => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const [{ data: vs, error: e1 }, { data: ls, error: e2 }] = await Promise.all([
+      db.from("elora_dashboard_visoes").select("id, nome, ordem, publicada").eq("cliente_id", data.clienteId).order("ordem"),
+      db.from("elora_paineis_incorporados").select("id, visao_id, dados_pessoais, criado_em, revogado_em, ultimo_acesso_em").eq("cliente_id", data.clienteId).is("revogado_em", null),
+    ]);
+    if (e1 || e2) throw new Error((e1 ?? e2).message);
+    return {
+      visoes: (vs ?? []).filter((v: any) => v.publicada).map((v: any) => ({ id: String(v.id), nome: String(v.nome) })),
+      links: (ls ?? []).map((l: any) => ({ id: String(l.id), visaoId: String(l.visao_id), dadosPessoais: Boolean(l.dados_pessoais), criadoEm: String(l.criado_em), ultimoAcessoEm: l.ultimo_acesso_em ? String(l.ultimo_acesso_em) : null })),
+    };
+  });
+
+/** Gera link novo para a visão (o anterior dela é revogado na hora). O token só volta nesta resposta. */
+export const gerarLinkIncorporado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), visaoId: z.string().uuid(), dadosPessoais: z.boolean().default(false) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { novoToken, hashToken } = await import("@/lib/incorporar");
+    const db = supabaseAdmin as any;
+    const { data: v } = await db.from("elora_dashboard_visoes").select("id, publicada").eq("id", data.visaoId).eq("cliente_id", data.clienteId).maybeSingle();
+    if (!v?.publicada) throw new Error("Visão não encontrada ou ainda em rascunho.");
+    const agora = new Date().toISOString();
+    const { error: er } = await db.from("elora_paineis_incorporados").update({ revogado_em: agora }).eq("cliente_id", data.clienteId).eq("visao_id", data.visaoId).is("revogado_em", null);
+    if (er) throw new Error(er.message);
+    const t = novoToken();
+    const { error } = await db.from("elora_paineis_incorporados").insert({ cliente_id: data.clienteId, visao_id: data.visaoId, token_hash: await hashToken(t), dados_pessoais: data.dadosPessoais, criado_por: context.userId });
+    if (error) throw new Error(error.message);
+    return { token: t };
+  });
+
+export const revogarLinkIncorporado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("elora_paineis_incorporados").update({ revogado_em: new Date().toISOString() }).eq("id", data.id).eq("cliente_id", data.clienteId).is("revogado_em", null);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Liga/desliga tabelas com nome de paciente ou contato num link já gerado (sem trocar o link). */
+export const alterarDadosPessoaisLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), id: z.string().uuid(), dadosPessoais: z.boolean() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db.from("elora_paineis_incorporados").update({ dados_pessoais: data.dadosPessoais }).eq("id", data.id).eq("cliente_id", data.clienteId).is("revogado_em", null);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/* ---------------- Pelo link (sem login) ---------------- */
+
+const INVALIDO = { valido: false as const };
+
+async function admin() {
+  setResponseHeader("Cache-Control", "no-store");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin as any;
+}
+
+export const lerPainelIncorporado = createServerFn({ method: "POST" })
+  .inputValidator((i) => z.object({ token }).parse(i))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { abrirLink } = await import("@/lib/incorporar.server");
+    const l = await abrirLink(db, data.token, true);
+    if (!l) return INVALIDO;
+    const { data: c } = await db.from("elora_clientes").select("nome").eq("id", l.clienteId).maybeSingle();
+    return { valido: true as const, nomeCliente: String(c?.nome ?? ""), nomeVisao: l.visaoNome, cartoes: l.cartoes, filtrosPadrao: l.padrao };
+  });
+
+export const calcularPainelIncorporado = createServerFn({ method: "POST" })
+  .inputValidator((i) => z.object({ token, de: dia, ate: dia, cartoes: z.array(cartaoSchema).min(1).max(40), filtrosVisao: z.array(filtroCampoSchema).max(20).default([]) }).parse(i))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { calcularPeloLink } = await import("@/lib/incorporar.server");
+    return calcularPeloLink(db, data.token, data as any);
+  });
+
+export const itensDiaIncorporado = createServerFn({ method: "POST" })
+  .inputValidator((i) => z.object({ token, dia, cartao: cartaoSchema, filtrosVisao: z.array(filtroCampoSchema).max(20).default([]) }).parse(i))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { itensDiaPeloLink } = await import("@/lib/incorporar.server");
+    return itensDiaPeloLink(db, data.token, data as any);
+  });

@@ -29,7 +29,8 @@ export function BarraTabela({
   agruparOpcoes?: { chave: string; rotulo: string }[];
   agrupar?: string;
   onAgrupar?: (v: string) => void;
-  onExportar: (f: FormatoExportar) => void;
+  /** Sem esta função (ex.: painel incorporado), o botão Exportar não aparece. */
+  onExportar?: (f: FormatoExportar) => void;
   formatos?: FormatoExportar[];
   onSalvarPadrao?: () => void;
   extras?: ReactNode;
@@ -70,10 +71,10 @@ export function BarraTabela({
         <SelectTrigger className="h-7 w-auto text-xs" aria-label="Agrupar por"><SelectValue placeholder="Agrupar por" /></SelectTrigger>
         <SelectContent><SelectItem value="_">Sem agrupar</SelectItem>{(agruparOpcoes ?? []).map((c) => <SelectItem key={c.chave} value={c.chave}>Agrupar: {c.rotulo}</SelectItem>)}</SelectContent>
       </Select>}
-      <DropdownMenu>
+      {onExportar && <DropdownMenu>
         <DropdownMenuTrigger asChild><Button size="sm" variant="outline" className="h-7 text-xs">Exportar</Button></DropdownMenuTrigger>
         <DropdownMenuContent>{formatos.map((f) => <DropdownMenuItem key={f} onClick={() => onExportar(f)}>{f.toUpperCase()}</DropdownMenuItem>)}</DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu>}
       {extras && <div className="ml-auto flex flex-wrap items-center gap-1">{extras}</div>}
     </div>
   );

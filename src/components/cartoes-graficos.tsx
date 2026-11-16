@@ -304,6 +304,20 @@ function useLarga() {
  * (indicadores, dois valores, gráficos) e outro, logo depois, para os pesados
  * (Matriz por UTM, tabela, calendário). Cada bloco mostra o próprio esqueleto.
  */
+/**
+ * Painel incorporado (link sem login): a página do link troca a fonte do cálculo e da lista do dia
+ * por funções que validam o token no servidor. Sem fonte, tudo segue pelo caminho normal com login.
+ */
+type FonteIncorporada = {
+  calcular: (args: { de: string; ate: string; filtrosVisao: FiltroCampo[] }, cartoes: CartaoGrafico[]) => Promise<Record<string, unknown>>;
+  itensDia: (dia: string, cartao: CartaoGrafico, filtrosVisao: FiltroCampo[]) => Promise<{ itens: unknown[] }>;
+};
+let fonteIncorporada: FonteIncorporada | null = null;
+export function usarFonteIncorporada(f: FonteIncorporada | null) { fonteIncorporada = f; }
+function lerItensDia(clienteId: string, dia: string, cartao: CartaoGrafico, filtrosVisao: FiltroCampo[]) {
+  return fonteIncorporada ? fonteIncorporada.itensDia(dia, cartao, filtrosVisao) : itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } });
+}
+
 type Pedido = { cartao: CartaoGrafico; ok: (x: any) => void; erro: (e: unknown) => void };
 const filas = new Map<string, { args: { clienteId: string; de: string; ate: string; filtrosVisao: FiltroCampo[]; previa: boolean }; pedidos: Pedido[] }>();
 let agendado = false;
@@ -316,7 +330,8 @@ function despachar() {
     const pesados = l.pedidos.filter((p) => cartaoPesado(p.cartao));
     const enviar = (ps: Pedido[]) => {
       if (!ps.length) return Promise.resolve();
-      return calcularCartoes({ data: { ...l.args, cartoes: ps.map((p) => p.cartao) } })
+      const pedido = fonteIncorporada ? fonteIncorporada.calcular(l.args, ps.map((p) => p.cartao)) : calcularCartoes({ data: { ...l.args, cartoes: ps.map((p) => p.cartao) } });
+      return pedido
         .then((res: any) => ps.forEach((p) => p.ok(res[p.cartao.id])))
         .catch((e) => ps.forEach((p) => p.erro(e)));
     };
@@ -904,13 +919,13 @@ function CalendarioCartao({ clienteId, cartao, filtrosVisao, menu, previa }: { c
   const [segundaPrimeiro, setSegundaPrimeiro] = useState(false);
   const [podeMudarSemana, setPodeMudarSemana] = useState(false);
   useEffect(() => setVisual(cartao.visualCalendario), [cartao.visualCalendario]);
-  useEffect(() => { let vivo = true; lerInicioSemana({ data: { clienteId } }).then((r) => { if (vivo) { setSegundaPrimeiro(r.iniciaSegunda); setPodeMudarSemana(r.podeMudar); } }).catch(() => {}); return () => { vivo = false; }; }, [clienteId]);
+  useEffect(() => { if (fonteIncorporada) return; let vivo = true; lerInicioSemana({ data: { clienteId } }).then((r) => { if (vivo) { setSegundaPrimeiro(r.iniciaSegunda); setPodeMudarSemana(r.podeMudar); } }).catch(() => {}); return () => { vivo = false; }; }, [clienteId]);
   // detalhes do compromisso: lista do dia lida uma vez por dia e reaproveitada pelos cartões flutuantes
   const detalhes = useRef(new Map<string, Promise<ItemDia[]>>());
   useEffect(() => { detalhes.current.clear(); }, [clienteId, JSON.stringify(filtrosVisao), cartao.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const itensDia = (dia: string) => {
     let p = detalhes.current.get(dia);
-    if (!p) { p = itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } }).then((r) => r.itens as ItemDia[]); detalhes.current.set(dia, p); }
+    if (!p) { p = lerItensDia(clienteId, dia, cartao, filtrosVisao).then((r) => r.itens as ItemDia[]); detalhes.current.set(dia, p); }
     return p;
   };
   const per: Periodo = useMemo(() => {
@@ -1140,7 +1155,7 @@ function ItensDoDia({ clienteId, cartao, dia, filtrosVisao, filtroTipo, tipos, o
   const [todos, setTodos] = useState<ItemDia[] | null>(null);
   useEffect(() => {
     let vivo = true;
-    itensDiaCalendario({ data: { clienteId, dia, cartao, filtrosVisao } }).then((r) => vivo && setTodos(r.itens as ItemDia[])).catch((e) => { toast.error(msg(e)); vivo && setTodos([]); });
+    lerItensDia(clienteId, dia, cartao, filtrosVisao).then((r) => vivo && setTodos(r.itens as ItemDia[])).catch((e) => { toast.error(msg(e)); vivo && setTodos([]); });
     return () => { vivo = false; };
   }, [clienteId, dia]); // eslint-disable-line react-hooks/exhaustive-deps
   const itens = todos ? filtrarPorTipo(todos, filtroTipo) : null;
@@ -1228,7 +1243,7 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
   return (
     <div className="space-y-2">
       <BarraTabela colunas={cols} estado={estado} onEstado={setEstado} padrao={estadoInicial(cols)}
-        agruparOpcoes={vis} agrupar={agrupar} onAgrupar={setAgrupar} onExportar={exportar} />
+        agruparOpcoes={vis} agrupar={agrupar} onAgrupar={setAgrupar} onExportar={fonteIncorporada ? undefined : exportar} />
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead><tr>{vis.map((c) => (

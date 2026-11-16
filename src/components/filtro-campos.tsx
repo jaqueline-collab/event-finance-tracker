@@ -18,6 +18,8 @@ function useCatalogo(clienteId: string) {
   const [g, setG] = useState<GrupoCatalogo[] | null>(null);
   useEffect(() => {
     let vivo = true;
+    // Sem cliente (painel incorporado): não há catálogo para ler.
+    if (!clienteId) { setG([]); return; }
     if (!cacheCat.has(clienteId)) cacheCat.set(clienteId, lerCatalogoFiltro({ data: { clienteId } }).then((r) => r.grupos).catch(() => (cacheCat.delete(clienteId), [])));
     cacheCat.get(clienteId)!.then((x) => vivo && setG(x));
     return () => {

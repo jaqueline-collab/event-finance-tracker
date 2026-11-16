@@ -150,6 +150,9 @@ function ehPaginaPublica(pathname: string) {
   );
 }
 
+/** Painel incorporado no Elora App (link sem login, só leitura). */
+const ehIncorporado = (pathname: string) => pathname.startsWith("/incorporado/");
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const syncFromSupabase = useStore((state) => state.syncFromSupabase);
@@ -173,7 +176,7 @@ function RootComponent() {
     if (!areaPropria) return;
     if (typeof window === "undefined") return;
     if (pathname === areaPropria || pathname === "/perfil") return;
-    if (pathname.startsWith("/auth") || ehPaginaPublica(pathname)) return;
+    if (pathname.startsWith("/auth") || ehPaginaPublica(pathname) || ehIncorporado(pathname)) return;
     router.navigate({ to: areaPropria, replace: true });
   }, [areaPropria, pathname, router]);
 
@@ -223,8 +226,8 @@ function RootComponent() {
     }
   }, [isLanding]);
 
-  // Landing pública: renderiza imediatamente sem esperar checagem de sessão
-  if (isLanding) {
+  // Landing pública e painel incorporado: renderizam já, sem sessão, menu ou barra do app
+  if (isLanding || ehIncorporado(pathname)) {
     return (
       <QueryClientProvider client={queryClient}>
         <Outlet />
