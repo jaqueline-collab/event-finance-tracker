@@ -40,6 +40,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as FuncionalidadesSlugRouteImport } from './routes/funcionalidades.$slug'
+import { Route as IncorporadoTokenRouteImport } from './routes/incorporado.$token'
 import { Route as ParceiroIndexRouteImport } from './routes/parceiro.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -207,6 +208,11 @@ const FuncionalidadesSlugRoute = FuncionalidadesSlugRouteImport.update({
   path: '/funcionalidades/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IncorporadoTokenRoute = IncorporadoTokenRouteImport.update({
+  id: '/incorporado/$token',
+  path: '/incorporado/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ParceiroIndexRoute = ParceiroIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -288,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
+  '/incorporado/$token': typeof IncorporadoTokenRoute
   '/area-do-cliente/': typeof AreaDoClienteIndexRoute
   '/blog/': typeof BlogIndexRoute
   '/parceiro/': typeof ParceiroIndexRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
+  '/incorporado/$token': typeof IncorporadoTokenRoute
   '/area-do-cliente': typeof AreaDoClienteIndexRoute
   '/blog': typeof BlogIndexRoute
   '/parceiro': typeof ParceiroIndexRoute
@@ -371,6 +379,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/funcionalidades/$slug': typeof FuncionalidadesSlugRoute
+  '/incorporado/$token': typeof IncorporadoTokenRoute
   '/area-do-cliente/': typeof AreaDoClienteIndexRoute
   '/blog/': typeof BlogIndexRoute
   '/parceiro/': typeof ParceiroIndexRoute
@@ -415,6 +424,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/blog/$slug'
     | '/funcionalidades/$slug'
+    | '/incorporado/$token'
     | '/area-do-cliente/'
     | '/blog/'
     | '/parceiro/'
@@ -455,6 +465,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/blog/$slug'
     | '/funcionalidades/$slug'
+    | '/incorporado/$token'
     | '/area-do-cliente'
     | '/blog'
     | '/parceiro'
@@ -497,6 +508,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/blog/$slug'
     | '/funcionalidades/$slug'
+    | '/incorporado/$token'
     | '/area-do-cliente/'
     | '/blog/'
     | '/parceiro/'
@@ -539,6 +551,7 @@ export interface RootRouteChildren {
   ApiEloraIaRoute: typeof ApiEloraIaRoute
   BlogSlugRoute: typeof BlogSlugRoute
   FuncionalidadesSlugRoute: typeof FuncionalidadesSlugRoute
+  IncorporadoTokenRoute: typeof IncorporadoTokenRoute
   BlogIndexRoute: typeof BlogIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -769,6 +782,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FuncionalidadesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/incorporado/$token': {
+      id: '/incorporado/$token'
+      path: '/incorporado/$token'
+      fullPath: '/incorporado/$token'
+      preLoaderRoute: typeof IncorporadoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parceiro/': {
       id: '/parceiro/'
       path: '/'
@@ -899,6 +919,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEloraIaRoute: ApiEloraIaRoute,
   BlogSlugRoute: BlogSlugRoute,
   FuncionalidadesSlugRoute: FuncionalidadesSlugRoute,
+  IncorporadoTokenRoute: IncorporadoTokenRoute,
   BlogIndexRoute: BlogIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
