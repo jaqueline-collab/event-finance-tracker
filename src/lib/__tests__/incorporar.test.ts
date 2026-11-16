@@ -64,3 +64,12 @@ describe("painel incorporado", () => {
     expect(ehRotaIncorporada("/incorporados")).toBe(false);
   });
 });
+
+describe("máscara do código por ?k=", () => {
+  it("oculta o código em ?k= e &k=", async () => {
+    const { mascararToken } = await import("../incorporar");
+    const t = "a".repeat(30) + "B_-c";
+    expect(mascararToken(`/incorporado?k=${t}`)).toBe("/incorporado?k=[oculto]");
+    expect(mascararToken(`/x?a=1&k=${t}`)).not.toContain(t);
+  });
+});
