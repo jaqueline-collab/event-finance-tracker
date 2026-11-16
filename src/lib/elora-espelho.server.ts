@@ -432,3 +432,10 @@ export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string
   }
   return out;
 }
+
+/** Atendente do atendimento: última pessoa da equipe que respondeu em todo o atendimento, sem suporte e sem bot. Sem resposta = ausente. */
+export async function lerUltimoHumanoSessao(db: SupabaseClient, clienteId: string): Promise<Map<string, string>> {
+  const excluir = await (await import("./suporte.server")).idsSuporteDoCliente(db, clienteId);
+  const r = await lerTudo(() => (db as any).rpc("elora_ultimo_humano_sessao", { _cliente_id: clienteId, _excluir: excluir }).order("sessao_id"), 8);
+  return new Map((r as any[]).map((x) => [String(x.sessao_id), String(x.humano_user)]));
+}

@@ -179,12 +179,21 @@ describe("colunas padrão por canal/atendente/equipe", () => {
     const L = calcularPadraoPorCorte(contatos, m2, sessoes, { ...outraConta, ignorar: [{ email: "ana@x.com" }] });
     expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
   });
-  it("suporte interno ignorado por nome do responsável", () => {
-    const L = calcularPadraoPorCorte(contatos, [msgs[2]], sessoes, { ...cfgCorte, ignorar: [] });
+  it("responsável atribuído nunca define o atendente: sem resposta da equipe fica vazio", () => {
+    const s2 = sessoes.map((s) => ({ ...s, responsavel_id: "u1", responsavel_nome: "Ana S." }));
+    const semHumano = msgs.map((m) => ({ ...m, user_id: null }));
+    const L = calcularPadraoPorCorte(contatos, semHumano, s2, { ...cfgCorte, ignorar: [] });
+    expect(L.filter((l) => l.conversas_total_dia > 0).every((l) => l.atendente === "")).toBe(true);
+  });
+  it("última resposta de suporte: vale a pessoa anterior da equipe; total não muda", () => {
+    const base = [
+      { sessao_id: "s1", enviada_em: "2026-11-10T13:00:00Z", tipo: null, origem: "DEFAULT", user_id: "u2" },
+      { sessao_id: "s1", enviada_em: "2026-11-10T14:00:00Z", tipo: null, origem: "DEFAULT", user_id: "sup" },
+    ] as any;
+    const cfg = { ...cfgCorte, ignorar: [], agentes: { ...cfgCorte.agentes, u2: { nome: "Bia" }, sup: { nome: "Suporte", email: "s@x" } }, ocultar: [{ email: "s@x" }] };
+    const L = calcularPadraoPorCorte([], base, sessoes, cfg);
     expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(1);
-    const s2 = [sessoes[0], { ...sessoes[1], responsavel_nome: "Suporte X" }];
-    const L2 = calcularPadraoPorCorte(contatos, [msgs[2]], s2, { ...cfgCorte, ignorar: [{ nome: "suporte x" }] });
-    expect(L2.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(0);
+    expect(L.find((l) => l.conversas_total_dia)?.atendente).toBe("Bia");
   });
 });
 

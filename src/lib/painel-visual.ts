@@ -114,7 +114,7 @@ export type AtendimentoP = {
   tma: number | null;
 };
 /** Só mensagens TO_HUB; `origem` é a origem da mensagem no Elora (DEFAULT = pessoa pela plataforma). */
-export type MensagemP = { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null };
+export type MensagemP = { sessao_id: string; enviada_em: string | null; tipo: string | null; origem: string | null; user_id?: string | null };
 
 export type Dimensao = "origem" | "canal" | "etiqueta" | "campanha" | "atendente";
 export type Filtros = Partial<Record<Dimensao, string | string[]>>;
@@ -137,7 +137,7 @@ export const SEM_ATENDENTE = NAO_DEFINIDO;
  * pela plataforma (origem DEFAULT); senão "Bot".
  */
 export function conversasPorDia(msgs: MensagemP[], sessoesOk?: Set<string>) {
-  const pares = new Map<string, { sessao: string; dia: string; usuario: boolean }>();
+  const pares = new Map<string, { sessao: string; dia: string; usuario: boolean; humano?: { em: string; user: string } }>();
   for (const m of msgs) {
     if (m.tipo && TIPOS_IGNORADOS.has(m.tipo)) continue;
     if (sessoesOk && !sessoesOk.has(m.sessao_id)) continue;
@@ -146,6 +146,8 @@ export function conversasPorDia(msgs: MensagemP[], sessoesOk?: Set<string>) {
     const k = `${m.sessao_id}|${dia}`;
     const p = pares.get(k) ?? { sessao: m.sessao_id, dia, usuario: false };
     if (m.origem === "DEFAULT") p.usuario = true;
+    // mensagens com user_id já vêm sem suporte e sem bot: a mais recente do dia define o atendente da conversa
+    if (m.user_id && m.enviada_em && (!p.humano || m.enviada_em > p.humano.em)) p.humano = { em: m.enviada_em, user: m.user_id };
     pares.set(k, p);
   }
   return [...pares.values()];
@@ -161,6 +163,8 @@ export function agregarPainel(
   filtros: Filtros,
   /** Conjunto de contatos vindo dos filtros por campo (ligação pelo contato). */
   soContatos?: Set<string> | null,
+  /** userId → nome exibido (sem suporte). Atendente da conversa do dia = última pessoa da equipe que respondeu naquele dia. */
+  nomeUsuario: Record<string, string | null | undefined> = {},
 ) {
   if (soContatos) {
     base = {
@@ -192,16 +196,19 @@ export function agregarPainel(
     (!etq.length || etq.map(normalizarRotuloVazio).some((e) => (e === NAO_DEFINIDO ? c.etiquetas.length === 0 : c.etiquetas.includes(e)))) &&
     bateDim(c.campanha ?? NAO_DEFINIDO, filtros.campanha);
   const sessaoAtributosOk = (a: AtendimentoP) => bateDim(a.canal, filtros.canal) && bateDim(a.atendente, filtros.atendente);
+  // Conversas: o filtro de atendente vale pelo atendente da conversa do dia; canal/contato pelo atendimento.
+  const sessaoOkConversa = (a: AtendimentoP) =>
+    bateDim(a.canal, filtros.canal) && (!temFiltroContato || contatoOk(a.contato_id ? contatoPorId.get(a.contato_id) : undefined));
   const sessaoOk = (a: AtendimentoP) =>
     sessaoAtributosOk(a) && (!temFiltroContato || contatoOk(a.contato_id ? contatoPorId.get(a.contato_id) : undefined));
   const leadOk = (c: ContatoP) =>
     contatoOk(c) && (!(temDim(filtros.canal) || temDim(filtros.atendente)) || (sessoesPorContato.get(c.id) ?? []).some(sessaoAtributosOk));
 
   const sessoes = base.atendimentos.filter(sessaoOk);
-  const sessoesIds = new Set(sessoes.map((s) => s.id));
-  const sessaoPorId = new Map(sessoes.map((s) => [s.id, s]));
   const leads = base.contatos.filter(leadOk);
-  const pares = conversasPorDia(base.mensagens, sessoesIds);
+  const atendenteDoPar = (x: { humano?: { user: string } }) => (x.humano && nomeUsuario[x.humano.user]) || SEM_ATENDENTE;
+  const sessoesConversa = new Set(base.atendimentos.filter(sessaoOkConversa).map((s) => s.id));
+  const pares = conversasPorDia(base.mensagens, sessoesConversa).filter((x) => bateDim(atendenteDoPar(x), filtros.atendente));
 
   const media = (l: (number | null)[]) => {
     const v = l.filter((x): x is number => x != null && Number.isFinite(x));
@@ -251,7 +258,7 @@ export function agregarPainel(
 
   const conversasPorAtendente = new Map<string, number>();
   for (const x of paresPeriodo) {
-    const a = sessaoPorId.get(x.sessao)?.atendente ?? SEM_ATENDENTE;
+    const a = atendenteDoPar(x);
     conversasPorAtendente.set(a, (conversasPorAtendente.get(a) ?? 0) + 1);
   }
   const atendentes = contar(sessoesPeriodo.map((s) => s.atendente))
@@ -261,7 +268,7 @@ export function agregarPainel(
 
   const opcoes: Record<Dimensao, string[]> = {
     canal: [...new Set(base.atendimentos.map((a) => a.canal))].sort(),
-    atendente: [...new Set(base.atendimentos.map((a) => a.atendente))].sort(),
+    atendente: [...new Set([...base.atendimentos.map((a) => a.atendente), ...Object.values(nomeUsuario).filter((v): v is string => !!v)])].sort(),
     origem: [...new Set(base.contatos.map((c) => c.origem))].sort(),
     etiqueta: [...new Set(base.contatos.flatMap((c) => c.etiquetas))].sort(),
     campanha: [...new Set(base.contatos.map((c) => c.campanha).filter((v): v is string => !!v))].sort(),
