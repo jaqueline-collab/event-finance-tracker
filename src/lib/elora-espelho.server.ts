@@ -428,7 +428,7 @@ export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string
   for (const r of pares as any[]) {
     const s = String(r.sessao_id);
     out.push({ sessao_id: s, enviada_em: r.primeira_em, tipo: null, origem: r.usuario ? "DEFAULT" : null, user_id: null });
-    if (r.humano_em && r.humano_user) out.push({ sessao_id: s, enviada_em: r.humano_em, tipo: null, origem: null, user_id: String(r.humano_user) });
+    if (r.humano_em && r.humano_user && String(r.humano_user) !== "00000000-0000-0000-0000-000000000000") out.push({ sessao_id: s, enviada_em: r.humano_em, tipo: null, origem: null, user_id: String(r.humano_user) });
   }
   return out;
 }
