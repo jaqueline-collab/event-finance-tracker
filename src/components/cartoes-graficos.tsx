@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Settings, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, GripVertical, MoreHorizontal, Pin, Redo2, RotateCcw, Undo2, X } from "lucide-react";
 import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
 import { exportarMatriz } from "@/lib/matriz-exportar";
@@ -146,6 +146,7 @@ export function CartoesGraficos({
         </div>
       )}
       {cartoes.length > 0 && (
+        <SalvarOrdemCtx.Provider value={editavel ? (id, ordem) => void gravar(cartoes.map((x) => (x.id === id ? { ...x, ordemTabela: ordem } : x)), "Ordem padrão salva.") : null}>
         <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoSoltarBloco}>
           <SortableContext items={cartoes.map((c) => c.id)} strategy={rectSortingStrategy}>
         <div ref={grade} className="grid grid-cols-1 gap-4" style={larga ? { gridTemplateColumns: "repeat(12, minmax(0, 1fr))", gridAutoRows: `minmax(${LINHA_PX - 16}px, auto)` } : undefined}>
@@ -258,6 +259,7 @@ export function CartoesGraficos({
         </div>
           </SortableContext>
         </DndContext>
+        </SalvarOrdemCtx.Provider>
       )}
       {editor && (
         <EditorCartao
