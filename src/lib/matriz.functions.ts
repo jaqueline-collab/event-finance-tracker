@@ -42,11 +42,13 @@ export const lerMatriz = createServerFn({ method: "POST" })
     const r = await comCacheCalculo(supabaseAdmin as any, data.clienteId, ["matriz", podeEditar, data.de, data.ate, data.filtros, data.campos], () =>
       montarMatrizCliente(supabaseAdmin as any, data.clienteId, { de: data.de, ate: data.ate }, data.filtros, { comCatalogo: podeEditar, campos: data.campos as any, ctx: criarContexto() }),
     );
-    const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_filtros_padrao").eq("cliente_id", data.clienteId).maybeSingle();
+    const { data: cfg } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").select("matriz_filtros_padrao, matriz_ordem_linhas").eq("cliente_id", data.clienteId).maybeSingle();
     const filtrosPadrao = filtrosPadraoValidos(cfg?.matriz_filtros_padrao);
+    const ordemLinhas = ordemLinhasValida(cfg?.matriz_ordem_linhas);
     return {
       podeEditar,
       filtrosPadrao,
+      ordemLinhas,
       colunas: r.colunas,
       // colunas ocultas só para quem edita
       todasColunas: podeEditar ? r.todasColunas : r.colunas,
@@ -200,6 +202,24 @@ export const salvarFiltrosPadraoMatriz = createServerFn({ method: "POST" })
     const { error } = await (supabaseAdmin as any)
       .from("elora_relatorio_corte_config")
       .upsert({ cliente_id: data.clienteId, matriz_filtros_padrao: data.filtros }, { onConflict: "cliente_id" });
+    if (error) throw new Error(`matriz: ${error.message}`);
+    return { ok: true };
+  });
+
+/** Ordem padrão das linhas do Relatório diário; sem gravação, dia mais recente primeiro. */
+export function ordemLinhasValida(v: unknown): { col: string; desc: boolean } {
+  const o = v as { col?: unknown; desc?: unknown } | null;
+  return o && typeof o.col === "string" && o.col.length <= 120 && typeof o.desc === "boolean" ? { col: o.col, desc: o.desc } : { col: "dia", desc: true };
+}
+
+/** Salva a ordem padrão das linhas. Só super admin. */
+export const salvarOrdemLinhasMatriz = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ clienteId: z.string().min(1), ordem: z.object({ col: z.string().min(1).max(120), desc: z.boolean() }) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await exigirSuperAdmin(context.supabase);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("elora_relatorio_corte_config").upsert({ cliente_id: data.clienteId, matriz_ordem_linhas: data.ordem }, { onConflict: "cliente_id" });
     if (error) throw new Error(`matriz: ${error.message}`);
     return { ok: true };
   });
