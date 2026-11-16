@@ -2205,34 +2205,34 @@ export type Database = {
           cliente_id: string
           criado_em: string
           criado_por: string | null
-          dados_pessoais: boolean
           id: string
+          ocultar_pessoais: boolean
           revogado_em: string | null
           token_hash: string
           ultimo_acesso_em: string | null
-          visao_id: string
+          visao_id: string | null
         }
         Insert: {
           cliente_id: string
           criado_em?: string
           criado_por?: string | null
-          dados_pessoais?: boolean
           id?: string
+          ocultar_pessoais?: boolean
           revogado_em?: string | null
           token_hash: string
           ultimo_acesso_em?: string | null
-          visao_id: string
+          visao_id?: string | null
         }
         Update: {
           cliente_id?: string
           criado_em?: string
           criado_por?: string | null
-          dados_pessoais?: boolean
           id?: string
+          ocultar_pessoais?: boolean
           revogado_em?: string | null
           token_hash?: string
           ultimo_acesso_em?: string | null
-          visao_id?: string
+          visao_id?: string | null
         }
         Relationships: [
           {
