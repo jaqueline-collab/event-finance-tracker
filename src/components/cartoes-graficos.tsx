@@ -2,6 +2,8 @@ import { Fragment, createContext, useContext, useEffect, useMemo, useRef, useSta
 import { Settings, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, GripVertical, MoreHorizontal, Pin, Redo2, RotateCcw, Undo2, X } from "lucide-react";
 import { BarraTabela, type FormatoExportar } from "@/components/barra-tabela";
 import { exportarMatriz } from "@/lib/matriz-exportar";
+import { InfoTitulo } from "@/components/info-titulo";
+import { textoBloco, textoColuna } from "@/lib/textos-info";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cicloOrdem, compararValores, type OrdemTabela, alinhamento, colunaNumerica, colunasVisiveis, compararGrupo, estadoInicial, moverColuna, type EstadoColunas } from "@/lib/colunas-tabela";
@@ -400,7 +402,7 @@ function CartaoComum({
   return (
     <section className="flex h-full min-w-0 flex-col rounded-xl border bg-card p-4">
       <header className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}<SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></h3></div>
+        <div className="min-w-0 space-y-1"><h3 className="flex items-center gap-1 text-sm font-semibold">{cartao.titulo}<InfoTitulo titulo={cartao.titulo} texto={textoBloco(cartao.titulo)} />{r?.r?.cobertura && r.r.cobertura !== "confirmado" && <PontoCobertura />}<SelosFixos clienteId={clienteId} filtros={cartao.filtros} /></h3></div>
         <div className="flex items-center gap-1">
           {cartao.painel === "leads-por" && <Select value={dim?.campo ?? "origem"} onValueChange={(campo) => setDim({ fonte: campo === "canal" ? "atendimento" : campo === "campaign" ? "utm" : "contato", campo })}>
             <SelectTrigger className="h-8 w-auto" aria-label="Dimensão da rosca"><SelectValue /></SelectTrigger>
@@ -752,7 +754,7 @@ function EditorCartao({
               {(c.tipo === "matriz_utm" || c.tipo === "tabela_itens" || c.tipo === "calendario") && (() => {
                 const k = c.tipo === "matriz_utm" ? "agrupar" : c.tipo === "tabela_itens" ? "colunas" : "camposData";
                 const lista = c[k] as CampoRef[];
-                const rot = c.tipo === "matriz_utm" ? "UTMs que agrupam as linhas" : c.tipo === "tabela_itens" ? "Colunas da tabela" : "Outros campos de data (quem vê alterna)";
+                const rot = c.tipo === "matriz_utm" ? "Campos de campanha de anúncio que agrupam as linhas" : c.tipo === "tabela_itens" ? "Colunas da tabela" : "Outros campos de data (quem vê alterna)";
                 return (
                   <div className="space-y-1">
                     <Label>{rot}</Label>
@@ -1257,7 +1259,7 @@ export function TabelaItens({ cartao, r, ordemInicial = null }: { cartao: Pick<C
         <table className="w-full text-xs">
           <thead><tr>{vis.map((c) => (
             <th key={c.chave} style={estiloFixa(c.chave)} className={`whitespace-nowrap border-b px-2 py-1.5 font-medium ${alinhamento(numericas.has(c.chave))} ${c.fixa ? "sticky z-10 truncate bg-card" : ""}`}>
-              <button type="button" aria-sort={ordem?.col === c.chave ? (ordem.desc ? "descending" : "ascending") : "none"} title="Ordenar" className="inline-flex items-center gap-1" onClick={() => { setOrdem((o) => cicloOrdem(o, c.chave, padraoOrdem)); setPagina(0); }}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" aria-label="decrescente" /> : <ArrowUp className="h-3 w-3" aria-label="crescente" />)}</button>
+              <button type="button" aria-sort={ordem?.col === c.chave ? (ordem.desc ? "descending" : "ascending") : "none"} title="Ordenar" className="inline-flex items-center gap-1" onClick={() => { setOrdem((o) => cicloOrdem(o, c.chave, padraoOrdem)); setPagina(0); }}>{c.rotulo} {ordem?.col === c.chave && (ordem.desc ? <ArrowDown className="h-3 w-3" aria-label="decrescente" /> : <ArrowUp className="h-3 w-3" aria-label="crescente" />)}</button>{" "}<InfoTitulo titulo={c.rotulo} texto={textoColuna(c.rotulo)} />
             </th>
           ))}</tr></thead>
           <tbody>

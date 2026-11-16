@@ -341,15 +341,15 @@ type ColunaRelatorio = {
 
 const COLUNAS_RELATORIO: ColunaRelatorio[] = [
   { chave: "novosContatos", titulo: "Novos contatos", dica: "Contatos criados pela primeira vez no dia.", tipo: "numero" },
-  { chave: "novosContatosAds", titulo: "Novos contatos/ADS", dica: "Novos contatos do dia que chegaram com UTM de campanha.", tipo: "numero" },
+  { chave: "novosContatosAds", titulo: "Novos contatos/ADS", dica: "Novos contatos do dia que chegaram com campanha de anúncio.", tipo: "numero" },
   { chave: "conversasUsuario", titulo: "Conversas do Usuário", dica: "À esquerda, conversas com contatos novos do dia; à direita, o total (novos + antigos) atendido por humano.", tipo: "numero" },
   { chave: "conversasBot", titulo: "Conversas do bot", dica: "Contatos únicos atendidos pelo bot no dia. Um contato pode contar nas duas colunas de conversas.", tipo: "numero" },
   { chave: "conversasOrigemCanal", titulo: "Origem Canal", dica: "Conversas do dia com resposta humana real, mas sem o Elora identificar qual atendente.", tipo: "numero" },
   { chave: "conversasTotalDia", titulo: "Novas conversas no dia", dica: "Contatos únicos que tiveram alguma conversa no dia, novos ou já existentes.", tipo: "numero" },
   { chave: "consultaAgendada", titulo: "Consulta agendada", dica: "Conversas classificadas como ganho com a etiqueta de consulta agendada no dia.", tipo: "numero" },
-  { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com UTM preenchido.", tipo: "numero" },
+  { chave: "consultaAgendadaAds", titulo: "Consulta agendada/ADS", dica: "Dessas consultas agendadas, as que vieram com campanha de anúncio registrada.", tipo: "numero" },
   { chave: "procedimentoVendido", titulo: "Procedimento vendido", dica: "Conversas classificadas como ganho com a etiqueta de procedimento vendido no dia.", tipo: "numero" },
-  { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com UTM preenchido.", tipo: "numero" },
+  { chave: "procedimentoVendidoAds", titulo: "Procedimento vendido/ADS", dica: "Desses procedimentos vendidos, os que vieram com campanha de anúncio registrada.", tipo: "numero" },
   { chave: "canal", titulo: "Canal", dica: "Canal/plataforma da conversa (WhatsApp, Instagram, Messenger...).", tipo: "texto" },
   { chave: "atendente", titulo: "Atendente", dica: "Atendente humano responsável pela conversa.", tipo: "texto" },
   { chave: "equipe", titulo: "Equipe", dica: "Equipe/departamento responsável pela conversa.", tipo: "texto" },

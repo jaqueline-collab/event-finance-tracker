@@ -288,7 +288,7 @@ const NOMES_FONTE: Record<FonteCampo, string> = {
   card: "Campos do card",
   contato: "Campos do contato (primeiro contato do card)",
   atendimento: "Atendimento",
-  utm: "UTM",
+  utm: "Campanha de anúncio",
 };
 
 /** Catálogo agrupado por fonte; o mesmo nome pode aparecer em duas fontes. */

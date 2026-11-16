@@ -3,6 +3,7 @@
  * Lê só o catálogo Campos do Elora (rótulos/ocultos) e a base de campos;
  * nada específico de cliente. Valor ausente = "Sem informação" no agrupamento, em branco no item.
  */
+import { rotuloCampanha } from "./textos-info";
 import { z } from "zod";
 import { aplicarFiltrosCampos, avaliarFiltro, filtroCampoSchema, preenchidoCampo, valorDe, type BaseCampos, type CampoCatalogo, type FiltroCampo, type FonteCampo, type GrupoCatalogo } from "./campos-elora";
 import { NAO_DEFINIDO } from "./nao-definido";
@@ -15,7 +16,7 @@ export type TipoGrafico = (typeof TIPOS_GRAFICO)[number];
 export const ROTULO_TIPO_GRAFICO: Record<TipoGrafico, string> = {
   numero: "Número grande", barras: "Barras", barras_empilhadas: "Barras empilhadas", linhas: "Linhas", area: "Área",
   pizza: "Pizza", rosca: "Rosca", funil: "Funil", tabela: "Tabela", mapa: "Mapa", calendario: "Calendário",
-  dois_valores: "Dois valores", matriz_utm: "Matriz por UTM", tabela_itens: "Tabela de itens",
+  dois_valores: "Dois valores", matriz_utm: "Matriz por campanha de anúncio", tabela_itens: "Tabela de itens",
 };
 export const MEDIDAS = ["contagem", "distinta", "soma", "media", "tempo_medio", "indicador"] as const;
 export type Medida = (typeof MEDIDAS)[number];
@@ -714,7 +715,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const colunas = listaCols.filter((f) => !(semDinheiro && (DINHEIRO.test(f.campo) || (f.fonte === "card" && f.campo === "valor"))));
   const temOrigem = colunas.some(ehOrigem);
   const meta = (f: { oculta?: boolean; fixa?: boolean }) => ({ ...(f.oculta ? { oculta: true } : {}), ...(f.fixa ? { fixa: true } : {}) });
-  const colunasItens: { chave: string; rotulo: string; oculta?: boolean; fixa?: boolean }[] = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem", ...meta(f) } : { chave: `${f.fonte}|${f.campo}`, rotulo: rot(f), ...meta(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
+  const colunasItens: { chave: string; rotulo: string; oculta?: boolean; fixa?: boolean }[] = [...colunas.map((f) => (ehOrigem(f) ? { chave: "origem_calc", rotulo: f.rotulo || "Origem", ...meta(f) } : { chave: `${f.fonte}|${f.campo}`, rotulo: rotuloCampanha(rot(f)), ...meta(f) })), ...(temOrigem ? [] : [{ chave: "origem_calc", rotulo: "Origem" }])];
   const ordensColunas: Record<string, string[]> = {};
   const etiquetas: string[] = [];
   const coresColunas: Record<string, Record<string, string>> = {};
