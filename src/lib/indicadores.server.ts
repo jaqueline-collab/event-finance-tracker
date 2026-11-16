@@ -117,6 +117,8 @@ export async function calcularCorteCliente(db: SupabaseClient, clienteId: string
     if (a.tipo === "canal") nomeCanal[a.externo_id] = a.payload?.identity?.humanId ?? a.nome ?? a.externo_id;
     else agentes[a.externo_id] = { nome: a.nome ?? "", email: a.payload?.email ?? null };
   }
+  // Mensagens trazem o userId do atendimento; o nome vem do próprio atendimento quando não está no cadastro da conta.
+  for (const s of todasSessoes as any[]) if (s.atendente_id && s.atendente_nome && !agentes[s.atendente_id]) agentes[s.atendente_id] = { nome: s.atendente_nome };
   if (soContatos) {
     const { restringirAContatos } = await import("./indicadores-motor");
     const r = restringirAContatos(soContatos, { sessoes, msgs: msgsRaw as any[], contatos: contatosRaw as any[], primeiras });

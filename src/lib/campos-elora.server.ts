@@ -84,6 +84,7 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
     else if (a.tipo === "usuario") usuario[a.externo_id] = a.nome ?? "";
     else if (a.payload?.key) definicoes.push({ key: a.payload.key, name: a.payload.name, type: a.payload.type, entityType: a.payload.entityType, options: a.payload.options });
   }
+  for (const x of atend as any[]) if (x.atendente_id && x.atendente_nome && !usuario[x.atendente_id]) usuario[x.atendente_id] = x.atendente_nome;
   const equipe: Record<string, string> = corte?.data?.equipe_por_canal ?? {};
   const cls = new Map(classif.map((x: any) => [String(x.sessao_id), x.category_name as string | null]));
   const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);

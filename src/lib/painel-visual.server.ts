@@ -68,7 +68,10 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
         em: Date.now(),
         chave: ultimaSync,
         humanoSessao,
-        nomesUsuario: Object.fromEntries(apoio.filter((a: any) => a.tipo === "usuario").map((a: any) => [String(a.externo_id), nomeVisivel(ehSuporte, a.nome as string | null) || null])),
+        nomesUsuario: Object.fromEntries([
+          ...apoio.filter((a: any) => a.tipo === "usuario").map((a: any) => [String(a.externo_id), nomeVisivel(ehSuporte, a.nome as string | null) || null]),
+          ...at.filter((a: any) => a.atendente_id && a.atendente_nome).map((a: any) => [String(a.atendente_id), nomeVisivel(ehSuporte, a.atendente_nome) || null]),
+        ]),
         contatos: ct.map((c: any) => ({
           id: String(c.externo_id),
           criado_em: c.criado_em,
