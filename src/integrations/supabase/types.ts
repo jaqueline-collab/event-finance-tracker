@@ -2200,6 +2200,50 @@ export type Database = {
           },
         ]
       }
+      elora_paineis_incorporados: {
+        Row: {
+          cliente_id: string
+          criado_em: string
+          criado_por: string | null
+          dados_pessoais: boolean
+          id: string
+          revogado_em: string | null
+          token_hash: string
+          ultimo_acesso_em: string | null
+          visao_id: string
+        }
+        Insert: {
+          cliente_id: string
+          criado_em?: string
+          criado_por?: string | null
+          dados_pessoais?: boolean
+          id?: string
+          revogado_em?: string | null
+          token_hash: string
+          ultimo_acesso_em?: string | null
+          visao_id: string
+        }
+        Update: {
+          cliente_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          dados_pessoais?: boolean
+          id?: string
+          revogado_em?: string | null
+          token_hash?: string
+          ultimo_acesso_em?: string | null
+          visao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_paineis_incorporados_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_paineis_sincronizados: {
         Row: {
           campos_personalizados: Json
