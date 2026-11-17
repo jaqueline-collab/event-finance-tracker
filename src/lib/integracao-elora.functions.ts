@@ -33,6 +33,7 @@ type IntegracaoVisivel = {
   ultimoErro: string | null;
   relatorioDiarioAtivo: boolean;
   fontes: import("@/lib/sync-fontes").FonteSync[];
+  ultimaChecagem: import("@/lib/sync-fontes").ChecagemDia[];
   cofre?: { noCofre: boolean; ultimos4: string | null; trocadaEm: string | null };
 };
 
@@ -112,6 +113,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimoErro: null,
       relatorioDiarioAtivo: false,
       fontes,
+      ultimaChecagem,
       };
     }
 
@@ -133,6 +135,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimoErro: c.ultimo_erro ? String(c.ultimo_erro) : null,
       relatorioDiarioAtivo: Boolean(c.relatorio_diario_ativo),
       fontes,
+      ultimaChecagem,
     };
 
   });
