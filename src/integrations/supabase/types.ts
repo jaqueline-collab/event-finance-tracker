@@ -358,6 +358,47 @@ export type Database = {
           },
         ]
       }
+      elora_checagem_mensagens: {
+        Row: {
+          amostra: number
+          checado_em: string
+          cliente_id: string
+          dia: string
+          diferenca: number
+          elora: number
+          id: string
+          nosso: number
+        }
+        Insert: {
+          amostra?: number
+          checado_em?: string
+          cliente_id: string
+          dia: string
+          diferenca?: number
+          elora?: number
+          id?: string
+          nosso?: number
+        }
+        Update: {
+          amostra?: number
+          checado_em?: string
+          cliente_id?: string
+          dia?: string
+          diferenca?: number
+          elora?: number
+          id?: string
+          nosso?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elora_checagem_mensagens_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "elora_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elora_classificacoes_descobertas: {
         Row: {
           cliente_id: string
@@ -2919,8 +2960,13 @@ export type Database = {
           iniciado_em: string | null
           registros: number
           retentativas: number
+          ultima_execucao_concluida: boolean | null
+          ultima_execucao_em: string | null
+          ultima_execucao_registros: number | null
+          ultima_execucao_situacao: string | null
           ultimo_erro: string | null
           ultimo_erro_em: string | null
+          ultimo_registro_em: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -2933,8 +2979,13 @@ export type Database = {
           iniciado_em?: string | null
           registros?: number
           retentativas?: number
+          ultima_execucao_concluida?: boolean | null
+          ultima_execucao_em?: string | null
+          ultima_execucao_registros?: number | null
+          ultima_execucao_situacao?: string | null
           ultimo_erro?: string | null
           ultimo_erro_em?: string | null
+          ultimo_registro_em?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -2947,8 +2998,13 @@ export type Database = {
           iniciado_em?: string | null
           registros?: number
           retentativas?: number
+          ultima_execucao_concluida?: boolean | null
+          ultima_execucao_em?: string | null
+          ultima_execucao_registros?: number | null
+          ultima_execucao_situacao?: string | null
           ultimo_erro?: string | null
           ultimo_erro_em?: string | null
+          ultimo_registro_em?: string | null
         }
         Relationships: [
           {
