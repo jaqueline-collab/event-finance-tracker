@@ -141,18 +141,6 @@ export function mapMensagem(clienteId: string, m: any, sessaoId: string) {
 }
 
 /** Atendimentos (ids) cujas mensagens serão lidas; incremental = só os alterados. */
-async function sessoesParaMensagens(db: SupabaseClient, clienteId: string, desde?: string | null) {
-  const ids: string[] = [];
-  for (let de = 0; ; de += 1000) {
-    let q = db.from("elora_atendimentos_espelho").select("externo_id").eq("cliente_id", clienteId);
-    if (desde) q = q.gte("atualizado_em", desde);
-    const { data, error } = await q.order("externo_id").range(de, de + 999);
-    if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
-    ids.push(...(data ?? []).map((r: any) => String(r.externo_id)));
-    if (!data || data.length < 1000) return ids;
-  }
-}
-
 const APOIO: { tipo: string; caminho: string; nome: (i: any) => unknown }[] = [
   { tipo: "usuario", caminho: "/core/v1/agent", nome: (i) => i.name },
   { tipo: "etiqueta", caminho: "/core/v1/tag", nome: (i) => i.name },
@@ -240,9 +228,7 @@ export async function sincronizarFonte(
     if (error) throw new Error(`elora_sync_estado: ${error.message}`);
   };
 
-  const sessoes = fonte === "mensagens" ? await sessoesParaMensagens(db, clienteId, cursor.desde) : [];
-  const etapas =
-    fonte === "apoio" ? APOIO.length : fonte === "contatos" ? STATUS_CONTATO.length : fonte === "mensagens" ? sessoes.length : 1;
+  const etapas = fonte === "apoio" ? APOIO.length : fonte === "contatos" ? STATUS_CONTATO.length : 1;
   try {
     while (cursor.etapa! < etapas) {
       if (Date.now() - inicio > prazoMs) {
@@ -254,8 +240,6 @@ export async function sincronizarFonte(
       if (fonte === "apoio") caminho = `${APOIO[cursor.etapa!].caminho}?PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else if (fonte === "contatos")
         caminho = `/core/v1/contact?PageNumber=${p}&PageSize=${PAGE_SIZE}&Status=${STATUS_CONTATO[cursor.etapa!]}&IncludeDetails=Tags&IncludeDetails=CustomFields&IncludeDetails=Portfolios`;
-      else if (fonte === "mensagens")
-        caminho = `/chat/v1/message?SessionId=${sessoes[cursor.etapa!]}&PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else
         caminho =
           `/chat/v2/session?PageNumber=${p}&PageSize=${PAGE_SIZE}` +
@@ -282,11 +266,6 @@ export async function sincronizarFonte(
         const linhas = itens.map((c) => mapContato(clienteId, c));
         if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_contatos_espelho", linhas, ["criado_em", "origem", "utm_campaign"], "criado_em"))])];
         await upsert(db, "elora_contatos_espelho", linhas, "cliente_id,externo_id");
-      } else if (fonte === "mensagens") {
-        const sid = sessoes[cursor.etapa!];
-        const linhas = itens.map((m) => mapMensagem(clienteId, m, sid));
-        if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_mensagens_espelho", linhas, ["enviada_em", "direcao", "tipo", "user_id_elora"], "enviada_em"))])];
-        await upsert(db, "elora_mensagens_espelho", linhas, "cliente_id,externo_id");
       } else {
         await upsert(db, "elora_atendimentos_espelho", itens.map((x) => mapAtendimento(clienteId, x)), "cliente_id,externo_id");
       }
