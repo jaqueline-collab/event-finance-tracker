@@ -17,7 +17,7 @@ import {
   testarIntegracaoCliente,
 } from "@/lib/integracao-elora.functions";
 import { sincronizarAgoraCliente } from "@/lib/elora-espelho.functions";
-import { NOME_FONTE_SYNC, ORDEM_FONTES, dataHoraSync, fonteParada, rotuloFonte, ultimaRodada } from "@/lib/sync-fontes";
+import { NOME_FONTE_SYNC, ORDEM_FONTES, dataHoraSync, fonteAtrasada, fonteParada, rotuloExecucao, rotuloFonte, ultimaRodada } from "@/lib/sync-fontes";
 
 const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens", cards: "cards" };
 
@@ -233,11 +233,21 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
             {ORDEM_FONTES.map((f) => {
               const linha = fontes.find((x) => x.fonte === f);
               return (
-                <div key={f} className="flex flex-wrap justify-between gap-2">
-                  <span className="font-medium">{NOME_FONTE_SYNC[f]}</span>
+                <div key={f} className="flex flex-wrap justify-between gap-2 border-b border-border/40 pb-1 last:border-0">
+                  <span className="font-medium">
+                    {NOME_FONTE_SYNC[f]}
+                    {fonteAtrasada(linha) && (
+                      <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] text-destructive">Atrasada</span>
+                    )}
+                  </span>
                   <span className="text-muted-foreground">
                     {rotuloFonte(linha)}
                   </span>
+                  <p className="w-full text-muted-foreground">
+                    Última conclusão: {linha?.concluidoEm ? dataHoraSync(linha.concluidoEm) : "nunca"}
+                    {" · "}Último registro: {linha?.ultimoRegistroEm ? dataHoraSync(linha.ultimoRegistroEm) : "sem registro"}
+                  </p>
+                  {rotuloExecucao(linha) && <p className="w-full text-muted-foreground">Última execução {rotuloExecucao(linha)}</p>}
                   {fonteParada(linha) && (
                     <p className="w-full rounded-md bg-destructive/10 px-2 py-1 text-destructive">
                       Sem atualização há mais de 6 horas
@@ -253,6 +263,22 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
               );
             })}
             {rodada && <p className="pt-1 text-muted-foreground">Última rodada: {rodada}</p>}
+            {(estado.ultimaChecagem ?? []).length > 0 && (
+              <div className="pt-2">
+                <p className="font-medium">
+                  Checagem semanal de mensagens ({dataHoraSync(estado.ultimaChecagem[0].checadoEm)})
+                  {estado.ultimaChecagem.some((c) => c.diferenca !== 0) && (
+                    <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] text-destructive">Com diferença</span>
+                  )}
+                </p>
+                {estado.ultimaChecagem.map((c) => (
+                  <p key={c.dia} className="text-muted-foreground">
+                    {c.dia.split("-").reverse().join("/")}: {c.amostra} atendimentos sorteados, nosso {c.nosso}, Elora {c.elora}
+                    {c.diferenca !== 0 ? ` (diferença ${c.diferenca})` : ""}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

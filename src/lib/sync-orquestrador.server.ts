@@ -52,9 +52,53 @@ export async function rodarFonte(db: SupabaseClient, clienteId: string, fonte: F
   }
 }
 
+/** Ordem da rodada: mensagens por último, porque fica com a sobra do tempo. */
+export const ORDEM_RODADA: FonteSync[] = ["apoio", "contatos", "atendimentos", "cards", "mensagens"];
+/** Tempo máximo de cada fonte; mensagens não tem teto além do que sobrar. */
+export const COTA_MS: Record<FonteSync, number> = { apoio: 6_000, contatos: 10_000, atendimentos: 10_000, cards: 15_000, mensagens: Infinity };
+/** Reserva mínima de cada fonte: ninguém consome a vez das seguintes. */
+export const RESERVA_MS = 4_000;
+
+/** Prazo da fonte na posição `i`: sua cota, sem invadir a reserva das fontes seguintes. */
+export function prazoDaFonte(i: number, restaMs: number): number {
+  const depois = ORDEM_RODADA.length - 1 - i;
+  return Math.max(0, Math.min(COTA_MS[ORDEM_RODADA[i]], restaMs - depois * RESERVA_MS));
+}
+
+const TABELA_DATA: Record<FonteSync, [string, string]> = {
+  apoio: ["elora_apoio_espelho", "sincronizado_em"],
+  contatos: ["elora_contatos_espelho", "atualizado_em"],
+  atendimentos: ["elora_atendimentos_espelho", "atualizado_em"],
+  mensagens: ["", ""],
+  cards: ["elora_cards_espelho", "atualizado_em"],
+};
+
+/** Grava o resultado da fonte nesta execução (inclusive quando ficou sem tempo). */
+export async function gravarExecucao(db: SupabaseClient, clienteId: string, r: ResultadoFonte & { situacao: string }) {
+  const [tab, col] = TABELA_DATA[r.fonte];
+  let ultimo: string | null;
+  if (r.fonte === "mensagens") ultimo = await (await import("./elora-espelho.server")).ultimaMensagemEm(db, clienteId);
+  else {
+    const { data: ult } = await (db as any).from(tab).select(col).eq("cliente_id", clienteId).not(col, "is", null).order(col, { ascending: false }).limit(1).maybeSingle();
+    ultimo = ult?.[col] ?? null;
+  }
+  await (db as any).from("elora_sync_estado").upsert(
+    {
+      cliente_id: clienteId,
+      fonte: r.fonte,
+      ultima_execucao_em: new Date().toISOString(),
+      ultima_execucao_concluida: r.concluido,
+      ultima_execucao_registros: r.registros,
+      ultima_execucao_situacao: r.situacao,
+      ultimo_registro_em: ultimo,
+    },
+    { onConflict: "cliente_id,fonte" },
+  );
+}
+
 /**
- * Roda todas as fontes em sequência dentro do orçamento. Uma fonte com erro
- * não impede as próximas. Cada fonte retoma do cursor salvo.
+ * Roda todas as fontes com tempo dividido: cada uma tem a sua vez e a sua
+ * cota; mensagens fica com a sobra. Uma fonte com erro não impede as próximas.
  */
 export async function rodarTodas(
   db: SupabaseClient,
@@ -62,13 +106,19 @@ export async function rodarTodas(
   ctx: Contexto,
   orcamentoMs: number,
   rodar: typeof rodarFonte = rodarFonte,
+  gravar: typeof gravarExecucao = gravarExecucao,
 ): Promise<ResultadoFonte[]> {
   const inicio = Date.now();
   const out: ResultadoFonte[] = [];
-  for (const f of FONTES_SYNC) {
-    const resta = orcamentoMs - (Date.now() - inicio);
-    if (resta < 3_000) break;
-    out.push(await rodar(db, clienteId, f, ctx, Math.min(25_000, resta)));
+  for (let i = 0; i < ORDEM_RODADA.length; i++) {
+    const f = ORDEM_RODADA[i];
+    const prazo = prazoDaFonte(i, orcamentoMs - (Date.now() - inicio));
+    let r: ResultadoFonte;
+    if (prazo < 2_000) r = { fonte: f, concluido: false, registros: 0, erro: "sem tempo nesta execução" };
+    else r = await rodar(db, clienteId, f, ctx, prazo);
+    out.push(r);
+    const situacao = r.erro === "sem tempo nesta execução" ? "sem_tempo" : r.erro ? "erro" : r.concluido ? "concluida" : "em_andamento";
+    try { await gravar(db, clienteId, { ...r, situacao }); } catch { /* registro não pode parar a rodada */ }
   }
   return out;
 }

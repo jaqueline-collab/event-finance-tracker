@@ -33,6 +33,7 @@ type IntegracaoVisivel = {
   ultimoErro: string | null;
   relatorioDiarioAtivo: boolean;
   fontes: import("@/lib/sync-fontes").FonteSync[];
+  ultimaChecagem: import("@/lib/sync-fontes").ChecagemDia[];
   cofre?: { noCofre: boolean; ultimos4: string | null; trocadaEm: string | null };
 };
 
@@ -73,7 +74,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: linhasSync } = await supabaseAdmin
       .from("elora_sync_estado")
-      .select("fonte, iniciado_em, concluido_em, registros, atualizado_em, erros, ultimo_erro, ultimo_erro_em")
+      .select("fonte, iniciado_em, concluido_em, registros, atualizado_em, erros, ultimo_erro, ultimo_erro_em, ultima_execucao_em, ultima_execucao_concluida, ultima_execucao_registros, ultima_execucao_situacao, ultimo_registro_em")
       .eq("cliente_id", data.clienteId);
     const fontes = (linhasSync ?? []).map((l: any) => ({
       fonte: String(l.fonte),
@@ -84,7 +85,17 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       comErro: Boolean(l.ultimo_erro),
       ultimoErro: l.ultimo_erro ?? null,
       ultimoErroEm: l.ultimo_erro_em ?? null,
+      ultimaExecucaoEm: l.ultima_execucao_em ?? null,
+      ultimaExecucaoConcluida: l.ultima_execucao_concluida ?? null,
+      ultimaExecucaoRegistros: l.ultima_execucao_registros ?? null,
+      ultimaExecucaoSituacao: l.ultima_execucao_situacao ?? null,
+      ultimoRegistroEm: l.ultimo_registro_em ?? null,
     }));
+    const { data: chk } = await (supabaseAdmin as any)
+      .from("elora_checagem_mensagens").select("checado_em, dia, amostra, nosso, elora, diferenca")
+      .eq("cliente_id", data.clienteId).order("checado_em", { ascending: false }).limit(14);
+    const ultimaChecagem = (chk ?? []).filter((c: any) => c.checado_em === chk?.[0]?.checado_em)
+      .map((c: any) => ({ checadoEm: String(c.checado_em), dia: String(c.dia), amostra: Number(c.amostra), nosso: Number(c.nosso), elora: Number(c.elora), diferenca: Number(c.diferenca) }));
 
 
     if (!conta) {
@@ -102,6 +113,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimoErro: null,
       relatorioDiarioAtivo: false,
       fontes,
+      ultimaChecagem,
       };
     }
 
@@ -123,6 +135,7 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimoErro: c.ultimo_erro ? String(c.ultimo_erro) : null,
       relatorioDiarioAtivo: Boolean(c.relatorio_diario_ativo),
       fontes,
+      ultimaChecagem,
     };
 
   });

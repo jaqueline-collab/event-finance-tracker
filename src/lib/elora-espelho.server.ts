@@ -57,7 +57,7 @@ export async function chamarElora(ctx: Contexto, caminho: string): Promise<any> 
   }
 }
 
-const itensDe = (j: any): any[] => (Array.isArray(j) ? j : (j?.items ?? j?.data ?? []));
+export const itensDe = (j: any): any[] => (Array.isArray(j) ? j : (j?.items ?? j?.data ?? []));
 const s = (v: unknown) => (v == null || v === "" ? null : String(v));
 
 /** "1.02:03:04" | "02:03:04" → segundos. */
@@ -141,18 +141,6 @@ export function mapMensagem(clienteId: string, m: any, sessaoId: string) {
 }
 
 /** Atendimentos (ids) cujas mensagens serão lidas; incremental = só os alterados. */
-async function sessoesParaMensagens(db: SupabaseClient, clienteId: string, desde?: string | null) {
-  const ids: string[] = [];
-  for (let de = 0; ; de += 1000) {
-    let q = db.from("elora_atendimentos_espelho").select("externo_id").eq("cliente_id", clienteId);
-    if (desde) q = q.gte("atualizado_em", desde);
-    const { data, error } = await q.order("externo_id").range(de, de + 999);
-    if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
-    ids.push(...(data ?? []).map((r: any) => String(r.externo_id)));
-    if (!data || data.length < 1000) return ids;
-  }
-}
-
 const APOIO: { tipo: string; caminho: string; nome: (i: any) => unknown }[] = [
   { tipo: "usuario", caminho: "/core/v1/agent", nome: (i) => i.name },
   { tipo: "etiqueta", caminho: "/core/v1/tag", nome: (i) => i.name },
@@ -203,6 +191,7 @@ export async function sincronizarFonte(
   ctx: Contexto,
   prazoMs = 45_000,
 ): Promise<{ concluido: boolean; registros: number }> {
+  if (fonte === "mensagens") return sincronizarMensagens(db, clienteId, ctx, prazoMs);
   const inicio = Date.now();
   const { data: est } = await db
     .from("elora_sync_estado")
@@ -239,9 +228,7 @@ export async function sincronizarFonte(
     if (error) throw new Error(`elora_sync_estado: ${error.message}`);
   };
 
-  const sessoes = fonte === "mensagens" ? await sessoesParaMensagens(db, clienteId, cursor.desde) : [];
-  const etapas =
-    fonte === "apoio" ? APOIO.length : fonte === "contatos" ? STATUS_CONTATO.length : fonte === "mensagens" ? sessoes.length : 1;
+  const etapas = fonte === "apoio" ? APOIO.length : fonte === "contatos" ? STATUS_CONTATO.length : 1;
   try {
     while (cursor.etapa! < etapas) {
       if (Date.now() - inicio > prazoMs) {
@@ -253,8 +240,6 @@ export async function sincronizarFonte(
       if (fonte === "apoio") caminho = `${APOIO[cursor.etapa!].caminho}?PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else if (fonte === "contatos")
         caminho = `/core/v1/contact?PageNumber=${p}&PageSize=${PAGE_SIZE}&Status=${STATUS_CONTATO[cursor.etapa!]}&IncludeDetails=Tags&IncludeDetails=CustomFields&IncludeDetails=Portfolios`;
-      else if (fonte === "mensagens")
-        caminho = `/chat/v1/message?SessionId=${sessoes[cursor.etapa!]}&PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else
         caminho =
           `/chat/v2/session?PageNumber=${p}&PageSize=${PAGE_SIZE}` +
@@ -281,11 +266,6 @@ export async function sincronizarFonte(
         const linhas = itens.map((c) => mapContato(clienteId, c));
         if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_contatos_espelho", linhas, ["criado_em", "origem", "utm_campaign"], "criado_em"))])];
         await upsert(db, "elora_contatos_espelho", linhas, "cliente_id,externo_id");
-      } else if (fonte === "mensagens") {
-        const sid = sessoes[cursor.etapa!];
-        const linhas = itens.map((m) => mapMensagem(clienteId, m, sid));
-        if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_mensagens_espelho", linhas, ["enviada_em", "direcao", "tipo", "user_id_elora"], "enviada_em"))])];
-        await upsert(db, "elora_mensagens_espelho", linhas, "cliente_id,externo_id");
       } else {
         await upsert(db, "elora_atendimentos_espelho", itens.map((x) => mapAtendimento(clienteId, x)), "cliente_id,externo_id");
       }
@@ -302,6 +282,90 @@ export async function sincronizarFonte(
     if (cursor.dias?.length && (await usaEspelho(db, clienteId))) {
       const { recalcularDiasGravados } = await import("./relatorio-recalculo.server");
       await recalcularDiasGravados(db, clienteId, cursor.dias, `sincronização ${fonte}: dados alterados`);
+    }
+    await salvar(true);
+    return { concluido: true, registros };
+  } catch (e) {
+    await salvar(false);
+    throw e;
+  }
+}
+
+/** Sobreposição de segurança da busca incremental de mensagens. */
+export const SOBREPOSICAO_MENSAGENS_MS = 2 * 3_600_000;
+type CursorMsg = { v: 2; desde: string | null; ate: string; depoisDe: string; pagina: number; dias?: string[] };
+
+/** Cursor de mensagens de uma rodada: começa na última conclusão menos a sobreposição; `ate` congela a lista. */
+export function iniciarCursorMensagens(salvo: any, concluidoEm: string | null, agora = new Date()): CursorMsg {
+  if (salvo?.v === 2 && salvo.ate) return { depoisDe: "", pagina: 1, ...salvo };
+  const desde = salvo?.v === 2 && "desde" in salvo
+    ? salvo.desde
+    : concluidoEm ? new Date(new Date(concluidoEm).getTime() - SOBREPOSICAO_MENSAGENS_MS).toISOString() : null;
+  return { v: 2, desde, ate: agora.toISOString(), depoisDe: "", pagina: 1, dias: salvo?.dias ?? [] };
+}
+
+/** Próximos atendimentos da rodada, em ordem de id, depois do último lido (atendimento novo nunca desloca a posição). */
+async function proximasSessoes(db: SupabaseClient, clienteId: string, c: CursorMsg, n = 200): Promise<string[]> {
+  let q = db.from("elora_atendimentos_espelho").select("externo_id").eq("cliente_id", clienteId).lte("atualizado_em", c.ate);
+  if (c.desde) q = q.gte("atualizado_em", c.desde);
+  if (c.depoisDe) q = q.gt("externo_id", c.depoisDe);
+  const { data, error } = await q.order("externo_id").limit(n);
+  if (error) throw new Error(`elora_atendimentos_espelho: ${error.message}`);
+  return (data ?? []).map((r: any) => String(r.externo_id));
+}
+
+/** Mensagens: só atendimentos alterados desde a última conclusão (menos 2 h), lista congelada pela rodada. */
+async function sincronizarMensagens(db: SupabaseClient, clienteId: string, ctx: Contexto, prazoMs: number) {
+  const inicio = Date.now();
+  const { data: est } = await db.from("elora_sync_estado").select("*").eq("cliente_id", clienteId).eq("fonte", "mensagens").maybeSingle();
+  const cursor = iniciarCursorMensagens(est?.cursor, est?.concluido_em ?? null);
+  const novaPassada = !cursor.depoisDe && cursor.pagina === 1;
+  let registros = novaPassada ? 0 : Number(est?.registros ?? 0);
+  const salvar = async (concluido: boolean) => {
+    const { error } = await db.from("elora_sync_estado").upsert(
+      {
+        cliente_id: clienteId,
+        fonte: "mensagens",
+        cursor: concluido ? {} : cursor,
+        chamadas: Number(est?.chamadas ?? 0) + ctx.chamadas,
+        retentativas: Number(est?.retentativas ?? 0) + ctx.retentativas,
+        erros: [...((est?.erros as string[]) ?? []), ...ctx.erros].slice(-50),
+        registros,
+        iniciado_em: novaPassada ? new Date().toISOString() : (est?.iniciado_em ?? new Date().toISOString()),
+        concluido_em: concluido ? cursor.ate : (est?.concluido_em ?? null),
+        atualizado_em: new Date().toISOString(),
+      },
+      { onConflict: "cliente_id,fonte" },
+    );
+    if (error) throw new Error(`elora_sync_estado: ${error.message}`);
+  };
+  try {
+    for (;;) {
+      const lote = await proximasSessoes(db, clienteId, cursor);
+      if (!lote.length) break;
+      for (const sid of lote) {
+        for (;;) {
+          if (Date.now() - inicio > prazoMs) {
+            await salvar(false);
+            return { concluido: false, registros };
+          }
+          const resp = await chamarElora(ctx, `/chat/v1/message?SessionId=${sid}&PageNumber=${cursor.pagina}&PageSize=${PAGE_SIZE}`);
+          const itens = itensDe(resp);
+          const linhas = itens.map((m) => mapMensagem(clienteId, m, sid));
+          if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_mensagens_espelho", linhas, ["enviada_em", "direcao", "tipo", "user_id_elora"], "enviada_em"))])];
+          await upsert(db, "elora_mensagens_espelho", linhas, "cliente_id,externo_id");
+          registros += itens.length;
+          if (Boolean(resp?.hasMorePages) && itens.length > 0) { cursor.pagina += 1; continue; }
+          break;
+        }
+        cursor.depoisDe = sid;
+        cursor.pagina = 1;
+        await salvar(false);
+      }
+    }
+    if (cursor.dias?.length && (await usaEspelho(db, clienteId))) {
+      const { recalcularDiasGravados } = await import("./relatorio-recalculo.server");
+      await recalcularDiasGravados(db, clienteId, cursor.dias, "sincronização mensagens: dados alterados");
     }
     await salvar(true);
     return { concluido: true, registros };
@@ -438,4 +502,21 @@ export async function lerUltimoHumanoSessao(db: SupabaseClient, clienteId: strin
   const excluir = await (await import("./suporte.server")).idsSuporteDoCliente(db, clienteId);
   const r = await lerTudo(() => (db as any).rpc("elora_ultimo_humano_sessao", { _cliente_id: clienteId, _excluir: excluir }).order("sessao_id"), 8);
   return new Map((r as any[]).map((x) => [String(x.sessao_id), String(x.humano_user)]));
+}
+
+/** Data da mensagem mais recente gravada (só a data, nunca o texto). */
+export async function ultimaMensagemEm(db: SupabaseClient, clienteId: string): Promise<string | null> {
+  const { data } = await (db as any).from("elora_mensagens_espelho").select("enviada_em").eq("cliente_id", clienteId).not("enviada_em", "is", null).order("enviada_em", { ascending: false }).limit(1).maybeSingle();
+  return data?.enviada_em ?? null;
+}
+
+/** Atendimento e data das mensagens do período (sem texto), para a checagem semanal. */
+export async function mensagensDoPeriodo(db: SupabaseClient, clienteId: string, de: string, ate: string): Promise<{ sessao_id: string; enviada_em: string }[]> {
+  const out: any[] = [];
+  for (let i = 0; ; i += 1000) {
+    const { data, error } = await (db as any).from("elora_mensagens_espelho").select("sessao_id, enviada_em").eq("cliente_id", clienteId).gte("enviada_em", de).lte("enviada_em", ate).order("externo_id").range(i, i + 999);
+    if (error) throw new Error(`mensagens: ${error.message}`);
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) return out;
+  }
 }

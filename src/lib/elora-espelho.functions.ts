@@ -60,7 +60,7 @@ export const sincronizarAgoraCliente = createServerFn({ method: "POST" })
     const base = String(conta.base_url).replace(/\/+$/, "").replace(/\/(core|crm|chat)$/i, "");
     const ctx = { base, chave, chamadas: 0, retentativas: 0, erros: [] as string[] };
     // Depois das fontes do espelho, os cards (histórico de etapas).
-    const { FONTES_SYNC, pegarTrava, soltarTrava, rodarFonte } = await import("@/lib/sync-orquestrador.server");
+    const { FONTES_SYNC, pegarTrava, soltarTrava, rodarFonte, gravarExecucao } = await import("@/lib/sync-orquestrador.server");
     const ordem = FONTES_SYNC;
     const dono = `manual-${crypto.randomUUID()}`;
     if (!(await pegarTrava(supabaseAdmin as any, data.clienteId, dono)))
@@ -68,6 +68,7 @@ export const sincronizarAgoraCliente = createServerFn({ method: "POST" })
     let r;
     try {
       r = await rodarFonte(supabaseAdmin as any, data.clienteId, data.fonte, ctx, 25_000);
+      await gravarExecucao(supabaseAdmin as any, data.clienteId, { ...r, situacao: r.erro ? "erro" : r.concluido ? "concluida" : "em_andamento" }).catch(() => {});
     } finally {
       await soltarTrava(supabaseAdmin as any, data.clienteId, dono);
     }

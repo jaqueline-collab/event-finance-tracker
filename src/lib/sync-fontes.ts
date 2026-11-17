@@ -8,7 +8,26 @@ export type FonteSync = {
   comErro: boolean;
   ultimoErro?: string | null;
   ultimoErroEm?: string | null;
+  ultimaExecucaoEm?: string | null;
+  ultimaExecucaoConcluida?: boolean | null;
+  ultimaExecucaoRegistros?: number | null;
+  ultimaExecucaoSituacao?: string | null;
+  ultimoRegistroEm?: string | null;
 };
+
+export type ChecagemDia = { checadoEm: string; dia: string; amostra: number; nosso: number; elora: number; diferenca: number };
+
+/** Atrasada: sem conclusão há mais de `horas` (ou nunca concluída). */
+export function fonteAtrasada(f: FonteSync | undefined, agora = Date.now(), horas = 6): boolean {
+  return !f?.concluidoEm || agora - new Date(f.concluidoEm).getTime() > horas * 3_600_000;
+}
+
+const SITUACAO: Record<string, string> = { concluida: "concluída", em_andamento: "não terminou, continua na próxima", sem_tempo: "ficou sem tempo", erro: "erro" };
+export function rotuloExecucao(f: FonteSync | undefined): string | null {
+  if (!f?.ultimaExecucaoEm) return null;
+  const sit = SITUACAO[f.ultimaExecucaoSituacao ?? ""] ?? (f.ultimaExecucaoConcluida ? "concluída" : "não terminou");
+  return `${dataHora(f.ultimaExecucaoEm)}: ${sit}, ${num(f.ultimaExecucaoRegistros ?? 0)} registros`;
+}
 
 export const ORDEM_FONTES = ["contatos", "atendimentos", "mensagens", "cards", "apoio"] as const;
 
