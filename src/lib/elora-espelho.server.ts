@@ -524,3 +524,20 @@ export async function lerUltimoHumanoSessao(db: SupabaseClient, clienteId: strin
   const r = await lerTudo(() => (db as any).rpc("elora_ultimo_humano_sessao", { _cliente_id: clienteId, _excluir: excluir }).order("sessao_id"), 8);
   return new Map((r as any[]).map((x) => [String(x.sessao_id), String(x.humano_user)]));
 }
+
+/** Data da mensagem mais recente gravada (só a data, nunca o texto). */
+export async function ultimaMensagemEm(db: SupabaseClient, clienteId: string): Promise<string | null> {
+  const { data } = await (db as any).from("elora_mensagens_espelho").select("enviada_em").eq("cliente_id", clienteId).not("enviada_em", "is", null).order("enviada_em", { ascending: false }).limit(1).maybeSingle();
+  return data?.enviada_em ?? null;
+}
+
+/** Atendimento e data das mensagens do período (sem texto), para a checagem semanal. */
+export async function mensagensDoPeriodo(db: SupabaseClient, clienteId: string, de: string, ate: string): Promise<{ sessao_id: string; enviada_em: string }[]> {
+  const out: any[] = [];
+  for (let i = 0; ; i += 1000) {
+    const { data, error } = await (db as any).from("elora_mensagens_espelho").select("sessao_id, enviada_em").eq("cliente_id", clienteId).gte("enviada_em", de).lte("enviada_em", ate).order("externo_id").range(i, i + 999);
+    if (error) throw new Error(`mensagens: ${error.message}`);
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) return out;
+  }
+}

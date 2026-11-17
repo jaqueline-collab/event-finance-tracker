@@ -69,14 +69,19 @@ const TABELA_DATA: Record<FonteSync, [string, string]> = {
   apoio: ["elora_apoio_espelho", "sincronizado_em"],
   contatos: ["elora_contatos_espelho", "atualizado_em"],
   atendimentos: ["elora_atendimentos_espelho", "atualizado_em"],
-  mensagens: ["elora_mensagens_espelho", "enviada_em"],
+  mensagens: ["", ""],
   cards: ["elora_cards_espelho", "atualizado_em"],
 };
 
 /** Grava o resultado da fonte nesta execução (inclusive quando ficou sem tempo). */
 export async function gravarExecucao(db: SupabaseClient, clienteId: string, r: ResultadoFonte & { situacao: string }) {
   const [tab, col] = TABELA_DATA[r.fonte];
-  const { data: ult } = await (db as any).from(tab).select(col).eq("cliente_id", clienteId).not(col, "is", null).order(col, { ascending: false }).limit(1).maybeSingle();
+  let ultimo: string | null;
+  if (r.fonte === "mensagens") ultimo = await (await import("./elora-espelho.server")).ultimaMensagemEm(db, clienteId);
+  else {
+    const { data: ult } = await (db as any).from(tab).select(col).eq("cliente_id", clienteId).not(col, "is", null).order(col, { ascending: false }).limit(1).maybeSingle();
+    ultimo = ult?.[col] ?? null;
+  }
   await (db as any).from("elora_sync_estado").upsert(
     {
       cliente_id: clienteId,
@@ -85,7 +90,7 @@ export async function gravarExecucao(db: SupabaseClient, clienteId: string, r: R
       ultima_execucao_concluida: r.concluido,
       ultima_execucao_registros: r.registros,
       ultima_execucao_situacao: r.situacao,
-      ultimo_registro_em: ult?.[col] ?? null,
+      ultimo_registro_em: ultimo,
     },
     { onConflict: "cliente_id,fonte" },
   );

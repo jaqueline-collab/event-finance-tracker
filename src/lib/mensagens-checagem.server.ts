@@ -4,7 +4,7 @@
  * e compara com o espelho. Só confere e registra (elora_checagem_mensagens).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { chamarElora, itensDe, mapMensagem, PAGE_SIZE, type Contexto } from "./elora-espelho.server";
+import { chamarElora, itensDe, mapMensagem, mensagensDoPeriodo, PAGE_SIZE, type Contexto } from "./elora-espelho.server";
 import { diaSP } from "./painel-visual";
 
 export const INTERVALO_CHECAGEM_MS = 7 * 86_400_000;
@@ -19,11 +19,7 @@ export async function checarMensagensSemana(db: SupabaseClient, clienteId: strin
   const inicio = Date.now();
   const ate = new Date();
   const de = new Date(ate.getTime() - 7 * 86_400_000);
-  const { data } = await (db as any)
-    .from("elora_mensagens_espelho")
-    .select("sessao_id, enviada_em")
-    .eq("cliente_id", clienteId).gte("enviada_em", de.toISOString()).lte("enviada_em", ate.toISOString())
-    .limit(20000);
+  const data = await mensagensDoPeriodo(db, clienteId, de.toISOString(), ate.toISOString());
   const porDia = new Map<string, Map<string, number>>();
   for (const m of data ?? []) {
     const d = diaSP(m.enviada_em);

@@ -17,7 +17,7 @@ describe("rodada de sincronização", () => {
     expect(gravadas).toContain("mensagens:em_andamento");
   });
   it("uma fonte nunca invade a reserva das seguintes", () => {
-    expect(prazoDaFonte(ORDEM_RODADA.indexOf("cards"), 20_000)).toBe(16_000);
+    expect(prazoDaFonte(ORDEM_RODADA.indexOf("cards"), 12_000)).toBe(8_000);
     expect(prazoDaFonte(ORDEM_RODADA.indexOf("mensagens"), 30_000)).toBe(30_000);
   });
 });
