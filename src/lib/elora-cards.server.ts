@@ -99,7 +99,7 @@ export async function registrarLeituras(db: SupabaseClient, clienteId: string, c
   return novas.length;
 }
 
-type CursorCards = { painel?: number; status?: number; pagina?: number; desde?: string | null; paineis?: string[] };
+type CursorCards = { inicioRodada?: string; painel?: number; status?: number; pagina?: number; desde?: string | null; paineis?: string[] };
 
 /**
  * Lê cards de todos os painéis × status (abertos, WON, LOST, ARCHIVED).
@@ -113,7 +113,7 @@ export async function sincronizarCards(db: SupabaseClient, clienteId: string, ct
   if (!cursor.paineis) {
     const desde = est?.concluido_em ? new Date(new Date(est.concluido_em).getTime() - FOLGA_MS).toISOString() : null;
     const j = await chamarElora(ctx, `/crm/v2/panel?PageNumber=1&PageSize=${PAGE_SIZE}`);
-    cursor = { painel: 0, status: 0, pagina: 1, desde, paineis: itensDe(j).map((p: any) => String(p.id)) };
+    cursor = { inicioRodada: new Date().toISOString(), painel: 0, status: 0, pagina: 1, desde, paineis: itensDe(j).map((p: any) => String(p.id)) };
   }
   let registros = cursor.painel === 0 && cursor.status === 0 && cursor.pagina === 1 ? 0 : Number(est?.registros ?? 0);
   let leituras = 0;
@@ -128,7 +128,8 @@ export async function sincronizarCards(db: SupabaseClient, clienteId: string, ct
         erros: [...((est?.erros as string[]) ?? []), ...ctx.erros].slice(-50),
         registros,
         iniciado_em: est?.iniciado_em ?? new Date().toISOString(),
-        concluido_em: concluido ? new Date().toISOString() : (est?.concluido_em ?? null),
+        // Conclusão = início da rodada: a próxima relê tudo o que mudou enquanto esta percorria os painéis.
+        concluido_em: concluido ? (cursor.inicioRodada ?? cursor.desde ?? new Date().toISOString()) : (est?.concluido_em ?? null),
         atualizado_em: new Date().toISOString(),
       },
       { onConflict: "cliente_id,fonte" },
