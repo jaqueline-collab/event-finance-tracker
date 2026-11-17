@@ -57,7 +57,7 @@ export async function chamarElora(ctx: Contexto, caminho: string): Promise<any> 
   }
 }
 
-const itensDe = (j: any): any[] => (Array.isArray(j) ? j : (j?.items ?? j?.data ?? []));
+export const itensDe = (j: any): any[] => (Array.isArray(j) ? j : (j?.items ?? j?.data ?? []));
 const s = (v: unknown) => (v == null || v === "" ? null : String(v));
 
 /** "1.02:03:04" | "02:03:04" → segundos. */

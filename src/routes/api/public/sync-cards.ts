@@ -44,7 +44,14 @@ export const Route = createFileRoute("/api/public/sync-cards")({
             if (!ctx) { resultado[cliente_id] = { erro: "cliente sem conexão com o Elora" }; continue; }
             if (!(await pegarTrava(db, cliente_id, dono))) { resultado[cliente_id] = { emAndamento: true }; continue; }
             try {
-              resultado[cliente_id] = await rodarTodas(db, cliente_id, ctx, Math.min(resta, 60_000));
+              const rodada = await rodarTodas(db, cliente_id, ctx, Math.min(resta, 60_000));
+              resultado[cliente_id] = rodada;
+              // Checagem semanal de mensagens (só confere e registra), quando a rodada terminou e ainda há tempo.
+              const { checagemVencida, checarMensagensSemana } = await import("@/lib/mensagens-checagem.server");
+              if (ORCAMENTO - (Date.now() - inicio) > 25_000 && (await checagemVencida(db, cliente_id))) {
+                const ch = await checarMensagensSemana(db, cliente_id, ctx, 20_000).catch(() => []);
+                (resultado as any)[`${cliente_id}:checagem`] = ch.map((l: any) => ({ dia: l.dia, diferenca: l.diferenca }));
+              }
             } finally {
               await soltarTrava(db, cliente_id, dono);
             }
