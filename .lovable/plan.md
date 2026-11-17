@@ -31,3 +31,8 @@
 - `elora-espelho.server.ts`: cursor de mensagens `{ desde, ate, depoisDe: externo_id }`, lista ordenada por `externo_id` com `atualizado_em` entre `desde` e `ate`; sobreposição de 2 h.
 - Migração: colunas `ultima_execucao_em`, `ultima_execucao_concluida`, `ultima_execucao_registros`, `ultimo_registro_em` em `elora_sync_estado` (continua só servidor); ajuste pontual do cursor de mensagens do cliente preso.
 - `integracao-elora.functions.ts` devolve os campos novos; componente existente de status mostra a tabela.
+
+## Condições de aceite
+1. **Mensagens conclui.** Depois de aplicar, rodar rodadas manuais de mensagens do Dr. Ricardo até concluir e informar quantas rodadas e quanto tempo levou. Depois conferir em `elora_sync_estado` que as duas execuções automáticas seguintes também concluem e mostrar o resultado por fonte.
+2. **Data do atendimento acompanha a última mensagem.** Contagem no período todo disponível: para cada atendimento, comparar a data de alteração com a última mensagem gravada. Listar os casos em que uma mensagem é mais nova que a data do atendimento (e de que tipo são: nota, transição, anúncio, celular etc.). Se houver casos, a busca incremental passa a incluir também esses atendimentos, para nada ficar de fora.
+3. **Checagem semanal de mensagens.** Uma vez por semana, para os últimos 7 dias: sortear uma amostra de atendimentos de cada dia, contar as mensagens direto do Elora e comparar com o nosso banco. Gravar o resultado (dia, amostra, contagem nossa, contagem do Elora, diferença) numa tabela só do servidor e mostrar a última checagem na mesma tela da super admin, com um selo quando houver diferença. Só confere e registra, não altera dados.
