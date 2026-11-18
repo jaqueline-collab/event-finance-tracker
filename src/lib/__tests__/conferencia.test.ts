@@ -30,3 +30,11 @@ describe("conferência com o Elora App", () => {
     expect(conferenciaVencida(null, agora)).toBe(true);
   });
 });
+describe("conferência de janela maior", () => {
+  it("30 dias terminam hoje", () => {
+    const d = diasConferencia(Date.parse("2026-11-19T01:00:00Z"), 30);
+    expect(d).toHaveLength(30);
+    expect(d[0]).toBe("2026-10-20");
+    expect(d[29]).toBe("2026-11-18");
+  });
+});

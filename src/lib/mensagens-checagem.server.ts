@@ -46,11 +46,11 @@ export async function ultimaConcluida(db: SupabaseClient, clienteId: string) {
 }
 
 /** Roda (ou continua) a conferência do cliente até concluir ou acabar o prazo. */
-export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx: Contexto, prazoMs = 20_000, origem = "manual") {
+export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx: Contexto, prazoMs = 20_000, origem = "manual", nDias?: number) {
   const inicio = Date.now();
   let conf = await ultimaConferencia(db, clienteId);
   if (!conf || conf.situacao !== "conferindo" || Date.now() - Date.parse(conf.updated_at) > VALIDADE_EM_ANDAMENTO_MS) {
-    const dias = diasConferencia();
+    const dias = diasConferencia(Date.now(), nDias);
     const { data, error } = await (db as any).from("elora_conferencias").insert({ cliente_id: clienteId, origem, cursor: { dias, i: 0, etapa: 0 }, linhas: dias.map((dia) => ({ dia })), progresso: "Começando" }).select("*").single();
     if (error) throw new Error(`elora_conferencias: ${error.message}`);
     conf = data;

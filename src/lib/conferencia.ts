@@ -26,11 +26,11 @@ export type EstadoCelula = "ok" | "andamento" | "diverge";
 export function diaSPDe(ms: number): string {
   return new Date(ms - OFFSET_MS).toISOString().slice(0, 10);
 }
-/** Últimos 7 dias (o mais antigo primeiro), incluindo hoje. */
-export function diasConferencia(agora = Date.now()): string[] {
+/** Últimos n dias (padrão 7) (o mais antigo primeiro), incluindo hoje. */
+export function diasConferencia(agora = Date.now(), n = DIAS_CONFERENCIA): string[] {
   const hoje = diaSPDe(agora);
   const base = Date.parse(`${hoje}T12:00:00Z`);
-  return Array.from({ length: DIAS_CONFERENCIA }, (_, i) => new Date(base - (DIAS_CONFERENCIA - 1 - i) * 86_400_000).toISOString().slice(0, 10));
+  return Array.from({ length: n }, (_, i) => new Date(base - (n - 1 - i) * 86_400_000).toISOString().slice(0, 10));
 }
 /** Meia-noite de Brasília do dia até a meia-noite seguinte, em UTC. */
 export function limitesDia(dia: string): { de: string; ate: string } {
