@@ -36,3 +36,13 @@ describe("cursor de mensagens", () => {
     expect(c.depoisDe).toBe("sess-9");
   });
 });
+
+import { desdeIncremental } from "../sync-fontes";
+describe("contatos incrementais", () => {
+  it("contatos recomeçam 2 h antes da última conclusão", () => {
+    expect(desdeIncremental("contatos", "2026-11-18T10:00:00.000Z")).toBe("2026-11-18T08:00:00.000Z");
+  });
+  it("atendimentos continuam voltando 3 dias", () => {
+    expect(desdeIncremental("atendimentos", "2026-11-18T10:00:00.000Z")).toBe("2026-11-15T10:00:00.000Z");
+  });
+});

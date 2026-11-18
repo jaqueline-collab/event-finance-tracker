@@ -69,3 +69,9 @@ export function fonteParada(f: FonteSync | undefined, agora = Date.now(), horas 
   return !f?.atualizadoEm || agora - new Date(f.atualizadoEm).getTime() > horas * 3_600_000;
 }
 export const dataHoraSync = dataHora;
+
+/** Ponto de partida incremental por fonte: contatos voltam 2 h (filtro de alteração da API); atendimentos, 3 dias. */
+export function desdeIncremental(fonte: string, concluidoEm: string): string {
+  const volta = fonte === "contatos" ? 2 * 3_600_000 : 3 * 86_400_000;
+  return new Date(new Date(concluidoEm).getTime() - volta).toISOString();
+}

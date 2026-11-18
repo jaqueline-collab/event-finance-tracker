@@ -150,7 +150,8 @@ const APOIO: { tipo: string; caminho: string; nome: (i: any) => unknown }[] = [
   { tipo: "painel", caminho: "/crm/v2/panel", nome: (i) => i.title },
 ];
 
-type Cursor = { etapa?: number; pagina?: number; desde?: string | null; dias?: string[] };
+type Cursor = { etapa?: number; pagina?: number; desde?: string | null; dias?: string[]; inicioRodada?: string };
+import { desdeIncremental } from "./sync-fontes";
 
 /** Dias (America/Sao_Paulo) cujo cálculo padrão pode mudar com estas linhas novas/alteradas. */
 async function diasAfetados(db: SupabaseClient, clienteId: string, tabela: string, linhas: any[], campos: string[], campoData: string): Promise<string[]> {
@@ -200,10 +201,9 @@ export async function sincronizarFonte(
     .eq("fonte", fonte)
     .maybeSingle();
   let cursor: Cursor = (est?.cursor as Cursor) ?? {};
-  // Incremental: carga já concluída recomeça reprocessando os últimos 3 dias.
+  // Incremental: carga já concluída recomeça da última conclusão menos a sobreposição da fonte.
   if (est?.concluido_em && cursor.etapa === undefined) {
-    const d = new Date(new Date(est.concluido_em).getTime() - 3 * 86_400_000).toISOString();
-    cursor = { etapa: 0, pagina: 1, desde: d };
+    cursor = { etapa: 0, pagina: 1, desde: desdeIncremental(fonte, est.concluido_em), inicioRodada: new Date().toISOString() };
   }
   cursor.etapa ??= 0;
   cursor.pagina ??= 1;
@@ -220,7 +220,8 @@ export async function sincronizarFonte(
         erros: [...((est?.erros as string[]) ?? []), ...ctx.erros].slice(-50),
         registros,
         iniciado_em: est?.iniciado_em ?? new Date().toISOString(),
-        concluido_em: concluido ? new Date().toISOString() : (est?.concluido_em ?? null),
+        // Conclusão = início da rodada incremental: o que mudou durante a rodada entra na próxima.
+        concluido_em: concluido ? (cursor.inicioRodada ?? new Date().toISOString()) : (est?.concluido_em ?? null),
         atualizado_em: new Date().toISOString(),
       },
       { onConflict: "cliente_id,fonte" },
@@ -239,7 +240,8 @@ export async function sincronizarFonte(
       let caminho: string;
       if (fonte === "apoio") caminho = `${APOIO[cursor.etapa!].caminho}?PageNumber=${p}&PageSize=${PAGE_SIZE}`;
       else if (fonte === "contatos")
-        caminho = `/core/v1/contact?PageNumber=${p}&PageSize=${PAGE_SIZE}&Status=${STATUS_CONTATO[cursor.etapa!]}&IncludeDetails=Tags&IncludeDetails=CustomFields&IncludeDetails=Portfolios`;
+        caminho = `/core/v1/contact?PageNumber=${p}&PageSize=${PAGE_SIZE}&Status=${STATUS_CONTATO[cursor.etapa!]}&IncludeDetails=Tags&IncludeDetails=CustomFields&IncludeDetails=Portfolios` +
+          (cursor.desde ? `&UpdatedAt.After=${encodeURIComponent(cursor.desde)}` : "");
       else
         caminho =
           `/chat/v2/session?PageNumber=${p}&PageSize=${PAGE_SIZE}` +
