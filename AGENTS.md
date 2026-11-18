@@ -33,4 +33,4 @@
 - Panel/Matriz speed: SQL grouping, one request per view, `elora_calculo_cache` keyed by `elora_versoes_cache`, permission after cache.
 - Tables use one `BarraTabela` (viewers never save). Fixed filters are re-read server-side (`filtros-fixos.ts`) so viewers cannot drop them; `filtroDaFonte` matches the Matriz rules.
 - Embed link: server-only, hashed token after `#`, masked logs, reuses panel engines (`incorporar.server.ts`), CSP frame-ancestors.
-- Sync: per-source time slices (`sync-orquestrador.server.ts`), all incremental; daily Elora check (`conferencia.ts`, `mensagens-checagem.server.ts`) only reads.
+- Sync: per-source time slices, all incremental; daily Elora check (`conferencia.ts`) only reads.
