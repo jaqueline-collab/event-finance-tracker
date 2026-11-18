@@ -12,9 +12,10 @@
 3. Na conferência diária, para cada dia dos últimos 30 em que temos mais cards que o Elora: listar no Elora os cards do dia (todos os status), achar os que só existem no nosso lado e pedir cada um pelo id. Só marca se a resposta for "não encontrado". Qualquer outro erro, tempo esgotado ou rodada da conferência incompleta: não marca nada.
 4. Reativação: a sincronização normal de cards e o pedido pelo id limpam a marca quando o card volta.
 5. Todas as leituras de cards passam a ignorar os marcados (lista conferida no código: indicadores, Matriz, campos, painel visual, conferência e funções do banco que leem cards e histórico).
-6. Aplicar ao card 854ab39c (confirmando antes no Elora), refazer o retrato depois e dizer o que mudou.
+6. Limite de segurança: se uma rodada for marcar mais de 10 cards, ou mais de 2% dos cards da janela de 30 dias, não marca nenhum, registra um aviso na tela da super admin (seção da conexão) e espera revisão manual.
+6b. Card 854ab39c: pedir pelo id e mostrar a resposta exata do Elora (código e mensagem). PARAR para sua confirmação de que é "não encontrado" e não erro de permissão. Só depois marcar, refazer o retrato depois e dizer o que mudou.
 7. Refazer a conferência de 30 dias e trazer a tabela.
-8. Testes: lista ausente não marca; erro diferente de "não encontrado" não marca; rodada incompleta não marca; card que volta é reativado; card marcado não entra na contagem.
+8. Testes: lista ausente não marca; erro diferente de "não encontrado" não marca; rodada incompleta não marca; card que volta é reativado; mais de 10 cards ou mais de 2% bloqueia tudo e gera aviso; card marcado não entra na contagem.
 
 Nada é publicado.
 
