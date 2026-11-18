@@ -8,7 +8,7 @@
 ## O que vai existir
 - Uma nova aba "Conferência com o Elora App" na configuração do cliente, visível só para super admin.
 - Tabela dos últimos 7 dias, uma linha por dia, mais a linha de total:
-  - Atendimentos criados, Contatos novos e Cards criados, cada um com três números: nosso banco, Elora e diferença. Verde quando é zero, vermelho quando não é, e "em andamento" para diferença de até 1 no dia de hoje durante a conferência.
+  - Atendimentos criados, Contatos novos e Cards criados, cada um com três números: nosso banco, Elora e diferença. Verde quando é zero, vermelho quando não é. "Em andamento" só no dia de hoje, para diferença de até 1; nos dias fechados, qualquer diferença fica vermelha.
   - Mensagens: quantas conversas foram sorteadas e quantas bateram.
 - Aviso na tela: "Fuso usado: Brasília (America/Sao_Paulo)". Os dias são cortados à meia-noite de Brasília nos dois lados.
 - Data e hora da última conferência, com o resultado. Histórico guardado.
@@ -23,6 +23,7 @@
 - Nada específico de cliente; nenhum cálculo de painel muda.
 
 ## Entrega
+- Antes de entregar: identificar o card que divergiu em 16/11 (id, painel e status). Se for arquivado ou excluído, os dois lados passam a contar a mesma coisa e a tela diz o que está sendo contado. Se não for, explico o que é.
 - Rodo a conferência real do Dr. Ricardo e trago a tabela com os números, dizendo quais dias ficaram vermelhos e por quê.
 - Testes das regras (verde/vermelho/em andamento, corte de dia em Brasília, total, quando a execução diária fica vencida). Rodo todos os testes. Não publico.
 
