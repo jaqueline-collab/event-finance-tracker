@@ -1,0 +1,1 @@
+ALTER TABLE public.elora_conferencias ALTER COLUMN cliente_id TYPE text USING cliente_id::text;
