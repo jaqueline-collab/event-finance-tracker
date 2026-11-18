@@ -55,7 +55,7 @@ export async function rodarFonte(db: SupabaseClient, clienteId: string, fonte: F
 /** Ordem da rodada: mensagens por último, porque fica com a sobra do tempo. */
 export const ORDEM_RODADA: FonteSync[] = ["apoio", "contatos", "atendimentos", "cards", "mensagens"];
 /** Tempo máximo de cada fonte; mensagens não tem teto além do que sobrar. */
-export const COTA_MS: Record<FonteSync, number> = { apoio: 6_000, contatos: 10_000, atendimentos: 10_000, cards: 15_000, mensagens: Infinity };
+export const COTA_MS: Record<FonteSync, number> = { apoio: 6_000, contatos: 25_000, atendimentos: 10_000, cards: 25_000, mensagens: Infinity };
 /** Reserva mínima de cada fonte: ninguém consome a vez das seguintes. */
 export const RESERVA_MS = 4_000;
 
