@@ -6,6 +6,7 @@ export const ABAS_DADOS_ELORA = [
   { key: "painel", label: "Painel do cliente" },
   { key: "campos", label: "Campos do Elora" },
   { key: "incorporar", label: "Incorporar no Elora App" },
+  { key: "conferencia", label: "Conferência com o Elora App" },
   { key: "historico", label: "Histórico do relatório (antigo)" },
   { key: "alteracoes", label: "Alterações" },
 ] as const;

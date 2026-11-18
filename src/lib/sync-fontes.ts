@@ -15,7 +15,6 @@ export type FonteSync = {
   ultimoRegistroEm?: string | null;
 };
 
-export type ChecagemDia = { checadoEm: string; dia: string; amostra: number; nosso: number; elora: number; diferenca: number };
 
 /** Atrasada: sem conclusão há mais de `horas` (ou nunca concluída). */
 export function fonteAtrasada(f: FonteSync | undefined, agora = Date.now(), horas = 6): boolean {

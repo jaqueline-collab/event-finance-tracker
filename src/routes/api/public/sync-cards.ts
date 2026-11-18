@@ -46,11 +46,14 @@ export const Route = createFileRoute("/api/public/sync-cards")({
             try {
               const rodada = await rodarTodas(db, cliente_id, ctx, Math.min(resta, 95_000));
               resultado[cliente_id] = rodada;
-              // Checagem semanal de mensagens (só confere e registra), quando a rodada terminou e ainda há tempo.
-              const { checagemVencida, checarMensagensSemana } = await import("@/lib/mensagens-checagem.server");
-              if (ORCAMENTO - (Date.now() - inicio) > 12_000 && (await checagemVencida(db, cliente_id))) {
-                const ch = await checarMensagensSemana(db, cliente_id, ctx, 8_000).catch(() => []);
-                (resultado as any)[`${cliente_id}:checagem`] = ch.map((l: any) => ({ dia: l.dia, diferenca: l.diferenca }));
+              // Conferência diária com o Elora App (só lê e registra), na primeira rodada depois das 02:55.
+              const { conferirCliente, ultimaConferencia } = await import("@/lib/mensagens-checagem.server");
+              const { conferenciaVencida } = await import("@/lib/conferencia");
+              const ult = await ultimaConferencia(db, cliente_id);
+              const continuar = ult?.situacao === "conferindo" && ult?.origem === "automatica";
+              if (ORCAMENTO - (Date.now() - inicio) > 12_000 && (continuar || conferenciaVencida(ult?.iniciado_em ?? null))) {
+                const ch = await conferirCliente(db, cliente_id, ctx, 8_000, "automatica").catch((e) => ({ erro: mensagemCurta(e) }));
+                (resultado as any)[`${cliente_id}:conferencia`] = ch;
               }
             } finally {
               await soltarTrava(db, cliente_id, dono);

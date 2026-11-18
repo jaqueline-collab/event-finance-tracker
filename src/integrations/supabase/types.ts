@@ -629,6 +629,48 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_conferencias: {
+        Row: {
+          cliente_id: string
+          concluido_em: string | null
+          created_at: string
+          cursor: Json
+          id: string
+          iniciado_em: string
+          linhas: Json
+          origem: string
+          progresso: string | null
+          situacao: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          concluido_em?: string | null
+          created_at?: string
+          cursor?: Json
+          id?: string
+          iniciado_em?: string
+          linhas?: Json
+          origem?: string
+          progresso?: string | null
+          situacao?: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          concluido_em?: string | null
+          created_at?: string
+          cursor?: Json
+          id?: string
+          iniciado_em?: string
+          linhas?: Json
+          origem?: string
+          progresso?: string | null
+          situacao?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       elora_config_acoes: {
         Row: {
           alvo: string

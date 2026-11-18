@@ -8,6 +8,7 @@ import { DadosEloraCliente } from "@/components/dados-elora-cliente";
 import { ConfigurarApiCliente } from "@/components/configurar-api-cliente";
 import { CamposEloraConfig } from "@/components/campos-elora-config";
 import { IncorporarPainel } from "@/components/incorporar-painel";
+import { ConferenciaElora } from "@/components/conferencia-elora";
 import { MatrizDimensionalLegada } from "@/components/resultados-cliente";
 import { IntegracaoElora } from "@/components/integracao-elora";
 import { getIntegracaoCliente } from "@/lib/integracao-elora.functions";
@@ -106,6 +107,7 @@ export function ConfiguracaoClienteSheet({
           {aba === "painel" && <ConfigurarApiCliente clienteId={clienteId} aba="painel" />}
           {aba === "campos" && <CamposEloraConfig clienteId={clienteId} />}
           {aba === "incorporar" && <IncorporarPainel clienteId={clienteId} />}
+          {aba === "conferencia" && <ConferenciaElora clienteId={clienteId} />}
           {aba === "alteracoes" && <HistoricoAlteracoes clienteId={clienteId} />}
           {aba === "historico" && <div className="space-y-2"><p className="text-sm text-muted-foreground">Registros enviados pela automação e congelamentos antigos. Só leitura; não aparece para cliente nem parceiro.</p><MatrizDimensionalLegada clienteId={clienteId} /></div>}
         </div>

@@ -17,6 +17,7 @@ import {
   testarIntegracaoCliente,
 } from "@/lib/integracao-elora.functions";
 import { sincronizarAgoraCliente } from "@/lib/elora-espelho.functions";
+import { ROTULO_ETAPA, type EtapaConferencia } from "@/lib/conferencia";
 import { NOME_FONTE_SYNC, ORDEM_FONTES, dataHoraSync, fonteAtrasada, fonteParada, rotuloExecucao, rotuloFonte, ultimaRodada } from "@/lib/sync-fontes";
 
 const NOME_FONTE: Record<string, string> = { apoio: "listas da conta", contatos: "contatos", atendimentos: "atendimentos", mensagens: "mensagens", cards: "cards" };
@@ -263,18 +264,19 @@ export function IntegracaoElora({ clienteId, semAtalho = false }: { clienteId: s
               );
             })}
             {rodada && <p className="pt-1 text-muted-foreground">Última rodada: {rodada}</p>}
-            {(estado.ultimaChecagem ?? []).length > 0 && (
+            {estado.ultimaChecagem && (
               <div className="pt-2">
                 <p className="font-medium">
-                  Checagem semanal de mensagens ({dataHoraSync(estado.ultimaChecagem[0].checadoEm)})
-                  {estado.ultimaChecagem.some((c) => c.diferenca !== 0) && (
+                  Conferência com o Elora App ({dataHoraSync(estado.ultimaChecagem.quando)})
+                  {estado.ultimaChecagem.divergencias.length === 0 ? (
+                    <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-[10px] text-success">Tudo bateu</span>
+                  ) : (
                     <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] text-destructive">Com diferença</span>
                   )}
                 </p>
-                {estado.ultimaChecagem.map((c) => (
-                  <p key={c.dia} className="text-muted-foreground">
-                    {c.dia.split("-").reverse().join("/")}: {c.amostra} atendimentos sorteados, nosso {c.nosso}, Elora {c.elora}
-                    {c.diferenca !== 0 ? ` (diferença ${c.diferenca})` : ""}
+                {estado.ultimaChecagem.divergencias.map((d) => (
+                  <p key={`${d.dia}-${d.coluna}`} className="text-destructive">
+                    {d.dia.split("-").reverse().join("/")}: {ROTULO_ETAPA[d.coluna as EtapaConferencia] ?? d.coluna}
                   </p>
                 ))}
               </div>

@@ -33,7 +33,7 @@ type IntegracaoVisivel = {
   ultimoErro: string | null;
   relatorioDiarioAtivo: boolean;
   fontes: import("@/lib/sync-fontes").FonteSync[];
-  ultimaChecagem: import("@/lib/sync-fontes").ChecagemDia[];
+  ultimaChecagem: { quando: string; divergencias: { dia: string; coluna: string }[] } | null;
   cofre?: { noCofre: boolean; ultimos4: string | null; trocadaEm: string | null };
 };
 
@@ -91,11 +91,11 @@ export const getIntegracaoCliente = createServerFn({ method: "POST" })
       ultimaExecucaoSituacao: l.ultima_execucao_situacao ?? null,
       ultimoRegistroEm: l.ultimo_registro_em ?? null,
     }));
-    const { data: chk } = await (supabaseAdmin as any)
-      .from("elora_checagem_mensagens").select("checado_em, dia, amostra, nosso, elora, diferenca")
-      .eq("cliente_id", data.clienteId).order("checado_em", { ascending: false }).limit(14);
-    const ultimaChecagem = (chk ?? []).filter((c: any) => c.checado_em === chk?.[0]?.checado_em)
-      .map((c: any) => ({ checadoEm: String(c.checado_em), dia: String(c.dia), amostra: Number(c.amostra), nosso: Number(c.nosso), elora: Number(c.elora), diferenca: Number(c.diferenca) }));
+    // Última conferência concluída com o Elora App: só o resumo das células vermelhas, para o selo.
+    const { ultimaConcluida } = await import("@/lib/mensagens-checagem.server");
+    const { divergencias, diaSPDe } = await import("@/lib/conferencia");
+    const uc = await ultimaConcluida(supabaseAdmin as any, data.clienteId);
+    const ultimaChecagem = uc ? { quando: String(uc.concluido_em), divergencias: divergencias(uc.linhas ?? [], diaSPDe(Date.parse(uc.iniciado_em))) } : null;
 
 
     if (!conta) {
