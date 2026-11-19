@@ -2,7 +2,7 @@
  * Regras do Painel visual do cliente (puras, testáveis).
  * Fuso: America/Sao_Paulo (UTC-3 fixo, sem horário de verão desde 2019).
  */
-import { NAO_DEFINIDO, normalizarRotuloVazio, normalizarValoresFiltro } from "./nao-definido";
+import { NAO_DEFINIDO, ATENDENTE_SEM_RESPOSTA, normalizarRotuloVazio, normalizarValoresFiltro } from "./nao-definido";
 
 export type PeriodoChave = "7d" | "30d" | "mes" | "mes_passado" | "personalizado";
 export type Periodo = { de: string; ate: string }; // YYYY-MM-DD, inclusivo
@@ -129,7 +129,7 @@ export const DIMENSOES: { chave: Dimensao; rotulo: string; todos: string }[] = [
   { chave: "campanha", rotulo: "Campanha", todos: "todas" },
 ];
 
-export const SEM_ATENDENTE = NAO_DEFINIDO;
+export const SEM_ATENDENTE = ATENDENTE_SEM_RESPOSTA;
 
 /**
  * Conversas realizadas por dia (São Paulo): cada par atendimento+dia com

@@ -28,7 +28,7 @@ const COLUNAS: Record<string, TextoInfo> = {
   "total": { oque: "Soma do período.", como: "Soma das linhas; fica sempre no rodapé, em qualquer ordem." },
   // Colunas das tabelas dos blocos
   "canal": { oque: "Nome do canal de entrada." },
-  "atendente": { oque: 'Nome da pessoa da equipe; "Sem informação" quando não houve resposta de pessoa da equipe.' },
+  "atendente": { oque: 'Última pessoa da equipe com nome que respondeu. "Respondida pelo celular (sem identificação)" quando só houve resposta pelo celular; "Sem resposta da equipe" quando ninguém da equipe respondeu.' },
   "atendimentos": { oque: "Atendimentos iniciados no período atribuídos a essa linha." },
   "conversas": { oque: "Conversas do período (uma por atendimento por dia com mensagem) atribuídas a essa linha." },
   "proporcao": { oque: "Parte das conversas do bloco que ficou com essa linha (conversas da linha ÷ total de conversas do bloco)." },

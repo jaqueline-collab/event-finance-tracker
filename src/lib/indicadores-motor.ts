@@ -1,3 +1,4 @@
+import { ID_CELULAR, ATENDENTE_CELULAR, ATENDENTE_SEM_RESPOSTA } from "./nao-definido";
 /**
  * Motor único do relatório diário (lógica pura, sem banco).
  * Colunas padrão vêm do sistema; colunas de cards vêm da configuração de
@@ -394,14 +395,17 @@ export function calcularPadraoPorCorteDetalhado(
   for (const c of conv.values())
     if (c.ultimoHumano) {
       const h = humanoSessao.get(c.s);
-      if (!h || c.ultimoHumano.em > h.em) humanoSessao.set(c.s, c.ultimoHumano);
+      // pessoa com nome vence o celular em qualquer dia do atendimento
+      const cel = (x: { user: string }) => x.user === ID_CELULAR;
+      if (!h || (cel(h) && !cel(c.ultimoHumano)) || (cel(h) === cel(c.ultimoHumano) && c.ultimoHumano.em > h.em)) humanoSessao.set(c.s, c.ultimoHumano);
     }
   const atendenteDaSessao = (s: SessaoCorte | undefined, humano: { user: string } | null) => {
     // Regra única: atendente = última pessoa da equipe que respondeu (sem suporte). Sem resposta = vazio; nunca o atribuído.
     void s;
+    if (humano?.user === ID_CELULAR) return { nome: ATENDENTE_CELULAR, ignorado: false };
     const agente = humano ? (cfg.agentes[humano.user] ?? null) : null;
     const nome = agente?.nome || "";
-    if (ehOculto(agente, nome)) return { nome: "", ignorado: false };
+    if (!nome || ehOculto(agente, nome)) return { nome: ATENDENTE_SEM_RESPOSTA, ignorado: false };
     return { nome, ignorado: ehIgnorado(agente, nome) };
   };
   const ordenadas = [...conv.values()].sort((a, b) => a.dia.localeCompare(b.dia) || a.s.localeCompare(b.s));

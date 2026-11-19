@@ -166,7 +166,7 @@ describe("colunas padrão por canal/atendente/equipe", () => {
   it("atendente = última mensagem humana; sem humana usa responsável ou vazio", () => {
     const L = calcularPadraoPorCorte(contatos, msgs, sessoes, cfgCorte);
     expect(L.find((l) => l.canal === "(31) 1111")?.atendente).toBe("Ana");
-    expect(L.find((l) => l.canal === "@insta")?.atendente).toBe("");
+    expect(L.find((l) => l.canal === "@insta")?.atendente).toBe("Sem resposta da equipe");
   });
   it("canal sem mapa de equipe fica com equipe vazia", () => {
     const L = calcularPadraoPorCorte(contatos, msgs, sessoes, cfgCorte);
@@ -183,7 +183,7 @@ describe("colunas padrão por canal/atendente/equipe", () => {
     const s2 = sessoes.map((s) => ({ ...s, responsavel_id: "u1", responsavel_nome: "Ana S." }));
     const semHumano = msgs.map((m) => ({ ...m, user_id: null }));
     const L = calcularPadraoPorCorte(contatos, semHumano, s2, { ...cfgCorte, ignorar: [] });
-    expect(L.filter((l) => l.conversas_total_dia > 0).every((l) => l.atendente === "")).toBe(true);
+    expect(L.filter((l) => l.conversas_total_dia > 0).every((l) => l.atendente === "Sem resposta da equipe")).toBe(true);
   });
   it("última resposta de suporte: vale a pessoa anterior da equipe; total não muda", () => {
     const base = [
@@ -234,6 +234,30 @@ describe("usuários de suporte: esconde a pessoa, mantém a conversa", () => {
   it("mensagem dela não vira resposta da equipe do cliente", () => {
     const m = [{ sessao_id: "s1", enviada_em: "2026-11-10T13:00:00Z", tipo: "TEXT", origem: "AGENT", user_id: "j" }];
     const L = calcularPadraoPorCorte([], m as any, [{ ...s[0], responsavel_id: null, responsavel_nome: null }], cfg as any);
-    expect(L[0].atendente).toBe("");
+    expect(L[0].atendente).toBe("Sem resposta da equipe");
+  });
+});
+
+describe("atendente: pessoa com nome > celular > sem resposta", () => {
+  const Z = "00000000-0000-0000-0000-000000000000";
+  const ses = [{ id: "s1", contato_id: null, canal_id: "c1", canal_nome: "C", responsavel_id: null, responsavel_nome: null }];
+  const cfg = { nomeCanal: {}, equipePorCanal: {}, agentes: { u1: { nome: "Ana" } }, ignorar: [] } as any;
+  const run = (msgs: any[]) => calcularPadraoPorCorte([], msgs, ses as any, cfg);
+  it("só celular no dia vira 'Respondida pelo celular (sem identificação)'", () => {
+    const L = run([{ sessao_id: "s1", enviada_em: "2026-11-10T13:00:00Z", tipo: null, origem: "DEFAULT", user_id: null }, { sessao_id: "s1", enviada_em: "2026-11-10T14:00:00Z", tipo: null, origem: null, user_id: Z }]);
+    expect(L[0].atendente).toBe("Respondida pelo celular (sem identificação)");
+  });
+  it("ninguém da equipe respondeu vira 'Sem resposta da equipe'", () => {
+    const L = run([{ sessao_id: "s1", enviada_em: "2026-11-10T13:00:00Z", tipo: null, origem: "DEFAULT", user_id: null }]);
+    expect(L[0].atendente).toBe("Sem resposta da equipe");
+  });
+  it("dias separados: soma por atendente = total de conversas", () => {
+    const L = run([
+      { sessao_id: "s1", enviada_em: "2026-11-10T13:00:00Z", tipo: null, origem: null, user_id: "u1" },
+      { sessao_id: "s1", enviada_em: "2026-11-11T13:00:00Z", tipo: null, origem: null, user_id: Z },
+      { sessao_id: "s1", enviada_em: "2026-11-12T13:00:00Z", tipo: null, origem: "DEFAULT", user_id: null },
+    ]);
+    expect(L.map((l) => l.atendente).sort()).toEqual(["Ana", "Respondida pelo celular (sem identificação)", "Sem resposta da equipe"]);
+    expect(L.reduce((a, l) => a + l.conversas_total_dia, 0)).toBe(3);
   });
 });

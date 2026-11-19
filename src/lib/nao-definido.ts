@@ -4,6 +4,15 @@
  * Em célula de item (tabela, lista do dia, detalhes, exportar) o vazio fica em branco.
  */
 export const NAO_DEFINIDO = "Sem informação";
+/** Id que o Elora usa para resposta enviada pelo celular (aparelho), sem identificar a pessoa. */
+export const ID_CELULAR = "00000000-0000-0000-0000-000000000000";
+/** Rótulos só da dimensão de atendente. Pessoa com nome > celular > sem resposta. */
+export const ATENDENTE_CELULAR = "Respondida pelo celular (sem identificação)";
+export const ATENDENTE_SEM_RESPOSTA = "Sem resposta da equipe";
+/** Rótulo do atendente a partir do id da última resposta humana já escolhida (pessoa com nome vence o celular). */
+export const rotuloAtendente = (userId: string | null | undefined, nome: string | null | undefined): string =>
+  userId === ID_CELULAR ? ATENDENTE_CELULAR : (nome && String(nome).trim()) || ATENDENTE_SEM_RESPOSTA;
+
 /** Rótulo usado antes; filtros já gravados com ele continuam valendo. */
 export const ROTULO_VAZIO_ANTIGO = "Não definido";
 

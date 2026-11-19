@@ -1,7 +1,7 @@
 import { exibirCanal } from "./nome-canal";
 /** Leitura do espelho para o catálogo "Campos do Elora" e filtros (somente servidor). Nunca lê texto de mensagens. */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NAO_DEFINIDO } from "./nao-definido";
+import { NAO_DEFINIDO, rotuloAtendente } from "./nao-definido";
 import type { AjusteCampo, BaseCampos } from "./campos-elora";
 
 import { lerTudo } from "./ler-paginas.server";
@@ -21,7 +21,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
   const c = cache.get(clienteId);
   if (c && c.chave === chave && Date.now() - c.em < 300_000) return c.base;
   // Cache no banco (compactado), mesma chave de versões: vale para qualquer servidor.
-  const chaveDb = await hashTexto(`base-campos|atendente-v2|excl-v1|${clienteId}|${chave}`);
+  const chaveDb = await hashTexto(`base-campos|atendente-v3|excl-v1|${clienteId}|${chave}`);
   const { data: achado } = await (db as any).from("elora_calculo_cache").select("valor").eq("chave", chaveDb).gte("criado_em", new Date(Date.now() - 300_000).toISOString()).maybeSingle();
   if (achado?.valor?.gz) {
     try {
@@ -98,7 +98,7 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
       id: String(x.externo_id), contato_id: x.contato_id ? String(x.contato_id) : null,
       canal: exibirCanal(mapaCanais, x.canal_id, x.canal_nome || canal[x.canal_id]) || NAO_DEFINIDO,
       // Regra única: última pessoa da equipe que respondeu no atendimento (sem suporte); nunca o atribuído.
-      atendente: nomeVisivel(ehSuporte, usuario[humanoSessao.get(String(x.externo_id)) ?? ""] || null),
+      atendente: rotuloAtendente(humanoSessao.get(String(x.externo_id)), nomeVisivel(ehSuporte, usuario[humanoSessao.get(String(x.externo_id)) ?? ""] || null)),
       equipe: (x.canal_id && equipe[x.canal_id]) || null,
       classificacao: cls.get(String(x.externo_id)) ?? x.classificacao ?? null,
       status: x.status, criado_em: x.criado_em, tempo_espera: x.time_wait_segundos, tempo_atendimento: x.time_service_segundos,

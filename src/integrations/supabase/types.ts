@@ -3295,6 +3295,7 @@ export type Database = {
           _inicio: string
         }
         Returns: {
+          celular_em: string
           humano_em: string
           humano_user: string
           primeira_em: string

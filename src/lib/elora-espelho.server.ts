@@ -1,3 +1,4 @@
+import { ID_CELULAR as ID_CELULAR_ESP } from "./nao-definido";
 /**
  * Espelho completo da conta Elora de um cliente (somente servidor).
  * Traz TUDO da API: contatos (todos os status), atendimentos (todos os
@@ -494,7 +495,9 @@ export async function lerMensagensSemTexto(db: SupabaseClient, clienteId: string
   for (const r of pares as any[]) {
     const s = String(r.sessao_id);
     out.push({ sessao_id: s, enviada_em: r.primeira_em, tipo: null, origem: r.usuario ? "DEFAULT" : null, user_id: null });
-    if (r.humano_em && r.humano_user && String(r.humano_user) !== "00000000-0000-0000-0000-000000000000") out.push({ sessao_id: s, enviada_em: r.humano_em, tipo: null, origem: null, user_id: String(r.humano_user) });
+    // Pessoa com nome vence; só resposta pelo celular vira a marca do celular.
+    if (r.humano_em && r.humano_user && String(r.humano_user) !== ID_CELULAR_ESP) out.push({ sessao_id: s, enviada_em: r.humano_em, tipo: null, origem: null, user_id: String(r.humano_user) });
+    else if (r.celular_em) out.push({ sessao_id: s, enviada_em: r.celular_em, tipo: null, origem: null, user_id: ID_CELULAR_ESP });
   }
   return out;
 }

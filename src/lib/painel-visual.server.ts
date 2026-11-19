@@ -1,5 +1,5 @@
 import { exibirCanal } from "./nome-canal";
-import { NAO_DEFINIDO } from "@/lib/nao-definido";
+import { NAO_DEFINIDO, ID_CELULAR, ATENDENTE_CELULAR } from "@/lib/nao-definido";
 import type { FiltroCampo } from "@/lib/campos-elora";
 import type { Filtros, Periodo } from "./painel-visual";
 import { estadoCobertura } from "./sync-cobertura";
@@ -69,6 +69,7 @@ export async function calcularPainelVisual(adm: any, clienteId: string, p: Perio
         chave: ultimaSync,
         humanoSessao,
         nomesUsuario: Object.fromEntries([
+          [ID_CELULAR, ATENDENTE_CELULAR],
           ...apoio.filter((a: any) => a.tipo === "usuario").map((a: any) => [String(a.externo_id), nomeVisivel(ehSuporte, a.nome as string | null) || null]),
           ...at.filter((a: any) => a.atendente_id && a.atendente_nome).map((a: any) => [String(a.atendente_id), nomeVisivel(ehSuporte, a.atendente_nome) || null]),
         ]),
