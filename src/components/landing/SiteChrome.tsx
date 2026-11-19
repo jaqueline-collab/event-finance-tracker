@@ -207,6 +207,9 @@ export function Footer() {
       <div className="max-w-6xl mx-auto mt-10 pt-5 border-t border-white/5 flex flex-col items-center gap-1 text-xs text-white/40 text-center">
         <p>© {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.</p>
         <p className="text-white/30">DITOS &amp; C.O LTDA</p>
+        <Link to="/politica-de-privacidade" className="text-white/60 hover:text-white underline underline-offset-2">
+          Política de Privacidade
+        </Link>
       </div>
     </footer>
   );

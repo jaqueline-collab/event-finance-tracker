@@ -27,6 +27,7 @@ import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as PoliticaDePrivacidadeRouteImport } from './routes/politica-de-privacidade'
 import { Route as RelatorioValidacaoRouteImport } from './routes/relatorio-validacao'
 import { Route as ResumoRouteImport } from './routes/resumo'
 import { Route as SimuladorRouteImport } from './routes/simulador'
@@ -139,6 +140,11 @@ const PerfilRoute = PerfilRouteImport.update({
 const PlanosRoute = PlanosRouteImport.update({
   id: '/planos',
   path: '/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliticaDePrivacidadeRoute = PoliticaDePrivacidadeRouteImport.update({
+  id: '/politica-de-privacidade',
+  path: '/politica-de-privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RelatorioValidacaoRoute = RelatorioValidacaoRouteImport.update({
@@ -283,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
@@ -324,6 +331,7 @@ export interface FileRoutesByTo {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/parceiros': typeof ParceirosRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/relatorio-validacao': typeof RelatorioValidacaoRoute
   '/resumo': typeof ResumoRoute
   '/simulador': typeof SimuladorRoute
@@ -413,6 +422,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/politica-de-privacidade'
     | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
@@ -454,6 +464,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/politica-de-privacidade'
     | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
@@ -497,6 +508,7 @@ export interface FileRouteTypes {
     | '/parceiros'
     | '/perfil'
     | '/planos'
+    | '/politica-de-privacidade'
     | '/relatorio-validacao'
     | '/resumo'
     | '/simulador'
@@ -541,6 +553,7 @@ export interface RootRouteChildren {
   ParceirosRoute: typeof ParceirosRoute
   PerfilRoute: typeof PerfilRoute
   PlanosRoute: typeof PlanosRoute
+  PoliticaDePrivacidadeRoute: typeof PoliticaDePrivacidadeRoute
   RelatorioValidacaoRoute: typeof RelatorioValidacaoRoute
   ResumoRoute: typeof ResumoRoute
   SimuladorRoute: typeof SimuladorRoute
@@ -689,6 +702,13 @@ declare module '@tanstack/react-router' {
       path: '/planos'
       fullPath: '/planos'
       preLoaderRoute: typeof PlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/politica-de-privacidade': {
+      id: '/politica-de-privacidade'
+      path: '/politica-de-privacidade'
+      fullPath: '/politica-de-privacidade'
+      preLoaderRoute: typeof PoliticaDePrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/relatorio-validacao': {
@@ -908,6 +928,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParceirosRoute: ParceirosRoute,
   PerfilRoute: PerfilRoute,
   PlanosRoute: PlanosRoute,
+  PoliticaDePrivacidadeRoute: PoliticaDePrivacidadeRoute,
   RelatorioValidacaoRoute: RelatorioValidacaoRoute,
   ResumoRoute: ResumoRoute,
   SimuladorRoute: SimuladorRoute,
