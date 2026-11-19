@@ -515,6 +515,14 @@ export async function ultimaMensagemEm(db: SupabaseClient, clienteId: string): P
   return data?.enviada_em ?? null;
 }
 
+/** Contagem de mensagens de uma janela (só o total, nunca o texto). */
+export async function contarMensagensDia(db: SupabaseClient, clienteId: string, inicio: string, fim: string): Promise<number> {
+  const { count, error } = await (db as any).from("elora_mensagens_espelho").select("externo_id", { count: "exact", head: true })
+    .eq("cliente_id", clienteId).gte("enviada_em", inicio).lt("enviada_em", fim);
+  if (error) throw new Error(`mensagens: ${error.message}`);
+  return count ?? 0;
+}
+
 /** Atendimento e data das mensagens do período (sem texto), para a checagem semanal. */
 export async function mensagensDoPeriodo(db: SupabaseClient, clienteId: string, de: string, ate: string): Promise<{ sessao_id: string; enviada_em: string }[]> {
   const out: any[] = [];

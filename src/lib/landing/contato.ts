@@ -1,5 +1,5 @@
 /** Contatos oficiais da Elora usados na landing page. */
-export const EMAIL_CONTATO = "contato@eloracrm.com";
+export const EMAIL_CONTATO = "contato@eloracrm.com.br";
 /** Elora Chat (widget wts.chat) — link curto de contingência e id do widget. */
 export const CHAT_LINK = "https://wshort.me/GzS";
 export const CHAT_WIDGET_ID = "chat-f60065";

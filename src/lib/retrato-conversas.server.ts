@@ -5,6 +5,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { lerTudo } from "./ler-paginas.server";
+import { contarMensagensDia } from "./elora-espelho.server";
 
 export async function gravarRetratoConversasDia(db: SupabaseClient, clienteId: string, de: string, ate: string, motivo: string) {
   const inicio = new Date(`${de}T03:00:00Z`).toISOString();
@@ -24,10 +25,9 @@ export async function gravarRetratoConversasDia(db: SupabaseClient, clienteId: s
   const linhas = [];
   for (let t = new Date(`${de}T12:00:00Z`).getTime(); t <= new Date(`${ate}T12:00:00Z`).getTime(); t += 86_400_000) {
     const dia = new Date(t).toISOString().slice(0, 10);
-    const { count } = await db.from("elora_mensagens_espelho").select("externo_id", { count: "exact", head: true })
-      .eq("cliente_id", clienteId).gte("enviada_em", `${dia}T03:00:00Z`).lt("enviada_em", new Date(t + 15 * 3_600_000).toISOString());
+    const mensagens = await contarMensagensDia(db, clienteId, `${dia}T03:00:00Z`, new Date(t + 15 * 3_600_000).toISOString());
     const d = porDia.get(dia) ?? { conversas: 0, usuario: 0, bot: 0 };
-    linhas.push({ cliente_id: clienteId, retrato_em, motivo, periodo_de: de, periodo_ate: ate, dia, ...d, mensagens: count ?? 0 });
+    linhas.push({ cliente_id: clienteId, retrato_em, motivo, periodo_de: de, periodo_ate: ate, dia, ...d, mensagens });
   }
   const { error: e2 } = await db.from("elora_retratos_conversas_dia").insert(linhas);
   if (e2) throw e2;
