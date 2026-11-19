@@ -7,7 +7,7 @@ export type TextoInfo = { oque: string; como?: string; fonte?: string; aviso?: s
 const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 /** Títulos que aguardam decisão: ficam sem ícone até aprovação. */
-export const PENDENTES = new Set(["usuario do sistema", "bot", "conversas por atendente"].map(norm));
+export const PENDENTES = new Set<string>();
 
 const ADS = "Sem campanha de anúncio registrada no contato, não conta como ADS.";
 const HIST = 'Antes de 05/11 não há esse histórico ("—").';
@@ -28,6 +28,8 @@ const COLUNAS: Record<string, TextoInfo> = {
   "total": { oque: "Soma do período.", como: "Soma das linhas; fica sempre no rodapé, em qualquer ordem." },
   // Colunas das tabelas dos blocos
   "canal": { oque: "Nome do canal de entrada." },
+  "usuario do sistema": { oque: "Conversas em que uma pessoa da equipe respondeu no dia, inclusive quando a resposta foi pelo celular." },
+  "bot": { oque: "Conversas em que nenhuma pessoa da equipe respondeu no dia. Inclui as que só o robô respondeu e as que ninguém respondeu." },
   "atendente": { oque: 'Última pessoa da equipe com nome que respondeu. "Respondida pelo celular (sem identificação)" quando só houve resposta pelo celular; "Sem resposta da equipe" quando ninguém da equipe respondeu.' },
   "atendimentos": { oque: "Atendimentos iniciados no período atribuídos a essa linha." },
   "conversas": { oque: "Conversas do período (uma por atendimento por dia com mensagem) atribuídas a essa linha." },
@@ -51,6 +53,7 @@ const COLUNAS: Record<string, TextoInfo> = {
 };
 
 const BLOCOS: Record<string, TextoInfo> = {
+  "conversas por atendente": { oque: "Mostra qual pessoa da equipe respondeu cada conversa no dia. Quando só houve resposta pelo celular da empresa, aparece como Respondida pelo celular (sem identificação), porque o celular não identifica quem respondeu. Quando ninguém da equipe respondeu, aparece como Sem resposta da equipe. Para medir a carga de cada pessoa, o mais justo é olhar Atendimentos." },
   "novos leads": { oque: "Contatos novos no período.", como: "Cada contato novo conta 1. Contatos importados em lote não contam como novos leads. Compara com o período anterior de mesmo tamanho.", fonte: CRIADO },
   "conversas realizadas": { oque: "Igual à coluna do Relatório diário, somada no período.", como: "Mesma regra da coluna.", fonte: MSG },
   "tmr": { oque: "Tempo médio até a primeira resposta.", como: "Média dos atendimentos do período que têm esse tempo; o rodapé mostra quantos entraram.", fonte: INICIO, aviso: "Atendimentos sem esse tempo ficam fora da média." },

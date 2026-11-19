@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { rotuloCampanha, textoBloco, textoColuna } from "../textos-info";
 
 describe("textos do i", () => {
-  it("os três que aguardam decisão ficam sem texto", () => {
-    expect(textoColuna("Usuário do sistema")).toBeNull();
-    expect(textoColuna("Bot")).toBeNull();
-    expect(textoBloco("Conversas por atendente")).toBeNull();
+  it("os três textos aprovados em 19/11 aparecem", () => {
+    expect(textoColuna("Usuário do sistema")?.oque).toContain("inclusive quando a resposta foi pelo celular");
+    expect(textoColuna("Bot")?.oque).toContain("as que ninguém respondeu");
+    expect(textoBloco("Conversas por atendente")?.oque).toContain("o mais justo é olhar Atendimentos");
   });
   it("colunas e blocos aprovados têm texto", () => {
     expect(textoColuna("Consulta Agendada")?.fonte).toContain("Não é o dia da consulta");
