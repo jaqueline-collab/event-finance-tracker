@@ -35,4 +35,3 @@
 - Embed link: server-only, hashed token after `#`, masked logs, reuses panel engines (`incorporar.server.ts`), CSP frame-ancestors.
 - Sync: per-source time slices, all incremental; daily Elora check (`conferencia.ts`) only reads.
 - Cards excluídos no Elora: soft delete (`excluido_em`) só com ENTITY_NOT_FOUND no pedido por id, dentro da conferência, com limite em `decidirExclusao`; toda leitura de cards filtra `excluido_em is null`, para nunca marcar por ausência em lista.
-- Conversation snapshots: per-day counts saved in `elora_retratos_conversas_dia` (service role only) via `retrato-conversas.server.ts` on every snapshot, so total changes can be explained day by day.

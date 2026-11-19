@@ -1,0 +1,1 @@
+- Conversation snapshots: per-day counts go to `elora_retratos_conversas_dia` (service role only) via `retrato-conversas.server.ts`, so total changes can be explained day by day.
