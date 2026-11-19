@@ -8,12 +8,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chamarElora, itensDe, mapMensagem, mensagensDoPeriodo, PAGE_SIZE, STATUS_CONTATO, type Contexto } from "./elora-espelho.server";
 import { STATUS_CARDS } from "./elora-cards.server";
 import { diaSP } from "./painel-visual";
-import { decidirExclusao, diasConferencia, ehNaoEncontrado, ETAPAS_CONFERENCIA, JANELA_EXCLUSAO_DIAS, limitesDia, ROTULO_ETAPA, diaSPDe, type LinhaConferencia } from "./conferencia";
+import { decidirRetomada, somarCardsPorDia, decidirExclusao, diasConferencia, ehNaoEncontrado, ETAPAS_CONFERENCIA, JANELA_EXCLUSAO_DIAS, limitesDia, ROTULO_ETAPA, diaSPDe, type LinhaConferencia } from "./conferencia";
 
 const AMOSTRA_POR_DIA = 4;
-const VALIDADE_EM_ANDAMENTO_MS = 60 * 60_000;
 type Excl = { desde: string; paineis: string[]; p: number; s: number; pg: number; ids: string[]; fase: "listar" | "pedir"; pendentes?: string[]; nf?: string[]; reativar?: string[]; erro?: string };
-type Cursor = { dias?: string[]; i?: number; etapa?: number; parte?: number; parcial?: number; excl?: Excl };
+type LoteCards = { paineis: string[]; p: number; s: number; pg: number; porDia: Record<string, number>; ids: string[]; feito?: boolean };
+type Cursor = { dias?: string[]; i?: number; etapa?: number; parte?: number; parcial?: number; cl?: LoteCards; excl?: Excl };
 
 /** Total de uma lista do Elora: usa totalItems; sem ele, percorre só contando. */
 async function contarElora(ctx: Contexto, caminho: string): Promise<number> {
@@ -52,7 +52,11 @@ export async function ultimaConcluida(db: SupabaseClient, clienteId: string) {
 export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx: Contexto, prazoMs = 20_000, origem = "manual", nDias?: number) {
   const inicio = Date.now();
   let conf = await ultimaConferencia(db, clienteId);
-  if (!conf || conf.situacao !== "conferindo" || Date.now() - Date.parse(conf.updated_at) > VALIDADE_EM_ANDAMENTO_MS) {
+  const decisao = decidirRetomada(conf);
+  if (decisao === "interromper") {
+    await (db as any).from("elora_conferencias").update({ situacao: "interrompida", progresso: `Interrompida (aberta há mais de 24 horas) · ${conf.progresso ?? ""}`.trim() }).eq("id", conf.id);
+  }
+  if (decisao !== "retomar") {
     const dias = diasConferencia(Date.now(), nDias);
     const { data, error } = await (db as any).from("elora_conferencias").insert({ cliente_id: clienteId, origem, cursor: { dias, i: 0, etapa: 0 }, linhas: dias.map((dia) => ({ dia })), progresso: "Começando" }).select("*").single();
     if (error) throw new Error(`elora_conferencias: ${error.message}`);
@@ -61,7 +65,6 @@ export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx
   const cursor: Cursor = conf.cursor ?? {};
   const linhas: LinhaConferencia[] = conf.linhas ?? [];
   const dias = cursor.dias!;
-  let paineis: string[] | null = null;
   const salvar = async (extra: Record<string, unknown> = {}) => {
     const { error } = await (db as any).from("elora_conferencias").update({ cursor, linhas, ...extra }).eq("id", conf.id);
     if (error) throw new Error(`elora_conferencias: ${error.message}`);
@@ -85,13 +88,31 @@ export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx
       for (const st of STATUS_CONTATO) e += await contarElora(ctx, `/core/v1/contact?Status=${st}&${filtro(de, ate)}`);
       linha.contatos = { nosso: await contarNosso(db, "elora_contatos_espelho", clienteId, de, ate), elora: e };
     } else if (etapa === "cards") {
-      if (!paineis) {
+      // Lote único para os 7 dias: cada pedido grava o cursor, então toda rodada avança.
+      if (!cursor.cl) {
         const { data } = await (db as any).from("elora_apoio_espelho").select("externo_id").eq("cliente_id", clienteId).eq("tipo", "painel");
-        paineis = (data ?? []).map((p: any) => String(p.externo_id));
+        cursor.cl = { paineis: (data ?? []).map((p: any) => String(p.externo_id)), p: 0, s: 0, pg: 1, porDia: {}, ids: [] };
+        await salvar({ progresso });
       }
-      // Sem Statuses a API devolve só abertos: soma abertos, ganhos, perdidos e arquivados.
-      let e = 0;
-      for (const p of paineis!) for (const st of STATUS_CARDS) e += await contarElora(ctx, `/crm/v2/panel/card?PanelId=${p}${st ? `&Statuses=${st}` : ""}&${filtro(de, ate)}`);
+      const cl = cursor.cl;
+      if (!cl.feito) {
+        const de0 = limitesDia(dias[0]).de, ate0 = limitesDia(dias[dias.length - 1]).ate;
+        const vistos = new Set(cl.ids);
+        while (cl.p < cl.paineis.length) {
+          if (Date.now() - inicio > prazoMs) { await salvar({ progresso: `Cards criados nos 7 dias (painel ${cl.p + 1} de ${cl.paineis.length})` }); return { id: conf.id, concluida: false }; }
+          const st = STATUS_CARDS[cl.s];
+          const j = await chamarElora(ctx, `/crm/v2/panel/card?PanelId=${cl.paineis[cl.p]}${st ? `&Statuses=${st}` : ""}&${filtro(de0, ate0)}&PageSize=${PAGE_SIZE}&PageNumber=${cl.pg}`);
+          const it = itensDe(j);
+          somarCardsPorDia(cl.porDia, vistos, it, dias);
+          cl.ids = [...vistos];
+          if (j?.hasMorePages && it.length) cl.pg++;
+          else if (cl.s < STATUS_CARDS.length - 1) { cl.s++; cl.pg = 1; }
+          else { cl.p++; cl.s = 0; cl.pg = 1; }
+          await salvar({ progresso: `Cards criados nos 7 dias (painel ${Math.min(cl.p + 1, cl.paineis.length)} de ${cl.paineis.length})` });
+        }
+        cl.feito = true; cl.ids = [];
+      }
+      const e = cl.porDia[dia] ?? 0;
       linha.cards = { nosso: await contarNosso(db, "elora_cards_espelho", clienteId, de, ate), elora: e };
     } else {
       linha.mensagens = await amostraMensagens(db, clienteId, ctx, dia, de, ate);
@@ -101,7 +122,7 @@ export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx
     await salvar({ progresso });
   }
   // Cards excluídos no Elora: janela de 30 dias, só confirmados pelo id.
-  const r = await verificarExclusoes(db, clienteId, ctx, cursor, inicio, prazoMs);
+  const r = await verificarExclusoes(db, clienteId, ctx, cursor, inicio, prazoMs, () => salvar({ progresso: "Verificando cards excluídos no Elora" }));
   if (!r) {
     await salvar({ progresso: "Verificando cards excluídos no Elora" });
     return { id: conf.id, concluida: false };
@@ -157,7 +178,7 @@ async function pedirCard(ctx: Contexto, id: string): Promise<{ status: number; c
  * e respeitando o limite de segurança. Reativa cards marcados que voltaram.
  * Devolve null enquanto não terminou (retoma na próxima chamada).
  */
-async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Contexto, cursor: Cursor, inicio: number, prazoMs: number) {
+async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Contexto, cursor: Cursor, inicio: number, prazoMs: number, gravar: () => Promise<void> = async () => {}) {
   const d: any = db;
   if (!cursor.excl) {
     const { data } = await d.from("elora_apoio_espelho").select("externo_id").eq("cliente_id", clienteId).eq("tipo", "painel");
@@ -176,6 +197,7 @@ async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Co
       if (j?.hasMorePages && it.length) x.pg++;
       else if (x.s < STATUS_CARDS.length - 1) { x.s++; x.pg = 1; }
       else { x.p++; x.s = 0; x.pg = 1; }
+      await gravar();
     }
     if (x.fase === "listar") {
       const noElora = new Set(x.ids);
@@ -188,6 +210,7 @@ async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Co
       x.nf = [];
       x.ids = [];
       x.fase = "pedir";
+      await gravar();
     }
     while (x.pendentes!.length) {
       if (tempo()) return null;
@@ -197,6 +220,7 @@ async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Co
       else if (r.status === 200 && String(r.corpo?.id ?? "") === id) x.reativar!.push(id);
       else { x.erro = `Card ${id.slice(0, 8)}: Elora respondeu ${r.status} ${r.corpo?.key ?? ""}`.trim(); x.pendentes = []; break; }
       x.pendentes!.shift();
+      await gravar();
     }
   } catch (e) {
     x.erro = String((e as Error)?.message ?? e).slice(0, 200);

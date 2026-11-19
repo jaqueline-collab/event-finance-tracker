@@ -106,3 +106,22 @@ export function decidirExclusao(confirmados: string[], totalJanela: number, roda
   }
   return { marcar: confirmados, bloqueado: false, motivo: null };
 }
+
+// ---- Retomada e cards em lote (conferência automática) ----
+/** Uma conferência aberta é retomada por até 24h desde que começou; depois, é interrompida e outra começa. */
+export const VALIDADE_CONFERENCIA_ABERTA_MS = 24 * 60 * 60_000;
+export function decidirRetomada(aberta: { situacao: string; created_at: string } | null, agora = Date.now()): "retomar" | "nova" | "interromper" {
+  if (!aberta || aberta.situacao !== "conferindo") return "nova";
+  return agora - Date.parse(aberta.created_at) > VALIDADE_CONFERENCIA_ABERTA_MS ? "interromper" : "retomar";
+}
+/** Soma cards (itens do Elora) por dia de criação em Brasília, só nos dias pedidos; sem repetir id. */
+export function somarCardsPorDia(porDia: Record<string, number>, vistos: Set<string>, itens: { id?: unknown; createdAt?: string | null }[], dias: string[]): void {
+  const ok = new Set(dias);
+  for (const c of itens) {
+    const id = String(c.id ?? "");
+    if (!c.createdAt || (id && vistos.has(id))) continue;
+    if (id) vistos.add(id);
+    const d = diaSPDe(Date.parse(c.createdAt));
+    if (ok.has(d)) porDia[d] = (porDia[d] ?? 0) + 1;
+  }
+}

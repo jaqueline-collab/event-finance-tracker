@@ -68,3 +68,16 @@ describe("cards excluídos no Elora", () => {
     expect(decidirExclusao(["a", "b"], 100, true).marcar).toEqual(["a", "b"]);
   });
 });
+
+import { decidirRetomada, somarCardsPorDia } from "../conferencia";
+describe("retomada e cards em lote", () => {
+  const agora = Date.parse("2026-11-19T12:00:00Z");
+  it("rodada 3h depois retoma a conferência aberta", () => expect(decidirRetomada({ situacao: "conferindo", created_at: "2026-11-19T09:00:00Z" }, agora)).toBe("retomar"));
+  it("aberta há mais de 24h é interrompida", () => expect(decidirRetomada({ situacao: "conferindo", created_at: "2026-11-18T11:00:00Z" }, agora)).toBe("interromper"));
+  it("sem aberta, começa outra", () => expect(decidirRetomada({ situacao: "concluida", created_at: "2026-11-19T09:00:00Z" }, agora)).toBe("nova"));
+  it("cards vão para o dia de Brasília, sem repetir id", () => {
+    const porDia: Record<string, number> = {}; const vistos = new Set<string>();
+    somarCardsPorDia(porDia, vistos, [{ id: "a", createdAt: "2026-11-14T02:30:00Z" }, { id: "b", createdAt: "2026-11-14T03:30:00Z" }, { id: "a", createdAt: "2026-11-14T02:30:00Z" }], ["2026-11-13", "2026-11-14"]);
+    expect(porDia).toEqual({ "2026-11-13": 1, "2026-11-14": 1 });
+  });
+});

@@ -44,15 +44,19 @@ export const Route = createFileRoute("/api/public/sync-cards")({
             if (!ctx) { resultado[cliente_id] = { erro: "cliente sem conexão com o Elora" }; continue; }
             if (!(await pegarTrava(db, cliente_id, dono))) { resultado[cliente_id] = { emAndamento: true }; continue; }
             try {
-              const rodada = await rodarTodas(db, cliente_id, ctx, Math.min(resta, 95_000));
-              resultado[cliente_id] = rodada;
               // Conferência diária com o Elora App (só lê e registra), na primeira rodada depois das 02:55.
               const { conferirCliente, ultimaConferencia } = await import("@/lib/mensagens-checagem.server");
               const { conferenciaVencida } = await import("@/lib/conferencia");
               const ult = await ultimaConferencia(db, cliente_id);
               const continuar = ult?.situacao === "conferindo" && ult?.origem === "automatica";
-              if (ORCAMENTO - (Date.now() - inicio) > 12_000 && (continuar || conferenciaVencida(ult?.iniciado_em ?? null))) {
-                const ch = await conferirCliente(db, cliente_id, ctx, 8_000, "automatica").catch((e) => ({ erro: mensagemCurta(e) }));
+              const conferir = continuar || conferenciaVencida(ult?.iniciado_em ?? null);
+              // Reserva tempo próprio para a conferência quando ela está aberta ou vencida.
+              const RESERVA = conferir ? 32_000 : 0;
+              const rodada = await rodarTodas(db, cliente_id, ctx, Math.max(20_000, Math.min(resta - RESERVA, 95_000)));
+              resultado[cliente_id] = rodada;
+              const sobra = ORCAMENTO - (Date.now() - inicio);
+              if (conferir && sobra > 12_000) {
+                const ch = await conferirCliente(db, cliente_id, ctx, Math.min(30_000, sobra - 5_000), "automatica").catch((e) => ({ erro: mensagemCurta(e) }));
                 (resultado as any)[`${cliente_id}:conferencia`] = ch;
               }
             } finally {
