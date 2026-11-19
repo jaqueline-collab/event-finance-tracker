@@ -106,6 +106,15 @@ export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx
     await salvar({ progresso: "Verificando cards excluídos no Elora" });
     return { id: conf.id, concluida: false };
   }
+  // A exclusão acontece depois da contagem: atualiza o nosso lado antes de
+  // concluir para a tela não manter uma diferença que já foi resolvida.
+  if (r.marcados.length || r.reativados.length) {
+    for (const linha of linhas) {
+      if (!linha.cards) continue;
+      const { de, ate } = limitesDia(linha.dia);
+      linha.cards.nosso = await contarNosso(db, "elora_cards_espelho", clienteId, de, ate);
+    }
+  }
   await salvar({ situacao: "concluida", concluido_em: new Date().toISOString(), progresso: null, exclusoes: r });
   return { id: conf.id, concluida: true };
 }

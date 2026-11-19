@@ -8,4 +8,4 @@
 - [ ] 5. Limpeza do antigo — etapa 1 levantamento (inclui "Comparar com gravado")
 - [ ] 6. Colunas: Status do lead como linha normal, engrenagem, arrastar
 - [ ] 7. Tamanho dos blocos: tabela do Relatório diário estica; alças visíveis; menu de largura
-- [ ] Cards excluídos: aguardando confirmação da resposta do Elora para o 854ab39c; depois marcar, retrato depois e conferência de 30 dias
+- [x] Cards excluídos: confirmado 200 no mesmo painel; 854ab39c marcado; retratos iguais nos dois períodos; conferência de 30 dias igual após exclusão, sem publicar
