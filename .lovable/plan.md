@@ -15,11 +15,13 @@ As três conferências automáticas de 19/11 continuam como "conferindo", parada
 2. **Gravar o avanço depois de cada pedido:** o cursor passa a guardar também o painel e a situação dentro do passo de cards. Assim, toda rodada avança, mesmo quando é cortada no meio.
 3. **Passo de cards mais leve:** em vez de 48 pedidos por dia (336 em 7 dias), faço 48 pedidos uma única vez para a janela inteira de 7 dias. Cada card é separado pelo dia de criação, no horário de Brasília. A soma e a regra continuam as mesmas: abertos, ganhos, perdidos e arquivados, sem contar cards excluídos.
 4. **Tempo próprio para a conferência:** cada rodada reserva cerca de 30 segundos para a conferência, dentro do tempo total que já existe. O tempo das fontes de sincronização não diminui.
-5. **As três conferências travadas de 19/11** serão marcadas como "interrompidas". Nenhuma linha será apagada.
+5. **Verificação de cards excluídos como etapa própria:** ela roda depois das contagens dos 7 dias (que ficam gravadas antes), com cursor próprio gravado depois de cada pedido (painel, situação, página e card sendo pedido pelo id). A janela de 30 dias e o limite de segurança (mais de 10 cards ou 2% da janela: não marca nenhum e registra aviso) continuam iguais. Se ela for cortada, retoma na rodada seguinte sem refazer as contagens.
+6. **As três conferências travadas de 19/11** serão marcadas como "interrompidas". Nenhuma linha será apagada.
 
 ## Como vou provar
 - Testes: retomar em vez de abrir outra; o cursor avança no meio dos cards; os cards são separados pelo dia em Brasília; a conferência é concluída em até 3 rodadas simuladas.
-- Prova real na prévia: vou chamar a rodada automática do Dr. Ricardo até a conferência terminar. Vou trazer quantas rodadas foram necessárias (no máximo 3), o id, a situação "concluída", o progresso e as linhas dos 7 dias.
+- Prova real na prévia: vou chamar a rodada automática do Dr. Ricardo até a conferência terminar. Vou trazer quantas rodadas foram necessárias (no máximo 3, contando a etapa de exclusões), o id, a situação "concluída", o progresso, as linhas dos 7 dias e o campo exclusoes, para mostrar que a verificação de cards excluídos também rodou.
+- Se as exclusões não couberem nas 3 rodadas, aviso com o número real de rodadas em vez de dizer que está pronto.
 - Vou conferir que os números de cada dia são iguais aos da última conferência manual concluída, nos dias em comum.
 - Não vou publicar. A correção fica só na prévia até você aprovar.
 
@@ -27,4 +29,5 @@ As três conferências automáticas de 19/11 continuam como "conferindo", parada
 - `mensagens-checagem.server.ts`: a regra de retomada usa a validade de 24h; a situação "interrompida" passa a existir; a etapa de cards é feita em lote na janela, com cursor `cards: {p, s, pg, porDia}` gravado depois de cada pedido; `salvar()` é chamado depois de cada chamada.
 - `sync-cards.ts`: a conferência recebe um prazo de cerca de 30s, reservado antes de `rodarTodas`.
 - `conferencia.ts`: funções puras para decidir entre retomar e abrir outra, e para separar os cards por dia; com testes.
+- `verificarExclusoes`: o cursor `excl` passa a ser gravado depois de cada pedido (hoje ele só é gravado no fim do prazo).
 - Atualizar no banco a situação das 3 conferências de 19/11 para "interrompida" (é só uma atualização de dados).
