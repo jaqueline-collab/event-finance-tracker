@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Mail, Globe, ArrowUpRight, LogIn, Rabbit, Menu } from "lucide-react";
+import { ArrowUpRight, LogIn, Menu } from "lucide-react";
 import { EloraLogo, EloraIcone } from "@/components/elora-logo";
-import { EMAIL_CONTATO } from "@/lib/landing/contato";
+import { CHAT_LINK, EMAIL_CONTATO } from "@/lib/landing/contato";
 import { usePerfil } from "@/hooks/use-perfil";
 import { UserMenu } from "@/components/user-menu";
 import { useDestinoPainel } from "@/lib/use-papel";
@@ -150,66 +150,72 @@ export function PageHeader({
   );
 }
 
+const COLUNAS_RODAPE: { titulo: string; links: { rotulo: string; to?: string; params?: { slug: string }; href?: string }[] }[] = [
+  {
+    titulo: "Produto",
+    links: [
+      { rotulo: "Central de Atendimento", to: "/funcionalidades/$slug", params: { slug: "central-de-atendimento" } },
+      { rotulo: "Chatbot", to: "/funcionalidades/$slug", params: { slug: "chatbot" } },
+      { rotulo: "Disparo de Mensagens", to: "/funcionalidades/$slug", params: { slug: "disparo-de-mensagens" } },
+      { rotulo: "CRM", to: "/funcionalidades/$slug", params: { slug: "crm" } },
+      { rotulo: "Agentes Inteligentes", to: "/funcionalidades/$slug", params: { slug: "agentes-inteligentes" } },
+      { rotulo: "Rastreabilidade", to: "/funcionalidades/$slug", params: { slug: "rastreabilidade" } },
+    ],
+  },
+  {
+    titulo: "Recursos",
+    links: [
+      { rotulo: "Blog", to: "/blog" },
+      { rotulo: "Perguntas frequentes", to: "/faq" },
+      { rotulo: "Seja parceiro", to: "/parceiros" },
+    ],
+  },
+  {
+    titulo: "Contato",
+    links: [
+      { rotulo: EMAIL_CONTATO, href: `mailto:${EMAIL_CONTATO}` },
+      { rotulo: "Falar no chat", href: CHAT_LINK },
+      { rotulo: "Elora App", href: "https://app.eloracrm.com.br" },
+    ],
+  },
+  { titulo: "Segurança", links: [{ rotulo: "Política de Privacidade", to: "/politica-de-privacidade" }] },
+];
+
 export function Footer() {
+  const cls = "text-sm text-white/70 hover:text-landing-yellow-vivo transition-colors break-words";
   return (
     <footer
       id="contato"
       className="bg-landing-dark-2 text-white/80 pt-12 pb-24 sm:py-14 px-5 sm:px-6 border-t border-white/10"
     >
-      <div className="max-w-6xl mx-auto grid gap-9 md:grid-cols-2 md:gap-10 lg:grid-cols-3 lg:gap-12 items-start">
+      <div className="max-w-6xl mx-auto grid gap-10 lg:grid-cols-[1.2fr_3fr] lg:gap-12 items-start">
         <div>
-          <div className="flex items-center gap-2 leading-none">
-            <EloraLogo cor="branco" />
-          </div>
-          <p className="text-sm text-white/60 mt-3 max-w-xs">
-            Para as conversas e o negócio andarem juntos.
-          </p>
-          <div className="mt-6">
-            <img
-              src={seloMeta.url}
-              alt="Selo Meta Business Partner"
-              className="h-11 w-auto bg-white rounded-md p-1"
-              loading="lazy"
-            />
-          </div>
+          <EloraLogo cor="branco" />
+          <p className="text-sm text-white/60 mt-3 max-w-xs">Para as conversas e o negócio andarem juntos.</p>
+          <img src={seloMeta.url} alt="Selo Meta Business Partner" className="mt-6 h-11 w-auto bg-white rounded-md p-1" loading="lazy" />
         </div>
-
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-landing-yellow-vivo">
-            Contato
-          </div>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li className="flex items-center gap-2">
-              <Mail className="h-4 w-4" /> {EMAIL_CONTATO}
-            </li>
-            <li className="flex items-center gap-2">
-              <Globe className="h-4 w-4" /> app.eloracrm.com.br
-            </li>
-          </ul>
-        </div>
-
-        <div className="rounded-lg border border-white/15 bg-white/5 p-6 md:col-span-2 lg:col-span-1">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-landing-yellow-vivo">
-            <Rabbit className="h-4 w-4" /> Parceiro oficial
-          </div>
-          <p className="text-sm text-white/70 mt-3">
-            Máquina de vendas, SDR dedicado e processos 100% integrados ao Elora.
-          </p>
-          <Link
-            to="/parceiros"
-            className="inline-flex items-center gap-1.5 mt-4 bg-landing-yellow-vivo hover:bg-landing-yellow text-landing-fg font-semibold px-5 py-2.5 rounded-md text-sm transition-colors"
-          >
-            Conheça a Rabbit Agency <ArrowUpRight className="h-4 w-4" />
-          </Link>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {COLUNAS_RODAPE.map((c) => (
+            <nav key={c.titulo} aria-label={c.titulo}>
+              <div className="text-sm font-semibold text-white">{c.titulo}</div>
+              <ul className="mt-4 space-y-3">
+                {c.links.map((l) => (
+                  <li key={l.rotulo}>
+                    {l.to ? (
+                      <Link to={l.to as any} params={l.params as any} className={cls}>{l.rotulo}</Link>
+                    ) : (
+                      <a href={l.href} className={cls} {...(l.href?.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{l.rotulo}</a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto mt-10 pt-5 border-t border-white/5 flex flex-col items-center gap-1 text-xs text-white/40 text-center">
-        <p>© {new Date().getFullYear()} EloraCRM. Todos os direitos reservados.</p>
-        <p className="text-white/30">DITOS &amp; C.O LTDA</p>
-        <Link to="/politica-de-privacidade" className="text-white/60 hover:text-white underline underline-offset-2">
-          Política de Privacidade
-        </Link>
+      <div className="max-w-6xl mx-auto mt-10 pt-5 border-t border-white/5 text-xs text-white/40 text-center">
+        © {new Date().getFullYear()} EloraCRM. Todos os direitos reservados. · DITÓS &amp; C.O LTDA
       </div>
     </footer>
   );

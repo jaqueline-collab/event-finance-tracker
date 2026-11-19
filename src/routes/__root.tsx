@@ -147,6 +147,7 @@ function ehPaginaPublica(pathname: string) {
     pathname === "/parceiros" ||
     pathname === "/faq" ||
     pathname === "/politica-de-privacidade" ||
+    pathname.startsWith("/funcionalidades/") ||
     pathname === "/blog" ||
     pathname.startsWith("/blog/")
   );
