@@ -34,4 +34,4 @@
 - Tables use one `BarraTabela` (viewers never save). Fixed filters are re-read server-side (`filtros-fixos.ts`) so viewers cannot drop them; `filtroDaFonte` matches the Matriz rules.
 - Embed link: server-only, hashed token after `#`, masked logs, reuses panel engines (`incorporar.server.ts`), CSP frame-ancestors.
 - Sync: per-source time slices, all incremental; daily Elora check (`conferencia.ts`) only reads.
-- Cards excluídos no Elora: soft delete em `elora_cards_espelho.excluido_em`, marcado só na conferência (janela 30 dias) quando o pedido pelo id devolve ENTITY_NOT_FOUND, com limite de segurança em `decidirExclusao`; toda leitura de cards filtra `excluido_em is null`, para nunca apagar dado nem marcar por ausência em lista.
+- Cards excluídos no Elora: soft delete (`excluido_em`) só com ENTITY_NOT_FOUND no pedido por id, dentro da conferência, com limite em `decidirExclusao`; toda leitura de cards filtra `excluido_em is null`, para nunca marcar por ausência em lista.
