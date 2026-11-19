@@ -39,6 +39,8 @@ export function mapCard(clienteId: string, c: any) {
     criado_em: c.createdAt ?? null,
     atualizado_em: c.updatedAt ?? null,
     payload: c,
+    // Voltou a aparecer no Elora: reativa.
+    excluido_em: null,
     sincronizado_em: new Date().toISOString(),
   };
 }
@@ -192,7 +194,7 @@ async function releituraPorContatos(db: SupabaseClient, clienteId: string, ctx: 
   const unicos = [...new Set(alterados)];
   let total = 0;
   for (let i = 0; i < unicos.length; i += 150) {
-    const { data, error } = await db.from("elora_cards_espelho").select("payload").eq("cliente_id", clienteId).overlaps("contato_ids", unicos.slice(i, i + 150));
+    const { data, error } = await db.from("elora_cards_espelho").select("payload").eq("cliente_id", clienteId).is("excluido_em", null).overlaps("contato_ids", unicos.slice(i, i + 150));
     if (error) throw new Error(`elora_cards_espelho: ${error.message}`);
     total += await registrarLeituras(db, clienteId, (data ?? []).map((r: any) => r.payload));
   }

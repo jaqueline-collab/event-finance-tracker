@@ -188,7 +188,7 @@ export async function calcularCartoesServidor(
 export async function comCacheCalculo<T>(db: any, clienteId: string, partes: unknown, fn: () => Promise<T>): Promise<T> {
   const { data: v, error } = await db.rpc("elora_versoes_cache", { _cliente_id: clienteId });
   if (error) throw new Error(`versoes: ${error.message}`);
-  const chave = await sha(JSON.stringify([clienteId, partes, v, "atendente-v2"]));
+  const chave = await sha(JSON.stringify([clienteId, partes, v, "atendente-v2", "excl-v1"]));
   const { data: achado } = await db.from("elora_calculo_cache").select("valor").eq("chave", chave).gte("criado_em", new Date(Date.now() - CACHE_MS).toISOString()).maybeSingle();
   if (achado) return achado.valor as T;
   const r = JSON.parse(JSON.stringify(await fn()));

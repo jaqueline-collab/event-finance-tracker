@@ -112,6 +112,17 @@ export function ConferenciaElora({ clienteId }: { clienteId: string }) {
           </table>
         </div>
       )}
+      {c?.exclusoes && (
+        <div className={`rounded-lg border p-3 text-xs ${c.exclusoes.bloqueado ? "border-destructive/50 bg-destructive/5" : ""}`}>
+          <p className="font-medium text-foreground">Cards excluídos no Elora (últimos 30 dias)</p>
+          <p className="text-muted-foreground">
+            Marcados agora: {c.exclusoes.marcados.length} · Reativados: {c.exclusoes.reativados.length} · Conferidos um a um no Elora: {c.exclusoes.verificadosPorId}
+          </p>
+          {c.exclusoes.aviso && <p className={c.exclusoes.bloqueado ? "font-medium text-destructive" : "text-muted-foreground"}>{c.exclusoes.aviso}</p>}
+          {c.exclusoes.bloqueado && <p className="text-muted-foreground">Cards que seriam marcados: {c.exclusoes.naoEncontrados.map((id) => id.slice(0, 8)).join(", ")}</p>}
+          <p className="text-muted-foreground">Um card só é marcado como excluído quando o Elora responde "não encontrado" ao pedido daquele card. O registro continua guardado e sai de todos os números; se o card voltar no Elora, ele é reativado.</p>
+        </div>
+      )}
       <ul className="space-y-1 text-xs text-muted-foreground">
         {ETAPAS_CONFERENCIA.map((k) => <li key={k}><span className="font-medium text-foreground">{ROTULO_ETAPA[k]}:</span> {O_QUE_CONTA[k]}</li>)}
         <li>Verde: igual nos dois lados. Vermelho: diferente. "Em andamento": só no dia de hoje, diferença de até 1 por registro criado durante a própria conferência.</li>

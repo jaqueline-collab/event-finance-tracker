@@ -13,11 +13,12 @@ export async function lerLeiturasCards(db: SupabaseClient, clienteId: string, ct
   if (ctx) return ctx.memo(`leituras|${clienteId}`, () => lerLeiturasCards(db, clienteId));
   const [leituras, cards] = await Promise.all([
     lerTudo(() => db.from("elora_cards_historico").select("card_id, visto_em, estimado, etapa_id, etapa_titulo, status, campos").eq("cliente_id", clienteId).order("id"), 8),
-    lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).order("externo_id")),
+    lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).is("excluido_em", null).order("externo_id")),
   ]);
   if (!leituras.length) return [];
   const criados = new Map(cards.map((c: any) => [String(c.externo_id), c.criado_em as string | null]));
-  return leituras.map((l: any) => ({ ...l, card_id: String(l.card_id), criado_em: criados.get(String(l.card_id)) ?? null }));
+  // Card excluído no Elora (excluido_em) não entra em nenhum cálculo.
+  return leituras.filter((l: any) => criados.has(String(l.card_id))).map((l: any) => ({ ...l, card_id: String(l.card_id), criado_em: criados.get(String(l.card_id)) ?? null }));
 }
 
 /**

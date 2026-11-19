@@ -255,6 +255,7 @@ export type Database = {
           etapa_fase: string | null
           etapa_id: string | null
           etapa_titulo: string | null
+          excluido_em: string | null
           externo_id: string
           painel_id: string | null
           painel_titulo: string | null
@@ -270,6 +271,7 @@ export type Database = {
           etapa_fase?: string | null
           etapa_id?: string | null
           etapa_titulo?: string | null
+          excluido_em?: string | null
           externo_id: string
           painel_id?: string | null
           painel_titulo?: string | null
@@ -285,6 +287,7 @@ export type Database = {
           etapa_fase?: string | null
           etapa_id?: string | null
           etapa_titulo?: string | null
+          excluido_em?: string | null
           externo_id?: string
           painel_id?: string | null
           painel_titulo?: string | null
@@ -635,6 +638,7 @@ export type Database = {
           concluido_em: string | null
           created_at: string
           cursor: Json
+          exclusoes: Json | null
           id: string
           iniciado_em: string
           linhas: Json
@@ -648,6 +652,7 @@ export type Database = {
           concluido_em?: string | null
           created_at?: string
           cursor?: Json
+          exclusoes?: Json | null
           id?: string
           iniciado_em?: string
           linhas?: Json
@@ -661,6 +666,7 @@ export type Database = {
           concluido_em?: string | null
           created_at?: string
           cursor?: Json
+          exclusoes?: Json | null
           id?: string
           iniciado_em?: string
           linhas?: Json

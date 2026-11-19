@@ -7,9 +7,10 @@ async function exigirSuperAdmin(db: any) {
   const { data: admin } = await db.rpc("is_admin");
   if (!admin) throw new Error("acesso-negado: apenas super admin.");
 }
-export type ConferenciaDto = { id: string; origem: string; iniciadoEm: string; concluidoEm: string | null; situacao: string; progresso: string | null; linhas: LinhaConferencia[] };
+export type ConferenciaDto = { id: string; origem: string; iniciadoEm: string; concluidoEm: string | null; situacao: string; progresso: string | null; linhas: LinhaConferencia[]; exclusoes: Exclusoes | null };
+export type Exclusoes = { janelaDesde: string; verificadosPorId: number; naoEncontrados: string[]; marcados: string[]; reativados: string[]; bloqueado: boolean; aviso: string | null; em: string };
 const dto = (c: any): ConferenciaDto | null =>
-  c ? { id: String(c.id), origem: String(c.origem), iniciadoEm: String(c.iniciado_em), concluidoEm: c.concluido_em ?? null, situacao: String(c.situacao), progresso: c.progresso ?? null, linhas: c.linhas ?? [] } : null;
+  c ? { id: String(c.id), origem: String(c.origem), iniciadoEm: String(c.iniciado_em), concluidoEm: c.concluido_em ?? null, situacao: String(c.situacao), progresso: c.progresso ?? null, linhas: c.linhas ?? [], exclusoes: c.exclusoes ?? null } : null;
 
 /** Última conferência (em andamento ou concluída) e a última concluída. Só super admin. */
 export const lerConferencia = createServerFn({ method: "POST" })

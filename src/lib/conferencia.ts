@@ -79,3 +79,30 @@ export function conferenciaVencida(ultimaInicioIso: string | null, agora = Date.
   if (agora < corte) corte -= 86_400_000;
   return !ultimaInicioIso || Date.parse(ultimaInicioIso) < corte;
 }
+
+// ---- Cards excluídos no Elora (soft delete) ----
+export const JANELA_EXCLUSAO_DIAS = 30;
+export const LIMITE_EXCLUSAO_CARDS = 10;
+export const LIMITE_EXCLUSAO_FRACAO = 0.02;
+/** "Não encontrado" do Elora: chave ENTITY_NOT_FOUND (a API responde 500 ou 404). Permissão ou outro erro nunca contam. */
+export function ehNaoEncontrado(status: number, corpo: any): boolean {
+  if (status === 401 || status === 403) return false;
+  return (status === 404 || status === 500) && corpo?.key === "ENTITY_NOT_FOUND";
+}
+export type ResultadoExclusao = { marcar: string[]; bloqueado: boolean; motivo: string | null };
+/**
+ * Decide o que marcar. Nunca marca de rodada incompleta ou com erro; acima de
+ * 10 cards ou de 2% dos cards da janela, não marca nenhum e pede revisão manual.
+ */
+export function decidirExclusao(confirmados: string[], totalJanela: number, rodadaOk: boolean): ResultadoExclusao {
+  if (!rodadaOk) return { marcar: [], bloqueado: false, motivo: "Verificação não concluiu ou teve erro: nada foi marcado." };
+  if (!confirmados.length) return { marcar: [], bloqueado: false, motivo: null };
+  if (confirmados.length > LIMITE_EXCLUSAO_CARDS || confirmados.length > totalJanela * LIMITE_EXCLUSAO_FRACAO) {
+    return {
+      marcar: [],
+      bloqueado: true,
+      motivo: `${confirmados.length} cards seriam marcados como excluídos (limite: ${LIMITE_EXCLUSAO_CARDS} ou 2% de ${totalJanela}). Nada foi marcado; precisa de revisão manual.`,
+    };
+  }
+  return { marcar: confirmados, bloqueado: false, motivo: null };
+}

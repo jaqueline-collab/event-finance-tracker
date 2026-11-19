@@ -56,10 +56,10 @@ export async function calcularRelatorioCliente(db: SupabaseClient, clienteId: st
   ]);
   const criados = new Map<string, string | null>();
   if (leituras.length) {
-    const cards = await lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).order("externo_id"));
+    const cards = await lerTudo(() => db.from("elora_cards_espelho").select("externo_id, criado_em").eq("cliente_id", clienteId).is("excluido_em", null).order("externo_id"));
     for (const c of cards) criados.set(String(c.externo_id), c.criado_em);
   }
-  const ls: Leitura[] = leituras.map((l: any) => ({ ...l, card_id: String(l.card_id), criado_em: criados.get(String(l.card_id)) ?? null }));
+  const ls: Leitura[] = leituras.filter((l: any) => criados.has(String(l.card_id))).map((l: any) => ({ ...l, card_id: String(l.card_id), criado_em: criados.get(String(l.card_id)) ?? null }));
   const m = calcularPadrao(contatos as any, mensagens);
   calcularIndicadoresCards(configs, ls, m);
   const colunas = colunasDoCliente(configs);

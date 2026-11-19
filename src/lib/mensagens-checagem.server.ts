@@ -8,11 +8,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chamarElora, itensDe, mapMensagem, mensagensDoPeriodo, PAGE_SIZE, STATUS_CONTATO, type Contexto } from "./elora-espelho.server";
 import { STATUS_CARDS } from "./elora-cards.server";
 import { diaSP } from "./painel-visual";
-import { diasConferencia, ETAPAS_CONFERENCIA, limitesDia, ROTULO_ETAPA, diaSPDe, type LinhaConferencia } from "./conferencia";
+import { decidirExclusao, diasConferencia, ehNaoEncontrado, ETAPAS_CONFERENCIA, JANELA_EXCLUSAO_DIAS, limitesDia, ROTULO_ETAPA, diaSPDe, type LinhaConferencia } from "./conferencia";
 
 const AMOSTRA_POR_DIA = 4;
 const VALIDADE_EM_ANDAMENTO_MS = 60 * 60_000;
-type Cursor = { dias?: string[]; i?: number; etapa?: number; parte?: number; parcial?: number };
+type Excl = { desde: string; paineis: string[]; p: number; s: number; pg: number; ids: string[]; fase: "listar" | "pedir"; pendentes?: string[]; nf?: string[]; reativar?: string[]; erro?: string };
+type Cursor = { dias?: string[]; i?: number; etapa?: number; parte?: number; parcial?: number; excl?: Excl };
 
 /** Total de uma lista do Elora: usa totalItems; sem ele, percorre só contando. */
 async function contarElora(ctx: Contexto, caminho: string): Promise<number> {
@@ -31,7 +32,9 @@ async function contarElora(ctx: Contexto, caminho: string): Promise<number> {
 const filtro = (de: string, ate: string) => `CreatedAt.After=${encodeURIComponent(de)}&CreatedAt.Before=${encodeURIComponent(ate)}`;
 
 async function contarNosso(db: SupabaseClient, tabela: string, clienteId: string, de: string, ate: string) {
-  const { count, error } = await (db as any).from(tabela).select("*", { count: "exact", head: true }).eq("cliente_id", clienteId).gte("criado_em", de).lt("criado_em", ate);
+  let q = (db as any).from(tabela).select("*", { count: "exact", head: true }).eq("cliente_id", clienteId).gte("criado_em", de).lt("criado_em", ate);
+  if (tabela === "elora_cards_espelho") q = q.is("excluido_em", null);
+  const { count, error } = await q;
   if (error) throw new Error(`${tabela}: ${error.message}`);
   return count ?? 0;
 }
@@ -97,7 +100,13 @@ export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx
     else { cursor.i = cursor.i! + 1; cursor.etapa = 0; }
     await salvar({ progresso });
   }
-  await salvar({ situacao: "concluida", concluido_em: new Date().toISOString(), progresso: null });
+  // Cards excluídos no Elora: janela de 30 dias, só confirmados pelo id.
+  const r = await verificarExclusoes(db, clienteId, ctx, cursor, inicio, prazoMs);
+  if (!r) {
+    await salvar({ progresso: "Verificando cards excluídos no Elora" });
+    return { id: conf.id, concluida: false };
+  }
+  await salvar({ situacao: "concluida", concluido_em: new Date().toISOString(), progresso: null, exclusoes: r });
   return { id: conf.id, concluida: true };
 }
 
@@ -121,4 +130,80 @@ async function amostraMensagens(db: SupabaseClient, clienteId: string, ctx: Cont
     else if (ehHoje && d <= 1) andamento++;
   }
   return { amostra: ids.length, bateram, andamento };
+}
+
+/** GET do card pelo id, sem lançar erro: devolve código e corpo. */
+async function pedirCard(ctx: Contexto, id: string): Promise<{ status: number; corpo: any }> {
+  await new Promise((r) => setTimeout(r, 250));
+  ctx.chamadas += 1;
+  const r = await (ctx.fetcher ?? fetch)(`${ctx.base}/crm/v2/panel/card/${id}`, { headers: { Authorization: `Bearer ${ctx.chave}`, Accept: "application/json" } });
+  let corpo: any = null;
+  try { corpo = await r.json(); } catch { corpo = null; }
+  return { status: r.status, corpo };
+}
+
+/**
+ * Marca (soft delete) cards criados nos últimos 30 dias que sumiram do Elora,
+ * só com "não encontrado" ao pedir pelo id, nunca de rodada incompleta ou com erro,
+ * e respeitando o limite de segurança. Reativa cards marcados que voltaram.
+ * Devolve null enquanto não terminou (retoma na próxima chamada).
+ */
+async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Contexto, cursor: Cursor, inicio: number, prazoMs: number) {
+  const d: any = db;
+  if (!cursor.excl) {
+    const { data } = await d.from("elora_apoio_espelho").select("externo_id").eq("cliente_id", clienteId).eq("tipo", "painel");
+    const desde = limitesDia(diasConferencia(Date.now(), JANELA_EXCLUSAO_DIAS)[0]).de;
+    cursor.excl = { desde, paineis: (data ?? []).map((p: any) => String(p.externo_id)), p: 0, s: 0, pg: 1, ids: [], fase: "listar" };
+  }
+  const x = cursor.excl;
+  const tempo = () => Date.now() - inicio > prazoMs;
+  try {
+    while (x.fase === "listar" && x.p < x.paineis.length) {
+      if (tempo()) return null;
+      const st = STATUS_CARDS[x.s];
+      const j = await chamarElora(ctx, `/crm/v2/panel/card?PanelId=${x.paineis[x.p]}${st ? `&Statuses=${st}` : ""}&CreatedAt.After=${encodeURIComponent(x.desde)}&PageSize=${PAGE_SIZE}&PageNumber=${x.pg}`);
+      const it = itensDe(j);
+      x.ids.push(...it.map((c: any) => String(c.id)));
+      if (j?.hasMorePages && it.length) x.pg++;
+      else if (x.s < STATUS_CARDS.length - 1) { x.s++; x.pg = 1; }
+      else { x.p++; x.s = 0; x.pg = 1; }
+    }
+    if (x.fase === "listar") {
+      const noElora = new Set(x.ids);
+      const { lerTudo } = await import("./ler-paginas.server");
+      const nossos = await lerTudo(() => d.from("elora_cards_espelho").select("externo_id, excluido_em").eq("cliente_id", clienteId).gte("criado_em", x.desde).order("externo_id"));
+      const ativos = (nossos ?? []).filter((n: any) => !n.excluido_em).map((n: any) => String(n.externo_id));
+      const marcados = (nossos ?? []).filter((n: any) => n.excluido_em).map((n: any) => String(n.externo_id));
+      x.reativar = marcados.filter((id: string) => noElora.has(id));
+      x.pendentes = [...ativos.filter((id: string) => !noElora.has(id)), ...marcados.filter((id: string) => !noElora.has(id))];
+      x.nf = [];
+      x.ids = [];
+      x.fase = "pedir";
+    }
+    while (x.pendentes!.length) {
+      if (tempo()) return null;
+      const id = x.pendentes![0];
+      const r = await pedirCard(ctx, id);
+      if (ehNaoEncontrado(r.status, r.corpo)) x.nf!.push(id);
+      else if (r.status === 200 && String(r.corpo?.id ?? "") === id) x.reativar!.push(id);
+      else { x.erro = `Card ${id.slice(0, 8)}: Elora respondeu ${r.status} ${r.corpo?.key ?? ""}`.trim(); x.pendentes = []; break; }
+      x.pendentes!.shift();
+    }
+  } catch (e) {
+    x.erro = String((e as Error)?.message ?? e).slice(0, 200);
+  }
+  const { data: sync } = await d.from("elora_sync_estado").select("ultima_execucao_concluida").eq("cliente_id", clienteId).eq("fonte", "cards").maybeSingle();
+  const rodadaOk = !x.erro && sync?.ultima_execucao_concluida !== false;
+  const { data: ja } = await d.from("elora_cards_espelho").select("externo_id").eq("cliente_id", clienteId).in("externo_id", x.nf!.length ? x.nf! : ["-"]).not("excluido_em", "is", null);
+  const jaMarcados = new Set((ja ?? []).map((r: any) => String(r.externo_id)));
+  const novos = x.nf!.filter((id) => !jaMarcados.has(id));
+  const { count: totalJanela } = await d.from("elora_cards_espelho").select("*", { count: "exact", head: true }).eq("cliente_id", clienteId).gte("criado_em", x.desde).is("excluido_em", null);
+  const dec = decidirExclusao(novos, totalJanela ?? 0, rodadaOk);
+  const agora = new Date().toISOString();
+  if (dec.marcar.length) await d.from("elora_cards_espelho").update({ excluido_em: agora }).eq("cliente_id", clienteId).in("externo_id", dec.marcar);
+  const reativar = rodadaOk ? x.reativar! : [];
+  if (reativar.length) await d.from("elora_cards_espelho").update({ excluido_em: null }).eq("cliente_id", clienteId).in("externo_id", reativar);
+  // Invalida o cache dos painéis quando algo mudou.
+  if (dec.marcar.length || reativar.length) await d.from("elora_sync_estado").update({ atualizado_em: agora }).eq("cliente_id", clienteId).eq("fonte", "cards");
+  return { janelaDesde: x.desde, verificadosPorId: x.nf!.length + x.reativar!.length, naoEncontrados: novos, marcados: dec.marcar, reativados: reativar, bloqueado: dec.bloqueado, aviso: dec.motivo ?? (x.erro ? x.erro : null), em: agora };
 }

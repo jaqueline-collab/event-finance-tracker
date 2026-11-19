@@ -21,7 +21,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
   const c = cache.get(clienteId);
   if (c && c.chave === chave && Date.now() - c.em < 300_000) return c.base;
   // Cache no banco (compactado), mesma chave de versões: vale para qualquer servidor.
-  const chaveDb = await hashTexto(`base-campos|atendente-v2|${clienteId}|${chave}`);
+  const chaveDb = await hashTexto(`base-campos|atendente-v2|excl-v1|${clienteId}|${chave}`);
   const { data: achado } = await (db as any).from("elora_calculo_cache").select("valor").eq("chave", chaveDb).gte("criado_em", new Date(Date.now() - 300_000).toISOString()).maybeSingle();
   if (achado?.valor?.gz) {
     try {
@@ -65,7 +65,7 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
       d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
     8),
     lerTudo(() =>
-      d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_id:payload->>panelId, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).order("externo_id"),
+      d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_id:payload->>panelId, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).is("excluido_em", null).order("externo_id"),
     8),
     lerTudo(() => d.from("elora_conversas_classificadas").select("sessao_id, category_name").eq("cliente_id", clienteId).order("id"), 8),
     d.from("elora_relatorio_corte_config").select("equipe_por_canal, coluna_status, cores_status").eq("cliente_id", clienteId).maybeSingle(),

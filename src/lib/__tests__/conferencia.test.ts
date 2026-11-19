@@ -38,3 +38,33 @@ describe("conferência de janela maior", () => {
     expect(d[29]).toBe("2026-11-18");
   });
 });
+
+import { decidirExclusao, ehNaoEncontrado } from "../conferencia";
+describe("cards excluídos no Elora", () => {
+  it("só 'não encontrado' confirma exclusão; permissão e outros erros não", () => {
+    expect(ehNaoEncontrado(500, { key: "ENTITY_NOT_FOUND" })).toBe(true);
+    expect(ehNaoEncontrado(404, { key: "ENTITY_NOT_FOUND" })).toBe(true);
+    expect(ehNaoEncontrado(403, { key: "ENTITY_NOT_FOUND" })).toBe(false);
+    expect(ehNaoEncontrado(500, { key: "INTERNAL" })).toBe(false);
+    expect(ehNaoEncontrado(200, { id: "x" })).toBe(false);
+  });
+  it("rodada incompleta ou com erro não marca nada", () => {
+    expect(decidirExclusao(["a"], 1000, false).marcar).toEqual([]);
+  });
+  it("até 10 cards e até 2% da janela marca", () => {
+    expect(decidirExclusao(["a", "b"], 1000, true)).toEqual({ marcar: ["a", "b"], bloqueado: false, motivo: null });
+  });
+  it("mais de 10 cards bloqueia todos e avisa", () => {
+    const ids = Array.from({ length: 11 }, (_, i) => `c${i}`);
+    const r = decidirExclusao(ids, 100000, true);
+    expect(r.marcar).toEqual([]);
+    expect(r.bloqueado).toBe(true);
+    expect(r.motivo).toMatch(/revisão manual/);
+  });
+  it("mais de 2% da janela bloqueia todos", () => {
+    const r = decidirExclusao(["a", "b", "c"], 100, true);
+    expect(r.marcar).toEqual([]);
+    expect(r.bloqueado).toBe(true);
+    expect(decidirExclusao(["a", "b"], 100, true).marcar).toEqual(["a", "b"]);
+  });
+});
