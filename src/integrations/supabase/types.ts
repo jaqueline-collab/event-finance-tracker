@@ -2940,6 +2940,48 @@ export type Database = {
         }
         Relationships: []
       }
+      elora_retratos_conversas_dia: {
+        Row: {
+          bot: number
+          cliente_id: string
+          conversas: number
+          dia: string
+          id: number
+          mensagens: number
+          motivo: string
+          periodo_ate: string
+          periodo_de: string
+          retrato_em: string
+          usuario: number
+        }
+        Insert: {
+          bot: number
+          cliente_id: string
+          conversas: number
+          dia: string
+          id?: number
+          mensagens: number
+          motivo?: string
+          periodo_ate: string
+          periodo_de: string
+          retrato_em?: string
+          usuario: number
+        }
+        Update: {
+          bot?: number
+          cliente_id?: string
+          conversas?: number
+          dia?: string
+          id?: number
+          mensagens?: number
+          motivo?: string
+          periodo_ate?: string
+          periodo_de?: string
+          retrato_em?: string
+          usuario?: number
+        }
+        Relationships: []
+      }
       elora_sequencias_sincronizadas: {
         Row: {
           cliente_id: string
