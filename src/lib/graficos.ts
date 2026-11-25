@@ -431,6 +431,13 @@ export function cartaoDeIndicadores(
     por.set(k, row);
   }
   const nomes = series.map((s) => s.rotulo);
+  if (cfg.tipo === "pizza" || cfg.tipo === "rosca") {
+    const fatias = nomes.map((n) => {
+      const v = [...por.values()].reduce((a, r) => a + (r[n] ?? 0), 0);
+      return { rotulo: n, valores: { Valor: v }, total: v };
+    });
+    return { ...finalizar(fatias, ["Valor"], cfg, false, nomes), total, anterior: anteriorTotal, linhas: linhas.length, ordemFixa: nomes };
+  }
   const categorias = [...por.entries()].map(([rotulo, valores]) => ({
     rotulo,
     valores,

@@ -35,7 +35,12 @@ export async function calcularCartaoServidor(db: any, data0: Dados, c0: CartaoGr
       const validas = chavesInd.filter((k) => colsPorChave.has(k));
       if (!validas.length) return { oculto: false as const, r: null };
       const multi = Boolean(c.indicadores?.length);
-      const series = validas.map((k) => ({ chave: k, rotulo: separarGrupoColuna(colsPorChave.get(k)!.nome).coluna }));
+      const rotulosBase = validas.map((k) => {
+        const sep = separarGrupoColuna(colsPorChave.get(k)!.nome);
+        return sep.grupo && sep.coluna.toLowerCase() === "total" ? sep.grupo : sep.coluna;
+      });
+      const repetido = rotulosBase.some((r, i) => rotulosBase.indexOf(r) !== i);
+      const series = validas.map((k, i) => ({ chave: k, rotulo: repetido ? colsPorChave.get(k)!.nome : rotulosBase[i]! }));
       const calc = (ls: any, ant: number | null) =>
         multi ? cartaoDeIndicadores(ls, series, c, ant) : cartaoDeIndicador(ls, validas[0]!, c, ant);
       let ant: number | null = null;
