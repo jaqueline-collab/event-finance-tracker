@@ -33,7 +33,7 @@ export function colunasMatriz(configs: ConfigMatriz[]): ColunaMatriz[] {
   const porChave = new Map(configs.map((c) => [c.chave, c]));
   const padrao: ColunaMatriz[] = COLUNAS_PADRAO.map((c, i) => {
     const o = porChave.get(c.chave);
-    return { chave: c.chave, nome: c.nome, tipo: "app", formato: "numero", ordem: o?.ordem ?? i, ativo: o?.ativo ?? true };
+    return { chave: c.chave, nome: o?.nome ?? c.nome, tipo: "app", formato: "numero", ordem: o?.ordem ?? i, ativo: o?.ativo ?? true };
   });
   const doCliente: ColunaMatriz[] = configs
     .filter((c) => !ehChavePadrao(c.chave))

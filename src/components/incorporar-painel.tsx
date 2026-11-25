@@ -37,7 +37,7 @@ export function IncorporarPainel({ clienteId }: { clienteId: string }) {
   const alvo = visaoId === TODAS ? null : visaoId;
   const link = d.links.find((l) => l.visaoId === alvo) ?? null;
   const token = novos[visaoId];
-  const url = token ? `${window.location.origin}/incorporado?k=${token}` : "";
+  const url = token ? `${window.location.origin}/incorporado#${token}` : "";
 
   const gerar = async () => {
     if (ocupado) return;

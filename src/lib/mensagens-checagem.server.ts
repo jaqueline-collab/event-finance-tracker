@@ -84,9 +84,11 @@ export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx
     if (etapa === "atendimentos") {
       linha.atendimentos = { nosso: await contarNosso(db, "elora_atendimentos_espelho", clienteId, de, ate), elora: await contarElora(ctx, `/chat/v2/session?${filtro(de, ate)}`) };
     } else if (etapa === "contatos") {
-      let e = 0;
-      for (const st of STATUS_CONTATO) e += await contarElora(ctx, `/core/v1/contact?Status=${st}&${filtro(de, ate)}`);
-      linha.contatos = { nosso: await contarNosso(db, "elora_contatos_espelho", clienteId, de, ate), elora: e };
+      const [nosso, ...totais] = await Promise.all([
+        contarNosso(db, "elora_contatos_espelho", clienteId, de, ate),
+        ...STATUS_CONTATO.map((st) => contarElora(ctx, `/core/v1/contact?Status=${st}&${filtro(de, ate)}`)),
+      ]);
+      linha.contatos = { nosso, elora: totais.reduce((s, n) => s + n, 0) };
     } else if (etapa === "cards") {
       // Lote único para os 7 dias: cada pedido grava o cursor, então toda rodada avança.
       if (!cursor.cl) {
@@ -145,9 +147,8 @@ async function amostraMensagens(db: SupabaseClient, clienteId: string, ctx: Cont
   const porSessao = new Map<string, number>();
   for (const m of ms) if (diaSP(m.enviada_em) === dia) porSessao.set(String(m.sessao_id), (porSessao.get(String(m.sessao_id)) ?? 0) + 1);
   const ids = [...porSessao.keys()].sort(() => Math.random() - 0.5).slice(0, AMOSTRA_POR_DIA);
-  let bateram = 0, andamento = 0;
   const ehHoje = dia === diaSPDe(Date.now());
-  for (const sid of ids) {
+  const conferir = async (sid: string) => {
     let n = 0;
     for (let p = 1; p < 50; p++) {
       const j = await chamarElora(ctx, `/chat/v1/message?SessionId=${sid}&PageNumber=${p}&PageSize=${PAGE_SIZE}`);
@@ -155,11 +156,15 @@ async function amostraMensagens(db: SupabaseClient, clienteId: string, ctx: Cont
       n += itens.filter((m) => diaSP(mapMensagem(clienteId, m, sid).enviada_em) === dia).length;
       if (!j?.hasMorePages || !itens.length) break;
     }
-    const d = Math.abs(n - (porSessao.get(sid) ?? 0));
-    if (d === 0) bateram++;
-    else if (ehHoje && d <= 1) andamento++;
-  }
-  return { amostra: ids.length, bateram, andamento };
+    return Math.abs(n - (porSessao.get(sid) ?? 0));
+  };
+  // Conversas são independentes: paralelizar não muda a amostra nem as contagens.
+  const diferencas = await Promise.all(ids.map(conferir));
+  return {
+    amostra: ids.length,
+    bateram: diferencas.filter((d) => d === 0).length,
+    andamento: ehHoje ? diferencas.filter((d) => d > 0 && d <= 1).length : 0,
+  };
 }
 
 /** GET do card pelo id, sem lançar erro: devolve código e corpo. */
