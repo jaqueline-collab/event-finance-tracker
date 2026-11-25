@@ -8,7 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chamarElora, itensDe, mapMensagem, mensagensDoPeriodo, PAGE_SIZE, STATUS_CONTATO, type Contexto } from "./elora-espelho.server";
 import { STATUS_CARDS } from "./elora-cards.server";
 import { diaSP } from "./painel-visual";
-import { decidirRetomada, somarCardsPorDia, decidirExclusao, diasConferencia, ehNaoEncontrado, ETAPAS_CONFERENCIA, JANELA_EXCLUSAO_DIAS, limitesDia, ROTULO_ETAPA, diaSPDe, type LinhaConferencia } from "./conferencia";
+import { conciliarPainelExclusao, decidirRetomada, somarCardsPorDia, decidirExclusao, diasConferencia, ehNaoEncontrado, ETAPAS_CONFERENCIA, JANELA_EXCLUSAO_DIAS, limitesDia, ROTULO_ETAPA, diaSPDe, type LinhaConferencia } from "./conferencia";
 
 const AMOSTRA_POR_DIA = 4;
 type Excl = { desde: string; paineis: string[]; p: number; s: number; pg: number; ids: string[]; fase: "listar" | "pedir"; pendentes?: string[]; nf?: string[]; reativar?: string[]; erro?: string };
@@ -188,32 +188,40 @@ async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Co
   if (!cursor.excl) {
     const { data } = await d.from("elora_apoio_espelho").select("externo_id").eq("cliente_id", clienteId).eq("tipo", "painel");
     const desde = limitesDia(diasConferencia(Date.now(), JANELA_EXCLUSAO_DIAS)[0]).de;
-    cursor.excl = { desde, paineis: (data ?? []).map((p: any) => String(p.externo_id)), p: 0, s: 0, pg: 1, ids: [], fase: "listar" };
+    cursor.excl = { desde, paineis: (data ?? []).map((p: any) => String(p.externo_id)), p: 0, s: 0, pg: 1, ids: [], fase: "listar", pendentes: [], nf: [], reativar: [] };
   }
   const x = cursor.excl;
+  x.pendentes ??= [];
+  x.nf ??= [];
+  x.reativar ??= [];
   const tempo = () => Date.now() - inicio > prazoMs;
   try {
     while (x.fase === "listar" && x.p < x.paineis.length) {
       if (tempo()) return null;
       const st = STATUS_CARDS[x.s];
-      const j = await chamarElora(ctx, `/crm/v2/panel/card?PanelId=${x.paineis[x.p]}${st ? `&Statuses=${st}` : ""}&CreatedAt.After=${encodeURIComponent(x.desde)}&PageSize=${PAGE_SIZE}&PageNumber=${x.pg}`);
+      const painelId = x.paineis[x.p];
+      const j = await chamarElora(ctx, `/crm/v2/panel/card?PanelId=${painelId}${st ? `&Statuses=${st}` : ""}&CreatedAt.After=${encodeURIComponent(x.desde)}&PageSize=${PAGE_SIZE}&PageNumber=${x.pg}`);
       const it = itensDe(j);
       x.ids.push(...it.map((c: any) => String(c.id)));
       if (j?.hasMorePages && it.length) x.pg++;
       else if (x.s < STATUS_CARDS.length - 1) { x.s++; x.pg = 1; }
-      else { x.p++; x.s = 0; x.pg = 1; }
+      else {
+        // Painel concluído: concilia só os cards deste painel e limpa x.ids antes de avançar.
+        const { lerTudo } = await import("./ler-paginas.server");
+        const nossos = await lerTudo(() =>
+          d.from("elora_cards_espelho").select("externo_id, excluido_em").eq("cliente_id", clienteId).eq("painel_id", painelId).gte("criado_em", x.desde).order("externo_id"),
+        );
+        const { pendentes, reativar } = conciliarPainelExclusao(x.ids, (nossos ?? []) as any[]);
+        x.pendentes = [...new Set([...x.pendentes!, ...pendentes])];
+        x.reativar = [...new Set([...x.reativar!, ...reativar])];
+        x.ids = [];
+        x.p++;
+        x.s = 0;
+        x.pg = 1;
+      }
       await gravar();
     }
     if (x.fase === "listar") {
-      const noElora = new Set(x.ids);
-      const { lerTudo } = await import("./ler-paginas.server");
-      const nossos = await lerTudo(() => d.from("elora_cards_espelho").select("externo_id, excluido_em").eq("cliente_id", clienteId).gte("criado_em", x.desde).order("externo_id"));
-      const ativos = (nossos ?? []).filter((n: any) => !n.excluido_em).map((n: any) => String(n.externo_id));
-      const marcados = (nossos ?? []).filter((n: any) => n.excluido_em).map((n: any) => String(n.externo_id));
-      x.reativar = marcados.filter((id: string) => noElora.has(id));
-      x.pendentes = [...ativos.filter((id: string) => !noElora.has(id)), ...marcados.filter((id: string) => !noElora.has(id))];
-      x.nf = [];
-      x.ids = [];
       x.fase = "pedir";
       await gravar();
     }

@@ -38,8 +38,9 @@ describe("Fase 5: cobertura sem inventar zero", () => {
   it("carga concluída sem intervalo comprovado permanece parcial",()=>expect(estadoCobertura("2026-10-01",["mensagens"],[{fonte:"mensagens",concluido_em:"2026-11-01"}])).toBe("parcial"));
   it("zero só é confirmado dentro de cobertura explícita",()=>{
     const s=[{fonte:"mensagens",concluido_em:"2026-11-01",cobertura:[{de:"2026-10-01",ate:"2026-10-02"}]}];
-    expect(estadoCobertura("2026-10-01",["mensagens"],s)).toBe("confirmado");
-    expect(estadoCobertura("2026-10-03",["mensagens"],s)).toBe("parcial");
+    const agoraMs = Date.parse("2026-11-01T01:00:00Z");
+    expect(estadoCobertura("2026-10-01",["mensagens"],s,{agoraMs})).toBe("confirmado");
+    expect(estadoCobertura("2026-10-03",["mensagens"],s,{agoraMs})).toBe("parcial");
   });
 });
 it("ranking total do responsável inclui bot e humano, separadamente",()=>{

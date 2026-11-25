@@ -122,7 +122,8 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
   const colsBarra = d.todasColunas.map((c) => ({ chave: c.chave, rotulo: c.nome }));
   const padraoCols: EstadoColunas = { ordem: d.todasColunas.map((c) => c.chave), ocultas: d.todasColunas.filter((c) => !c.ativo).map((c) => c.chave), fixas: [] };
   const estadoValido = estadoCols.ordem.length ? estadoCols : padraoCols;
-  const chavesAds = colsBarra.map((c) => c.chave).filter(ehColunaAds);
+  const chavesPat = (d as any).colunasAds as string[] | undefined;
+  const chavesAds = colsBarra.map((c) => c.chave).filter((k) => ehColunaAds(k, chavesPat));
   const adsVisiveis = chavesAds.every((k) => !estadoValido.ocultas.includes(k));
   // quem vê reordena/oculta só na tela; a super admin em Editar vê todas e salva o padrão
   const colunasTela = ordenarPorEstado(editavel ? d.todasColunas : d.colunas, estadoValido).filter((c) => !estadoValido.ocultas.includes(c.chave));
@@ -171,7 +172,7 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
             {editavel && JSON.stringify(ordemAtual) !== JSON.stringify(padraoOrdem) && (
               <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { const o = ordemAtual!; salvarOrdemLinhasMatriz({ data: { clienteId, ordem: o } }).then(() => { toast.success("Ordem padrão salva."); setOrdem(null); recarregar(); }).catch((e) => toast.error(msg(e))); }}>Salvar ordem como padrão</Button>
             )}
-            {chavesAds.length > 0 && <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar))} />ADS</label>}
+            {chavesAds.length > 0 && <label className="flex items-center gap-1.5 text-xs"><Switch aria-label="Mostrar colunas de ADS" checked={adsVisiveis} onCheckedChange={(mostrar) => setEstadoCols(alternarColunasAds(estadoValido, chavesAds, mostrar, chavesPat))} />ADS</label>}
           </>}
           onSalvarPadrao={editavel ? () => void salvarOrdem(ordenarPorEstado(d.todasColunas, estadoValido).map((c) => ({ ...c, ativo: !estadoValido.ocultas.includes(c.chave) }))) : undefined}
           onExportar={lerIncorporado ? undefined : (f) => {

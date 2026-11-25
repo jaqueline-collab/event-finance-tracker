@@ -100,14 +100,23 @@ export async function montarMatrizCliente(
   const chavesCard = new Set(configs.filter((c) => ehCombinadaDeCard(c) && (c.evento as any)?.tipo !== "foi_criado").map((c) => c.chave));
   const r = montarMatriz(todas, listaDias(p), m, manuais, semHistoricoAntes ? { antes: semHistoricoAntes, chaves: chavesCard } : undefined);
   const etapas = [...new Set(leituras.map((l) => l.etapa_titulo).filter(Boolean) as string[])].sort();
-  const { data: sync, error: syncError } = await db.from("elora_sync_estado").select("fonte, concluido_em, cursor").eq("cliente_id", clienteId);
+  const [{ data: sync, error: syncError }, { data: conf }] = await Promise.all([
+    db.from("elora_sync_estado").select("fonte, concluido_em, cursor, cobertura, ultima_execucao_situacao").eq("cliente_id", clienteId),
+    db.from("elora_conferencias").select("linhas, concluido_em").eq("cliente_id", clienteId).eq("situacao", "concluida").order("concluido_em", { ascending: false }).limit(1).maybeSingle(),
+  ]);
   if (syncError) throw new Error(syncError.message);
-  const estados = sync ?? [];
+  const estados = (sync ?? []) as any[];
   const fontes = ["contatos", "atendimentos", "mensagens", ...(precisaCards ? ["cards"] : [])];
-  const cobertura = Object.fromEntries(listaDias(p).map(d => [d, estadoCobertura(d, fontes, estados)]));
+  const { diaSPDe, divergencias } = await import("./conferencia");
+  const hoje = diaSPDe(Date.now());
+  const diasComDiferenca = new Set(conf?.linhas ? divergencias(conf.linhas as any, hoje).map((d) => d.dia) : []);
+  const cobertura = Object.fromEntries(listaDias(p).map((d) => [d, estadoCobertura(d, fontes, estados, { hoje, diasComDiferenca })]));
+  const { chavesColunasPatrocinadas } = await import("./colunas-tabela");
+  const colunasAds = chavesColunasPatrocinadas(configs as any, origem);
   return {
     ...r,
     todasColunas: todas,
+    colunasAds,
     opcoes: opcoesDimensoes(linhas),
     temCards: leituras.length > 0,
     cobertura,

@@ -3,10 +3,29 @@ export type ColunaTabela = { chave: string; rotulo: string; oculta?: boolean; fi
 export type EstadoColunas = { ordem: string[]; ocultas: string[]; fixas: string[] };
 
 /** ADS é só visibilidade local: nunca altera linhas, valores ou filtros. */
-export const ehColunaAds = (chave: string) => /(?:_ads|Ads)$/.test(chave);
-export function alternarColunasAds(e: EstadoColunas, chaves: string[], mostrar: boolean): EstadoColunas {
-  const ads = chaves.filter(ehColunaAds);
+export const ehColunaAds = (chave: string, chavesPatrocinadas?: readonly string[]) =>
+  chavesPatrocinadas?.length ? chavesPatrocinadas.includes(chave) : /(?:_ads|Ads)$/.test(chave);
+export function alternarColunasAds(e: EstadoColunas, chaves: string[], mostrar: boolean, chavesPatrocinadas?: readonly string[]): EstadoColunas {
+  const ads = chaves.filter((k) => ehColunaAds(k, chavesPatrocinadas));
   return { ...e, ocultas: mostrar ? e.ocultas.filter((k) => !ads.includes(k)) : [...new Set([...e.ocultas, ...ads])] };
+}
+
+/** Chaves de colunas de Origem marcadas como patrocinadas na configuração do cliente. */
+export function chavesColunasPatrocinadas(
+  configs: readonly { chave: string; condicoes?: unknown }[],
+  origem: { campo: string; patrocinados: string[] } | null | undefined,
+): string[] {
+  if (!origem?.campo || !origem.patrocinados.length) return [];
+  const pat = new Set(origem.patrocinados.map((v) => v.trim().toLowerCase()));
+  return configs
+    .filter((c) => {
+      const raw = c.condicoes as any;
+      const lista = Array.isArray(raw) ? raw : Array.isArray(raw?.itens) ? raw.itens : [];
+      return lista.some(
+        (cond: any) => cond?.operador === "igual" && cond?.campo?.campo === origem.campo && typeof cond?.valor === "string" && pat.has(cond.valor.trim().toLowerCase()),
+      );
+    })
+    .map((c) => c.chave);
 }
 
 export const estadoInicial = (cols: ColunaTabela[]): EstadoColunas => ({

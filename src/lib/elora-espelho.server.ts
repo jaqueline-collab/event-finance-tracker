@@ -212,6 +212,16 @@ export async function sincronizarFonte(
   const novaPassada = !est || (cursor.etapa === 0 && cursor.pagina === 1);
   let registros = novaPassada ? 0 : Number(est?.registros ?? 0);
   const salvar = async (concluido: boolean) => {
+    const concluidoEm = concluido ? (cursor.inicioRodada ?? new Date().toISOString()) : (est?.concluido_em ?? null);
+    const { diaSP } = await import("./painel-visual");
+    const { atualizarIntervaloCobertura } = await import("./sync-cobertura");
+    const cobertura = concluido && concluidoEm
+      ? atualizarIntervaloCobertura(
+          (est as any)?.cobertura,
+          diaSP(est?.iniciado_em ?? concluidoEm) ?? concluidoEm.slice(0, 10),
+          diaSP(concluidoEm) ?? concluidoEm.slice(0, 10),
+        )
+      : ((est as any)?.cobertura ?? []);
     const { error } = await db.from("elora_sync_estado").upsert(
       {
         cliente_id: clienteId,
@@ -223,7 +233,8 @@ export async function sincronizarFonte(
         registros,
         iniciado_em: est?.iniciado_em ?? new Date().toISOString(),
         // Conclusão = início da rodada incremental: o que mudou durante a rodada entra na próxima.
-        concluido_em: concluido ? (cursor.inicioRodada ?? new Date().toISOString()) : (est?.concluido_em ?? null),
+        concluido_em: concluidoEm,
+        cobertura,
         atualizado_em: new Date().toISOString(),
       },
       { onConflict: "cliente_id,fonte" },
@@ -329,6 +340,16 @@ async function sincronizarMensagens(db: SupabaseClient, clienteId: string, ctx: 
   const novaPassada = !cursor.depoisDe && cursor.pagina === 1;
   let registros = novaPassada ? 0 : Number(est?.registros ?? 0);
   const salvar = async (concluido: boolean) => {
+    const concluidoEm = concluido ? cursor.ate : (est?.concluido_em ?? null);
+    const { diaSP } = await import("./painel-visual");
+    const { atualizarIntervaloCobertura } = await import("./sync-cobertura");
+    const cobertura = concluido && concluidoEm
+      ? atualizarIntervaloCobertura(
+          (est as any)?.cobertura,
+          diaSP(est?.iniciado_em ?? concluidoEm) ?? concluidoEm.slice(0, 10),
+          diaSP(concluidoEm) ?? concluidoEm.slice(0, 10),
+        )
+      : ((est as any)?.cobertura ?? []);
     const { error } = await db.from("elora_sync_estado").upsert(
       {
         cliente_id: clienteId,
@@ -339,7 +360,8 @@ async function sincronizarMensagens(db: SupabaseClient, clienteId: string, ctx: 
         erros: [...((est?.erros as string[]) ?? []), ...ctx.erros].slice(-50),
         registros,
         iniciado_em: novaPassada ? new Date().toISOString() : (est?.iniciado_em ?? new Date().toISOString()),
-        concluido_em: concluido ? cursor.ate : (est?.concluido_em ?? null),
+        concluido_em: concluidoEm,
+        cobertura,
         atualizado_em: new Date().toISOString(),
       },
       { onConflict: "cliente_id,fonte" },

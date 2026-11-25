@@ -120,6 +120,16 @@ export async function sincronizarCards(db: SupabaseClient, clienteId: string, ct
   let registros = cursor.painel === 0 && cursor.status === 0 && cursor.pagina === 1 ? 0 : Number(est?.registros ?? 0);
   let leituras = 0;
   const salvar = async (concluido: boolean) => {
+    const concluidoEm = concluido ? (cursor.inicioRodada ?? cursor.desde ?? new Date().toISOString()) : (est?.concluido_em ?? null);
+    const { diaSP } = await import("./painel-visual");
+    const { atualizarIntervaloCobertura } = await import("./sync-cobertura");
+    const cobertura = concluido && concluidoEm
+      ? atualizarIntervaloCobertura(
+          (est as any)?.cobertura,
+          diaSP(est?.iniciado_em ?? concluidoEm) ?? concluidoEm.slice(0, 10),
+          diaSP(concluidoEm) ?? concluidoEm.slice(0, 10),
+        )
+      : ((est as any)?.cobertura ?? []);
     const { error } = await db.from("elora_sync_estado").upsert(
       {
         cliente_id: clienteId,
@@ -131,7 +141,8 @@ export async function sincronizarCards(db: SupabaseClient, clienteId: string, ct
         registros,
         iniciado_em: est?.iniciado_em ?? new Date().toISOString(),
         // Conclusão = início da rodada: a próxima relê tudo o que mudou enquanto esta percorria os painéis.
-        concluido_em: concluido ? (cursor.inicioRodada ?? cursor.desde ?? new Date().toISOString()) : (est?.concluido_em ?? null),
+        concluido_em: concluidoEm,
+        cobertura,
         atualizado_em: new Date().toISOString(),
       },
       { onConflict: "cliente_id,fonte" },

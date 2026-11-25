@@ -107,6 +107,26 @@ export function decidirExclusao(confirmados: string[], totalJanela: number, roda
   return { marcar: confirmados, bloqueado: false, motivo: null };
 }
 
+/** Concilia um único painel: devolve faltantes para confirmar por id e marcados que voltaram. */
+export function conciliarPainelExclusao(
+  idsNoElora: Iterable<string>,
+  nossosDoPainel: readonly { externo_id: string; excluido_em?: string | null }[],
+): { pendentes: string[]; reativar: string[] } {
+  const noElora = new Set(idsNoElora);
+  const pendentes: string[] = [];
+  const reativar: string[] = [];
+  for (const n of nossosDoPainel) {
+    const id = String(n.externo_id);
+    if (n.excluido_em) {
+      if (noElora.has(id)) reativar.push(id);
+      else pendentes.push(id);
+    } else if (!noElora.has(id)) {
+      pendentes.push(id);
+    }
+  }
+  return { pendentes, reativar };
+}
+
 // ---- Retomada e cards em lote (conferência automática) ----
 /** Uma conferência aberta é retomada por até 24h desde que começou; depois, é interrompida e outra começa. */
 export const VALIDADE_CONFERENCIA_ABERTA_MS = 24 * 60 * 60_000;

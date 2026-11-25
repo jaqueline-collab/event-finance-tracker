@@ -52,6 +52,7 @@ export const lerMatriz = createServerFn({ method: "POST" })
       colunas: r.colunas,
       // colunas ocultas só para quem edita
       todasColunas: podeEditar ? r.todasColunas : r.colunas,
+      colunasAds: r.colunasAds,
       linhas: r.linhas,
       total: r.total,
       cobertura: r.cobertura,
