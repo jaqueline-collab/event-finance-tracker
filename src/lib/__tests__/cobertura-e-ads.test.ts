@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { alternarColunasAds, chavesColunasPatrocinadas, ehColunaAds, type EstadoColunas } from "../colunas-tabela";
 import { ATRASO_SYNC_MS, atualizarIntervaloCobertura, estadoCobertura, type Cobertura } from "../sync-cobertura";
-import { conciliarPainelExclusao, decidirExclusao } from "../conferencia";
+import { conciliarPainelExclusao, decidirExclusao, decidirRetomada, exclusoesNaoVerificadas } from "../conferencia";
 
 describe("botão ADS por configuração de Origem", () => {
   const origem = { campo: "campo.origem-do-lead", patrocinados: ["Meta ADS", "Google ADS", "Instagram"] };
@@ -90,5 +90,19 @@ describe("conciliação de exclusões por painel e travas", () => {
   it("mantém travas: nunca marca em rodada incompleta nem acima do limite", () => {
     expect(decidirExclusao(["c1"], 100, false).marcar).toEqual([]);
     expect(decidirExclusao(["c1", "c2", "c3"], 100, true).bloqueado).toBe(true);
+  });
+
+  it("sinaliza exclusões não verificadas e agenda nova tentativa na rodada seguinte", () => {
+    const agora = Date.parse("2026-11-25T23:00:00Z");
+    const naoVerif = { verificada: false, verificadosPorId: 0, bloqueado: false, aviso: "Verificação não concluiu ou teve erro: nada foi marcado." };
+    const legado = { verificadosPorId: 0, bloqueado: false, aviso: "Verificação não concluiu ou teve erro: nada foi marcado." };
+    const ok = { verificada: true, verificadosPorId: 1, bloqueado: false, aviso: null };
+
+    expect(exclusoesNaoVerificadas(naoVerif)).toBe(true);
+    expect(exclusoesNaoVerificadas(legado)).toBe(true);
+    expect(exclusoesNaoVerificadas(ok)).toBe(false);
+
+    expect(decidirRetomada({ situacao: "concluida", created_at: "2026-11-25T22:00:00Z", exclusoes: naoVerif }, agora)).toBe("retomar_exclusoes");
+    expect(decidirRetomada({ situacao: "concluida", created_at: "2026-11-25T22:00:00Z", exclusoes: ok }, agora)).toBe("nova");
   });
 });

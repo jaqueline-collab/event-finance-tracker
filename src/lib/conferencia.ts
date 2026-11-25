@@ -130,9 +130,27 @@ export function conciliarPainelExclusao(
 // ---- Retomada e cards em lote (conferência automática) ----
 /** Uma conferência aberta é retomada por até 24h desde que começou; depois, é interrompida e outra começa. */
 export const VALIDADE_CONFERENCIA_ABERTA_MS = 24 * 60 * 60_000;
-export function decidirRetomada(aberta: { situacao: string; created_at: string } | null, agora = Date.now()): "retomar" | "nova" | "interromper" {
-  if (!aberta || aberta.situacao !== "conferindo") return "nova";
-  return agora - Date.parse(aberta.created_at) > VALIDADE_CONFERENCIA_ABERTA_MS ? "interromper" : "retomar";
+export type ExclusoesResumo = {
+  verificada?: boolean;
+  verificadosPorId?: number;
+  bloqueado?: boolean;
+  aviso?: string | null;
+};
+/** Verdadeiro quando a etapa de exclusões não rodou até o fim (erro, trava de cards ou 0 verificados com aviso). */
+export function exclusoesNaoVerificadas(ex: ExclusoesResumo | null | undefined): boolean {
+  if (!ex) return false;
+  if (ex.verificada === false) return true;
+  return ex.verificada !== true && !ex.bloqueado && Boolean(ex.aviso) && (ex.verificadosPorId ?? 0) === 0;
+}
+export function decidirRetomada(
+  aberta: { situacao: string; created_at: string; exclusoes?: ExclusoesResumo | null } | null,
+  agora = Date.now(),
+): "retomar" | "retomar_exclusoes" | "nova" | "interromper" {
+  if (!aberta) return "nova";
+  const expirada = agora - Date.parse(aberta.created_at) > VALIDADE_CONFERENCIA_ABERTA_MS;
+  if (aberta.situacao === "conferindo") return expirada ? "interromper" : "retomar";
+  if (aberta.situacao === "concluida" && !expirada && exclusoesNaoVerificadas(aberta.exclusoes)) return "retomar_exclusoes";
+  return "nova";
 }
 /** Soma cards (itens do Elora) por dia de criação em Brasília, só nos dias pedidos; sem repetir id. */
 export function somarCardsPorDia(porDia: Record<string, number>, vistos: Set<string>, itens: { id?: unknown; createdAt?: string | null }[], dias: string[]): void {

@@ -56,7 +56,11 @@ export async function conferirCliente(db: SupabaseClient, clienteId: string, ctx
   if (decisao === "interromper") {
     await (db as any).from("elora_conferencias").update({ situacao: "interrompida", progresso: `Interrompida (aberta há mais de 24 horas) · ${conf.progresso ?? ""}`.trim() }).eq("id", conf.id);
   }
-  if (decisao !== "retomar") {
+  if (decisao === "retomar_exclusoes") {
+    const cur: Cursor = conf.cursor ?? {};
+    delete cur.excl;
+    conf.cursor = cur;
+  } else if (decisao !== "retomar") {
     const dias = diasConferencia(Date.now(), nDias);
     const { data, error } = await (db as any).from("elora_conferencias").insert({ cliente_id: clienteId, origem, cursor: { dias, i: 0, etapa: 0 }, linhas: dias.map((dia) => ({ dia })), progresso: "Começando" }).select("*").single();
     if (error) throw new Error(`elora_conferencias: ${error.message}`);
@@ -251,5 +255,5 @@ async function verificarExclusoes(db: SupabaseClient, clienteId: string, ctx: Co
   if (reativar.length) await d.from("elora_cards_espelho").update({ excluido_em: null }).eq("cliente_id", clienteId).in("externo_id", reativar);
   // Invalida o cache dos painéis quando algo mudou.
   if (dec.marcar.length || reativar.length) await d.from("elora_sync_estado").update({ atualizado_em: agora }).eq("cliente_id", clienteId).eq("fonte", "cards");
-  return { janelaDesde: x.desde, verificadosPorId: x.nf!.length + x.reativar!.length, naoEncontrados: novos, marcados: dec.marcar, reativados: reativar, bloqueado: dec.bloqueado, aviso: dec.motivo ?? (x.erro ? x.erro : null), em: agora };
+  return { verificada: rodadaOk, janelaDesde: x.desde, verificadosPorId: x.nf!.length + x.reativar!.length, naoEncontrados: novos, marcados: dec.marcar, reativados: reativar, bloqueado: dec.bloqueado, aviso: dec.motivo ?? (x.erro ? x.erro : null), em: agora };
 }

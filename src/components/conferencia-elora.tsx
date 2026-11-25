@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { conferirAgora, lerConferencia } from "@/lib/conferencia.functions";
-import { diaSPDe, estadoAmostra, estadoCelula, ETAPAS_CONFERENCIA, FUSO_CONFERENCIA, O_QUE_CONTA, ROTULO_ETAPA, totais, type Amostra, type EstadoCelula, type LinhaConferencia, type Par } from "@/lib/conferencia";
+import { diaSPDe, estadoAmostra, estadoCelula, ETAPAS_CONFERENCIA, exclusoesNaoVerificadas, FUSO_CONFERENCIA, O_QUE_CONTA, ROTULO_ETAPA, totais, type Amostra, type EstadoCelula, type LinhaConferencia, type Par } from "@/lib/conferencia";
 import { formatarDataHora } from "@/lib/formatos";
 
 type Dados = Awaited<ReturnType<typeof lerConferencia>>;
@@ -113,8 +113,11 @@ export function ConferenciaElora({ clienteId }: { clienteId: string }) {
         </div>
       )}
       {c?.exclusoes && (
-        <div className={`rounded-lg border p-3 text-xs ${c.exclusoes.bloqueado ? "border-destructive/50 bg-destructive/5" : ""}`}>
+        <div className={`rounded-lg border p-3 text-xs ${c.exclusoes.bloqueado || exclusoesNaoVerificadas(c.exclusoes) ? "border-destructive/50 bg-destructive/5" : ""}`}>
           <p className="font-medium text-foreground">Cards excluídos no Elora (últimos 30 dias)</p>
+          {exclusoesNaoVerificadas(c.exclusoes) && (
+            <p className="font-medium text-destructive">Exclusões não verificadas nesta rodada — a próxima rodada tentará novamente.</p>
+          )}
           <p className="text-muted-foreground">
             Marcados agora: {c.exclusoes.marcados.length} · Reativados: {c.exclusoes.reativados.length} · Conferidos um a um no Elora: {c.exclusoes.verificadosPorId}
           </p>
