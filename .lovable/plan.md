@@ -1,13 +1,13 @@
 # Painel da Dra. Nathalia Morato (cliente sfwsf3t7)
 
 ## O que encontrei
-- **Não há chave do Elora App cadastrada para esse cliente.** Por isso ainda não há nada sincronizado (0 contatos, 0 atendimentos, 0 cards) e nenhuma conferência foi feita.
-- **Há dois clientes com o mesmo nome "Dra. Nathalia Morato":** `wu1y5iv2`, criado em 01/09, e `sfwsf3t7`, criado em 09/11. Os dois estão vazios. Vou usar só o `sfwsf3t7`, como você pediu, e não mexo no outro.
+- **A chave do Elora App do cliente sfwsf3t7 já está cadastrada.** Ainda não há nada sincronizado: 0 contatos, 0 atendimentos e 0 cards.
+- O cadastro `wu1y5iv2` é a conta antiga (churn em 19/10) e não será mexido.
 - **Pendência anterior:** a correção da conferência automática (retomar, gravar o avanço a cada pedido, cards em lote) já está no código e os testes passam. Ainda falta marcar as 3 conferências travadas de 19/11 como "interrompidas" e trazer a prova das 3 rodadas, com o campo de exclusões. Faço isso primeiro.
 
 ## Etapas
 1. **Terminar a conferência automática do Dr. Ricardo**, como no plano aprovado: marcar as 3 conferências travadas, rodar até concluir e trazer as rodadas, o id, as linhas dos 7 dias e as exclusões.
-2. **Assim que a chave do Elora da Dra. Nathalia estiver cadastrada:** fazer a sincronização completa (apoio, contatos, atendimentos, cards e mensagens) até todas as fontes concluírem. Depois, rodar a conferência com o Elora e trazer a tabela.
+2. Fazer a sincronização completa (apoio, contatos, atendimentos, cards e mensagens) até todas as fontes concluírem. Depois, rodar a conferência com o Elora e trazer a tabela.
 3. **Levantamento (só leitura)**, entregue no chat:
    - campos personalizados de contato;
    - classificações de conversa;
@@ -23,7 +23,6 @@
 8. Não publicar.
 
 ## O que depende de você
-- Cadastrar a chave do Elora App da Dra. Nathalia: na configuração do cliente, aba de conexão.
 - Escolher de onde vêm os agendamentos, se o levantamento mostrar mais de uma opção.
 
 ## Detalhes técnicos
