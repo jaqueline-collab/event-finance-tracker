@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { condicaoOrigemPatrocinado, ehOrigemPatrocinada, origemPatrocinadoValida } from "../origem-patrocinado";
 import { preservarDataClassificacao } from "../classificacao-data";
-import { calcularIndicadoresContatos, calcularIndicadoresConversas, type ContatoIndicador, type ConversaIndicador } from "../indicadores-motor";
+import { calcularIndicadoresContatos, calcularIndicadoresConversas, type ContatoIndicador, type ConversaIndicador, type IndicadorConfig } from "../indicadores-motor";
 
 const config = { campo: "campo.origem", patrocinados: ["Anúncio A", "Anúncio B"] };
 const contato = (id: string, origem: unknown, criado_em = "2026-11-24T15:00:00Z"): ContatoIndicador => ({
@@ -106,6 +106,7 @@ describe("data da classificação", () => {
 
 describe("conversas concluídas por classificação de ganho", () => {
   it("conta no dia da conclusão (Brasília), ignora em andamento e não inclui classificações de perda parecidas", () => {
+    const campo = { fonte: "contato" as const, campo: "campo.origem" };
     const contatos = [contato("c1", ["Anúncio A"]), contato("c2", ["Orgânico"]), contato("c3", null)];
     const conversas: ConversaIndicador[] = [
       { id: "a1", contato_id: "c1", classificacao: "Consulta Agendada", encerrado_em: "2026-11-24T02:30:00Z", classificado_em: "2026-11-24T15:00:00Z" },
