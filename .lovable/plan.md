@@ -31,15 +31,29 @@ Um único texto no chat, sem alterar código nem dados.
 - Prova: id e rodadas de uma conferência em que a etapa de exclusões rodou até o fim (verificados por id > 0 ou todos os painéis percorridos), com o campo exclusoes completo. Se nenhuma rodada automática acontecer a tempo na prévia, digo isso e mostro a execução manual da mesma rotina.
 
 ## 6. Linhas presas do Dr. Ricardo (8c0ojhr2)
-UPDATE que vou rodar, só depois da sua aprovação:
+UPDATE (só a coluna situacao; progresso intocado; só linhas com conferência concluída posterior):
 
 ```text
-update elora_conferencias
-set situacao = 'interrompida',
-    progresso = progresso || ' · interrompida (substituída por conferência concluída)'
-where id in ('509ab4b1-8c1f-416f-b3a0-17f6dabacc14',  -- 25/11 02:55 UTC
-             '42b77b57-f4cb-4a40-8886-30776901e511')  -- 25/11 05:55 UTC
-  and situacao = 'conferindo';
+update elora_conferencias c
+set situacao = 'interrompida'
+where c.cliente_id = '8c0ojhr2'
+  and c.situacao = 'conferindo'
+  and c.id in (
+    '42b77b57-f4cb-4a40-8886-30776901e511', -- 25/11 05:55
+    '509ab4b1-8c1f-416f-b3a0-17f6dabacc14', -- 25/11 02:55
+    'a0129bca-f482-4730-8886-80b38493d67e', -- 24/11 23:56
+    '065f0bdd-818b-4589-a456-968ee1163630', -- 24/11 20:56
+    'd58e837a-53e5-4515-be79-a8820dde6a86', -- 24/11 17:56
+    '444a8d1a-ede9-44be-b8bc-0839907e4ddc', -- 24/11 14:56
+    '133cd184-ef04-43d9-bb0f-533d1bb561d6', -- 24/11 11:56
+    '976a4d80-27c5-430b-bac5-61f7b353b471', -- 24/11 08:56
+    'b94c34c5-89cd-47a9-b3e5-13b9d7a04d3a', -- 24/11 05:55
+    '0f0aa082-7c7a-4a47-9a6d-b229f1142330') -- 24/11 02:56
+  and exists (select 1 from elora_conferencias d
+              where d.cliente_id = c.cliente_id
+                and d.situacao = 'concluida'
+                and d.iniciado_em > c.iniciado_em)
+returning c.id;
 ```
 
-Observação: existem mais 8 linhas antigas do mesmo cliente ainda "conferindo" (24/11 de 02:56 a 23:56 UTC). Não toco nelas sem você pedir; posso incluí-las no mesmo UPDATE.
+Depois: quantas linhas mudaram e as ids, e as que ficaram de fora (se houver) com o motivo.
