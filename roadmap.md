@@ -1,11 +1,9 @@
 # Roadmap
 
-- [ ] 0. Investigar 10/11: Resultados 248 x Relatório diário 140 (só mostrar exemplo e qual está certo)
-- [ ] 1. Registro de exclusão de visão com desfazer + proteção (não recriar Resultados (novo))
-- [ ] 2. Alinhamento único das tabelas (número centralizado tabular; texto e Dia à esquerda)
-- [ ] 3. Colunas manuais editáveis (quem preenche, dias futuros, log, desfazer, vazio ≠ zero)
-- [ ] 4. Canais: lista completa, nome real, tipo, telefone formatado
-- [ ] 5. Limpeza do antigo — etapa 1 levantamento (inclui "Comparar com gravado")
-- [ ] 6. Colunas: Status do lead como linha normal, engrenagem, arrastar
-- [ ] 7. Tamanho dos blocos: tabela do Relatório diário estica; alças visíveis; menu de largura
-- [x] Cards excluídos: confirmado 200 no mesmo painel; 854ab39c marcado; retratos iguais nos dois períodos; conferência de 30 dias igual após exclusão, sem publicar
+- [ ] 1. Prova da conferência automática do Dr. Ricardo (até 3 rodadas + exclusões)
+- [ ] 2. Sincronização completa e conferência da Dra. Nathalia (`sfwsf3t7`)
+- [ ] 3. Levantamento só leitura: campos personalizados, classificações, etiquetas, Origem
+- [ ] 4. Configuração por cliente "Patrocinado" (`elora_relatorio_corte_config.origem_patrocinado` + função pura + testes + UI super admin)
+- [ ] 5. Relatório diário da Dra. Nathalia (Contatos novos por Origem, Sem informação, Patrocinado/Não patrocinado + Agendamentos se inequívoco)
+- [ ] 6. Conferência 23/11 e 24/11 vs fechamento dela + verificação visual 390/834/1440 claro/escuro
+- [ ] 7. Responder texto completo da Política de Privacidade + status na prévia
