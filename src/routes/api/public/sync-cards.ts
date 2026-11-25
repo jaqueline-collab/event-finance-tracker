@@ -29,8 +29,12 @@ export const Route = createFileRoute("/api/public/sync-cards")({
         const { data: contas } = await db.from("elora_integracao_contas").select("cliente_id").eq("ativo", true);
         // Quem está há mais tempo sem atualizar vai primeiro, para ninguém ficar sempre no fim da fila.
         const { data: est } = await db.from("elora_sync_estado").select("cliente_id, atualizado_em");
+        const { data: abertas } = await db.from("elora_conferencias").select("cliente_id").eq("situacao", "conferindo").eq("origem", "automatica");
+        const comConferenciaAberta = new Set((abertas ?? []).map((c: any) => String(c.cliente_id)));
         const ultima = (id: string) => (est ?? []).filter((e: any) => e.cliente_id === id).map((e: any) => e.atualizado_em ?? "").sort()[0] ?? "";
-        const ids = (contas ?? []).map((c: any) => c.cliente_id as string).sort((a: string, b: string) => ultima(a).localeCompare(ultima(b)));
+        // Quem já tem conferência automática aberta vem primeiro até concluir: trocar
+        // a ordem das contas não pode deixar uma conferência três rodadas sem vez.
+        const ids = (contas ?? []).map((c: any) => c.cliente_id as string).sort((a: string, b: string) => Number(comConferenciaAberta.has(b)) - Number(comConferenciaAberta.has(a)) || ultima(a).localeCompare(ultima(b)));
         const inicio = Date.now();
         const ORCAMENTO = 105_000;
         const resultado: Record<string, unknown> = {};
@@ -50,15 +54,15 @@ export const Route = createFileRoute("/api/public/sync-cards")({
               const ult = await ultimaConferencia(db, cliente_id);
               const continuar = ult?.situacao === "conferindo" && ult?.origem === "automatica";
               const conferir = continuar || conferenciaVencida(ult?.iniciado_em ?? null);
-              // Reserva tempo próprio para a conferência quando ela está aberta ou vencida.
-              const RESERVA = conferir ? 32_000 : 0;
-              const rodada = await rodarTodas(db, cliente_id, ctx, Math.max(20_000, Math.min(resta - RESERVA, 95_000)));
-              resultado[cliente_id] = rodada;
-              const sobra = ORCAMENTO - (Date.now() - inicio);
-              if (conferir && sobra > 12_000) {
-                const ch = await conferirCliente(db, cliente_id, ctx, Math.min(30_000, sobra - 5_000), "automatica").catch((e) => ({ erro: mensagemCurta(e) }));
+              // A conferência tem vez própria ANTES da sincronização: uma fonte que estoura
+              // seu prazo não pode mais impedir a conferência de avançar nesta rodada.
+              if (conferir && resta > 42_000) {
+                const ch = await conferirCliente(db, cliente_id, ctx, 30_000, "automatica").catch((e) => ({ erro: mensagemCurta(e) }));
                 (resultado as any)[`${cliente_id}:conferencia`] = ch;
               }
+              const sobra = ORCAMENTO - (Date.now() - inicio);
+              const rodada = await rodarTodas(db, cliente_id, ctx, Math.max(20_000, Math.min(sobra - 5_000, 95_000)));
+              resultado[cliente_id] = rodada;
             } finally {
               await soltarTrava(db, cliente_id, dono);
             }
