@@ -34,6 +34,7 @@ export const cartaoSchema = z.object({
   medida: z.enum(MEDIDAS).default("contagem"),
   campoMedida: ref.nullable().optional(),
   indicador: z.string().max(60).nullable().optional(),
+  indicadores: z.array(z.string().max(60)).max(12).optional(),
   dimensao: ref.nullable().optional(),
   serie: ref.nullable().optional(),
   granularidade: z.enum(["dia", "semana", "mes"]).default("dia"),
@@ -406,6 +407,36 @@ export function cartaoDeIndicador(
   }
   const categorias = [...por.entries()].map(([rotulo, v]) => ({ rotulo, valores: { Valor: v }, total: v }));
   return { ...finalizar(categorias, ["Valor"], cfg, true), total, anterior: anteriorTotal, linhas: linhas.length };
+}
+
+/** Gráfico com várias séries de indicadores da Matriz no mesmo eixo de tempo. */
+export function cartaoDeIndicadores(
+  linhas: { dia: string; celulas: Record<string, { valor: number | null } | undefined> }[],
+  series: { chave: string; rotulo: string }[],
+  cfg: CartaoGrafico,
+  anteriorTotal: number | null,
+): ResultadoCartao {
+  const por = new Map<string, Record<string, number>>();
+  let total = 0;
+  for (const l of linhas) {
+    const k = balde(l.dia, cfg.granularidade);
+    const row = por.get(k) ?? {};
+    for (const s of series) {
+      const c = l.celulas[s.chave];
+      if (c && c.valor == null) continue;
+      const v = Number(c?.valor ?? 0);
+      row[s.rotulo] = (row[s.rotulo] ?? 0) + v;
+      total += v;
+    }
+    por.set(k, row);
+  }
+  const nomes = series.map((s) => s.rotulo);
+  const categorias = [...por.entries()].map(([rotulo, valores]) => ({
+    rotulo,
+    valores,
+    total: nomes.reduce((a, n) => a + (valores[n] ?? 0), 0),
+  }));
+  return { ...finalizar(categorias, nomes, cfg, true), total, anterior: anteriorTotal, linhas: linhas.length };
 }
 
 /** Cartões com dinheiro (moeda ou soma/média de valor) não vão a parceiro sem permissão de valores. */

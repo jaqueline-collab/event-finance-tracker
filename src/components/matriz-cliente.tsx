@@ -14,7 +14,7 @@ import { avisoSemHistorico, formatarMoeda } from "@/lib/formatos";
 import { lerNumeroManual, ROTULO_QUEM_PREENCHE, type FormatoManual, type QuemPreenche } from "@/lib/coluna-manual";
 import { exportarMatriz } from "@/lib/matriz-exportar";
 import { BarraTabela } from "@/components/barra-tabela";
-import { alternarColunasAds, cicloOrdem, compararValores, ehColunaAds, type EstadoColunas, type OrdemTabela } from "@/lib/colunas-tabela";
+import { agruparCabecalho, alternarColunasAds, cicloOrdem, compararValores, ehColunaAds, separarGrupoColuna, type EstadoColunas, type OrdemTabela } from "@/lib/colunas-tabela";
 
 function ordenarPorEstado<T extends { chave: string }>(cols: T[], e: EstadoColunas): T[] {
   const pos = new Map(e.ordem.map((k, i) => [k, i]));
@@ -201,21 +201,19 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
 
       <div className="max-h-[70vh] overflow-auto rounded-xl border bg-card">
         <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-10 bg-card">
-            <tr>
-              <th className="sticky left-0 z-20 border-b bg-card px-3 py-2.5 text-left font-medium">
-                <span className="inline-flex items-center gap-1"><button type="button" className="flex items-center gap-1" onClick={() => ordenar("dia")}>
-                  Dia {ordemAtual?.col === "dia" && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
-                </button>
-                <InfoTitulo titulo="Dia" texto={textoColunaOuAuto("Dia")} /></span>
-              </th>
-              {colunasTela.map((c, i) => (
-                <th key={c.chave} className={`border-b px-3 py-2.5 text-center font-medium ${!c.ativo ? "opacity-50" : ""}`}>
+          {(() => {
+            const cab = agruparCabecalho(colunasTela);
+            const idxPorChave = new Map(colunasTela.map((c, idx) => [c.chave, idx]));
+            const renderTh = (c: (typeof colunasTela)[number], rowSpan?: number, bordaEsq?: boolean) => {
+              const i = idxPorChave.get(c.chave) ?? 0;
+              const rotulo = cab.temGrupo ? separarGrupoColuna(c.nome).coluna : c.nome;
+              return (
+                <th key={c.chave} rowSpan={rowSpan} className={`border-b px-3 py-2.5 text-center font-medium ${bordaEsq ? "border-l border-border/60" : ""} ${!c.ativo ? "opacity-50" : ""}`}>
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COR[c.tipo] }} title={ROTULO_TIPO[c.tipo]} />
                     {c.tipo === "manual" && !lerIncorporado && <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Preenchida à mão" />}
-                    <button type="button" className="flex items-center gap-1 whitespace-nowrap" onClick={() => ativasPorChave.has(c.chave) && ordenar(c.chave)}>
-                      {c.nome}
+                    <button type="button" title={c.nome} className="flex items-center gap-1 whitespace-nowrap" onClick={() => ativasPorChave.has(c.chave) && ordenar(c.chave)}>
+                      {rotulo}
                       {ordemAtual?.col === c.chave && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
                     </button>
                     <InfoTitulo titulo={c.nome} texto={textoColunaOuAuto(c.nome)} incompleto={Object.values(d.cobertura).some(s => s !== "confirmado")} />
@@ -248,16 +246,44 @@ export function MatrizCliente({ clienteId, periodo, editando, lerIncorporado }: 
                     )}
                   </div>
                 </th>
-              ))}
-              {editavel && (
-                <th className="border-b px-2 py-2.5">
-                  <Button size="sm" variant="ghost" className="h-7 whitespace-nowrap text-xs" onClick={() => setEditor("nova")}>
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Coluna
-                  </Button>
-                </th>
-              )}
-            </tr>
-          </thead>
+              );
+            };
+            return (
+              <thead className="sticky top-0 z-10 bg-card">
+                <tr>
+                  <th rowSpan={cab.temGrupo ? 2 : undefined} className="sticky left-0 z-20 border-b bg-card px-3 py-2.5 text-left font-medium">
+                    <span className="inline-flex items-center gap-1"><button type="button" className="flex items-center gap-1" onClick={() => ordenar("dia")}>
+                      Dia {ordemAtual?.col === "dia" && (ordemAtual.desc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+                    </button>
+                    <InfoTitulo titulo="Dia" texto={textoColunaOuAuto("Dia")} /></span>
+                  </th>
+                  {cab.temGrupo
+                    ? cab.grupos.map((g, gi) =>
+                        g.grupo ? (
+                          <th key={`g-${gi}-${g.grupo}`} colSpan={g.cols.length} className="border-b border-l border-border/60 bg-muted/30 px-3 py-1.5 text-center text-xs font-semibold text-foreground">
+                            {g.grupo}
+                          </th>
+                        ) : (
+                          renderTh(g.cols[0]!, 2, gi > 0)
+                        ),
+                      )
+                    : colunasTela.map((c) => renderTh(c))}
+                  {editavel && (
+                    <th rowSpan={cab.temGrupo ? 2 : undefined} className="border-b px-2 py-2.5">
+                      <Button size="sm" variant="ghost" className="h-7 whitespace-nowrap text-xs" onClick={() => setEditor("nova")}>
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Coluna
+                      </Button>
+                    </th>
+                  )}
+                </tr>
+                {cab.temGrupo && (
+                  <tr>
+                    {cab.grupos.flatMap((g) => (g.grupo ? g.cols.map((c, ci) => renderTh(c, undefined, ci === 0)) : []))}
+                  </tr>
+                )}
+              </thead>
+            );
+          })()}
           <tbody>
             {linhas.map((l) => (
               <tr key={l.dia} className="hover:bg-muted/40">

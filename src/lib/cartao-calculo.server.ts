@@ -18,9 +18,11 @@ export async function calcularCartaoServidor(db: any, data0: Dados, c0: CartaoGr
     const { catalogoDoCliente } = await import("@/lib/campos-elora.server");
     const cat = await catalogoDoCliente(db, data.clienteId, ctx);
     if (c.medida === "indicador") {
-      if (!c.indicador) return { oculto: false as const, r: null };
+      const chavesInd = c.indicadores?.length ? c.indicadores : c.indicador ? [c.indicador] : [];
+      if (!chavesInd.length) return { oculto: false as const, r: null };
       const { montarMatrizCliente } = await import("@/lib/matriz.server");
-      const { cartaoDeIndicador } = await import("@/lib/graficos");
+      const { cartaoDeIndicador, cartaoDeIndicadores } = await import("@/lib/graficos");
+      const { separarGrupoColuna } = await import("@/lib/colunas-tabela");
       const { periodoAnterior } = await import("@/lib/painel-visual");
       // mesma separação da tela da Matriz: canal/atendente/equipe valem direto nas linhas, o resto liga pelo contato
       const { separarFiltros } = await import("@/lib/campos-elora");
@@ -29,13 +31,19 @@ export async function calcularCartaoServidor(db: any, data0: Dados, c0: CartaoGr
       const diretos: any = sep.diretos, campos: any = sep.outros;
       const chaveM = `${JSON.stringify(diretos)}|${JSON.stringify(campos)}`;
       const m = await (ctx ? ctx.memo(`matriz|${p.de}|${p.ate}|${chaveM}`, () => montarMatrizCliente(db, data.clienteId, p, diretos, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, p, diretos, { campos }));
-      if (!m.todasColunas.some((x) => x.chave === c.indicador)) return { oculto: false as const, r: null };
+      const colsPorChave = new Map(m.todasColunas.map((x) => [x.chave, x]));
+      const validas = chavesInd.filter((k) => colsPorChave.has(k));
+      if (!validas.length) return { oculto: false as const, r: null };
+      const multi = Boolean(c.indicadores?.length);
+      const series = validas.map((k) => ({ chave: k, rotulo: separarGrupoColuna(colsPorChave.get(k)!.nome).coluna }));
+      const calc = (ls: any, ant: number | null) =>
+        multi ? cartaoDeIndicadores(ls, series, c, ant) : cartaoDeIndicador(ls, validas[0]!, c, ant);
       let ant: number | null = null;
       if (c.comparar) {
         const ma = await (ctx ? ctx.memo(`matriz|${periodoAnterior(p).de}|${periodoAnterior(p).ate}|${chaveM}`, () => montarMatrizCliente(db, data.clienteId, periodoAnterior(p), diretos, { campos, ctx })) : montarMatrizCliente(db, data.clienteId, periodoAnterior(p), diretos, { campos }));
-        ant = cartaoDeIndicador(ma.linhas as any, c.indicador, c, null).total;
+        ant = calc(ma.linhas as any, null).total;
       }
-      return { oculto: false as const, r: { ...cartaoDeIndicador(m.linhas as any, c.indicador, c, ant), semHistoricoAntes: m.semHistoricoAntes, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
+      return { oculto: false as const, r: { ...calc(m.linhas as any, ant), semHistoricoAntes: m.semHistoricoAntes, cobertura: Object.values(m.cobertura).some(s => s !== "confirmado") ? "parcial" : "confirmado" } };
     }
     const { agregarCartao, agregarCalendario, diasAguardando } = await import("@/lib/graficos");
     const { estadoCobertura } = await import("@/lib/sync-cobertura");

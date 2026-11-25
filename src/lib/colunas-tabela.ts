@@ -111,3 +111,29 @@ export function compararValores(a: string | null | undefined, b: string | null |
   const r = "n" in x && "n" in y ? x.n - y.n : String("n" in x ? x.n : x.t).localeCompare(String("n" in y ? y.n : y.t), "pt-BR", { numeric: true, sensitivity: "base" });
   return desc ? -r : r;
 }
+
+/** Separa "Grupo · Coluna" pelo primeiro " · ". Sem separador, grupo é null. */
+export function separarGrupoColuna(nome: string): { grupo: string | null; coluna: string } {
+  const idx = nome.indexOf(" · ");
+  if (idx <= 0) return { grupo: null, coluna: nome };
+  const grupo = nome.slice(0, idx).trim();
+  const coluna = nome.slice(idx + 3).trim();
+  return grupo && coluna ? { grupo, coluna } : { grupo: null, coluna: nome };
+}
+
+/** Agrupa apenas colunas vizinhas com o mesmo grupo para cabeçalho em duas linhas. */
+export function agruparCabecalho<T extends { nome: string }>(colunas: readonly T[]): {
+  temGrupo: boolean;
+  grupos: { grupo: string | null; cols: T[] }[];
+} {
+  const grupos: { grupo: string | null; cols: T[] }[] = [];
+  let temGrupo = false;
+  for (const col of colunas) {
+    const { grupo } = separarGrupoColuna(col.nome);
+    if (grupo) temGrupo = true;
+    const ult = grupos[grupos.length - 1];
+    if (grupo && ult && ult.grupo === grupo) ult.cols.push(col);
+    else grupos.push({ grupo, cols: [col] });
+  }
+  return { temGrupo, grupos };
+}
