@@ -3049,6 +3049,7 @@ export type Database = {
           atualizado_em: string
           chamadas: number
           cliente_id: string
+          cobertura: Json
           concluido_em: string | null
           cursor: Json
           erros: Json
@@ -3068,6 +3069,7 @@ export type Database = {
           atualizado_em?: string
           chamadas?: number
           cliente_id: string
+          cobertura?: Json
           concluido_em?: string | null
           cursor?: Json
           erros?: Json
@@ -3087,6 +3089,7 @@ export type Database = {
           atualizado_em?: string
           chamadas?: number
           cliente_id?: string
+          cobertura?: Json
           concluido_em?: string | null
           cursor?: Json
           erros?: Json
