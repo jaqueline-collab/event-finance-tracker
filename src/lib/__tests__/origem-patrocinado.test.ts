@@ -103,3 +103,31 @@ describe("data da classificação", () => {
     expect(r.classificado_em).toBe("2026-11-25T10:00:00Z");
   });
 });
+
+describe("conversas concluídas por classificação de ganho", () => {
+  it("conta no dia da conclusão (Brasília), ignora em andamento e não inclui classificações de perda parecidas", () => {
+    const contatos = [contato("c1", ["Anúncio A"]), contato("c2", ["Orgânico"]), contato("c3", null)];
+    const conversas: ConversaIndicador[] = [
+      { id: "a1", contato_id: "c1", classificacao: "Consulta Agendada", encerrado_em: "2026-11-24T02:30:00Z", classificado_em: "2026-11-24T15:00:00Z" },
+      { id: "a2", contato_id: "c2", classificacao: "Consulta Agendada", encerrado_em: null, classificado_em: "2026-11-24T16:00:00Z" },
+      { id: "a3", contato_id: "c2", classificacao: "Consulta sem resposta", encerrado_em: "2026-11-24T15:00:00Z" },
+      { id: "a4", contato_id: "c3", classificacao: "Procedimento Vendido", encerrado_em: "2026-11-24T18:00:00Z" },
+      { id: "a5", contato_id: "c1", classificacao: "Procedimento que não realizamos", encerrado_em: "2026-11-24T18:30:00Z" },
+    ];
+    const concl = (chave: string, cls: string, extra: IndicadorConfig["condicoes"]["itens"] = []): IndicadorConfig => ({
+      ...coluna(chave, [{ campo: { fonte: "atendimento", campo: "classificacao" }, operador: "igual", valor: cls }, ...extra], "conversas"),
+      evento: { tipo: "foi_concluida" },
+    });
+    const m = calcularIndicadoresConversas([
+      concl("ag_total", "Consulta Agendada"),
+      concl("ag_pat", "Consulta Agendada", [{ campo, operador: "em", lista: "origem_patrocinado" }]),
+      concl("pv_total", "Procedimento Vendido"),
+      concl("pv_sem", "Procedimento Vendido", [{ campo, operador: "vazio" }]),
+    ], conversas, contatos, new Map(), { origem_patrocinado: ["Anúncio A"] });
+    expect(m.get("2026-11-23")?.ag_total?.valor).toBe(1);
+    expect(m.get("2026-11-23")?.ag_pat?.valor).toBe(1);
+    expect(m.get("2026-11-24")?.ag_total).toBeUndefined();
+    expect(m.get("2026-11-24")?.pv_total?.valor).toBe(1);
+    expect(m.get("2026-11-24")?.pv_sem?.valor).toBe(1);
+  });
+});

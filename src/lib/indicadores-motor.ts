@@ -18,7 +18,8 @@ export type Evento =
   | { tipo: "virou_perdido" }
   | { tipo: "campo_preenchido"; campo: CampoRef }
   | { tipo: "foi_criado" }
-  | { tipo: "foi_classificado" };
+  | { tipo: "foi_classificado" }
+  | { tipo: "foi_concluida" };
 export type ListasIndicador = { origem_patrocinado?: string[] };
 
 export type IndicadorConfig = {
@@ -133,6 +134,7 @@ export function eventoVale(ev: Evento, l: Leitura): boolean {
       return ehCampoRef(ev.campo) && preenchido(l.campos[chaveLeitura(ev.campo)]);
     case "foi_criado":
     case "foi_classificado":
+    case "foi_concluida":
       return true;
   }
 }
@@ -244,6 +246,7 @@ export type ConversaIndicador = {
   contato_id?: string | null;
   classificacao?: string | null;
   classificado_em?: string | null;
+  encerrado_em?: string | null;
   status?: string | null;
   criado_em?: string | null;
   canal?: string | null;
@@ -269,6 +272,7 @@ const camposDoContato = (c: ContatoIndicador | undefined): Record<string, unknow
 const camposDaConversa = (a: ConversaIndicador, contato?: ContatoIndicador): Record<string, unknown> => ({
   ...camposDoContato(contato),
   "atendimento.criado_em": a.criado_em,
+  "atendimento.encerrado_em": a.encerrado_em,
   "atendimento.classificado_em": a.classificado_em,
   "atendimento.canal": a.canal,
   "atendimento.atendente": a.atendente,
@@ -294,17 +298,21 @@ export function calcularIndicadoresContatos(configs: IndicadorConfig[], contatos
   return m;
 }
 
-/** Conversões pelo dia da classificação atual; Origem e Data da Consulta vêm do contato ligado. */
+/** Conversas pelo dia da classificação ou da conclusão; campos do contato vêm do contato ligado. */
 export function calcularIndicadoresConversas(configs: IndicadorConfig[], conversas: ConversaIndicador[], contatos: ContatoIndicador[], m: PorDia = new Map(), listas: ListasIndicador = {}): PorDia {
-  const regras = configs.filter((c) => ehConfigurada(c) && c.fonte === "conversas" && c.evento?.tipo === "foi_classificado");
+  const regras = configs.filter((c) => ehConfigurada(c) && c.fonte === "conversas" && (c.evento?.tipo === "foi_classificado" || c.evento?.tipo === "foi_concluida"));
   if (!regras.length) return m;
   const porContato = new Map(contatos.map((c) => [String(c.id), c]));
   for (const conversa of conversas) {
-    if (!conversa.classificacao) continue;
-    const dia = diaSP(conversa.classificado_em);
-    if (!dia) continue;
     const campos = camposDaConversa(conversa, conversa.contato_id ? porContato.get(String(conversa.contato_id)) : undefined);
-    for (const cfg of regras) if (avaliarGrupo(cfg.condicoes, campos, listas)) somar(m, dia, cfg.chave, 1);
+    for (const cfg of regras) {
+      const tipo = cfg.evento?.tipo;
+      const dia = tipo === "foi_concluida"
+        ? diaSP(conversa.encerrado_em)
+        : (conversa.classificacao ? diaSP(conversa.classificado_em) : null);
+      if (!dia) continue;
+      if (avaliarGrupo(cfg.condicoes, campos, listas)) somar(m, dia, cfg.chave, 1);
+    }
   }
   return m;
 }

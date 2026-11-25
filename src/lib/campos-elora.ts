@@ -42,7 +42,7 @@ export type ContatoBase = {
 };
 export type AtendimentoBase = {
   id: string; contato_id: string | null; canal?: string | null; atendente?: string | null; equipe?: string | null; classificacao?: string | null;
-  status?: string | null; criado_em?: string | null; classificado_em?: string | null; tempo_espera?: number | null; tempo_atendimento?: number | null;
+  status?: string | null; criado_em?: string | null; encerrado_em?: string | null; classificado_em?: string | null; tempo_espera?: number | null; tempo_atendimento?: number | null;
 };
 export type CardBase = {
   id: string; contato_ids: string[]; painel?: string | null; painel_id?: string | null; status_lead?: string | null; etapa?: string | null; fase?: string | null; status?: string | null;
@@ -76,6 +76,7 @@ const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
   ],
   atendimento: [
     { campo: "criado_em", nome: "Data de criação", tipo: "data", ler: (r) => r.criado_em },
+    { campo: "encerrado_em", nome: "Data de conclusão", tipo: "data", ler: (r) => r.encerrado_em },
     { campo: "classificado_em", nome: "Data da classificação", tipo: "data", ler: (r) => r.classificado_em },
     { campo: "canal", nome: "Canal", tipo: "lista", ler: (r) => r.canal },
     { campo: "atendente", nome: "Atendente", tipo: "lista", ler: (r) => r.atendente },

@@ -398,7 +398,7 @@ function RegraManual({ clienteId, chave, inicial }: { clienteId: string; chave: 
 
 type Ref = { fonte: "card" | "contato" | "atendimento" | "utm"; campo: string };
 type Cond = { campo: Ref | null; operador: "preenchido" | "vazio" | "igual" | "contem" | "em" | "nao_em"; valor?: string; lista?: "origem_patrocinado" };
-type EventoTipo = "entrou_etapa" | "virou_ganho" | "virou_perdido" | "campo_preenchido" | "foi_criado" | "foi_classificado";
+type EventoTipo = "entrou_etapa" | "virou_ganho" | "virou_perdido" | "campo_preenchido" | "foi_criado" | "foi_classificado" | "foi_concluida";
 type FonteEditor = "cards" | "contatos" | "conversas";
 
 function SeletorCampo({ valor, catalogo, onMudar }: { valor: Ref | null; catalogo: Dados["catalogo"]; onMudar: (r: Ref) => void }) {
@@ -552,7 +552,10 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
                       <SelectItem value="foi_criado">Foi criado</SelectItem>
                     </>}
                     {fonte === "contatos" && <SelectItem value="foi_criado">Contato foi criado</SelectItem>}
-                    {fonte === "conversas" && <SelectItem value="foi_classificado">Conversa foi classificada</SelectItem>}
+                    {fonte === "conversas" && <>
+                      <SelectItem value="foi_concluida">Conversa foi concluída</SelectItem>
+                      <SelectItem value="foi_classificado">Conversa foi classificada</SelectItem>
+                    </>}
                   </SelectContent>
                 </Select>
               </div>

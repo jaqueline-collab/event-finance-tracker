@@ -12,6 +12,7 @@ const evento = z.union([
   z.object({ tipo: z.literal("campo_preenchido"), campo: campoRef }),
   z.object({ tipo: z.literal("foi_criado") }),
   z.object({ tipo: z.literal("foi_classificado") }),
+  z.object({ tipo: z.literal("foi_concluida") }),
 ]);
 export const coluna = z.object({
   chave: z.string().max(60).optional(),
