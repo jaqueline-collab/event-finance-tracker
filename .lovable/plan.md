@@ -15,12 +15,13 @@
    - o campo Origem, com cada valor e a quantidade de contatos (vazio aparece como "Sem informação").
 4. **Configuração por cliente "Patrocinado"**, nova e genérica, guardada junto com as outras configurações do cliente e editável só pela super admin. Ela diz qual campo é a origem e, para cada valor, se é patrocinado ou não. Para a Dra. Nathalia, começa com a sua proposta: patrocinado = Instagram e WhatsApp Meta; não patrocinado = os demais, inclusive "Sem informação". Um valor novo que aparecer depois conta como não patrocinado até alguém classificar.
 5. **Relatório diário dela**, montado com as colunas configuráveis que já existem, sem tabela nova:
-   - Contatos novos: Total, uma coluna por valor de Origem, Patrocinado e Não patrocinado.
+   - Contatos novos: Total, uma coluna por valor de Origem, "Sem informação" como coluna própria entre as Origens (contatos sem Origem preenchida), Patrocinado e Não patrocinado.
    - Agendamentos: as mesmas colunas, assim que a origem dos agendamentos for definida.
    - Tudo fica como configuração do cliente. Nenhum nome ou valor dela vai para o código, e os testes usam um cliente fictício.
 6. **De onde vêm os agendamentos:** como ela não usa funis, depois do levantamento vou indicar qual campo (por exemplo, uma data de consulta), classificação de conversa ou etiqueta marca o agendamento, e em que dia ele conta. Se houver mais de um candidato, mostro os números de cada um e peço para você escolher antes de criar as colunas de Agendamentos.
 7. **Conferência:** Patrocinado + Não patrocinado = Total, e a soma das colunas de Origem = Total, em todos os dias. Abrir o Relatório diário dela em 390/834/1440, nos temas claro e escuro.
-8. Não publicar.
+8. **Comparação com o fechamento dela:** trazer Contatos novos por Origem de 23/11 e 24/11 (dia de Brasília, à meia-noite) e comparar 24/11 com o informado: total 11, sendo Instagram 1, WhatsApp Meta 6, WhatsApp Orgânico 3, Google 0 e Site 1. Mostrar a diferença em cada coluna e, quando houver, os contatos que explicam essa diferença.
+9. Não publicar.
 
 ## O que depende de você
 - Escolher de onde vêm os agendamentos, se o levantamento mostrar mais de uma opção.
