@@ -397,8 +397,9 @@ function RegraManual({ clienteId, chave, inicial }: { clienteId: string; chave: 
 /* ---------------- Editor de coluna ---------------- */
 
 type Ref = { fonte: "card" | "contato" | "atendimento" | "utm"; campo: string };
-type Cond = { campo: Ref | null; operador: "preenchido" | "vazio" | "igual" | "contem"; valor?: string };
-type EventoTipo = "entrou_etapa" | "virou_ganho" | "virou_perdido" | "campo_preenchido" | "foi_criado";
+type Cond = { campo: Ref | null; operador: "preenchido" | "vazio" | "igual" | "contem" | "em" | "nao_em"; valor?: string; lista?: "origem_patrocinado" };
+type EventoTipo = "entrou_etapa" | "virou_ganho" | "virou_perdido" | "campo_preenchido" | "foi_criado" | "foi_classificado";
+type FonteEditor = "cards" | "contatos" | "conversas";
 
 function SeletorCampo({ valor, catalogo, onMudar }: { valor: Ref | null; catalogo: Dados["catalogo"]; onMudar: (r: Ref) => void }) {
   const v = valor ? `${valor.fonte}|${valor.campo}` : "";
@@ -429,7 +430,8 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
   const [tipo, setTipo] = useState<TipoColuna>(coluna?.tipo && coluna.tipo !== "app" ? coluna.tipo : dados.temCards ? "combinada" : "manual");
   const [formato, setFormato] = useState<Formato>(coluna?.formato ?? "numero");
   const [ativo, setAtivo] = useState(coluna?.ativo ?? true);
-  const [eventoTipo, setEventoTipo] = useState<EventoTipo>(cfgAtual?.evento?.tipo ?? "entrou_etapa");
+  const [fonte, setFonte] = useState<FonteEditor>(cfgAtual?.fonte ?? (dados.temCards ? "cards" : "contatos"));
+  const [eventoTipo, setEventoTipo] = useState<EventoTipo>(cfgAtual?.evento?.tipo ?? ((cfgAtual?.fonte ?? (dados.temCards ? "cards" : "contatos")) === "cards" ? "entrou_etapa" : (cfgAtual?.fonte === "conversas" ? "foi_classificado" : "foi_criado")));
   const [etapa, setEtapa] = useState<string>(cfgAtual?.evento?.etapa ?? "");
   const [campoEvento, setCampoEvento] = useState<Ref | null>(cfgAtual?.evento?.campo ?? null);
   const [op, setOp] = useState<"E" | "OU">(cfgAtual?.condicoes?.op ?? "E");
@@ -448,7 +450,7 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
       formato,
       ativo,
       ordem: coluna?.ordem,
-      fonte: "cards" as const,
+      fonte,
       medida: "contagem" as const,
       evento: tipo === "combinada" ? (evento as any) : undefined,
       condicoes: { op, itens: conds.filter((c) => c.campo).map((c) => ({ ...c, campo: c.campo! })) },
@@ -456,7 +458,7 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
     };
   };
 
-  const chaveRascunho = JSON.stringify([nome, tipo, formato, eventoTipo, etapa, campoEvento, op, conds, formula]);
+  const chaveRascunho = JSON.stringify([nome, tipo, formato, fonte, eventoTipo, etapa, campoEvento, op, conds, formula]);
   useEffect(() => {
     if (!nome.trim() || tipo === "manual") return setPrevia(null);
     const t = setTimeout(() => {
@@ -483,7 +485,8 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
   };
 
   const outras = dados.todasColunas.filter((c) => c.chave !== coluna?.chave);
-  const tipos: TipoColuna[] = dados.temCards ? ["combinada", "manual", "formula"] : ["manual", "formula"];
+  const tipos: TipoColuna[] = ["combinada", "manual", "formula"];
+  const catalogoFonte = dados.catalogo.filter((g) => fonte === "cards" || g.fonte !== "card") .filter((g) => fonte !== "contatos" || g.fonte === "contato" || g.fonte === "utm");
 
   return (
     <Sheet open onOpenChange={(o) => !o && onFechar()}>
@@ -516,17 +519,40 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
 
           {tipo === "combinada" && (
             <div className="space-y-3 rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Conta cada card uma vez, no primeiro dia (horário de São Paulo) em que o evento e as condições valem. Campo do contato usa o primeiro contato do card.</p>
+              <p className="text-xs text-muted-foreground">
+                {fonte === "cards" ? "Conta cada card uma vez, no primeiro dia em que o evento e as condições valem." : fonte === "contatos" ? "Conta contatos novos no dia de criação, em horário de São Paulo." : "Conta a conversão no dia da classificação atual da conversa; os campos do contato vêm do contato ligado."}
+              </p>
+              <div className="space-y-1.5">
+                <Label>Fonte</Label>
+                <Select value={fonte} onValueChange={(v) => {
+                  const f = v as FonteEditor;
+                  setFonte(f);
+                  setEventoTipo(f === "cards" ? "entrou_etapa" : f === "contatos" ? "foi_criado" : "foi_classificado");
+                  setEtapa("");
+                  setCampoEvento(null);
+                }}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contatos">Contatos</SelectItem>
+                    <SelectItem value="conversas">Conversas</SelectItem>
+                    <SelectItem value="cards">Cards</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <Label>Evento</Label>
                 <Select value={eventoTipo} onValueChange={(v) => setEventoTipo(v as EventoTipo)}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="entrou_etapa">Entrou na etapa</SelectItem>
-                    <SelectItem value="virou_ganho">Virou ganho</SelectItem>
-                    <SelectItem value="virou_perdido">Virou perdido</SelectItem>
-                    <SelectItem value="campo_preenchido">Campo foi preenchido</SelectItem>
-                    <SelectItem value="foi_criado">Foi criado</SelectItem>
+                    {fonte === "cards" && <>
+                      <SelectItem value="entrou_etapa">Entrou na etapa</SelectItem>
+                      <SelectItem value="virou_ganho">Virou ganho</SelectItem>
+                      <SelectItem value="virou_perdido">Virou perdido</SelectItem>
+                      <SelectItem value="campo_preenchido">Campo foi preenchido</SelectItem>
+                      <SelectItem value="foi_criado">Foi criado</SelectItem>
+                    </>}
+                    {fonte === "contatos" && <SelectItem value="foi_criado">Contato foi criado</SelectItem>}
+                    {fonte === "conversas" && <SelectItem value="foi_classificado">Conversa foi classificada</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -540,7 +566,7 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
                   </SelectContent>
                 </Select>
               )}
-              {eventoTipo === "campo_preenchido" && <SeletorCampo valor={campoEvento} catalogo={dados.catalogo} onMudar={setCampoEvento} />}
+              {eventoTipo === "campo_preenchido" && <SeletorCampo valor={campoEvento} catalogo={catalogoFonte} onMudar={setCampoEvento} />}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Condições</Label>
@@ -556,20 +582,23 @@ function EditorColuna({ clienteId, coluna, dados, onFechar, onSalvo, regrasColun
                 </div>
                 {conds.map((c, i) => (
                   <div key={i} className="space-y-1.5 rounded-md bg-muted/40 p-2">
-                    <SeletorCampo valor={c.campo} catalogo={dados.catalogo} onMudar={(r) => setConds((l) => l.map((x, j) => (j === i ? { ...x, campo: r } : x)))} />
+                    <SeletorCampo valor={c.campo} catalogo={catalogoFonte} onMudar={(r) => setConds((l) => l.map((x, j) => (j === i ? { ...x, campo: r } : x)))} />
                     <div className="flex gap-2">
-                      <Select value={c.operador} onValueChange={(v) => setConds((l) => l.map((x, j) => (j === i ? { ...x, operador: v as Cond["operador"] } : x)))}>
+                      <Select value={c.operador} onValueChange={(v) => setConds((l) => l.map((x, j) => (j === i ? { ...x, operador: v as Cond["operador"], lista: v === "em" || v === "nao_em" ? "origem_patrocinado" : undefined } : x)))}>
                         <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="preenchido">preenchido</SelectItem>
                           <SelectItem value="vazio">vazio</SelectItem>
                           <SelectItem value="igual">igual a</SelectItem>
                           <SelectItem value="contem">contém</SelectItem>
+                          <SelectItem value="em">é patrocinado</SelectItem>
+                          <SelectItem value="nao_em">não é patrocinado</SelectItem>
                         </SelectContent>
                       </Select>
                       {(c.operador === "igual" || c.operador === "contem") && (
                         <Input className="h-8 text-xs" value={c.valor ?? ""} onChange={(e) => setConds((l) => l.map((x, j) => (j === i ? { ...x, valor: e.target.value } : x)))} />
                       )}
+                      {(c.operador === "em" || c.operador === "nao_em") && <span className="flex-1 self-center text-xs text-muted-foreground">lista configurada em Origem</span>}
                       <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setConds((l) => l.filter((_, j) => j !== i))} aria-label="Remover condição">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

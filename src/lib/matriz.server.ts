@@ -2,7 +2,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { listaDias, type Periodo } from "./painel-visual";
 import type { FiltroCampo } from "./campos-elora";
-import { calcularIndicadoresCards, COLUNAS_PADRAO, ehCombinadaDeCard, type Leitura, type PorDia } from "./indicadores-motor";
+import { calcularIndicadoresCards, calcularIndicadoresContatos, calcularIndicadoresConversas, COLUNAS_PADRAO, ehCombinadaDeCard, type Leitura, type PorDia } from "./indicadores-motor";
 import { calcularCorteCliente, lerConfig } from "./indicadores.server";
 import { colunasMatriz, montarMatriz, opcoesDimensoes, somarPadraoPorDia, type ConfigMatriz, type FiltrosMatriz, type LinhaCorteMatriz } from "./matriz";
 import { estadoCobertura } from "./sync-cobertura";
@@ -53,26 +53,38 @@ export async function montarMatrizCliente(
 ) {
   let filtro: { contatos: Set<string>; cards: Set<string> } | null = null;
   let catalogo: any[] = [];
-  if (opcoes.campos?.length || opcoes.comCatalogo) {
+  let baseCampos: import("./campos-elora").BaseCampos | null = null;
+  const salvas = (await lerConfig(db, clienteId, opcoes.ctx)) as ConfigMatriz[];
+  const rascunho = opcoes.rascunho;
+  const configs = rascunho ? [...salvas.filter((c) => c.chave !== rascunho.chave), rascunho] : salvas;
+  const custom = (c: ConfigMatriz) => c.ativo && (c.tipo === "combinada" || c.tipo === "app") && !COLUNAS_PADRAO.some((p) => p.chave === c.chave);
+  const precisaBase = Boolean(opcoes.campos?.length || opcoes.comCatalogo || configs.some((c) => custom(c) && (c.fonte === "contatos" || c.fonte === "conversas")));
+  if (precisaBase) {
     const { catalogoDoCliente } = await import("./campos-elora.server");
     const { aplicarFiltrosCampos, catalogoVisivel } = await import("./campos-elora");
     const cat = await catalogoDoCliente(db, clienteId, opcoes.ctx);
+    baseCampos = cat.base;
     if (opcoes.campos?.length) filtro = aplicarFiltrosCampos(cat.base, opcoes.campos);
     if (opcoes.comCatalogo)
       catalogo = catalogoVisivel(cat.catalogo, "coluna").map((g) => ({ fonte: g.fonte, nome: g.nome, campos: g.campos.map((c) => ({ campo: c.campo, rotulo: c.rotulo, preenchidos: c.preenchidos })) }));
   }
-  const salvas = (await lerConfig(db, clienteId, opcoes.ctx)) as ConfigMatriz[];
-  const rascunho = opcoes.rascunho;
-  const configs = rascunho ? [...salvas.filter((c) => c.chave !== rascunho.chave), rascunho] : salvas;
   const precisaCards = configs.some((c) => c.ativo && ehCombinadaDeCard(c)) || opcoes.comCatalogo;
-  const [linhas, leituras, manuaisRaw] = await Promise.all([
+  const [linhas, leituras, manuaisRaw, origemRaw] = await Promise.all([
     linhasPadrao(db, clienteId, p, filtro?.contatos, opcoes.ctx),
     precisaCards ? lerLeiturasCards(db, clienteId, opcoes.ctx) : Promise.resolve([] as Leitura[]),
     lerTudo(() => db.from("elora_matriz_manual" as any).select("coluna_chave, data, valor").eq("cliente_id", clienteId).gte("data", p.de).lte("data", p.ate).order("id")),
+    db.from("elora_relatorio_corte_config").select("origem_patrocinado").eq("cliente_id", clienteId).maybeSingle(),
   ]);
+  const { origemPatrocinadoValida } = await import("./origem-patrocinado");
+  const origem = origemPatrocinadoValida(origemRaw.data?.origem_patrocinado);
+  const listas = { origem_patrocinado: origem?.patrocinados ?? [] };
   const m: PorDia = somarPadraoPorDia(linhas, filtros);
   const cardsFiltrados = filtro?.cards;
-  calcularIndicadoresCards(configs, cardsFiltrados ? leituras.filter((l) => cardsFiltrados.has(l.card_id)) : leituras, m);
+  calcularIndicadoresCards(configs, cardsFiltrados ? leituras.filter((l) => cardsFiltrados.has(l.card_id)) : leituras, m, listas);
+  const contatos = (baseCampos?.contatos ?? []).filter((c) => !filtro || filtro.contatos.has(c.id));
+  const conversas = (baseCampos?.atendimentos ?? []).filter((a) => !filtro || (a.contato_id && filtro.contatos.has(a.contato_id)));
+  calcularIndicadoresContatos(configs, contatos, m, listas);
+  calcularIndicadoresConversas(configs, conversas, contatos, m, listas);
   const manuais = new Map<string, Record<string, number>>();
   for (const r of manuaisRaw as any[]) {
     if (r.valor == null) continue;

@@ -6,18 +6,20 @@ import { ID_CELULAR, ATENDENTE_CELULAR, ATENDENTE_SEM_RESPOSTA } from "./nao-def
  */
 import { conversasPorDia, diaSP, type MensagemP } from "./painel-visual";
 
-export type Operador = "preenchido" | "vazio" | "igual" | "contem";
+export type Operador = "preenchido" | "vazio" | "igual" | "contem" | "em" | "nao_em";
 export type FonteCampo = "card" | "contato" | "atendimento" | "utm";
 /** Campo sempre com a fonte escolhida na configuração. Nada no código decide a fonte. */
 export type CampoRef = { fonte: FonteCampo; campo: string };
-export type Condicao = { campo: CampoRef; operador: Operador; valor?: string };
+export type Condicao = { campo: CampoRef; operador: Operador; valor?: string; lista?: "origem_patrocinado" };
 export type Grupo = { op: "E" | "OU"; itens: (Condicao | Grupo)[] };
 export type Evento =
   | { tipo: "entrou_etapa"; etapa: string }
   | { tipo: "virou_ganho" }
   | { tipo: "virou_perdido" }
   | { tipo: "campo_preenchido"; campo: CampoRef }
-  | { tipo: "foi_criado" };
+  | { tipo: "foi_criado" }
+  | { tipo: "foi_classificado" };
+export type ListasIndicador = { origem_patrocinado?: string[] };
 
 export type IndicadorConfig = {
   chave: string;
@@ -63,9 +65,9 @@ const texto = (v: unknown) => (Array.isArray(v) ? v.map(String).join(" ") : v ==
 
 const ehGrupo = (x: Condicao | Grupo): x is Grupo => (x as Grupo).itens !== undefined;
 
-export function avaliarGrupo(g: Grupo | undefined, campos: Record<string, unknown>): boolean {
+export function avaliarGrupo(g: Grupo | undefined, campos: Record<string, unknown>, listas: ListasIndicador = {}): boolean {
   if (!g || !g.itens?.length) return true;
-  const res = g.itens.map((i) => (ehGrupo(i) ? avaliarGrupo(i, campos) : avaliarCondicao(i, campos)));
+  const res = g.itens.map((i) => (ehGrupo(i) ? avaliarGrupo(i, campos, listas) : avaliarCondicao(i, campos, listas)));
   return g.op === "OU" ? res.some(Boolean) : res.every(Boolean);
 }
 
@@ -86,6 +88,7 @@ export function errosDeConfig(cfg: IndicadorConfig): string[] {
     g?.itens?.forEach((i) => {
       if (ehGrupo(i)) return ver(i);
       if (!ehCampoRef(i.campo)) erros.push(`condição sem fonte: ${JSON.stringify(i.campo)}`);
+      if ((i.operador === "em" || i.operador === "nao_em") && i.lista !== "origem_patrocinado") erros.push("condição de lista sem lista configurada");
     });
   ver(cfg.condicoes);
   const ev = cfg.evento as Evento;
@@ -93,7 +96,7 @@ export function errosDeConfig(cfg: IndicadorConfig): string[] {
   return erros;
 }
 
-export function avaliarCondicao(c: Condicao, campos: Record<string, unknown>): boolean {
+export function avaliarCondicao(c: Condicao, campos: Record<string, unknown>, listas: ListasIndicador = {}): boolean {
   if (!ehCampoRef(c.campo)) return false;
   const v = campos[chaveLeitura(c.campo)];
   switch (c.operador) {
@@ -105,6 +108,14 @@ export function avaliarCondicao(c: Condicao, campos: Record<string, unknown>): b
       return texto(v) === String(c.valor ?? "").toLowerCase();
     case "contem":
       return texto(v).includes(String(c.valor ?? "").toLowerCase());
+    case "em":
+    case "nao_em": {
+      if (c.lista !== "origem_patrocinado") return false;
+      const aceitos = new Set((listas.origem_patrocinado ?? []).map((x) => x.trim().toLowerCase()));
+      const valores = Array.isArray(v) ? v : [v];
+      const dentro = valores.some((x) => preenchido(x) && aceitos.has(String(x).trim().toLowerCase()));
+      return c.operador === "em" ? dentro : !dentro;
+    }
   }
 }
 
@@ -121,6 +132,7 @@ export function eventoVale(ev: Evento, l: Leitura): boolean {
     case "campo_preenchido":
       return ehCampoRef(ev.campo) && preenchido(l.campos[chaveLeitura(ev.campo)]);
     case "foi_criado":
+    case "foi_classificado":
       return true;
   }
 }
@@ -133,12 +145,12 @@ export function eventoVale(ev: Evento, l: Leitura): boolean {
  * Leitura com `estimado` (primeira foto do card, dia real desconhecido) nunca dá dia: o card não
  * conta nesse caso, para nenhum número ser inferido.
  */
-export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[]): { dia: string } | null {
+export function diaDoCard(cfg: IndicadorConfig, leituras: Leitura[], listas: ListasIndicador = {}): { dia: string } | null {
   const ev = cfg.evento as Evento;
   if (!ev?.tipo || errosDeConfig(cfg).length) return null;
   const ordenadas = [...leituras].sort((a, b) => a.visto_em.localeCompare(b.visto_em));
   for (const l of ordenadas) {
-    if (!eventoVale(ev, l) || !avaliarGrupo(cfg.condicoes, l.campos)) continue;
+    if (!eventoVale(ev, l) || !avaliarGrupo(cfg.condicoes, l.campos, listas)) continue;
     if (ev.tipo === "foi_criado") {
       const d = diaSP(l.criado_em);
       return d ? { dia: d } : null;
@@ -203,15 +215,96 @@ const somar = (m: PorDia, dia: string, chave: string, n: number) => {
 };
 
 /** Colunas de cards calculadas pela configuração do cliente. */
-export function calcularIndicadoresCards(configs: IndicadorConfig[], leituras: Leitura[], m: PorDia = new Map()): PorDia {
+export function calcularIndicadoresCards(configs: IndicadorConfig[], leituras: Leitura[], m: PorDia = new Map(), listas: ListasIndicador = {}): PorDia {
   const porCard = new Map<string, Leitura[]>();
   for (const l of leituras) porCard.set(l.card_id, [...(porCard.get(l.card_id) ?? []), l]);
   for (const cfg of configs) {
     if (!cfg.ativo || !ehCombinadaDeCard(cfg)) continue;
     for (const ls of porCard.values()) {
-      const r = diaDoCard(cfg, ls);
+      const r = diaDoCard(cfg, ls, listas);
       if (r) somar(m, r.dia, cfg.chave, 1);
     }
+  }
+  return m;
+}
+
+export type ContatoIndicador = {
+  id: string;
+  criado_em?: string | null;
+  origem?: string | null;
+  status_lead?: string | null;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm?: Record<string, unknown> | null;
+  cf?: Record<string, unknown> | null;
+};
+export type ConversaIndicador = {
+  id: string;
+  contato_id?: string | null;
+  classificacao?: string | null;
+  classificado_em?: string | null;
+  status?: string | null;
+  criado_em?: string | null;
+  canal?: string | null;
+  atendente?: string | null;
+  equipe?: string | null;
+  tempo_espera?: number | null;
+  tempo_atendimento?: number | null;
+};
+
+const camposDoContato = (c: ContatoIndicador | undefined): Record<string, unknown> => {
+  if (!c) return {};
+  const out: Record<string, unknown> = {
+    "contato.origem": c.origem,
+    "contato.status_lead": c.status_lead,
+    "contato.utm_source": c.utm_source,
+    "contato.utm_medium": c.utm_medium,
+    "contato.utm_campaign": c.utm_campaign,
+  };
+  for (const [k, v] of Object.entries(c.cf ?? {})) out[`contato.campo.${k}`] = v;
+  for (const [k, v] of Object.entries(c.utm ?? {})) out[`contato.utm_${k}`] = v;
+  return out;
+};
+const camposDaConversa = (a: ConversaIndicador, contato?: ContatoIndicador): Record<string, unknown> => ({
+  ...camposDoContato(contato),
+  "atendimento.criado_em": a.criado_em,
+  "atendimento.classificado_em": a.classificado_em,
+  "atendimento.canal": a.canal,
+  "atendimento.atendente": a.atendente,
+  "atendimento.equipe": a.equipe,
+  "atendimento.classificacao": a.classificacao,
+  "atendimento.status": a.status,
+  "atendimento.tempo_espera": a.tempo_espera,
+  "atendimento.tempo_atendimento": a.tempo_atendimento,
+});
+const ehConfigurada = (c: IndicadorConfig) => (c.tipo === "combinada" || c.tipo === "app") && c.ativo && !errosDeConfig(c).length;
+
+/** Contatos novos pelo dia de criação; as condições são escolhidas por cliente. */
+export function calcularIndicadoresContatos(configs: IndicadorConfig[], contatos: ContatoIndicador[], m: PorDia = new Map(), listas: ListasIndicador = {}): PorDia {
+  const regras = configs.filter((c) => ehConfigurada(c) && c.fonte === "contatos" && c.evento?.tipo === "foi_criado");
+  if (!regras.length) return m;
+  for (const contato of contatos) {
+    if (String(contato.origem ?? "").toUpperCase() === "IMPORTED") continue;
+    const dia = diaSP(contato.criado_em);
+    if (!dia) continue;
+    const campos = camposDoContato(contato);
+    for (const cfg of regras) if (avaliarGrupo(cfg.condicoes, campos, listas)) somar(m, dia, cfg.chave, 1);
+  }
+  return m;
+}
+
+/** Conversões pelo dia da classificação atual; Origem e Data da Consulta vêm do contato ligado. */
+export function calcularIndicadoresConversas(configs: IndicadorConfig[], conversas: ConversaIndicador[], contatos: ContatoIndicador[], m: PorDia = new Map(), listas: ListasIndicador = {}): PorDia {
+  const regras = configs.filter((c) => ehConfigurada(c) && c.fonte === "conversas" && c.evento?.tipo === "foi_classificado");
+  if (!regras.length) return m;
+  const porContato = new Map(contatos.map((c) => [String(c.id), c]));
+  for (const conversa of conversas) {
+    if (!conversa.classificacao) continue;
+    const dia = diaSP(conversa.classificado_em);
+    if (!dia) continue;
+    const campos = camposDaConversa(conversa, conversa.contato_id ? porContato.get(String(conversa.contato_id)) : undefined);
+    for (const cfg of regras) if (avaliarGrupo(cfg.condicoes, campos, listas)) somar(m, dia, cfg.chave, 1);
   }
   return m;
 }

@@ -21,7 +21,7 @@ export async function lerBaseCampos(db: SupabaseClient, clienteId: string): Prom
   const c = cache.get(clienteId);
   if (c && c.chave === chave && Date.now() - c.em < 300_000) return c.base;
   // Cache no banco (compactado), mesma chave de versões: vale para qualquer servidor.
-  const chaveDb = await hashTexto(`base-campos|atendente-v3|excl-v1|${clienteId}|${chave}`);
+  const chaveDb = await hashTexto(`base-campos|atendente-v3|excl-v1|classificado-v1|${clienteId}|${chave}`);
   const { data: achado } = await (db as any).from("elora_calculo_cache").select("valor").eq("chave", chaveDb).gte("criado_em", new Date(Date.now() - 300_000).toISOString()).maybeSingle();
   if (achado?.valor?.gz) {
     try {
@@ -62,7 +62,7 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
       d.from("elora_contatos_espelho").select("externo_id, nome, telefone, status, etiquetas, origem, utm_source, utm_medium, utm_campaign, criado_em, cf:payload->customFields, utm:payload->utm").eq("cliente_id", clienteId).order("externo_id"),
     12),
     lerTudo(() =>
-      d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
+      d.from("elora_atendimentos_espelho").select("externo_id, contato_id, canal_id, canal_nome, atendente_id, atendente_nome, status, classificacao, criado_em, classificado_em, time_wait_segundos, time_service_segundos").eq("cliente_id", clienteId).order("externo_id"),
     8),
     lerTudo(() =>
       d.from("elora_cards_espelho").select("externo_id, contato_ids, painel_id:payload->>panelId, painel_titulo, etapa_titulo, etapa_fase, status, criado_em, atualizado_em, valor:payload->monetaryAmount, cf:payload->customFields").eq("cliente_id", clienteId).is("excluido_em", null).order("externo_id"),
@@ -101,7 +101,7 @@ async function montarBaseCampos(db: SupabaseClient, clienteId: string): Promise<
       atendente: rotuloAtendente(humanoSessao.get(String(x.externo_id)), nomeVisivel(ehSuporte, usuario[humanoSessao.get(String(x.externo_id)) ?? ""] || null)),
       equipe: (x.canal_id && equipe[x.canal_id]) || null,
       classificacao: cls.get(String(x.externo_id)) ?? x.classificacao ?? null,
-      status: x.status, criado_em: x.criado_em, tempo_espera: x.time_wait_segundos, tempo_atendimento: x.time_service_segundos,
+      status: x.status, criado_em: x.criado_em, classificado_em: x.classificado_em, tempo_espera: x.time_wait_segundos, tempo_atendimento: x.time_service_segundos,
     })),
     cards: cards.map((x: any) => ({
       id: String(x.externo_id), contato_ids: Array.isArray(x.contato_ids) ? x.contato_ids.map(String) : [],

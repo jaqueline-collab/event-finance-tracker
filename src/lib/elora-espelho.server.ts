@@ -105,6 +105,7 @@ export function mapAtendimento(clienteId: string, x: any) {
     canal_tipo: s(x.channelType ?? x.channelDetails?.platform),
     status: s(x.statusDescription ?? x.status),
     classificacao: classe,
+    classificado_em: classe ? s(x.updatedAt) : null,
     valor: Number.isFinite(valor) ? valor : null,
     atendente_id: s(x.userId),
     atendente_nome: s(x.agentDetails?.name),
@@ -270,7 +271,10 @@ export async function sincronizarFonte(
         if (est?.concluido_em) cursor.dias = [...new Set([...(cursor.dias ?? []), ...(await diasAfetados(db, clienteId, "elora_contatos_espelho", linhas, ["criado_em", "origem", "utm_campaign"], "criado_em"))])];
         await upsert(db, "elora_contatos_espelho", linhas, "cliente_id,externo_id");
       } else {
-        await upsert(db, "elora_atendimentos_espelho", itens.map((x) => mapAtendimento(clienteId, x)), "cliente_id,externo_id");
+        const linhas = itens.map((x) => mapAtendimento(clienteId, x));
+        const { data: antigas } = await db.from("elora_atendimentos_espelho").select("externo_id, classificacao, classificado_em").eq("cliente_id", clienteId).in("externo_id", linhas.map((x) => x.externo_id));
+        const { preservarDataClassificacao } = await import("./classificacao-data");
+        await upsert(db, "elora_atendimentos_espelho", preservarDataClassificacao(linhas, antigas ?? []), "cliente_id,externo_id");
       }
       registros += itens.length;
       const temMais = Boolean(resp?.hasMorePages) && itens.length > 0;

@@ -31,6 +31,7 @@ import {
 
 import { WidgetBuilder } from "@/components/widget-builder";
 import { DadosIntegracaoCliente } from "@/components/dados-integracao-cliente";
+import { ConfigOrigemPatrocinado } from "@/components/config-origem-patrocinado";
 import { RegrasRelatorio } from "@/components/regras-relatorio";
 
 type Estado = Awaited<ReturnType<typeof getIntegracaoCliente>>;
@@ -252,6 +253,7 @@ export function ConfigurarApiCliente({
       )}
 
       <RegrasRelatorio clienteId={clienteId} />
+      <ConfigOrigemPatrocinado clienteId={clienteId} />
 
       {/* 5. Classificações: só para quem usa (classificação sincronizada ou rótulo criado) */}
       {(rotulos.length > 0 || Boolean(estado?.ultimaSyncConversas)) && (

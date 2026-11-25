@@ -115,6 +115,7 @@ export type Database = {
           canal_nome: string | null
           canal_tipo: string | null
           classificacao: string | null
+          classificado_em: string | null
           cliente_id: string
           contato_id: string | null
           criado_em: string | null
@@ -141,6 +142,7 @@ export type Database = {
           canal_nome?: string | null
           canal_tipo?: string | null
           classificacao?: string | null
+          classificado_em?: string | null
           cliente_id: string
           contato_id?: string | null
           criado_em?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           canal_nome?: string | null
           canal_tipo?: string | null
           classificacao?: string | null
+          classificado_em?: string | null
           cliente_id?: string
           contato_id?: string | null
           criado_em?: string | null
@@ -2670,6 +2673,7 @@ export type Database = {
           matriz_nome: string | null
           matriz_ordem: number | null
           matriz_ordem_linhas: Json | null
+          origem_patrocinado: Json | null
           semana_inicia_segunda: boolean
         }
         Insert: {
@@ -2684,6 +2688,7 @@ export type Database = {
           matriz_nome?: string | null
           matriz_ordem?: number | null
           matriz_ordem_linhas?: Json | null
+          origem_patrocinado?: Json | null
           semana_inicia_segunda?: boolean
         }
         Update: {
@@ -2698,6 +2703,7 @@ export type Database = {
           matriz_nome?: string | null
           matriz_ordem?: number | null
           matriz_ordem_linhas?: Json | null
+          origem_patrocinado?: Json | null
           semana_inicia_segunda?: boolean
         }
         Relationships: [

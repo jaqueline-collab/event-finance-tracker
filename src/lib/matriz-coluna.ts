@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ehChavePadrao } from "@/lib/matriz";
 
 const campoRef = z.object({ fonte: z.enum(["card", "contato", "atendimento", "utm"]), campo: z.string().min(1).max(200) });
-const condicao = z.object({ campo: campoRef, operador: z.enum(["preenchido", "vazio", "igual", "contem"]), valor: z.string().max(300).optional() });
+const condicao = z.object({ campo: campoRef, operador: z.enum(["preenchido", "vazio", "igual", "contem", "em", "nao_em"]), valor: z.string().max(300).optional(), lista: z.enum(["origem_patrocinado"]).optional() });
 const grupo = z.object({ op: z.enum(["E", "OU"]), itens: z.array(condicao).max(20) });
 const evento = z.union([
   z.object({ tipo: z.literal("entrou_etapa"), etapa: z.string().min(1).max(200) }),
@@ -11,6 +11,7 @@ const evento = z.union([
   z.object({ tipo: z.literal("virou_perdido") }),
   z.object({ tipo: z.literal("campo_preenchido"), campo: campoRef }),
   z.object({ tipo: z.literal("foi_criado") }),
+  z.object({ tipo: z.literal("foi_classificado") }),
 ]);
 export const coluna = z.object({
   chave: z.string().max(60).optional(),

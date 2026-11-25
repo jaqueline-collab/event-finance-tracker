@@ -42,7 +42,7 @@ export type ContatoBase = {
 };
 export type AtendimentoBase = {
   id: string; contato_id: string | null; canal?: string | null; atendente?: string | null; equipe?: string | null; classificacao?: string | null;
-  status?: string | null; criado_em?: string | null; tempo_espera?: number | null; tempo_atendimento?: number | null;
+  status?: string | null; criado_em?: string | null; classificado_em?: string | null; tempo_espera?: number | null; tempo_atendimento?: number | null;
 };
 export type CardBase = {
   id: string; contato_ids: string[]; painel?: string | null; painel_id?: string | null; status_lead?: string | null; etapa?: string | null; fase?: string | null; status?: string | null;
@@ -61,7 +61,7 @@ export type AjusteCampo = { fonte: FonteCampo; campo: string; rotulo?: string | 
 
 /** Campos que o motor de colunas (Matriz) sabe ler; só estes viram "coluna". */
 const COLUNA_OK = (f: FonteCampo, c: string) =>
-  f === "utm" || (f === "contato" && (c === "origem" || c === "status_lead" || c.startsWith("campo."))) || (f === "card" && (c === "valor" || c === "status_lead" || c.startsWith("campo.")));
+  f === "utm" || f === "atendimento" || (f === "contato" && (c === "origem" || c === "status_lead" || c.startsWith("campo."))) || (f === "card" && (c === "valor" || c === "status_lead" || c.startsWith("campo.")));
 
 type Fixo = { campo: string; nome: string; tipo: TipoCampo; ler: (r: any) => unknown };
 const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
@@ -75,7 +75,8 @@ const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
     { campo: "status_lead", nome: "Status do lead", tipo: "lista", ler: (r) => r.status_lead },
   ],
   atendimento: [
-    { campo: "criado_em", nome: "Data", tipo: "data", ler: (r) => r.criado_em },
+    { campo: "criado_em", nome: "Data de criação", tipo: "data", ler: (r) => r.criado_em },
+    { campo: "classificado_em", nome: "Data da classificação", tipo: "data", ler: (r) => r.classificado_em },
     { campo: "canal", nome: "Canal", tipo: "lista", ler: (r) => r.canal },
     { campo: "atendente", nome: "Atendente", tipo: "lista", ler: (r) => r.atendente },
     { campo: "equipe", nome: "Equipe", tipo: "lista", ler: (r) => r.equipe },
