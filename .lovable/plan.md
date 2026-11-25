@@ -17,7 +17,7 @@ Sem criar estrutura nova: preencher os blocos da visão "Resultados" dela com os
 - Linha 2 — Contatos novos por origem: um bloco de número por origem (Meta ADS, Google ADS, Instagram, Orgânico, Base Doutora, Sem informação).
 - Linha 3 — Agendamentos: Total, Patrocinado, Não patrocinado.
 - Linha 4 — Procedimentos vendidos: Total, Patrocinado, Não patrocinado.
-- (Opcional, se aprovar) um bloco de barras "Contatos novos por dia" por indicador.
+- Linha 5 — um único gráfico de barras "Contatos novos por dia" com duas séries: Patrocinado e Não patrocinado (sem gráfico por indicador).
 - É só configuração da visão dela, editável depois pelo construtor de gráficos; outros clientes não mudam.
 
 ## 3. Conferência
@@ -30,4 +30,4 @@ Sem criar estrutura nova: preencher os blocos da visão "Resultados" dela com os
 ## Detalhes técnicos
 - `src/components/matriz-cliente.tsx`: função pura (novo helper em `src/lib/colunas-tabela.ts`) `separarGrupoColuna(nome)` e `agruparCabecalho(colunas)` gerando `{grupo, span}`; `<thead>` com duas `<tr>` quando houver grupo; colunas sem grupo usam `rowSpan=2`; "Dia" e "+ Coluna" com `rowSpan=2`. O `<button>` mostra só a parte depois de " · "; `aria-label`/`title` mantém o nome completo.
 - `exportarMatriz` continua recebendo `c.nome` completo (sem alteração).
-- Aba Resultados: UPDATE em `elora_dashboard_visoes.filtros` da visão `1a09b50d` com `cartoes` (`tipo: "numero"`, `medida: "indicador"`, `indicador: <chave da coluna>`, larguras 3–4), via SQL com o UPDATE mostrado antes; limpar `elora_calculo_cache` dela.
+- Aba Resultados: UPDATE em `elora_dashboard_visoes.filtros` da visão `1a09b50d` com `cartoes` (`tipo: "numero"`, `medida: "indicador"`, `indicador: <chave da coluna>`, larguras 3–4), via SQL, com o UPDATE mostrado no chat antes de rodar; limpar `elora_calculo_cache` dela.
