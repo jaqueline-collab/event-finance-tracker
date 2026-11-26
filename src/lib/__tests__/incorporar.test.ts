@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cartaoSchema } from "@/lib/graficos";
-import { ehRotaIncorporada, mascararToken, cartaoComDadosPessoais, cartaoPedido, cartoesDoLink, CSP_INCORPORADO, hashToken, novoToken, tokenValido } from "@/lib/incorporar";
+import { ehRotaIncorporada, lerCodigoDoEndereco, mascararToken, cartaoComDadosPessoais, cartaoPedido, cartoesDoLink, CSP_INCORPORADO, hashToken, novoToken, tokenValido } from "@/lib/incorporar";
 
 const c = (x: Record<string, unknown>) => cartaoSchema.parse({ id: "a", titulo: "Bloco", tipo: "barras", fonte: "atendimento", ...x });
 
@@ -71,5 +71,19 @@ describe("máscara do código por ?k=", () => {
     const t = "a".repeat(30) + "B_-c";
     expect(mascararToken(`/incorporado?k=${t}`)).toBe("/incorporado?k=[oculto]");
     expect(mascararToken(`/x?a=1&k=${t}`)).not.toContain(t);
+  });
+});
+
+describe("leitura do código do endereço", () => {
+  it("aceita ?k= e # válidos", () => {
+    const t = novoToken();
+    expect(lerCodigoDoEndereco(`?k=${t}`, "")).toEqual({ token: t, formato: "query", motivo: null });
+    expect(lerCodigoDoEndereco("", `#${t}`)).toEqual({ token: t, formato: "hash", motivo: null });
+  });
+
+  it("identifica código cortado e ausente", () => {
+    expect(lerCodigoDoEndereco("?k=curto", "")).toEqual({ token: null, formato: "query", motivo: "cortado" });
+    expect(lerCodigoDoEndereco("", "#curto")).toEqual({ token: null, formato: "hash", motivo: "cortado" });
+    expect(lerCodigoDoEndereco("", "")).toEqual({ token: null, formato: "nenhum", motivo: "ausente" });
   });
 });

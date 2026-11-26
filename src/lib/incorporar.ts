@@ -54,3 +54,25 @@ export async function hashToken(token: string): Promise<string> {
   return [...new Uint8Array(h)].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 export const tokenValido = (t: unknown): t is string => typeof t === "string" && /^[A-Za-z0-9_-]{40,64}$/.test(t);
+
+export type FormatoCodigo = "query" | "hash" | "nenhum";
+export type MotivoRecusaLink = "ausente" | "cortado" | "desativado";
+
+/** Lê o código do endereço (?k= ou #) e devolve o formato e, se inválido, o motivo — nunca expõe o código em registros. */
+export function lerCodigoDoEndereco(search: string, hash: string):
+  | { token: string; formato: "query" | "hash"; motivo: null }
+  | { token: null; formato: FormatoCodigo; motivo: "ausente" | "cortado" } {
+  const k = new URLSearchParams(search).get("k");
+  if (k) {
+    if (tokenValido(k)) return { token: k, formato: "query", motivo: null };
+    return { token: null, formato: "query", motivo: "cortado" };
+  }
+  const bruto = hash.replace(/^#/, "");
+  if (bruto) {
+    let h = bruto;
+    try { h = decodeURIComponent(bruto); } catch { /* mantém bruto para marcar cortado */ }
+    if (tokenValido(h)) return { token: h, formato: "hash", motivo: null };
+    return { token: null, formato: "hash", motivo: "cortado" };
+  }
+  return { token: null, formato: "nenhum", motivo: "ausente" };
+}

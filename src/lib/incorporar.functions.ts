@@ -98,14 +98,26 @@ async function admin() {
 }
 
 export const lerPainelIncorporado = createServerFn({ method: "POST" })
-  .inputValidator((i) => z.object({ token }).parse(i))
+  .inputValidator((i) => z.object({ token, formato: z.enum(["query", "hash"]).optional() }).parse(i))
   .handler(async ({ data }) => {
     const db = await admin();
     const { abrirLink } = await import("@/lib/incorporar.server");
     const l = await abrirLink(db, data.token, true);
-    if (!l) return INVALIDO;
+    if (!l) {
+      console.warn("[incorporado] recusado", { formato: data.formato ?? "desconhecido", motivo: "desativado" });
+      return INVALIDO;
+    }
     const { data: c } = await db.from("elora_clientes").select("nome").eq("id", l.clienteId).maybeSingle();
     return { valido: true as const, nomeCliente: String(c?.nome ?? ""), abas: l.abas.map((a) => ({ id: a.id, nome: a.nome, matriz: a.matriz, cartoes: a.cartoes, filtrosPadrao: a.padrao })) };
+  });
+
+/** Registra no servidor apenas o formato e o motivo de uma recusa local (sem nunca receber ou gravar o código). */
+export const registrarRecusaIncorporado = createServerFn({ method: "POST" })
+  .inputValidator((i) => z.object({ formato: z.enum(["query", "hash", "nenhum"]), motivo: z.enum(["ausente", "cortado"]) }).parse(i))
+  .handler(async ({ data }) => {
+    setResponseHeader("Cache-Control", "no-store");
+    console.warn("[incorporado] recusado", { formato: data.formato, motivo: data.motivo });
+    return { ok: true };
   });
 
 export const calcularPainelIncorporado = createServerFn({ method: "POST" })

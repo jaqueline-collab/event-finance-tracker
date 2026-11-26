@@ -7,8 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CartoesGraficos, usarFonteIncorporada } from "@/components/cartoes-graficos";
 import { MatrizCliente } from "@/components/matriz-cliente";
 import { SeletorPeriodo } from "@/components/painel-visual";
-import { calcularPainelIncorporado, itensDiaIncorporado, lerPainelIncorporado, matrizIncorporada } from "@/lib/incorporar.functions";
-import { tokenValido } from "@/lib/incorporar";
+import { calcularPainelIncorporado, itensDiaIncorporado, lerPainelIncorporado, matrizIncorporada, registrarRecusaIncorporado } from "@/lib/incorporar.functions";
+import { lerCodigoDoEndereco, type MotivoRecusaLink } from "@/lib/incorporar";
 import { BLOCO_TABELA_MATRIZ } from "@/lib/graficos";
 import { periodoDe, type Periodo, type PeriodoChave } from "@/lib/painel-visual";
 import { textoSelo } from "@/lib/filtros-fixos";
@@ -35,8 +35,9 @@ type Info = Extract<Awaited<ReturnType<typeof lerPainelIncorporado>>, { valido: 
 function PainelIncorporado() {
   const { tema } = Route.useSearch();
   const [token, setToken] = useState<string | null>(null);
+  const [formato, setFormato] = useState<"query" | "hash">("query");
   const [info, setInfo] = useState<Info | null>(null);
-  const [invalido, setInvalido] = useState(false);
+  const [motivo, setMotivo] = useState<MotivoRecusaLink | null>(null);
   const [ativa, setAtiva] = useState<string | null>(null);
   const [chave, setChave] = useState<PeriodoChave>("30d");
   const [periodo, setPeriodo] = useState<Periodo>(() => periodoDe("30d", new Date().toISOString()));
@@ -49,13 +50,17 @@ function PainelIncorporado() {
     if (tema) document.documentElement.classList.toggle("dark", tema === "escuro");
   }, [tema]);
 
-  // O token fica depois do "#": o navegador nunca o envia no endereço; só vai dentro das chamadas.
+  // Aceita ?k= (padrão para sobreviver no Elora App) e # (links antigos); limpa o código da barra logo após ler.
   useEffect(() => {
-    const k = new URLSearchParams(window.location.search).get("k");
-    if (k) window.history.replaceState(null, "", "/incorporado");
-    const t = k ?? decodeURIComponent(window.location.hash.replace(/^#/, ""));
-    if (!tokenValido(t)) { setInvalido(true); return; }
-    setToken(t);
+    const res = lerCodigoDoEndereco(window.location.search, window.location.hash);
+    if (res.formato === "query") window.history.replaceState(null, "", "/incorporado");
+    if (!res.token) {
+      setMotivo(res.motivo);
+      void registrarRecusaIncorporado({ data: { formato: res.formato, motivo: res.motivo } }).catch(() => {});
+      return;
+    }
+    setFormato(res.formato);
+    setToken(res.token);
   }, []);
 
   useEffect(() => {
@@ -65,26 +70,33 @@ function PainelIncorporado() {
       itensDia: (dia, cartao, filtrosVisao) => itensDiaIncorporado({ data: { token, abaId: abaRef.current, dia, cartao, filtrosVisao } }),
     });
     let vivo = true;
-    lerPainelIncorporado({ data: { token } })
+    lerPainelIncorporado({ data: { token, formato } })
       .then((r) => {
         if (!vivo) return;
-        if (!r.valido) { setInvalido(true); return; }
+        if (!r.valido) { setMotivo("desativado"); return; }
         setInfo(r);
         const primeira = r.abas[0];
         abaRef.current = primeira.id;
         setAtiva(primeira.id);
         setFiltros(primeira.matriz ? [] : primeira.filtrosPadrao);
       })
-      .catch(() => vivo && setInvalido(true));
+      .catch(() => vivo && setMotivo("desativado"));
     return () => { vivo = false; usarFonteIncorporada(null); };
-  }, [token]);
+  }, [token, formato]);
 
-  if (invalido) {
+  if (motivo) {
+    const semCodigo = motivo === "ausente" || motivo === "cortado";
     return (
       <main className="flex min-h-screen items-center justify-center bg-background p-4 text-center text-foreground">
         <div className="max-w-sm space-y-2">
-          <h1 className="text-lg font-semibold">Este link não está mais disponível</h1>
-          <p className="text-sm text-muted-foreground">Ele foi revogado ou não existe. Peça um novo link à equipe Elora.</p>
+          <h1 className="text-lg font-semibold">
+            {semCodigo ? "O endereço chegou sem o código" : "Este link foi trocado ou desativado"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {semCodigo
+              ? "O sistema onde o link foi salvo pode ter cortado parte do endereço. Copie o link novamente e salve outra vez."
+              : "Ele foi revogado ou não existe. Peça um novo link à equipe Elora."}
+          </p>
         </div>
       </main>
     );
