@@ -90,9 +90,9 @@ describe("separarGrupoColuna e agruparCabecalho", () => {
   it("agregarDoisValores e itensTabela filtram por camposData quando informados", () => {
     const base: any = {
       contatos: [
-        { id: "c1", nome: "Ana", criado_em: "2026-09-01T12:00:00Z", campos: { "data-da-consulta": "2026-11-17T14:00:00-03:00" } },
-        { id: "c2", nome: "Bia", criado_em: "2026-11-17T12:00:00Z", campos: { "data-do-procedimento": "2026-11-24T10:00:00-03:00" } },
-        { id: "c3", nome: "Caio", criado_em: "2026-11-17T12:00:00Z", campos: {} },
+        { id: "c1", nome: "Ana", criado_em: "2026-09-01T12:00:00Z", cf: { "data-da-consulta": "2026-11-17T14:00:00-03:00" } },
+        { id: "c2", nome: "Bia", criado_em: "2026-11-17T12:00:00Z", cf: { "data-do-procedimento": "2026-11-24T10:00:00-03:00" } },
+        { id: "c3", nome: "Caio", criado_em: "2026-11-17T12:00:00Z", cf: {} },
       ],
       atendimentos: [],
       cards: [],
