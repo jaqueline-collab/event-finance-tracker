@@ -477,7 +477,12 @@ function Grafico({ cartao: c, r, onClique }: { cartao: CartaoGrafico; r: Resulta
     };
     return (
       <div className="grid flex-1 grid-cols-2 items-center gap-4 py-2">
-        {linha("Total", r.total, r.anterior, c)}
+        {c.campoMedida ? linha("Total", r.total, r.anterior, c) : (
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="truncate text-3xl font-bold tracking-tight">—</p>
+          </div>
+        )}
         {linha("Quantidade", r.qtd ?? 0, r.qtdAnterior, { formato: "numero", medida: "contagem" })}
       </div>
     );

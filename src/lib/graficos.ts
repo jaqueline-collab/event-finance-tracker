@@ -316,10 +316,7 @@ export function agregarCartao(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, 
   const idx = indices(base);
   const passa = filtroDaFonte(base, cfg.fonte, [...filtrosVisao, ...cfg.filtros]);
   const regsFonte = passa ? registros(base, cfg.fonte).filter(passa) : registros(base, cfg.fonte);
-  const noPeriodo = (r: any, per: Periodo) => {
-    const d = diaSP(r.criado_em);
-    return !!d && d >= per.de && d <= per.ate;
-  };
+  const noPeriodo = (r: any, per: Periodo) => noPeriodoPor(base, cfg.fonte, idx, cfg.camposData, r, per);
   const chaveDe = (f: CampoRef | null | undefined, r: any): string[] => {
     if (!f) return ["Total"];
     if (ehCampoData(f, cat)) {
@@ -690,6 +687,15 @@ export function agregarDoisValores(base: BaseCampos, cfg: CartaoGrafico, p: Peri
 
 const ehImportado = (c: { origem?: string | null }) => (c.origem ?? "").toUpperCase() === "IMPORTED";
 const noPer = (iso: string | null | undefined, p: Periodo) => { const d = diaSP(iso ?? null); return !!d && d >= p.de && d <= p.ate; };
+function noPeriodoPor(base: BaseCampos, fonte: FonteCampo, idx: ReturnType<typeof indices>, campos: CampoRef[], r: any, per: Periodo): boolean {
+  if (!campos.length) return noPer(r.criado_em, per);
+  for (const f of campos) {
+    const v = f.campo === "criado_em" ? r.criado_em : valorLigado(base, fonte, f, r, idx);
+    const lista = Array.isArray(v) ? v : [v];
+    if (lista.some((x) => noPer(typeof x === "string" ? x : null, per))) return true;
+  }
+  return false;
+}
 
 /**
  * Matriz por UTM: linhas = combinação dos campos de UTM escolhidos (do contato).
@@ -767,7 +773,7 @@ export function itensTabela(base: BaseCampos, cfg: CartaoGrafico, p: Periodo, fi
   const txt = textoItem;
   const itens: { id: string; valores: Record<string, string>; brutos: Record<string, string> }[] = [];
   for (const r of registros(base, fonte)) {
-    if (soCards ? !soCards.has(String(r.id)) : !noPer(r.criado_em, p)) continue;
+    if (soCards ? !soCards.has(String(r.id)) : !noPeriodoPor(base, fonte, idx, cfg.camposData, r, p)) continue;
     if (passa && !passa(r)) continue;
     const valores: Record<string, string> = {};
     const brutos: Record<string, string> = {};

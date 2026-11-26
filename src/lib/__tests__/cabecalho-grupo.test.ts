@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { agruparCabecalho, separarGrupoColuna } from "@/lib/colunas-tabela";
-import { cartaoDeIndicadores, cartaoSchema } from "@/lib/graficos";
+import { agregarDoisValores, cartaoDeIndicadores, cartaoSchema, itensTabela } from "@/lib/graficos";
 
 describe("separarGrupoColuna e agruparCabecalho", () => {
   it("separa grupo e coluna pelo primeiro ' · '", () => {
@@ -85,5 +85,32 @@ describe("separarGrupoColuna e agruparCabecalho", () => {
       { rotulo: "Patrocinado", valores: { Valor: 7 }, total: 7 },
       { rotulo: "Não patrocinado", valores: { Valor: 15 }, total: 15 },
     ]);
+  });
+
+  it("agregarDoisValores e itensTabela filtram por camposData quando informados", () => {
+    const base: any = {
+      contatos: [
+        { id: "c1", nome: "Ana", criado_em: "2026-09-01T12:00:00Z", campos: { "data-da-consulta": "2026-11-17T14:00:00-03:00" } },
+        { id: "c2", nome: "Bia", criado_em: "2026-11-17T12:00:00Z", campos: { "data-do-procedimento": "2026-11-24T10:00:00-03:00" } },
+        { id: "c3", nome: "Caio", criado_em: "2026-11-17T12:00:00Z", campos: {} },
+      ],
+      atendimentos: [],
+      cards: [],
+    };
+    const per = { de: "2026-11-15", ate: "2026-11-25" };
+    const dv = agregarDoisValores(base, cartaoSchema.parse({
+      id: "dv1", titulo: "Consultas", tipo: "dois_valores", fonte: "contato",
+      camposData: [{ fonte: "contato", campo: "campo.data-da-consulta" }],
+    }), per);
+    expect(dv.qtd).toBe(1);
+    const tab = itensTabela(base, cartaoSchema.parse({
+      id: "t1", titulo: "Itens", tipo: "tabela_itens", fonte: "contato",
+      camposData: [
+        { fonte: "contato", campo: "campo.data-da-consulta" },
+        { fonte: "contato", campo: "campo.data-do-procedimento" },
+      ],
+      colunas: [{ fonte: "contato", campo: "nome" }],
+    }), per, [], false);
+    expect(tab.itens?.map((x) => x.id)).toEqual(["c1", "c2"]);
   });
 });
