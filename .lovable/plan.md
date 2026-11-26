@@ -8,17 +8,17 @@
 - Conclusão provável (não confirmada pelos registros): o Elora App guarda o endereço **sem a parte depois do #**. O link anterior, aberto direto no navegador em 25/11 às 14:01, funcionou com o mesmo formato.
 
 ## O que muda (vale para todos os clientes)
-1. **Link que sobrevive**: na tela de gerar link, um segundo botão "Copiar para o Elora App", com o código em `?k=` em vez de depois do #. A página já aceita esse formato e apaga o código da barra de endereço logo após ler. O formato com # continua o padrão para os outros usos.
+1. **Link que sobrevive**: o único botão "Copiar link" passa a copiar o endereço com o código em `?k=`, que funciona no Elora App. A página apaga o código da barra de endereço logo após ler. Links já gerados continuam valendo: os dois formatos (# e ?k=) são aceitos.
 2. **Mensagem certa na tela**: separar "O endereço chegou sem o código (o sistema pode ter cortado o link)" de "Este link foi trocado ou desativado".
 3. **Registro do motivo, sem o código**: cada tentativa recusada grava só o formato (#, ?k= ou nenhum) e o motivo (ausente, cortado, desativado). Assim a próxima dúvida se responde pelos registros.
 4. Nada de estrutura nova no banco; nenhum cliente com código específico.
 
 ## Como gerar um link que sobreviva (depois da mudança)
-Configurar → Incorporar → gerar link → "Copiar para o Elora App" → colar no Elora App. Se a frase nova "chegou sem o código" aparecer, o Elora App está cortando também o `?k=`, e o registro dirá isso.
+Configurar → Incorporar → gerar link → "Copiar link" → colar no Elora App. Se a frase nova "chegou sem o código" aparecer, o Elora App está cortando também o `?k=`, e o registro dirá isso.
 
 ## Detalhes técnicos
 - `src/lib/incorporar.ts`: função pura `lerCodigoDoEndereco(search, hash)` → `{ token, formato, motivo }`; teste com os dois formatos, código cortado e ausente.
 - `src/routes/incorporado.tsx`: usar a função; estado `motivo` para escolher a mensagem; ao recusar, chamar uma função de servidor pública que só faz `console.warn` com formato e motivo (sem token, limitada a rótulos fixos via Zod).
 - `abrirLink`/`lerPainelIncorporado`: quando o código é válido mas não existe/está revogado, registrar `motivo: desativado` (sem token).
-- `src/components/incorporar-painel.tsx`: segundo endereço `/incorporado?k=` com botão próprio.
+- `src/components/incorporar-painel.tsx`: o endereço copiado passa a ser `/incorporado?k=`; botão único mantido.
 - Não publicar.
