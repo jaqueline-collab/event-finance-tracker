@@ -42,6 +42,7 @@ export type ContatoBase = {
 };
 export type AtendimentoBase = {
   id: string; contato_id: string | null; canal?: string | null; atendente?: string | null; equipe?: string | null; classificacao?: string | null;
+  valor?: number | null;
   status?: string | null; criado_em?: string | null; encerrado_em?: string | null; classificado_em?: string | null; tempo_espera?: number | null; tempo_atendimento?: number | null;
 };
 export type CardBase = {
@@ -82,6 +83,7 @@ const FIXOS: Record<Exclude<FonteCampo, "utm">, Fixo[]> = {
     { campo: "atendente", nome: "Atendente", tipo: "lista", ler: (r) => r.atendente },
     { campo: "equipe", nome: "Equipe", tipo: "lista", ler: (r) => r.equipe },
     { campo: "classificacao", nome: "Classificação", tipo: "lista", ler: (r) => r.classificacao },
+    { campo: "valor", nome: "Valor", tipo: "moeda", ler: (r) => r.valor },
     { campo: "status", nome: "Status", tipo: "lista", ler: (r) => r.status },
     { campo: "tempo_espera", nome: "Tempo de espera (s)", tipo: "numero", ler: (r) => r.tempo_espera },
     { campo: "tempo_atendimento", nome: "Tempo de atendimento (s)", tipo: "numero", ler: (r) => r.tempo_atendimento },
