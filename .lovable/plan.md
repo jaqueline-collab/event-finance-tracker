@@ -26,15 +26,19 @@ Mesma ordem, tipo, título, largura e altura; substitui os 7 blocos atuais.
 Os blocos dele são todos genéricos (sem campo exclusivo dele), então a cópia é literal do JSON, trocando só nada além do id da visão. Após aplicar, confiro quais vieram vazios e informo.
 
 ## 3) Nova visão "Agendamentos" (igual à 2a1dc7bf)
-Mesmo layout: dois valores 6×1 + dois valores 6×1 + tabela de itens 12×6. No Dr. Ricardo os blocos leem cards (data e valor da consulta/procedimento). Ela não tem cards; o equivalente são as conversas com classificação (hoje no espelho: 6 "Consulta Agendada" e 12 "Procedimento Vendido").
+Mesmo layout do Dr. Ricardo: dois valores 6×1 + dois valores 6×1 + tabela de itens 12×6.
+
+Caminho escolhido: **campos de data do contato, igual ao Dr. Ricardo** (não a data da classificação). Os contatos dela têm os campos preenchidos:
+- `data-da-consulta`: 7 contatos com data
+- `data-do-procedimento`: 19 contatos com data
 
 | Bloco | Tipo | Dr. Ricardo usa | Dra. Nathalia usará |
 |---|---|---|---|
-| Consultas com data no período | dois valores 6×1 | cards do indicador consulta_agendada, data `campo.data-da-consulta`, valor `campo.valor-da-consulta` | fonte atendimento, filtro classificação = Consulta Agendada, data = data da classificação; valor: não existe na conversa → fica em branco, só a quantidade |
-| Procedimentos com data no período | dois valores 6×1 | cards de procedimento_vendido, data `campo.data-do-procedimento`, valor do card | fonte atendimento, classificação = Procedimento Vendido, data da classificação; valor em branco |
-| Agendamentos e vendas | tabela de itens 12×6 | cards dos dois indicadores, resumo "Consultas / Procedimentos" | fonte atendimento, classificação em [Consulta Agendada, Procedimento Vendido]; colunas: data da classificação, classificação, contato, canal, atendente, Origem |
+| Consultas com data no período | dois valores 6×1 | cards, data `campo.data-da-consulta`, valor `campo.valor-da-consulta` | contatos com `campo.data-da-consulta` dentro do período; valor só se ela tiver campo de valor preenchido, senão só a quantidade |
+| Procedimentos com data no período | dois valores 6×1 | cards, data `campo.data-do-procedimento`, valor do card | contatos com `campo.data-do-procedimento` dentro do período; idem para valor |
+| Agendamentos e vendas | tabela de itens 12×6 | cards dos dois indicadores | contatos com qualquer das duas datas no período; colunas: nome, data da consulta, data do procedimento, procedimento de interesse, Origem |
 
-Primeiro passo técnico desta parte: confirmar que dois valores e tabela de itens aceitam fonte atendimento contando pela data da classificação. Se exigirem ajuste, ele será genérico (nenhuma referência ao cliente) e testado; o resumo por tipo (Consultas/Procedimentos) da tabela é hoje só para cards — se não der para reaproveitar sem estrutura nova, a tabela fica sem esse resumo e eu aviso.
+Sem funil e sem indicador. Primeiro passo técnico: confirmar que dois valores e tabela de itens com fonte contato contam pelo campo de data escolhido; se faltar algo, ajuste genérico e testado, sem nada do cliente no código. O resumo por tipo da tabela fica de fora se exigir estrutura nova (aviso no relatório).
 
 ## Execução
 1. Mostrar no chat os 3 comandos (UPDATE em indicadores, UPDATE da visão 1a09b50d, INSERT da visão Agendamentos) antes de rodar.
