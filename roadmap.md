@@ -1,3 +1,4 @@
 - [x] Conferir incorporação: botão único ?k=, mensagens e motivos; manter domínio e CSP.
-- [ ] Ajustar somente a configuração Agendamentos da cliente autorizada, mostrar UPDATE e limpar seu cache.
-- [ ] Validar 01/11–25/11: 2 consultas/R$400, 5 procedimentos/R$1284 e tabela com 7 itens.
+- [x] Ajustar somente a configuração Agendamentos da cliente autorizada, mostrar UPDATE e limpar seu cache.
+- [x] Validar configuração salva e dados reais em 01/11–25/11: 2 consultas/R$400, 5 procedimentos/R$1284 e tabela com 7 itens.
+- [ ] Conferência visual autenticada: bloqueada pela autenticação externa, sem sessão disponível nesta prévia.
